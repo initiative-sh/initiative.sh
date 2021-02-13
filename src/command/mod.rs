@@ -3,12 +3,8 @@ use std::fmt;
 use std::ops::Range;
 use std::str::FromStr;
 
-mod adjective;
-mod noun;
 mod verb;
 
-pub use adjective::Adjective;
-pub use noun::Noun;
 pub use verb::Verb;
 
 #[derive(Debug)]
@@ -18,9 +14,6 @@ pub struct Command {
 
 #[derive(Debug)]
 enum Word {
-    ProperNoun(String),
-    //Noun(Noun),
-    //Adjective(Adjective),
     Verb(Verb),
     Unknown(String),
 }
@@ -61,9 +54,7 @@ impl FromStr for Word {
     type Err = ParseError;
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        Ok(if raw.starts_with(char::is_uppercase) {
-            Self::ProperNoun(raw.to_string())
-        } else if let Ok(verb) = raw.parse() {
+        Ok(if let Ok(verb) = raw.parse() {
             Self::Verb(verb)
         } else {
             Self::Unknown(raw.to_string())
@@ -74,9 +65,6 @@ impl FromStr for Word {
 impl From<Word> for String {
     fn from(word: Word) -> Self {
         match word {
-            Word::ProperNoun(s) => s,
-            //Word::Noun(n) => n.into(),
-            //Word::Adjective(a) => a.into(),
             Word::Verb(v) => v.into(),
             Word::Unknown(s) => s,
         }
