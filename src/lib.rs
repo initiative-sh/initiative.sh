@@ -5,6 +5,7 @@ use std::rc::Rc;
 use uuid::Uuid;
 
 use entity::Entity;
+use initiative_macros;
 
 mod command;
 mod entity;

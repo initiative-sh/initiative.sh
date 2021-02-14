@@ -1,7 +1,14 @@
+use rand::thread_rng;
 use std::error::Error;
 use std::io;
 
+use initiative_macros::{weight, RandomTable};
+
 fn main() -> Result<(), Box<dyn Error>> {
+    let mut rng = thread_rng();
+    println!("{:?}", Building::get_random(&mut rng));
+    Ok(())
+    /*
     let mut buffer = String::new();
     let mut world = initiative::World::default();
 
@@ -10,4 +17,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("{}", world.run(&buffer));
         buffer.clear();
     }
+    */
+}
+
+#[derive(Debug, RandomTable)]
+pub enum Building {
+    Residence,
+    Religious,
+    Tavern,
+    Warehouse,
+    Shop,
+}
+
+pub trait RandomTable {
+    fn get_random(rng: &mut impl rand::Rng) -> Self;
 }

@@ -8,3 +8,11 @@ edition = "2018"
 
 [dependencies]
 uuid = { version = "0.8", features = ["v4"] }
+initiative_macros = "0.1"
+rand = "0.8"
+
+[workspace]
+members = ["initiative_macros"]
+
+[patch.crates-io]
+initiative_macros = { path = "initiative_macros" }
