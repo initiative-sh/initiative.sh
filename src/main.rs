@@ -2,11 +2,14 @@ use rand::thread_rng;
 use std::error::Error;
 use std::io;
 
-use initiative_macros::{weight, RandomTable};
+use initiative_macros::RandomTable;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut rng = thread_rng();
-    println!("{:?}", Building::get_random(&mut rng));
+    println!(
+        "{:?}",
+        Building::get_random(&mut rng, &Demographics::default())
+    );
     Ok(())
     /*
     let mut buffer = String::new();
@@ -30,5 +33,8 @@ pub enum Building {
 }
 
 pub trait RandomTable {
-    fn get_random(rng: &mut impl rand::Rng) -> Self;
+    fn get_random(rng: &mut impl rand::Rng, demographics: &Demographics) -> Self;
 }
+
+#[derive(Default)]
+pub struct Demographics {}
