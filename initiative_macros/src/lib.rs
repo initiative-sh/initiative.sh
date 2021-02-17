@@ -29,6 +29,22 @@ fn impl_random_table(ast: &syn::DeriveInput) -> TokenStream {
         };
         gen.into()
     } else {
-        panic!();
+        unimplemented!();
     }
 }
+
+/*
+#[proc_macro_derive(Demographics)]
+pub fn demographics_derive(input: TokenStream) -> TokenStream {
+    let ast = syn::parse(input).unwrap();
+    impl_demographics(&ast)
+}
+
+fn impl_demographics(ast: &syn::DeriveInput) -> TokenStream {
+    let name = &ast.ident;
+
+    if let syn::Data::Struct(data_struct) = &ast.data {
+    } else {
+    }
+}
+*/
