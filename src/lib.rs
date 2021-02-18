@@ -4,12 +4,10 @@ use std::rc::Rc;
 
 use uuid::Uuid;
 
-use entity::Entity;
-pub use world::World;
+use world::World;
 
 mod command;
 mod demographics;
-mod entity;
 mod world;
 
 pub struct Context {
@@ -20,6 +18,10 @@ pub struct Context {
 impl Context {
     pub fn run(&mut self, command: &str) -> Box<impl fmt::Display> {
         Box::new(format!("{:?}", command.parse::<command::Command>()))
+    }
+
+    fn get_world(&self) -> &World {
+        self.worlds.get(&self.active_world).unwrap()
     }
 }
 

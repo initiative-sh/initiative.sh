@@ -30,6 +30,28 @@ pub struct ParseError {
     highlight: Option<Range<usize>>,
 }
 
+impl Command {
+    pub fn get_verb(&self) -> Option<&Verb> {
+        self.words.iter().find_map(|word| {
+            if let Word::Verb(v) = word {
+                Some(v)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn get_noun(&self) -> Option<&Noun> {
+        self.words.iter().find_map(|word| {
+            if let Word::Noun(n) = word {
+                Some(n)
+            } else {
+                None
+            }
+        })
+    }
+}
+
 impl FromStr for Command {
     type Err = ParseError;
 
@@ -54,8 +76,17 @@ impl FromStr for Command {
                                         acc.push(' ');
                                     }
                                     acc.push_str(&match word {
-                                        Word::ProperNoun(n2) => n2,
-                                        Word::Unknown(n2) => n2,
+                                        Word::ProperNoun(word) => word,
+                                        Word::Unknown(word) => {
+                                            let mut chars = word.chars();
+                                            match chars.next() {
+                                                None => String::new(),
+                                                Some(s) => {
+                                                    s.to_uppercase().collect::<String>()
+                                                        + chars.as_str()
+                                                }
+                                            }
+                                        }
                                         _ => unreachable!(),
                                     });
                                     acc
