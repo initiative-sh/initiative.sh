@@ -1,19 +1,33 @@
-use std::collections::HashMap;
 use std::rc::Rc;
 
+use rand::Rng;
 use uuid::Uuid;
 
-use super::Value;
+use super::{Demographics, Field, NpcUuid};
+
+pub type RegionUuid = Uuid;
 
 #[derive(Default)]
 pub struct Region {
-    pub uuid: Option<Rc<Uuid>>,
-    pub parent_uuid: Option<Rc<Uuid>>,
+    pub uuid: Option<Rc<RegionUuid>>,
+    pub parent_uuid: Option<Rc<RegionUuid>>,
     pub demographics: Demographics,
-    pub data: HashMap<RegionField, Value>,
+    pub subtype: RegionType,
+
+    pub name: Field<String>,
+    // pub population: Field<u64>,
+    // pub government: Field<GovernmentType>,
+    // pub leader: Field<NpcUuid>,
+    // pub inhabitants: Field<Vec<NpcUuid>>,
 }
 
-#[derive(Default)]
-pub struct Demographics {}
+pub enum RegionType {
+    World,
+    Town,
+}
 
-pub enum RegionField {}
+impl Default for RegionType {
+    fn default() -> Self {
+        Self::World
+    }
+}
