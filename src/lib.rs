@@ -7,7 +7,6 @@ use uuid::Uuid;
 use world::World;
 
 mod command;
-mod demographics;
 mod world;
 
 pub struct Context {
@@ -38,8 +37,4 @@ impl Default for Context {
             active_world,
         }
     }
-}
-
-pub trait RandomTable {
-    fn get_random(rng: &mut impl rand::Rng, demographics: &demographics::Demographics) -> Self;
 }

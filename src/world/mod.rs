@@ -2,6 +2,14 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use uuid::Uuid;
 
+pub use demographics::Demographics;
+pub use location::Location;
+pub use region::Region;
+
+mod demographics;
+mod location;
+mod region;
+
 pub struct World {
     pub uuid: Rc<Uuid>,
     pub regions: HashMap<Rc<Uuid>, Region>,
@@ -24,37 +32,11 @@ impl Default for World {
     }
 }
 
-#[derive(Default)]
-pub struct Region {
-    pub uuid: Option<Rc<Uuid>>,
-    pub parent_uuid: Option<Rc<Uuid>>,
-    pub demographics: Demographics,
-    pub data: HashMap<RegionField, String>,
-}
-
-pub enum RegionField {}
-
-#[derive(Default)]
-pub struct Demographics {}
-
-pub struct Location {
-    uuid: Option<Rc<Uuid>>,
-    parent_uuid: Option<Rc<Uuid>>,
-    subtype: LocationType,
-    data: HashMap<LocationField, String>,
-}
-
-enum LocationType {
-    Building(BuildingType),
-}
-
-enum LocationField {}
-
-enum BuildingType {
-    Inn,
-}
-
-enum Field {
+pub enum Value {
     String(String),
     Number(u64),
+}
+
+pub trait Generate {
+    fn generate(rng: &mut impl rand::Rng, demographics: &demographics::Demographics) -> Self;
 }
