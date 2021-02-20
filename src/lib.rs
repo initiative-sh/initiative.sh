@@ -18,8 +18,9 @@ pub struct Context {
 impl Context {
     pub fn run(&mut self, command: &str) -> Box<impl fmt::Display> {
         Box::new(format!(
-            "{:?}\n\n{:?}",
-            world::Location::generate(&mut StdRng::from_entropy(), &world::Demographics {}),
+            "{}\n\n{:?}",
+            world::Location::generate(&mut StdRng::from_entropy(), &world::Demographics {})
+                .display_details(),
             command.parse::<command::Command>()
         ))
     }

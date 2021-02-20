@@ -1,8 +1,6 @@
 use std::ops::Deref;
 use std::rc::Rc;
 
-use rand::Rng;
-
 use super::{Demographics, Field};
 
 #[derive(Debug, Eq, PartialEq, Hash)]

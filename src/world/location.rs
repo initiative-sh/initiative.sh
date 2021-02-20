@@ -1,3 +1,4 @@
+use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -55,6 +56,27 @@ pub enum BuildingType {
     Shop,
 }
 
+pub struct LocationView<'a> {
+    location: &'a Location,
+    summary: bool,
+}
+
+impl Location {
+    pub fn display_summary(&self) -> LocationView {
+        LocationView {
+            location: self,
+            summary: true,
+        }
+    }
+
+    pub fn display_details(&self) -> LocationView {
+        LocationView {
+            location: self,
+            summary: false,
+        }
+    }
+}
+
 impl Generate for Location {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
         self.subtype.replace_with(|location_type| {
@@ -80,6 +102,52 @@ impl Generate for Location {
     }
 }
 
+impl<'a> fmt::Display for LocationView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let location = self.location;
+
+        if self.summary {
+            match (
+                location.subtype.is_some(),
+                location.name.is_some(),
+                location.description.is_some(),
+            ) {
+                (true, true, _) => {
+                    let subtype = format!("{}", location.subtype);
+                    if subtype.starts_with(&['A', 'E', 'I', 'O', 'U'][..]) {
+                        write!(f, "{}, an {}", location.name, subtype)
+                    } else {
+                        write!(f, "{}, a {}", location.name, subtype)
+                    }
+                }
+                (true, false, true) => write!(f, "{} ({})", location.subtype, location.description),
+                (true, false, false) => write!(f, "{}", location.subtype),
+                (false, true, true) => write!(f, "{} ({})", location.name, location.description),
+                (false, true, false) => write!(f, "{}", location.name),
+                (false, false, true) => write!(f, "{}", location.description),
+                (false, false, false) => write!(f, "{:?}", location),
+            }
+        } else {
+            location
+                .name
+                .as_ref()
+                .map(|name| writeln!(f, "{}", name))
+                .transpose()?;
+            location
+                .subtype
+                .as_ref()
+                .map(|subtype| writeln!(f, "Type: {}", subtype))
+                .transpose()?;
+            location
+                .description
+                .as_ref()
+                .map(|description| writeln!(f, "\n{}", description))
+                .transpose()?;
+            Ok(())
+        }
+    }
+}
+
 impl Default for LocationType {
     fn default() -> Self {
         Self::Building(Default::default())
@@ -89,6 +157,14 @@ impl Default for LocationType {
 impl Generate for LocationType {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
         *self = Self::Building(BuildingType::generate(rng, demographics))
+    }
+}
+
+impl fmt::Display for LocationType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Building(building_type) => write!(f, "{}", building_type),
+        }
     }
 }
 
@@ -108,6 +184,18 @@ impl Generate for BuildingType {
             18..=20 => BuildingType::Shop,
             _ => unreachable!(),
         };
+    }
+}
+
+impl fmt::Display for BuildingType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            BuildingType::Residence => write!(f, "Residence"),
+            BuildingType::Religious => write!(f, "Religious"),
+            BuildingType::Inn => write!(f, "Inn"),
+            BuildingType::Warehouse => write!(f, "Warehouse"),
+            BuildingType::Shop => write!(f, "Shop"),
+        }
     }
 }
 

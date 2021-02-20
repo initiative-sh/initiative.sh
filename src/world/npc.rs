@@ -1,7 +1,6 @@
+use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
-
-use rand::Rng;
 
 use super::Field;
 
@@ -42,8 +41,19 @@ pub enum NpcRole {
     Innkeeper,
 }
 
+#[derive(Debug)]
 pub enum NpcGender {
     Masculine,
     Feminine,
     Neuter,
+}
+
+impl fmt::Display for NpcGender {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            NpcGender::Masculine => write!(f, "Masculine"),
+            NpcGender::Feminine => write!(f, "Feminine"),
+            NpcGender::Neuter => write!(f, "Neuter"),
+        }
+    }
 }

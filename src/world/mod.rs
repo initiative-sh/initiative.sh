@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
@@ -39,7 +40,7 @@ pub struct World {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Field<T> {
+pub struct Field<T: fmt::Display> {
     is_locked: bool,
     value: Option<T>,
 }
@@ -61,7 +62,7 @@ impl Default for World {
     }
 }
 
-impl<T> Field<T> {
+impl<T: fmt::Display> Field<T> {
     pub fn new(value: T) -> Self {
         Self {
             is_locked: true,
@@ -76,11 +77,11 @@ impl<T> Field<T> {
         }
     }
 
-    pub const fn is_locked(&self) -> bool {
+    pub fn is_locked(&self) -> bool {
         self.is_locked
     }
 
-    pub const fn is_unlocked(&self) -> bool {
+    pub fn is_unlocked(&self) -> bool {
         !self.is_locked()
     }
 
@@ -106,7 +107,7 @@ impl<T> Field<T> {
     }
 }
 
-impl<T> Default for Field<T> {
+impl<T: fmt::Display> Default for Field<T> {
     fn default() -> Self {
         Self {
             is_locked: false,
@@ -115,13 +116,13 @@ impl<T> Default for Field<T> {
     }
 }
 
-impl<T> From<T> for Field<T> {
+impl<T: fmt::Display> From<T> for Field<T> {
     fn from(value: T) -> Field<T> {
         Self::new(value)
     }
 }
 
-impl<T> Deref for Field<T> {
+impl<T: fmt::Display> Deref for Field<T> {
     type Target = Option<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -129,9 +130,18 @@ impl<T> Deref for Field<T> {
     }
 }
 
-impl<T> DerefMut for Field<T> {
+impl<T: fmt::Display> DerefMut for Field<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.value
+    }
+}
+
+impl<T: fmt::Display> fmt::Display for Field<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let Some(value) = &self.value {
+            write!(f, "{}", value)?;
+        }
+        Ok(())
     }
 }
 
