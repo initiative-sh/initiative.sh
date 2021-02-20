@@ -1,11 +1,13 @@
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::fmt;
 use std::rc::Rc;
 
 use rand::prelude::*;
 use uuid::Uuid;
 
-use world::{Generate, World};
+use command::Noun;
+use world::{Location, World};
 
 mod command;
 mod world;
@@ -17,12 +19,22 @@ pub struct Context {
 
 impl Context {
     pub fn run(&mut self, command: &str) -> Box<impl fmt::Display> {
-        Box::new(format!(
-            "{}\n\n{:?}",
-            world::Location::generate(&mut StdRng::from_entropy(), &world::Demographics {})
-                .display_details(),
-            command.parse::<command::Command>()
-        ))
+        let command: command::Command = command.parse().unwrap();
+        let demographics = world::Demographics {};
+
+        if let Some(verb) = command.get_verb() {
+            Box::new(format!("{:?}", verb))
+        } else if let Some(&noun) = command.get_noun() {
+            if let Ok(location_subtype) = noun.try_into() {
+                let location =
+                    Location::generate_subtype(location_subtype, &mut thread_rng(), &demographics);
+                Box::new(format!("{}", location.display_details()))
+            } else {
+                Box::new(format!("{:?}", noun))
+            }
+        } else {
+            Box::new(format!("{:?}", command))
+        }
     }
 
     fn get_world(&self) -> &World {

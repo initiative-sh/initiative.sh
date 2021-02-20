@@ -11,10 +11,10 @@ pub use location::Location;
 pub use npc::Npc;
 pub use region::Region;
 
-mod demographics;
-mod location;
-mod npc;
-mod region;
+pub mod demographics;
+pub mod location;
+pub mod npc;
+pub mod region;
 
 pub type WorldUuid = Uuid;
 

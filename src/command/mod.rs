@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::error::Error;
 use std::fmt;
 use std::ops::Range;
@@ -53,7 +54,7 @@ impl Command {
 }
 
 impl FromStr for Command {
-    type Err = ParseError;
+    type Err = Infallible;
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
         Ok(Command {

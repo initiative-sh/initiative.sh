@@ -2,9 +2,13 @@ use std::str::FromStr;
 
 use super::ParseError;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Noun {
     Inn,
+    Residence,
+    Shop,
+    Temple,
+    Warehouse,
 }
 
 impl FromStr for Noun {
@@ -12,7 +16,11 @@ impl FromStr for Noun {
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
         Ok(match raw {
-            "inn" => Self::Inn,
+            "inn" => Noun::Inn,
+            "residence" | "home" => Noun::Residence,
+            "temple" | "church" => Noun::Temple,
+            "shop" => Noun::Shop,
+            "warehouse" => Noun::Warehouse,
             _ => {
                 return Err(ParseError {
                     message: "Unknown command.".to_string(),
@@ -25,9 +33,13 @@ impl FromStr for Noun {
 }
 
 impl From<Noun> for String {
-    fn from(noun: Noun) -> Self {
+    fn from(noun: Noun) -> String {
         match noun {
             Noun::Inn => "inn",
+            Noun::Residence => "residence",
+            Noun::Shop => "shop",
+            Noun::Temple => "temple",
+            Noun::Warehouse => "warehouse",
         }
         .to_string()
     }

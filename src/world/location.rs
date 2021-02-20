@@ -1,3 +1,4 @@
+use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -5,6 +6,7 @@ use std::rc::Rc;
 use rand::Rng;
 
 use super::{region, Demographics, Field, Generate};
+use crate::Noun;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Uuid(uuid::Uuid);
@@ -50,7 +52,7 @@ pub enum LocationType {
 #[derive(Clone, Copy, Debug)]
 pub enum BuildingType {
     Residence,
-    Religious,
+    Temple,
     Inn,
     Warehouse,
     Shop,
@@ -75,6 +77,25 @@ impl Location {
             summary: false,
         }
     }
+
+    pub fn generate_subtype(
+        subtype: LocationType,
+        rng: &mut impl Rng,
+        demographics: &Demographics,
+    ) -> Self {
+        let mut location = Self::default();
+        location.subtype = Field::new(subtype);
+        location.regenerate(rng, demographics);
+        location
+    }
+
+    pub fn generate_building(
+        building_type: BuildingType,
+        rng: &mut impl Rng,
+        demographics: &Demographics,
+    ) -> Self {
+        Self::generate_subtype(LocationType::Building(building_type), rng, demographics)
+    }
 }
 
 impl Generate for Location {
@@ -92,7 +113,7 @@ impl Generate for Location {
             match value {
                 LocationType::Building(building_type) => match building_type {
                     BuildingType::Residence => generate_residence(self, rng, demographics),
-                    BuildingType::Religious => generate_religious(self, rng, demographics),
+                    BuildingType::Temple => generate_temple(self, rng, demographics),
                     BuildingType::Inn => generate_inn(self, rng, demographics),
                     BuildingType::Warehouse => generate_warehouse(self, rng, demographics),
                     BuildingType::Shop => generate_shop(self, rng, demographics),
@@ -168,6 +189,18 @@ impl fmt::Display for LocationType {
     }
 }
 
+impl TryFrom<Noun> for LocationType {
+    type Error = ();
+
+    fn try_from(value: Noun) -> Result<Self, Self::Error> {
+        if let Ok(building_type) = value.try_into() {
+            Ok(LocationType::Building(building_type))
+        } else {
+            Err(())
+        }
+    }
+}
+
 impl Default for BuildingType {
     fn default() -> Self {
         Self::Shop
@@ -178,7 +211,7 @@ impl Generate for BuildingType {
     fn regenerate(&mut self, rng: &mut impl Rng, _demographics: &Demographics) {
         *self = match rng.gen_range(1..=20) {
             1..=10 => BuildingType::Residence,
-            11..=12 => BuildingType::Religious,
+            11..=12 => BuildingType::Temple,
             13..=15 => BuildingType::Inn,
             16..=17 => BuildingType::Warehouse,
             18..=20 => BuildingType::Shop,
@@ -191,10 +224,25 @@ impl fmt::Display for BuildingType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             BuildingType::Residence => write!(f, "Residence"),
-            BuildingType::Religious => write!(f, "Religious"),
+            BuildingType::Temple => write!(f, "Temple"),
             BuildingType::Inn => write!(f, "Inn"),
             BuildingType::Warehouse => write!(f, "Warehouse"),
             BuildingType::Shop => write!(f, "Shop"),
+        }
+    }
+}
+
+impl TryFrom<Noun> for BuildingType {
+    type Error = ();
+
+    fn try_from(value: Noun) -> Result<Self, Self::Error> {
+        match value {
+            Noun::Inn => Ok(BuildingType::Inn),
+            Noun::Temple => Ok(BuildingType::Temple),
+            Noun::Residence => Ok(BuildingType::Residence),
+            Noun::Shop => Ok(BuildingType::Shop),
+            Noun::Warehouse => Ok(BuildingType::Warehouse),
+            _ => Err(()),
         }
     }
 }
@@ -218,7 +266,7 @@ fn generate_residence(location: &mut Location, rng: &mut impl Rng, _demographics
     });
 }
 
-fn generate_religious(location: &mut Location, rng: &mut impl Rng, _demographics: &Demographics) {
+fn generate_temple(location: &mut Location, rng: &mut impl Rng, _demographics: &Demographics) {
     location.name.clear();
 
     location.description.replace_with(|_| {
