@@ -2,9 +2,10 @@ use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
+use rand::prelude::*;
 use uuid::Uuid;
 
-use world::World;
+use world::{Generate, World};
 
 mod command;
 mod world;
@@ -16,7 +17,11 @@ pub struct Context {
 
 impl Context {
     pub fn run(&mut self, command: &str) -> Box<impl fmt::Display> {
-        Box::new(format!("{:?}", command.parse::<command::Command>()))
+        Box::new(format!(
+            "{:?}\n\n{:?}",
+            world::Location::generate(&mut StdRng::from_entropy(), &world::Demographics {}),
+            command.parse::<command::Command>()
+        ))
     }
 
     fn get_world(&self) -> &World {

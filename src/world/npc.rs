@@ -1,14 +1,29 @@
+use std::ops::Deref;
 use std::rc::Rc;
 
 use rand::Rng;
-use uuid::Uuid;
 
 use super::Field;
 
-pub type NpcUuid = Uuid;
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub struct Uuid(uuid::Uuid);
+
+impl Deref for Uuid {
+    type Target = uuid::Uuid;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<uuid::Uuid> for Uuid {
+    fn from(uuid: uuid::Uuid) -> Self {
+        Self(uuid)
+    }
+}
 
 pub struct Npc {
-    pub uuid: Option<Rc<NpcUuid>>,
+    pub uuid: Option<Rc<Uuid>>,
     pub name: Field<String>,
     // pub home: Field<RegionUuid>,
     pub gender: Field<NpcGender>,

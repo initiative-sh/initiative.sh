@@ -6,9 +6,9 @@ use rand::Rng;
 use uuid::Uuid;
 
 pub use demographics::Demographics;
-pub use location::{Location, LocationUuid};
-pub use npc::{Npc, NpcUuid};
-pub use region::{Region, RegionUuid};
+pub use location::Location;
+pub use npc::Npc;
+pub use region::Region;
 
 mod demographics;
 mod location;
@@ -33,9 +33,9 @@ trait PopulateFields {
 
 pub struct World {
     pub uuid: Rc<WorldUuid>,
-    pub regions: HashMap<Rc<RegionUuid>, Region>,
-    pub locations: HashMap<Rc<LocationUuid>, Location>,
-    pub npcs: HashMap<Rc<NpcUuid>, Npc>,
+    pub regions: HashMap<Rc<region::Uuid>, Region>,
+    pub locations: HashMap<Rc<location::Uuid>, Location>,
+    pub npcs: HashMap<Rc<npc::Uuid>, Npc>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -51,7 +51,7 @@ impl World {
 impl Default for World {
     fn default() -> Self {
         let mut regions = HashMap::new();
-        regions.insert(Rc::new(Self::ROOT_UUID), Region::default());
+        regions.insert(Rc::new(Self::ROOT_UUID.into()), Region::default());
         World {
             uuid: Rc::new(Uuid::new_v4()),
             regions,
@@ -92,9 +92,16 @@ impl<T> Field<T> {
         self.is_locked = false;
     }
 
-    pub fn replace_with<F: FnOnce() -> T>(&mut self, f: F) {
-        if !self.is_locked() {
-            self.replace(f());
+    pub fn replace_with<F: FnOnce(Option<T>) -> T>(&mut self, f: F) {
+        if self.is_unlocked() {
+            let value = self.value.take();
+            self.replace(f(value));
+        }
+    }
+
+    pub fn clear(&mut self) {
+        if self.is_unlocked() {
+            self.value = None;
         }
     }
 }
@@ -186,12 +193,26 @@ mod test_field {
     fn test_replace_with() {
         let mut field: Field<_> = Field::default();
 
-        field.replace_with(|| "Hello");
-        assert_eq!(Field::new_generated("Hello"), field);
+        field.replace_with(|_| 1);
+        assert_eq!(Field::new_generated(1), field);
+
+        field.replace_with(|i| i.unwrap() + 1);
+        assert_eq!(Field::new_generated(2), field);
 
         field.lock();
 
-        field.replace_with(|| "Goodbye");
-        assert_eq!(Field::new("Hello"), field);
+        field.replace_with(|_| 3);
+        assert_eq!(Field::new(2), field);
+    }
+
+    #[test]
+    fn test_clear() {
+        let mut field: Field<_> = Field::new_generated(123);
+        field.clear();
+        assert!(field.is_none());
+
+        let mut field: Field<_> = Field::new(123);
+        field.clear();
+        assert!(field.is_some());
     }
 }
