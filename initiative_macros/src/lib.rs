@@ -33,6 +33,54 @@ fn impl_random_table(ast: &syn::DeriveInput) -> TokenStream {
     }
 }
 
+#[proc_macro_derive(WordList)]
+pub fn word_list_derive(input: TokenStream) -> TokenStream {
+    let ast = syn::parse(input).unwrap();
+    impl_word_list(&ast)
+}
+
+fn impl_word_list(ast: &syn::DeriveInput) -> TokenStream {
+    let name = &ast.ident;
+
+    if let syn::Data::Enum(data_enum) = &ast.data {
+        let (words_to_variants, variants_to_words): (Vec<_>, Vec<_>) = data_enum
+            .variants
+            .iter()
+            .map(|variant| {
+                let word = variant.ident.to_string().to_lowercase();
+                (
+                    quote! { #word => Ok(#name::#variant), },
+                    quote! { #name::#variant => #word, },
+                )
+            })
+            .unzip();
+
+        let gen = quote! {
+            impl std::str::FromStr for #name {
+                type Err = ();
+
+                fn from_str(raw: &str) -> Result<#name, ()> {
+                    match raw {
+                        #(#words_to_variants)*
+                        _ => Err(()),
+                    }
+                }
+            }
+
+            impl From<#name> for String {
+                fn from(variant: #name) -> String {
+                    match variant {
+                        #(#variants_to_words)*
+                    }.to_string()
+                }
+            }
+        };
+        gen.into()
+    } else {
+        unimplemented!();
+    }
+}
+
 /*
 #[proc_macro_derive(Demographics)]
 pub fn demographics_derive(input: TokenStream) -> TokenStream {
