@@ -3,10 +3,9 @@ use std::fmt;
 
 use rand::Rng;
 
-use super::Location;
-use super::{Demographics, Generate, Noun};
+use super::{Demographics, Generate, Location, LocationType, Noun};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BuildingType {
     Residence,
     Temple,
@@ -58,6 +57,12 @@ impl TryFrom<Noun> for BuildingType {
             Noun::Warehouse => Ok(BuildingType::Warehouse),
             _ => Err(()),
         }
+    }
+}
+
+impl From<BuildingType> for LocationType {
+    fn from(building_type: BuildingType) -> LocationType {
+        LocationType::Building(building_type)
     }
 }
 

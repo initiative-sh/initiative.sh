@@ -39,7 +39,7 @@ pub struct World {
     pub npcs: HashMap<Rc<npc::Uuid>, Npc>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Field<T: fmt::Display> {
     is_locked: bool,
     value: Option<T>,
@@ -119,6 +119,12 @@ impl<T: fmt::Display> Default for Field<T> {
 impl<T: fmt::Display> From<T> for Field<T> {
     fn from(value: T) -> Field<T> {
         Self::new(value)
+    }
+}
+
+impl From<&str> for Field<String> {
+    fn from(value: &str) -> Field<String> {
+        Self::new(value.to_string())
     }
 }
 

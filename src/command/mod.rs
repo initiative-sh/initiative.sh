@@ -1,7 +1,4 @@
 use std::convert::Infallible;
-use std::error::Error;
-use std::fmt;
-use std::ops::Range;
 use std::str::FromStr;
 
 mod noun;
@@ -16,19 +13,12 @@ pub struct Command {
     words: Vec<Word>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Word {
     Verb(Verb),
     Noun(Noun),
     ProperNoun(String),
     Unknown(String),
-}
-
-#[derive(Debug, Default)]
-pub struct ParseError {
-    message: String,
-    input: String,
-    highlight: Option<Range<usize>>,
 }
 
 impl Command {
@@ -115,7 +105,7 @@ impl From<Command> for String {
 }
 
 impl FromStr for Word {
-    type Err = ParseError;
+    type Err = ();
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
         Ok(if raw.starts_with(char::is_uppercase) {
@@ -141,10 +131,90 @@ impl From<Word> for String {
     }
 }
 
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", self.message)
+#[cfg(test)]
+mod test_command {
+    use super::{Command, Noun, Verb, Word};
+
+    #[test]
+    fn word_salad_test() {
+        let input = "tutorial inn Potato carrot";
+        let command: Command = input.parse().unwrap();
+
+        assert_eq!(
+            vec![
+                Word::Verb(Verb::Tutorial),
+                Word::Noun(Noun::Inn),
+                Word::ProperNoun("Potato".to_string()),
+                Word::Unknown("carrot".to_string()),
+            ],
+            command.words
+        );
+        assert_eq!(input, command.raw.as_str());
+    }
+
+    #[test]
+    fn compound_proper_noun_test() {
+        let input = "some Words with Random Capitalization inn and Nouns in Between them";
+        let command: Command = input.parse().unwrap();
+
+        assert_eq!(
+            vec![
+                Word::Unknown("some".to_string()),
+                Word::ProperNoun("Words With Random Capitalization".to_string()),
+                Word::Noun(Noun::Inn),
+                Word::Unknown("and".to_string()),
+                Word::ProperNoun("Nouns In Between".to_string()),
+                Word::Unknown("them".to_string()),
+            ],
+            command.words,
+        );
+        assert_eq!(input, command.raw.as_str());
+    }
+
+    #[test]
+    fn get_word_test() {
+        let command: Command = "blah inn shop blah".parse().unwrap();
+        assert_eq!(Some(&Noun::Inn), command.get_noun());
+        assert_eq!(None, command.get_verb());
+
+        let command: Command = "blah help tutorial blah".parse().unwrap();
+        assert_eq!(None, command.get_noun());
+        assert_eq!(Some(&Verb::Help), command.get_verb());
     }
 }
 
-impl Error for ParseError {}
+#[cfg(test)]
+mod test_word {
+    use super::{Noun, Verb, Word};
+
+    #[test]
+    fn from_str_test() {
+        assert_eq!(Ok(Word::Verb(Verb::Tutorial)), "tutorial".parse::<Word>());
+        assert_eq!(Ok(Word::Noun(Noun::Inn)), "inn".parse::<Word>());
+        assert_eq!(
+            Ok(Word::ProperNoun("Oaken Mermaid Inn".to_string())),
+            "Oaken Mermaid Inn".parse::<Word>(),
+        );
+        assert_eq!(
+            Ok(Word::Unknown("potato".to_string())),
+            "potato".parse::<Word>(),
+        );
+    }
+
+    #[test]
+    fn into_string_test() {
+        assert_eq!(
+            "tutorial",
+            String::from(Word::Verb(Verb::Tutorial)).as_str(),
+        );
+        assert_eq!("inn", String::from(Word::Noun(Noun::Inn)).as_str());
+        assert_eq!(
+            "Oaken Mermaid Inn",
+            String::from(Word::ProperNoun("Oaken Mermaid Inn".to_string())).as_str(),
+        );
+        assert_eq!(
+            "potato",
+            String::from(Word::Unknown("potato".to_string())).as_str(),
+        );
+    }
+}
