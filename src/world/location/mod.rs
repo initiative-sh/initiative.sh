@@ -58,6 +58,18 @@ impl From<uuid::Uuid> for Uuid {
     }
 }
 
+#[cfg(test)]
+mod test_uuid {
+    use super::Uuid as LocationUuid;
+    use uuid::Uuid;
+
+    #[test]
+    fn into_deref_test() {
+        let uuid: LocationUuid = Uuid::nil().into();
+        assert!(uuid.is_nil());
+    }
+}
+
 impl Location {
     pub fn display_summary(&self) -> LocationSummaryView {
         LocationSummaryView(self)
@@ -79,55 +91,13 @@ impl Location {
     }
 }
 
-impl Generate for Location {
-    fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
-        self.subtype.replace_with(|location_type| {
-            if let Some(mut location_type) = location_type {
-                location_type.regenerate(rng, demographics);
-                location_type
-            } else {
-                LocationType::generate(rng, demographics)
-            }
-        });
-
-        if let Some(value) = self.subtype.as_ref() {
-            match value {
-                LocationType::Building(building_type) => match building_type {
-                    BuildingType::Inn => generate_inn(self, rng, demographics),
-                    BuildingType::Residence => generate_residence(self, rng, demographics),
-                    BuildingType::Shop => generate_shop(self, rng, demographics),
-                    BuildingType::Temple => generate_temple(self, rng, demographics),
-                    BuildingType::Warehouse => generate_warehouse(self, rng, demographics),
-                },
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod test_location {
-    use super::{BuildingType, Demographics, Field, Generate, Location, LocationType};
+    use super::{BuildingType, Demographics, Field, Location};
     use rand::rngs::mock::StepRng;
 
     #[test]
-    fn generate_test() {
-        let demographics = Demographics::default();
-
-        let mut rng = StepRng::new(0, 10_000_000_000);
-        assert_ne!(
-            Location::generate(&mut rng, &demographics).subtype,
-            Location::generate(&mut rng, &demographics).subtype,
-        );
-
-        let mut rng = StepRng::new(0, 0);
-        assert_eq!(
-            Location::generate(&mut rng, &demographics).subtype,
-            Location::generate(&mut rng, &demographics).subtype,
-        );
-    }
-
-    #[test]
-    fn generate_type_test() {
+    fn generate_subtype_test() {
         let demographics = Demographics::default();
         let mut rng = StepRng::new(0, 0);
 
@@ -160,25 +130,92 @@ mod test_location {
             Field::new_generated("Empty or abandoned".into()),
         );
     }
+}
+
+impl Generate for Location {
+    fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
+        self.subtype.replace_with(|location_type| {
+            if let Some(mut location_type) = location_type {
+                location_type.regenerate(rng, demographics);
+                location_type
+            } else {
+                LocationType::generate(rng, demographics)
+            }
+        });
+
+        if let Some(value) = self.subtype.as_ref() {
+            match value {
+                LocationType::Building(building_type) => match building_type {
+                    BuildingType::Inn => generate_inn(self, rng, demographics),
+                    BuildingType::Residence => generate_residence(self, rng, demographics),
+                    BuildingType::Shop => generate_shop(self, rng, demographics),
+                    BuildingType::Temple => generate_temple(self, rng, demographics),
+                    BuildingType::Warehouse => generate_warehouse(self, rng, demographics),
+                },
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_generate_for_location {
+    use super::{Demographics, Generate, Location};
+    use rand::rngs::mock::StepRng;
+    use rand::{Rng, RngCore};
 
     #[test]
-    fn display_details_test() {
-        let mut location = Location::default();
-        location.subtype = Field::new(BuildingType::Inn.into());
-        location.name = Field::new("Oaken Mermaid Inn".into());
-        location.description = Field::new("I am Mordenkainen".into());
+    fn generate_test() {
+        let demographics = Demographics::default();
+
+        let mut rng = StepRng::new(0, u64::MAX / 21);
+        assert_ne!(
+            Location::generate(&mut rng, &demographics).subtype,
+            Location::generate(&mut rng, &demographics).subtype,
+        );
+
+        let mut rng = StepRng::new(0, 0);
         assert_eq!(
-            "Oaken Mermaid Inn\n\
-            Type: Inn\n\
-            I am Mordenkainen\n",
-            format!("{}", location.display_details()),
+            Location::generate(&mut rng, &demographics).subtype,
+            Location::generate(&mut rng, &demographics).subtype,
         );
     }
+}
+
+impl<'a> fmt::Display for LocationSummaryView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let location = self.0;
+
+        match (
+            location.subtype.is_some(),
+            location.name.is_some(),
+            location.description.is_some(),
+        ) {
+            (true, true, _) => {
+                let subtype = format!("{}", location.subtype);
+                if subtype.starts_with(&['A', 'E', 'I', 'O', 'U'][..]) {
+                    write!(f, "{}, an {}", location.name, subtype)
+                } else {
+                    write!(f, "{}, a {}", location.name, subtype)
+                }
+            }
+            (true, false, true) => write!(f, "{} ({})", location.subtype, location.description),
+            (true, false, false) => write!(f, "{}", location.subtype),
+            (false, true, true) => write!(f, "{} ({})", location.name, location.description),
+            (false, true, false) => write!(f, "{}", location.name),
+            (false, false, true) => write!(f, "{}", location.description),
+            (false, false, false) => Ok(()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_display_for_location_summary_view {
+    use super::{BuildingType, Field, Location, LocationType};
 
     #[test]
-    fn display_summary_test() {
+    fn fmt_test() {
         let mut location = Location::default();
-        location.subtype = LocationType::Building(BuildingType::Inn).into();
+        location.subtype = LocationType::from(BuildingType::Inn).into();
         location.name = "Oaken Mermaid Inn".into();
         location.description = "I am Mordenkainen".into();
 
@@ -187,7 +224,7 @@ mod test_location {
             format!("{}", location.display_summary()),
         );
 
-        location.subtype = LocationType::Building(BuildingType::Residence).into();
+        location.subtype = LocationType::from(BuildingType::Residence).into();
         assert_eq!(
             "Oaken Mermaid Inn, a Residence",
             format!("{}", location.display_summary()),
@@ -225,33 +262,6 @@ mod test_location {
     }
 }
 
-impl<'a> fmt::Display for LocationSummaryView<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let location = self.0;
-
-        match (
-            location.subtype.is_some(),
-            location.name.is_some(),
-            location.description.is_some(),
-        ) {
-            (true, true, _) => {
-                let subtype = format!("{}", location.subtype);
-                if subtype.starts_with(&['A', 'E', 'I', 'O', 'U'][..]) {
-                    write!(f, "{}, an {}", location.name, subtype)
-                } else {
-                    write!(f, "{}, a {}", location.name, subtype)
-                }
-            }
-            (true, false, true) => write!(f, "{} ({})", location.subtype, location.description),
-            (true, false, false) => write!(f, "{}", location.subtype),
-            (false, true, true) => write!(f, "{} ({})", location.name, location.description),
-            (false, true, false) => write!(f, "{}", location.name),
-            (false, false, true) => write!(f, "{}", location.description),
-            (false, false, false) => Ok(()),
-        }
-    }
-}
-
 impl<'a> fmt::Display for LocationDetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let location = self.0;
@@ -272,6 +282,25 @@ impl<'a> fmt::Display for LocationDetailsView<'a> {
             .map(|description| writeln!(f, "{}", description))
             .transpose()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test_display_for_location_details_view {
+    use super::{BuildingType, Location, LocationType};
+
+    #[test]
+    fn fmt_test() {
+        let mut location = Location::default();
+        location.subtype = LocationType::from(BuildingType::Inn).into();
+        location.name = "Oaken Mermaid Inn".into();
+        location.description = "I am Mordenkainen".into();
+        assert_eq!(
+            "Oaken Mermaid Inn\n\
+            Type: Inn\n\
+            I am Mordenkainen\n",
+            format!("{}", location.display_details()),
+        );
     }
 }
 
@@ -304,5 +333,49 @@ impl TryFrom<Noun> for LocationType {
         } else {
             Err(())
         }
+    }
+}
+
+#[cfg(test)]
+mod test_location_type {
+    use super::{BuildingType, Demographics, Generate, LocationType, Noun, TryInto};
+    use rand::rngs::mock::StepRng;
+
+    #[test]
+    fn default_test() {
+        assert_eq!(
+            LocationType::Building(BuildingType::default()),
+            LocationType::default(),
+        );
+    }
+
+    #[test]
+    fn generate_test() {
+        let mut rng = StepRng::new(0, u64::MAX / 23);
+        let demographics = Demographics::default();
+
+        assert_ne!(
+            LocationType::generate(&mut rng, &demographics),
+            LocationType::generate(&mut rng, &demographics),
+        );
+    }
+
+    #[test]
+    fn display_test() {
+        assert_eq!(
+            format!("{}", BuildingType::Inn),
+            format!("{}", LocationType::Building(BuildingType::Inn)),
+        );
+    }
+
+    #[test]
+    fn try_from_noun_test() {
+        assert_eq!(
+            Ok(LocationType::Building(BuildingType::Inn)),
+            Noun::Inn.try_into(),
+        );
+
+        let location_type: Result<LocationType, ()> = Noun::Building.try_into();
+        assert_eq!(Err(()), location_type);
     }
 }

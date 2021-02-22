@@ -2,6 +2,7 @@ use initiative_macros::WordList;
 
 #[derive(Clone, Copy, Debug, PartialEq, WordList)]
 pub enum Noun {
+    Building,
     Inn,
     Residence,
     Shop,

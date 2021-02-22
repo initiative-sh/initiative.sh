@@ -89,8 +89,18 @@ impl<T: fmt::Display> Field<T> {
         self.is_locked = true;
     }
 
+    pub fn locked(mut self) -> Self {
+        self.lock();
+        self
+    }
+
     pub fn unlock(&mut self) {
         self.is_locked = false;
+    }
+
+    pub fn unlocked(mut self) -> Self {
+        self.unlock();
+        self
     }
 
     pub fn replace_with<F: FnOnce(Option<T>) -> T>(&mut self, f: F) {
@@ -156,7 +166,7 @@ mod test_field {
     use super::Field;
 
     #[test]
-    fn test_deref_from() {
+    fn from_deref_test() {
         let mut field: Field<u8> = 123.into();
         assert!(field.is_some());
         assert_eq!(Some(123), field.take());
@@ -164,14 +174,14 @@ mod test_field {
     }
 
     #[test]
-    fn test_default() {
+    fn default_test() {
         let field: Field<bool> = Field::default();
         assert!(!field.is_locked());
         assert!(field.is_none());
     }
 
     #[test]
-    fn test_new() {
+    fn new_test() {
         {
             let mut field: Field<_> = Field::new("hello");
             assert!(field.is_locked());
@@ -188,7 +198,7 @@ mod test_field {
     }
 
     #[test]
-    fn test_lock() {
+    fn lock_unlock_test() {
         let mut field: Field<bool> = Field::default();
 
         assert!(field.is_unlocked());
@@ -200,13 +210,17 @@ mod test_field {
         assert!(field.is_locked());
 
         field.unlock();
-
         assert!(field.is_unlocked());
-        assert!(!field.is_locked());
+
+        field = field.locked();
+        assert!(field.is_locked());
+
+        field = field.unlocked();
+        assert!(field.is_unlocked());
     }
 
     #[test]
-    fn test_replace_with() {
+    fn replace_with_test() {
         let mut field: Field<_> = Field::default();
 
         field.replace_with(|_| 1);
@@ -222,7 +236,7 @@ mod test_field {
     }
 
     #[test]
-    fn test_clear() {
+    fn clear_test() {
         let mut field: Field<_> = Field::new_generated(123);
         field.clear();
         assert!(field.is_none());
