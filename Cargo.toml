@@ -12,7 +12,7 @@ initiative_macros = "0.1"
 rand = "0.8"
 
 [workspace]
-members = ["initiative_macros"]
+members = ["initiative_macros", "scripts"]
 
 [patch.crates-io]
 initiative_macros = { path = "initiative_macros" }
