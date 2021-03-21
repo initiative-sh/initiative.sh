@@ -45,12 +45,9 @@ pub struct Npc {
     // pub children: Field<Vec<Uuid>>,
 }
 
-impl Generate for Npc {
-    fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
-        self.race.replace_with(|_| demographics.gen_race(rng));
-        race::regenerate(rng, self);
-    }
-}
+pub struct NpcSummaryView<'a>(&'a Npc);
+
+pub struct NpcDetailsView<'a>(&'a Npc);
 
 #[derive(Copy, Clone, Debug)]
 pub enum Gender {
@@ -58,6 +55,183 @@ pub enum Gender {
     Feminine,
     Trans,
     Neuter,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum Race {
+    Human,
+}
+
+impl Npc {
+    pub fn display_summary(&self) -> NpcSummaryView {
+        NpcSummaryView(self)
+    }
+
+    pub fn display_details(&self) -> NpcDetailsView {
+        NpcDetailsView(self)
+    }
+}
+
+impl<'a> fmt::Display for NpcSummaryView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let has_details = self.0.age.is_some() || self.0.race.is_some() || self.0.gender.is_some();
+
+        if let Some(name) = self.0.name.as_ref() {
+            if has_details {
+                write!(f, "{} (", name)?;
+            } else {
+                write!(f, "{}", name)?;
+            }
+        }
+
+        if let Some(age) = self.0.age.as_ref() {
+            age.fmt_with_race(self.0.race.as_ref(), f)?;
+        } else if let Some(race) = self.0.race.as_ref() {
+            write!(f, "{}", race)?;
+        }
+
+        if let Some(gender) = self.0.gender.as_ref() {
+            if self.0.age.is_some() || self.0.race.is_some() {
+                write!(f, ", ")?;
+            }
+
+            write!(f, "{}", gender.pronouns())?;
+        }
+
+        if self.0.name.is_some() && has_details {
+            write!(f, ")")?;
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test_display_for_npc_summary_view {
+    use super::*;
+
+    #[test]
+    fn fmt_test() {
+        assert_eq!("", format!("{}", gen_npc(0b0000).display_summary()));
+        assert_eq!(
+            "Potato Johnson",
+            format!("{}", gen_npc(0b0001).display_summary()),
+        );
+        assert_eq!("adult", format!("{}", gen_npc(0b0010).display_summary()));
+        assert_eq!(
+            "Potato Johnson (adult)",
+            format!("{}", gen_npc(0b0011).display_summary()),
+        );
+        assert_eq!("human", format!("{}", gen_npc(0b0100).display_summary()));
+        assert_eq!(
+            "Potato Johnson (human)",
+            format!("{}", gen_npc(0b0101).display_summary()),
+        );
+        assert_eq!(
+            "adult human",
+            format!("{}", gen_npc(0b0110).display_summary()),
+        );
+        assert_eq!(
+            "Potato Johnson (adult human)",
+            format!("{}", gen_npc(0b0111).display_summary()),
+        );
+        assert_eq!(
+            "they/them",
+            format!("{}", gen_npc(0b1000).display_summary()),
+        );
+        assert_eq!(
+            "Potato Johnson (they/them)",
+            format!("{}", gen_npc(0b1001).display_summary()),
+        );
+        assert_eq!(
+            "adult, they/them",
+            format!("{}", gen_npc(0b1010).display_summary()),
+        );
+        assert_eq!(
+            "Potato Johnson (adult, they/them)",
+            format!("{}", gen_npc(0b1011).display_summary()),
+        );
+        assert_eq!(
+            "human, they/them",
+            format!("{}", gen_npc(0b1100).display_summary()),
+        );
+        assert_eq!(
+            "Potato Johnson (human, they/them)",
+            format!("{}", gen_npc(0b1101).display_summary()),
+        );
+        assert_eq!(
+            "adult human, they/them",
+            format!("{}", gen_npc(0b1110).display_summary()),
+        );
+        assert_eq!(
+            "Potato Johnson (adult human, they/them)",
+            format!("{}", gen_npc(0b1111).display_summary()),
+        );
+    }
+
+    fn gen_npc(bitmask: u8) -> Npc {
+        let mut npc = Npc::default();
+
+        if bitmask & 0b1 > 0 {
+            npc.name = Field::new_generated("Potato Johnson".to_string());
+        }
+        if bitmask & 0b10 > 0 {
+            npc.age = Field::new_generated(Age::Adult(40));
+        }
+        if bitmask & 0b100 > 0 {
+            npc.race = Field::new_generated(Race::Human);
+        }
+        if bitmask & 0b1000 > 0 {
+            npc.gender = Field::new_generated(Gender::Trans);
+        }
+
+        npc
+    }
+}
+
+impl<'a> fmt::Display for NpcDetailsView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let npc = self.0;
+
+        npc.name
+            .as_ref()
+            .map(|name| writeln!(f, "{}", name))
+            .transpose()?;
+        npc.gender
+            .as_ref()
+            .map(|gender| writeln!(f, "Gender: {}", gender))
+            .transpose()?;
+        npc.age
+            .as_ref()
+            .map(|age| writeln!(f, "Age: {}", age))
+            .transpose()?;
+
+        match (npc.height.as_ref(), npc.weight.as_ref()) {
+            (Some(height), Some(weight)) => {
+                writeln!(f, "Size: {}\", {} lbs", height, weight)?;
+            }
+            (Some(height), None) => {
+                writeln!(f, "Height: {}\"", height)?;
+            }
+            (None, Some(weight)) => {
+                writeln!(f, "Weight: {} lbs", weight)?;
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+}
+
+impl Gender {
+    fn pronouns(&self) -> &'static str {
+        match self {
+            Self::Masculine => "he/him",
+            Self::Feminine => "she/her",
+            Self::Trans => "they/them",
+            Self::Neuter => "it",
+        }
+    }
 }
 
 impl fmt::Display for Gender {
@@ -71,15 +245,10 @@ impl fmt::Display for Gender {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub enum Race {
-    Human,
-}
-
 impl fmt::Display for Race {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Human => write!(f, "Human"),
+            Self::Human => write!(f, "human"),
         }
     }
 }
@@ -96,34 +265,59 @@ pub enum Age {
     Geriatric(u16),
 }
 
-impl Deref for Age {
-    type Target = u16;
-
-    fn deref(&self) -> &Self::Target {
+impl Age {
+    pub fn years(&self) -> u16 {
         match self {
-            Self::Infant(i) => i,
-            Self::Child(i) => i,
-            Self::Adolescent(i) => i,
-            Self::YoungAdult(i) => i,
-            Self::Adult(i) => i,
-            Self::MiddleAged(i) => i,
-            Self::Elderly(i) => i,
-            Self::Geriatric(i) => i,
+            Self::Infant(i) => *i,
+            Self::Child(i) => *i,
+            Self::Adolescent(i) => *i,
+            Self::YoungAdult(i) => *i,
+            Self::Adult(i) => *i,
+            Self::MiddleAged(i) => *i,
+            Self::Elderly(i) => *i,
+            Self::Geriatric(i) => *i,
+        }
+    }
+
+    pub fn category(&self) -> &'static str {
+        match self {
+            Self::Infant(_) => "infant",
+            Self::Child(_) => "child",
+            Self::Adolescent(_) => "adolescent",
+            Self::YoungAdult(_) => "young adult",
+            Self::Adult(_) => "adult",
+            Self::MiddleAged(_) => "middle-aged",
+            Self::Elderly(_) => "elderly",
+            Self::Geriatric(_) => "geriatric",
+        }
+    }
+
+    pub fn fmt_with_race(&self, race: Option<&Race>, f: &mut fmt::Formatter) -> fmt::Result {
+        if let Some(race) = race {
+            match self {
+                // "human infant"
+                // "human child"
+                Age::Infant(_) | Age::Child(_) => {
+                    write!(f, "{} {}", race, self.category())
+                }
+
+                // "adolescent human"
+                // "adult human"
+                // "middle-aged human"
+                // "elderly human"
+                // "geriatric human"
+                _ => {
+                    write!(f, "{} {}", self.category(), race)
+                }
+            }
+        } else {
+            write!(f, "{}", self.category())
         }
     }
 }
 
 impl fmt::Display for Age {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Infant(i) => write!(f, "infant ({})", i),
-            Self::Child(i) => write!(f, "child ({})", i),
-            Self::Adolescent(i) => write!(f, "adolescent ({})", i),
-            Self::YoungAdult(i) => write!(f, "young adult ({})", i),
-            Self::Adult(i) => write!(f, "adult ({})", i),
-            Self::MiddleAged(i) => write!(f, "middle-aged ({})", i),
-            Self::Elderly(i) => write!(f, "elderly ({})", i),
-            Self::Geriatric(i) => write!(f, "geriatric ({})", i),
-        }
+        write!(f, "{} ({} years)", self.category(), self.years())
     }
 }
