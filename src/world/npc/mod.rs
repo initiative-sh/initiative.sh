@@ -46,7 +46,8 @@ pub struct Npc {
 }
 
 impl Generate for Npc {
-    fn regenerate(&mut self, rng: &mut impl Rng, _demographics: &Demographics) {
+    fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
+        self.race.replace_with(|_| demographics.gen_race(rng));
         race::regenerate(rng, self);
     }
 }
@@ -70,7 +71,7 @@ impl fmt::Display for Gender {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum Race {
     Human,
 }

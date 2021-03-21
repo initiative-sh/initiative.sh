@@ -20,7 +20,7 @@ pub struct Context {
 impl Context {
     pub fn run(&mut self, command: &str) -> Box<impl fmt::Display> {
         let command: command::Command = command.parse().unwrap();
-        let demographics = world::Demographics {};
+        let demographics = world::Demographics::default();
 
         if let Some(verb) = command.get_verb() {
             Box::new(format!("{:?}", verb))
