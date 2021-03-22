@@ -3,11 +3,13 @@ use rand::Rng;
 use super::{Age, Gender, Npc, Race as NpcRace, Size};
 
 mod human;
+mod warforged;
 
 pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
     if let Some(race) = npc.race.value {
         match race {
             NpcRace::Human => human::Race::regenerate(rng, npc),
+            NpcRace::Warforged => warforged::Race::regenerate(rng, npc),
         }
     }
 }

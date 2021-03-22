@@ -48,7 +48,7 @@ pub struct NpcSummaryView<'a>(&'a Npc);
 
 pub struct NpcDetailsView<'a>(&'a Npc);
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Gender {
     Masculine,
     Feminine,
@@ -59,9 +59,10 @@ pub enum Gender {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum Race {
     Human,
+    Warforged,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Size {
     // Tiny { height: u16, weight: u16 },
     // Small { height: u16, weight: u16 },
@@ -260,6 +261,7 @@ impl fmt::Display for Race {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Human => write!(f, "human"),
+            Self::Warforged => write!(f, "warforged"),
         }
     }
 }
