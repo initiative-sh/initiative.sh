@@ -36,3 +36,65 @@ impl NpcRace for Race {
         }
     }
 }
+
+#[cfg(test)]
+mod test_race {
+    use super::*;
+    use rand::rngs::mock::StepRng;
+    use std::collections::HashMap;
+
+    #[test]
+    fn gen_gender_test() {
+        let mut rng = StepRng::new(0, 0xDECAFBAD);
+        let mut genders: HashMap<String, u16> = HashMap::new();
+
+        for _ in 0..100 {
+            let gender = Race::gen_gender(&mut rng);
+            *genders.entry(format!("{}", gender)).or_default() += 1;
+        }
+
+        assert_eq!(3, genders.len());
+        assert_eq!(Some(&2), genders.get("trans (they/them)"));
+        assert_eq!(Some(&50), genders.get("feminine (she/her)"));
+        assert_eq!(Some(&48), genders.get("masculine (he/him)"));
+    }
+
+    #[test]
+    fn gen_age_test() {
+        let mut rng = StepRng::new(0, 0xDECAFBAD);
+
+        assert_eq!(Age::Infant(0), Race::gen_age(&mut rng));
+        assert_eq!(Age::Elderly(69), Race::gen_age(&mut rng));
+        assert_eq!(Age::MiddleAged(59), Race::gen_age(&mut rng));
+        assert_eq!(Age::MiddleAged(48), Race::gen_age(&mut rng));
+        assert_eq!(Age::Adult(38), Race::gen_age(&mut rng));
+        assert_eq!(Age::YoungAdult(28), Race::gen_age(&mut rng));
+        assert_eq!(Age::Adolescent(17), Race::gen_age(&mut rng));
+        assert_eq!(Age::Child(7), Race::gen_age(&mut rng));
+        assert_eq!(Age::Geriatric(76), Race::gen_age(&mut rng));
+    }
+
+    #[test]
+    fn gen_name_test() {
+        let mut rng = StepRng::new(0, 0xDECAFBAD);
+        let age = Age::Adult(0);
+        let m = Gender::Masculine;
+
+        assert_eq!("Potato Johnson", Race::gen_name(&mut rng, &age, &m));
+    }
+
+    #[test]
+    fn gen_size_test() {
+        let mut rng = StepRng::new(0, 0xDECAFBAD);
+        let age = Age::Adult(0);
+        let t = Gender::Trans;
+
+        assert_eq!(
+            Size::Medium {
+                height: 72,
+                weight: 180
+            },
+            Race::gen_size(&mut rng, &age, &t),
+        );
+    }
+}
