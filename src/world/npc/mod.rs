@@ -68,3 +68,20 @@ impl Generate for Npc {
         race::regenerate(rng, self);
     }
 }
+
+#[cfg(test)]
+mod test_generate_for_npc {
+    use super::*;
+    use rand::rngs::mock::StepRng;
+
+    #[test]
+    fn regenerate_test() {
+        let mut rng = StepRng::new(0, 0xDEADBEEF);
+        let demographics = Demographics::default();
+
+        let npc = Npc::generate(&mut rng, &demographics);
+
+        assert!(npc.race.is_some());
+        assert!(npc.name.is_some());
+    }
+}

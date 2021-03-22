@@ -38,7 +38,7 @@ impl RaceGenerate for Race {
 }
 
 #[cfg(test)]
-mod test_race {
+mod test_race_generate_for_race {
     use super::*;
     use rand::rngs::mock::StepRng;
     use std::collections::HashMap;

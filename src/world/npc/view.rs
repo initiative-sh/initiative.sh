@@ -165,3 +165,36 @@ impl<'a> fmt::Display for NpcDetailsView<'a> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test_display_for_npc_details_view {
+    use super::*;
+    use crate::world::npc::{Age, Gender, Race, Size};
+
+    #[test]
+    fn fmt_test_filled() {
+        let mut npc = Npc::default();
+        npc.name.replace_with(|_| "Potato Johnson".to_string());
+        npc.race.replace_with(|_| Race::Human);
+        npc.gender.replace_with(|_| Gender::Trans);
+        npc.age.replace_with(|_| Age::Adult(30));
+        npc.size.replace_with(|_| Size::Medium {
+            height: 71,
+            weight: 140,
+        });
+
+        assert_eq!(
+            "Potato Johnson\n\
+            Race: human\n\
+            Gender: trans (they/them)\n\
+            Age: adult (30 years)\n\
+            Size: 5'11\", 140 lbs (medium)\n",
+            format!("{}", npc.display_details())
+        );
+    }
+
+    #[test]
+    fn fmt_test_empty() {
+        assert_eq!("", format!("{}", &Npc::default().display_details()));
+    }
+}
