@@ -4,6 +4,7 @@ use initiative_macros::WordList;
 pub enum Noun {
     Building,
     Inn,
+    Npc,
     Residence,
     Shop,
     Temple,

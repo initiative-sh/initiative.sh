@@ -7,7 +7,7 @@ use rand::prelude::*;
 use uuid::Uuid;
 
 use command::Noun;
-use world::{Location, World};
+use world::{Generate, Location, Npc, World};
 
 mod command;
 mod world;
@@ -30,7 +30,13 @@ impl Context {
                     Location::generate_subtype(location_subtype, &mut thread_rng(), &demographics);
                 Box::new(format!("{}", location.display_details()))
             } else {
-                Box::new(format!("{:?}", noun))
+                match noun {
+                    Noun::Npc => {
+                        let npc = Npc::generate(&mut thread_rng(), &demographics);
+                        Box::new(format!("{}", npc.display_details()))
+                    }
+                    _ => Box::new(format!("{:?}", noun)),
+                }
             }
         } else {
             Box::new(format!("{:?}", command))
