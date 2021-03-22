@@ -29,6 +29,10 @@ impl Context {
                 let location =
                     Location::generate_subtype(location_subtype, &mut thread_rng(), &demographics);
                 Box::new(format!("{}", location.display_details()))
+            } else if let Ok(race) = noun.try_into() {
+                let demographics = demographics.only_race(&race);
+                let npc = Npc::generate(&mut thread_rng(), &demographics);
+                Box::new(format!("{}", npc.display_details()))
             } else {
                 match noun {
                     Noun::Npc => {

@@ -1,8 +1,10 @@
+use std::convert::TryFrom;
 use std::fmt;
 
 use rand::Rng;
 
 use super::{Age, Gender, Npc, Size};
+use crate::command::Noun;
 
 mod human;
 mod warforged;
@@ -38,6 +40,18 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
         match race {
             Race::Human => human::Race::regenerate(rng, npc),
             Race::Warforged => warforged::Race::regenerate(rng, npc),
+        }
+    }
+}
+
+impl TryFrom<Noun> for Race {
+    type Error = ();
+
+    fn try_from(noun: Noun) -> Result<Self, Self::Error> {
+        match noun {
+            Noun::Human => Ok(Race::Human),
+            Noun::Warforged => Ok(Race::Warforged),
+            _ => Err(()),
         }
     }
 }

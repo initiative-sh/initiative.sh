@@ -42,7 +42,7 @@ mod test_demographics {
     use rand::rngs::mock::StepRng;
 
     #[test]
-    fn shift_race_test() {
+    fn shift_race_test_existing() {
         let mut races = HashMap::with_capacity(2);
         races.insert(Race::Human, 50);
         races.insert(Race::Warforged, 50);
@@ -51,6 +51,17 @@ mod test_demographics {
         assert_eq!(2, demographics.races.len());
         assert_eq!(Some(&75), demographics.races.get(&Race::Human));
         assert_eq!(Some(&25), demographics.races.get(&Race::Warforged));
+    }
+
+    #[test]
+    fn shift_race_test_new() {
+        let mut races = HashMap::with_capacity(1);
+        races.insert(Race::Human, 100);
+        let demographics = Demographics { races }.shift_race(&Race::Warforged);
+
+        assert_eq!(2, demographics.races.len());
+        assert_eq!(Some(&50), demographics.races.get(&Race::Human));
+        assert_eq!(Some(&50), demographics.races.get(&Race::Warforged));
     }
 
     #[test]
