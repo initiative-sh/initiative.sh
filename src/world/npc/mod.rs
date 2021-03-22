@@ -72,6 +72,13 @@ impl Npc {
     }
 }
 
+impl Generate for Npc {
+    fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
+        self.race.replace_with(|_| demographics.gen_race(rng));
+        race::regenerate(rng, self);
+    }
+}
+
 impl<'a> fmt::Display for NpcSummaryView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let has_details = self.0.age.is_some() || self.0.race.is_some() || self.0.gender.is_some();
@@ -197,6 +204,10 @@ impl<'a> fmt::Display for NpcDetailsView<'a> {
             .as_ref()
             .map(|name| writeln!(f, "{}", name))
             .transpose()?;
+        npc.race
+            .as_ref()
+            .map(|race| writeln!(f, "Race: {}", race))
+            .transpose()?;
         npc.gender
             .as_ref()
             .map(|gender| writeln!(f, "Gender: {}", gender))
@@ -206,17 +217,15 @@ impl<'a> fmt::Display for NpcDetailsView<'a> {
             .map(|age| writeln!(f, "Age: {}", age))
             .transpose()?;
 
-        match (npc.height.as_ref(), npc.weight.as_ref()) {
-            (Some(height), Some(weight)) => {
-                writeln!(f, "Size: {}\", {} lbs", height, weight)?;
+        if let Some(height) = npc.height.as_ref() {
+            let (height_ft, height_in) = (height / 12, height % 12);
+            if let Some(weight) = npc.weight.as_ref() {
+                writeln!(f, "Size: {}'{}\", {} lbs", height_ft, height_in, weight)?;
+            } else {
+                writeln!(f, "Height: {}'{}\"", height_ft, height_in)?;
             }
-            (Some(height), None) => {
-                writeln!(f, "Height: {}\"", height)?;
-            }
-            (None, Some(weight)) => {
-                writeln!(f, "Weight: {} lbs", weight)?;
-            }
-            _ => {}
+        } else if let Some(weight) = npc.weight.as_ref() {
+            writeln!(f, "Weight: {} lbs", weight)?;
         }
 
         Ok(())
