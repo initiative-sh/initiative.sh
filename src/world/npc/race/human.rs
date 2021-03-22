@@ -1,8 +1,8 @@
-use super::{Age, Gender, Race as NpcRace, Rng, Size};
+use super::{Age, Gender, RaceGenerate, Rng, Size};
 
 pub struct Race;
 
-impl NpcRace for Race {
+impl RaceGenerate for Race {
     fn gen_gender(rng: &mut impl Rng) -> Gender {
         match rng.gen_range(1..=101) {
             1..=50 => Gender::Feminine,
