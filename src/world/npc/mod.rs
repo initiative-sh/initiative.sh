@@ -31,8 +31,7 @@ pub struct Npc {
     pub name: Field<String>,
     pub gender: Field<Gender>,
     pub age: Field<Age>,
-    pub height: Field<u16>,
-    pub weight: Field<u16>,
+    pub size: Field<Size>,
     pub race: Field<Race>,
     // pub ethnicity: Field<String>,
     // pub home: Field<RegionUuid>,
@@ -60,6 +59,16 @@ pub enum Gender {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum Race {
     Human,
+}
+
+#[derive(Debug)]
+pub enum Size {
+    // Tiny { height: u16, weight: u16 },
+    // Small { height: u16, weight: u16 },
+    Medium { height: u16, weight: u16 },
+    // Large { height: u16, weight: u16 },
+    // Huge { height: u16, weight: u16 },
+    // Gargantuan { height: u16, weight: u16 },
 }
 
 impl Npc {
@@ -216,17 +225,10 @@ impl<'a> fmt::Display for NpcDetailsView<'a> {
             .as_ref()
             .map(|age| writeln!(f, "Age: {}", age))
             .transpose()?;
-
-        if let Some(height) = npc.height.as_ref() {
-            let (height_ft, height_in) = (height / 12, height % 12);
-            if let Some(weight) = npc.weight.as_ref() {
-                writeln!(f, "Size: {}'{}\", {} lbs", height_ft, height_in, weight)?;
-            } else {
-                writeln!(f, "Height: {}'{}\"", height_ft, height_in)?;
-            }
-        } else if let Some(weight) = npc.weight.as_ref() {
-            writeln!(f, "Weight: {} lbs", weight)?;
-        }
+        npc.size
+            .as_ref()
+            .map(|size| writeln!(f, "Size: {}", size))
+            .transpose()?;
 
         Ok(())
     }
@@ -328,5 +330,46 @@ impl Age {
 impl fmt::Display for Age {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} ({} years)", self.category(), self.years())
+    }
+}
+
+impl Size {
+    pub fn height_weight(&self) -> (u16, u16) {
+        match self {
+            Self::Medium { height, weight } => (*height, *weight),
+        }
+    }
+
+    pub fn height(&self) -> u16 {
+        self.height_weight().0
+    }
+
+    pub fn height_ft_in(&self) -> (u8, u8) {
+        let height = self.height();
+        ((height / 12) as u8, (height % 12) as u8)
+    }
+
+    pub fn weight(&self) -> u16 {
+        self.height_weight().1
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Medium { .. } => "medium",
+        }
+    }
+}
+
+impl fmt::Display for Size {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let (height_ft, height_in) = self.height_ft_in();
+        write!(
+            f,
+            "{}'{}\", {} lbs ({})",
+            height_ft,
+            height_in,
+            self.weight(),
+            self.name(),
+        )
     }
 }

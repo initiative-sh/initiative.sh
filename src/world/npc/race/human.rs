@@ -1,4 +1,4 @@
-use super::{Age, Gender, Race, Rng};
+use super::{Age, Gender, Race, Rng, Size};
 
 pub struct Human;
 
@@ -29,15 +29,10 @@ impl Race for Human {
         String::from("Potato Johnson")
     }
 
-    fn gen_size(_rng: &mut impl Rng, _age: &Age, _gender: &Gender) -> u8 {
-        0
-    }
-
-    fn gen_height(_rng: &mut impl Rng, _size: u8) -> u16 {
-        72
-    }
-
-    fn gen_weight(_rng: &mut impl Rng, _size: u8) -> u16 {
-        180
+    fn gen_size(_rng: &mut impl Rng, _age: &Age, _gender: &Gender) -> Size {
+        Size::Medium {
+            height: 72,
+            weight: 180,
+        }
     }
 }
