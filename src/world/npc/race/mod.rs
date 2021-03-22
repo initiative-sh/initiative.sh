@@ -7,7 +7,7 @@ mod human;
 pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
     if let Some(race) = npc.race.value {
         match race {
-            NpcRace::Human => human::Human::regenerate(rng, npc),
+            NpcRace::Human => human::Race::regenerate(rng, npc),
         }
     }
 }
