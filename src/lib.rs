@@ -7,7 +7,7 @@ use rand::prelude::*;
 use uuid::Uuid;
 
 use command::Noun;
-use world::{Location, World};
+use world::{Generate, Location, Npc, World};
 
 mod command;
 mod world;
@@ -20,7 +20,7 @@ pub struct Context {
 impl Context {
     pub fn run(&mut self, command: &str) -> Box<impl fmt::Display> {
         let command: command::Command = command.parse().unwrap();
-        let demographics = world::Demographics {};
+        let demographics = world::Demographics::default();
 
         if let Some(verb) = command.get_verb() {
             Box::new(format!("{:?}", verb))
@@ -29,8 +29,18 @@ impl Context {
                 let location =
                     Location::generate_subtype(location_subtype, &mut thread_rng(), &demographics);
                 Box::new(format!("{}", location.display_details()))
+            } else if let Ok(race) = noun.try_into() {
+                let demographics = demographics.only_race(&race);
+                let npc = Npc::generate(&mut thread_rng(), &demographics);
+                Box::new(format!("{}", npc.display_details()))
             } else {
-                Box::new(format!("{:?}", noun))
+                match noun {
+                    Noun::Npc => {
+                        let npc = Npc::generate(&mut thread_rng(), &demographics);
+                        Box::new(format!("{}", npc.display_details()))
+                    }
+                    _ => Box::new(format!("{:?}", noun)),
+                }
             }
         } else {
             Box::new(format!("{:?}", command))
