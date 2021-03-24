@@ -6,12 +6,14 @@ use rand::Rng;
 use super::{Demographics, Field, Generate};
 
 pub use age::Age;
+pub use ethnicity::Ethnicity;
 pub use gender::Gender;
 pub use race::Race;
 pub use size::Size;
 pub use view::{NpcDetailsView, NpcSummaryView};
 
 mod age;
+mod ethnicity;
 mod gender;
 mod race;
 mod size;
