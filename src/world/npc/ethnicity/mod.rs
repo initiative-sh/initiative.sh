@@ -30,7 +30,7 @@ pub enum Ethnicity {
 }
 
 impl Ethnicity {
-    fn default_race(&self) -> Race {
+    pub fn default_race(&self) -> Race {
         match self {
             Self::Arabic
             | Self::Celtic
