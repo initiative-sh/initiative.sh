@@ -66,7 +66,8 @@ impl Npc {
 
 impl Generate for Npc {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
-        self.race.replace_with(|_| demographics.gen_race(rng));
+        self.race
+            .replace_with(|_| demographics.gen_race_ethnicity(rng).0);
         race::regenerate(rng, self);
     }
 }
