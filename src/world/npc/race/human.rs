@@ -1,8 +1,8 @@
-use super::{Age, Gender, RaceGenerate, Rng, Size};
+use super::{Age, Gender, Generate, Rng, Size};
 
 pub struct Race;
 
-impl RaceGenerate for Race {
+impl Generate for Race {
     fn gen_gender(rng: &mut impl Rng) -> Gender {
         match rng.gen_range(1..=101) {
             1..=50 => Gender::Feminine,
@@ -25,10 +25,6 @@ impl RaceGenerate for Race {
         }
     }
 
-    fn gen_name(_rng: &mut impl Rng, _age: &Age, _gender: &Gender) -> String {
-        String::from("Potato Johnson")
-    }
-
     fn gen_size(_rng: &mut impl Rng, _age: &Age, _gender: &Gender) -> Size {
         Size::Medium {
             height: 72,
@@ -38,7 +34,7 @@ impl RaceGenerate for Race {
 }
 
 #[cfg(test)]
-mod test_race_generate_for_race {
+mod test_generate_for_race {
     use super::*;
     use rand::rngs::mock::StepRng;
     use std::collections::HashMap;
@@ -72,15 +68,6 @@ mod test_race_generate_for_race {
         assert_eq!(Age::Adolescent(17), Race::gen_age(&mut rng));
         assert_eq!(Age::Child(7), Race::gen_age(&mut rng));
         assert_eq!(Age::Geriatric(76), Race::gen_age(&mut rng));
-    }
-
-    #[test]
-    fn gen_name_test() {
-        let mut rng = StepRng::new(0, 0xDECAFBAD);
-        let age = Age::Adult(0);
-        let m = Gender::Masculine;
-
-        assert_eq!("Potato Johnson", Race::gen_name(&mut rng, &age, &m));
     }
 
     #[test]

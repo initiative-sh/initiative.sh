@@ -15,13 +15,12 @@ pub enum Race {
     Warforged,
 }
 
-trait RaceGenerate {
+trait Generate {
     fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
         npc.gender.replace_with(|_| Self::gen_gender(rng));
         npc.age.replace_with(|_| Self::gen_age(rng));
 
         if let (Some(gender), Some(age)) = (&npc.gender.value, &npc.age.value) {
-            npc.name.replace_with(|_| Self::gen_name(rng, age, gender));
             npc.size.replace_with(|_| Self::gen_size(rng, age, gender));
         }
     }
@@ -29,8 +28,6 @@ trait RaceGenerate {
     fn gen_gender(rng: &mut impl Rng) -> Gender;
 
     fn gen_age(rng: &mut impl Rng) -> Age;
-
-    fn gen_name(rng: &mut impl Rng, age: &Age, gender: &Gender) -> String;
 
     fn gen_size(rng: &mut impl Rng, age: &Age, gender: &Gender) -> Size;
 }
@@ -60,7 +57,6 @@ mod test {
 
         assert!(npc.age.is_some());
         assert!(npc.gender.is_some());
-        assert!(npc.name.is_some());
         assert!(npc.size.is_some());
     }
 
@@ -77,7 +73,6 @@ mod test {
         assert!(npc.gender.is_some());
 
         assert!(npc.age.is_none());
-        assert!(npc.name.is_none());
         assert!(npc.size.is_none());
     }
 
@@ -94,15 +89,13 @@ mod test {
         assert!(npc.age.is_some());
 
         assert!(npc.gender.is_none());
-        assert!(npc.name.is_none());
         assert!(npc.size.is_none());
     }
 
     #[test]
-    fn regenerate_test_name_size_none() {
+    fn regenerate_test_size_none() {
         let mut npc = Npc::default();
         npc.race = Field::new_generated(Race::Human);
-        npc.name.lock();
         npc.size.lock();
 
         let mut rng = StepRng::new(0, 0xDEADBEEF);
@@ -112,7 +105,6 @@ mod test {
         assert!(npc.age.is_some());
         assert!(npc.gender.is_some());
 
-        assert!(npc.name.is_none());
         assert!(npc.size.is_none());
     }
 }
