@@ -3,7 +3,7 @@ use std::fmt;
 
 use rand::Rng;
 
-use super::{Age, Gender, Npc, Size};
+use super::{Age, Ethnicity, Gender, Npc, Size};
 use crate::command::Noun;
 
 mod human;
@@ -114,6 +114,26 @@ mod test {
 
         assert!(npc.name.is_none());
         assert!(npc.size.is_none());
+    }
+}
+
+impl Race {
+    pub fn default_ethnicity(&self) -> Ethnicity {
+        match self {
+            Self::Human => Ethnicity::English, // Look, there's no good answer here.
+            Self::Warforged => Ethnicity::Warforged,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_race {
+    use super::*;
+
+    #[test]
+    fn default_ethnicity_test() {
+        assert_eq!(Ethnicity::English, Race::Human.default_ethnicity());
+        assert_eq!(Ethnicity::Warforged, Race::Warforged.default_ethnicity());
     }
 }
 
