@@ -1,17 +1,8 @@
-use super::{Age, Gender, RaceGenerate, Rng, Size};
+use super::{Age, Gender, Generate, Rng, Size};
 
 pub struct Race;
 
-impl Race {
-    const NAMES: &'static [&'static str] = &[
-        "Anchor", "Banner", "Bastion", "Blade", "Blue", "Bow", "Cart", "Church", "Grnch",
-        "Crystal", "Dagger", "Dent", "Five", "Glaive", "Hammer", "Iron", "Lucky", "Mace", "Oak",
-        "Onyx", "Pants", "Pierce", "Red", "Rod", "Rusty", "Scout", "Seven", "Shield", "Slash",
-        "Smith", "Spike", "Temple", "Vault", "Wall",
-    ];
-}
-
-impl RaceGenerate for Race {
+impl Generate for Race {
     fn gen_gender(rng: &mut impl Rng) -> Gender {
         match rng.gen_range(1..=100) {
             1..=60 => Gender::Neuter,
@@ -26,10 +17,6 @@ impl RaceGenerate for Race {
         Age::Adult(rng.gen_range(2..=30))
     }
 
-    fn gen_name(rng: &mut impl Rng, _age: &Age, _gender: &Gender) -> String {
-        Self::NAMES[rng.gen_range(0..Self::NAMES.len())].to_string()
-    }
-
     fn gen_size(rng: &mut impl Rng, _age: &Age, _gender: &Gender) -> Size {
         let size = rng.gen_range(1..=6) + rng.gen_range(1..=6);
         Size::Medium {
@@ -40,7 +27,7 @@ impl RaceGenerate for Race {
 }
 
 #[cfg(test)]
-mod test_race_generate_for_race {
+mod test_generate_for_race {
     use super::*;
     use rand::rngs::mock::StepRng;
     use std::collections::HashMap;
@@ -71,19 +58,6 @@ mod test_race_generate_for_race {
         assert_eq!(Age::Adult(23), Race::gen_age(&mut rng));
         assert_eq!(Age::Adult(19), Race::gen_age(&mut rng));
         assert_eq!(Age::Adult(15), Race::gen_age(&mut rng));
-    }
-
-    #[test]
-    fn gen_name_test() {
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
-        let age = Age::Adult(0);
-        let m = Gender::Masculine;
-
-        assert_eq!("Anchor", Race::gen_name(&mut rng, &age, &m));
-        assert_eq!("Scout", Race::gen_name(&mut rng, &age, &m));
-        assert_eq!("Lucky", Race::gen_name(&mut rng, &age, &m));
-        assert_eq!("Church", Race::gen_name(&mut rng, &age, &m));
-        assert_eq!("Blade", Race::gen_name(&mut rng, &age, &m));
     }
 
     #[test]

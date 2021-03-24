@@ -20,9 +20,10 @@ impl<'a> NpcDetailsView<'a> {
 
 impl<'a> fmt::Display for NpcSummaryView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let has_details = self.0.age.is_some() || self.0.race.is_some() || self.0.gender.is_some();
+        let npc = self.0;
+        let has_details = npc.age.is_some() || npc.race.is_some() || npc.gender.is_some();
 
-        if let Some(name) = self.0.name.as_ref() {
+        if let Some(name) = npc.name.as_ref() {
             if has_details {
                 write!(f, "{} (", name)?;
             } else {
@@ -30,21 +31,21 @@ impl<'a> fmt::Display for NpcSummaryView<'a> {
             }
         }
 
-        if let Some(age) = self.0.age.as_ref() {
-            age.fmt_with_race(self.0.race.as_ref(), f)?;
-        } else if let Some(race) = self.0.race.as_ref() {
+        if let Some(age) = npc.age.as_ref() {
+            age.fmt_with_race(npc.race.as_ref(), f)?;
+        } else if let Some(race) = npc.race.as_ref() {
             write!(f, "{}", race)?;
         }
 
-        if let Some(gender) = self.0.gender.as_ref() {
-            if self.0.age.is_some() || self.0.race.is_some() {
+        if let Some(gender) = npc.gender.as_ref() {
+            if npc.age.is_some() || npc.race.is_some() {
                 write!(f, ", ")?;
             }
 
             write!(f, "{}", gender.pronouns())?;
         }
 
-        if self.0.name.is_some() && has_details {
+        if npc.name.is_some() && has_details {
             write!(f, ")")?;
         }
 
@@ -145,10 +146,16 @@ impl<'a> fmt::Display for NpcDetailsView<'a> {
             .as_ref()
             .map(|name| writeln!(f, "{}", name))
             .transpose()?;
-        npc.race
-            .as_ref()
-            .map(|race| writeln!(f, "Race: {}", race))
-            .transpose()?;
+
+        match (npc.race.as_ref(), npc.ethnicity.as_ref()) {
+            (Some(race), Some(ethnicity)) if ethnicity != &race.default_ethnicity() => {
+                writeln!(f, "Race: {} ({})", race, ethnicity)?
+            }
+            (Some(race), _) => writeln!(f, "Race: {}", race)?,
+            (None, Some(ethnicity)) => writeln!(f, "Ethnicity: {}", ethnicity)?,
+            (None, None) => {}
+        }
+
         npc.gender
             .as_ref()
             .map(|gender| writeln!(f, "Gender: {}", gender))
@@ -169,27 +176,52 @@ impl<'a> fmt::Display for NpcDetailsView<'a> {
 #[cfg(test)]
 mod test_display_for_npc_details_view {
     use super::*;
-    use crate::world::npc::{Age, Gender, Race, Size};
+    use crate::world::npc::{Age, Ethnicity, Gender, Race, Size};
 
     #[test]
     fn fmt_test_filled() {
         let mut npc = Npc::default();
-        npc.name.replace_with(|_| "Potato Johnson".to_string());
-        npc.race.replace_with(|_| Race::Human);
-        npc.gender.replace_with(|_| Gender::Trans);
-        npc.age.replace_with(|_| Age::Adult(30));
-        npc.size.replace_with(|_| Size::Medium {
+        npc.name.replace("Potato Johnson".to_string());
+        npc.race.replace(Race::Human);
+        npc.ethnicity.replace(Ethnicity::Arabic);
+        npc.gender.replace(Gender::Trans);
+        npc.age.replace(Age::Adult(30));
+        npc.size.replace(Size::Medium {
             height: 71,
             weight: 140,
         });
 
         assert_eq!(
             "Potato Johnson\n\
-            Race: human\n\
+            Race: human (Arabic)\n\
             Gender: trans (they/them)\n\
             Age: adult (30 years)\n\
             Size: 5'11\", 140 lbs (medium)\n",
             format!("{}", npc.display_details())
+        );
+    }
+
+    #[test]
+    fn fmt_test_race_ethnicity() {
+        let npc = |b: u8| {
+            let mut npc = Npc::default();
+            if b & 0b1 != 0 {
+                npc.race.replace(Race::Human);
+            }
+            if b & 0b10 != 0 {
+                npc.ethnicity.replace(Ethnicity::Arabic);
+            }
+            npc
+        };
+
+        assert_eq!("Race: human\n", format!("{}", npc(0b1).display_details()));
+        assert_eq!(
+            "Ethnicity: Arabic\n",
+            format!("{}", npc(0b10).display_details())
+        );
+        assert_eq!(
+            "Race: human (Arabic)\n",
+            format!("{}", npc(0b11).display_details())
         );
     }
 

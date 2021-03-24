@@ -103,10 +103,14 @@ impl<T: fmt::Display> Field<T> {
         self
     }
 
+    pub fn replace(&mut self, value: T) {
+        self.replace_with(|_| value);
+    }
+
     pub fn replace_with<F: FnOnce(Option<T>) -> T>(&mut self, f: F) {
         if self.is_unlocked() {
             let value = self.value.take();
-            self.replace(f(value));
+            self.value.replace(f(value));
         }
     }
 
@@ -223,7 +227,7 @@ mod test_field {
     fn replace_with_test() {
         let mut field: Field<_> = Field::default();
 
-        field.replace_with(|_| 1);
+        field.replace(1);
         assert_eq!(Field::new_generated(1), field);
 
         field.replace_with(|i| i.unwrap() + 1);

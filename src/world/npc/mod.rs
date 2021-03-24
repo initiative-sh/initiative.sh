@@ -6,12 +6,14 @@ use rand::Rng;
 use super::{Demographics, Field, Generate};
 
 pub use age::Age;
+pub use ethnicity::Ethnicity;
 pub use gender::Gender;
 pub use race::Race;
 pub use size::Size;
 pub use view::{NpcDetailsView, NpcSummaryView};
 
 mod age;
+mod ethnicity;
 mod gender;
 mod race;
 mod size;
@@ -42,7 +44,7 @@ pub struct Npc {
     pub age: Field<Age>,
     pub size: Field<Size>,
     pub race: Field<Race>,
-    // pub ethnicity: Field<String>,
+    pub ethnicity: Field<Ethnicity>,
     // pub home: Field<RegionUuid>,
     // pub occupation: Field<Role>,
     // pub languages: Field<Vec<String>>,
@@ -64,8 +66,14 @@ impl Npc {
 
 impl Generate for Npc {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
-        self.race.replace_with(|_| demographics.gen_race(rng));
+        if self.race.is_unlocked() && self.ethnicity.is_unlocked() {
+            let (race, ethnicity) = demographics.gen_race_ethnicity(rng);
+            self.ethnicity.replace(ethnicity);
+            self.race.replace(race);
+        }
+
         race::regenerate(rng, self);
+        ethnicity::regenerate(rng, self);
     }
 }
 
