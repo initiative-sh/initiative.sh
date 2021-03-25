@@ -10,7 +10,7 @@ impl Ethnicity {
         "Aaliyah", "Aida", "Akilah", "Alia", "Amina", "Atefeh", "Chaima", "Dalia", "Ehsan",
         "Elham", "Farah", "Fatemah", "Gamila", "Iesha", "Inbar", "Kamaria", "Khadija", "Layla",
         "Lupe", "Nabila", "Nadine", "Naima", "Najila", "Najwa", "Kania", "Nashwa", "Nawra", "Nuha",
-        "Nura", "Oma", "Qadira", "Qamar", "Qistina", "Rahima", "Rihanna", "Saaddia", "Sabah",
+        "Nura", "Oma", "Qadira", "Qamar", "Qistina", "Rahima", "Rihanna", "Saadia", "Sabah",
         "Sada", "Saffron", "Sahar", "Salma", "Shatha", "Tahira", "Takisha", "Thana", "Yadira",
         "Zahra", "Zaida", "Zaina", "Zeinab",
     ];
@@ -20,7 +20,7 @@ impl Ethnicity {
         "Abbad", "Abdul", "Achmed", "Akeem", "Alif", "Amir", "Asim", "Bashir", "Bassam", "Fahim",
         "Farid", "Farouk", "Fayez", "Fayyaad", "Fazil", "Hakim", "Halil", "Hamid", "Hazim",
         "Heydar", "Hussein", "Jabari", "Jafar", "Jahid", "Jamal", "Kalim", "Karim", "Kazim",
-        "Khadim", "Khalidd", "Mahmud", "Mansour", "Musharraf", "Mustafa", "Nadir", "Nazim", "Omar",
+        "Khadim", "Khalid", "Mahmud", "Mansour", "Musharraf", "Mustafa", "Nadir", "Nazim", "Omar",
         "Qadir", "Qusay", "Rafiq", "Rakim", "Rashad", "Rauf", "Saladin", "Sami", "Samir", "Talib",
         "Tamir", "Tariq", "Yazid",
     ];
