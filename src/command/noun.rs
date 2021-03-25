@@ -6,6 +6,7 @@ pub enum Noun {
     Dwarf,
     Elf,
     HalfElf,
+    Halfling,
     Human,
     Inn,
     Npc,

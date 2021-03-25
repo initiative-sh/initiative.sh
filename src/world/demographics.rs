@@ -318,7 +318,7 @@ impl Default for Demographics {
         groups.insert((Race::HalfElf, Ethnicity::HalfElvish), 320_000);
         groups.insert((Race::Elf, Ethnicity::Elvish), 220_000);
         // groups.insert(Race::Gnome, 220_000);
-        // groups.insert(Race::Halfling, 100_000);
+        groups.insert((Race::Halfling, Ethnicity::Halfling), 100_000);
         // groups.insert(Race::Shifter, 60_000);
         // groups.insert(Race::Changeling, 40_000);
 
