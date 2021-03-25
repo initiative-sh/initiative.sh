@@ -29,6 +29,7 @@ mod polynesian;
 mod roman;
 mod slavic;
 mod spanish;
+mod tiefling;
 mod warforged;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -72,6 +73,7 @@ pub enum Ethnicity {
     HalfOrcish,
     Halfling,
     Human,
+    Tiefling,
     Warforged,
 }
 
@@ -112,6 +114,7 @@ impl Ethnicity {
             Self::HalfElvish => Race::HalfElf,
             Self::HalfOrcish => Race::HalfOrc,
             Self::Halfling => Race::Halfling,
+            Self::Tiefling => Race::Tiefling,
             Self::Warforged => Race::Warforged,
         }
     }
@@ -131,6 +134,7 @@ mod test_ethnicity {
         assert_eq!(Race::HalfOrc, Ethnicity::HalfOrcish.default_race());
         assert_eq!(Race::Halfling, Ethnicity::Halfling.default_race());
         assert_eq!(Race::Human, Ethnicity::Arabic.default_race());
+        assert_eq!(Race::Tiefling, Ethnicity::Tiefling.default_race());
         assert_eq!(Race::Warforged, Ethnicity::Warforged.default_race());
     }
 }
@@ -166,6 +170,7 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
             Ethnicity::HalfOrcish => half_orcish::Ethnicity::regenerate(rng, npc),
             Ethnicity::Halfling => halfling::Ethnicity::regenerate(rng, npc),
             Ethnicity::Human => human::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Tiefling => tiefling::Ethnicity::regenerate(rng, npc),
             Ethnicity::Indian | Ethnicity::Mulan | Ethnicity::Rashemi => {
                 indian::Ethnicity::regenerate(rng, npc)
             }
@@ -218,6 +223,7 @@ impl fmt::Display for Ethnicity {
             Self::Slavic => write!(f, "Slavic"),
             Self::Spanish => write!(f, "Spanish"),
             Self::Tethyrian => write!(f, "Tethyrian"),
+            Self::Tiefling => write!(f, "Tiefling"),
             Self::Turami => write!(f, "Turami"),
             Self::Warforged => write!(f, "warforged"),
         }

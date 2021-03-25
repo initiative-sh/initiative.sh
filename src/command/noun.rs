@@ -16,6 +16,7 @@ pub enum Noun {
     Residence,
     Shop,
     Temple,
+    Tiefling,
     Warehouse,
     Warforged,
 }
