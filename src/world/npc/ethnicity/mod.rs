@@ -14,6 +14,7 @@ mod german;
 mod greek;
 mod indian;
 mod japanese;
+mod mesoamerican;
 mod warforged;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -97,6 +98,7 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
             Ethnicity::Greek => greek::Ethnicity::regenerate(rng, npc),
             Ethnicity::Indian => indian::Ethnicity::regenerate(rng, npc),
             Ethnicity::Japanese => japanese::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Mesoamerican => mesoamerican::Ethnicity::regenerate(rng, npc),
             Ethnicity::Warforged => warforged::Ethnicity::regenerate(rng, npc),
             _ => {}
         }
