@@ -5,6 +5,7 @@ pub enum Noun {
     Building,
     Dwarf,
     Elf,
+    HalfElf,
     Human,
     Inn,
     Npc,

@@ -8,6 +8,7 @@ use crate::command::Noun;
 
 mod dwarf;
 mod elf;
+mod half_elf;
 mod human;
 mod warforged;
 
@@ -15,6 +16,7 @@ mod warforged;
 pub enum Race {
     Dwarf,
     Elf,
+    HalfElf,
     Human,
     Warforged,
 }
@@ -41,6 +43,7 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
         match race {
             Race::Dwarf => dwarf::Race::regenerate(rng, npc),
             Race::Elf => elf::Race::regenerate(rng, npc),
+            Race::HalfElf => half_elf::Race::regenerate(rng, npc),
             Race::Human => human::Race::regenerate(rng, npc),
             Race::Warforged => warforged::Race::regenerate(rng, npc),
         }
@@ -120,6 +123,7 @@ impl Race {
         match self {
             Self::Dwarf => Ethnicity::Dwarvish,
             Self::Elf => Ethnicity::Elvish,
+            Self::HalfElf => Ethnicity::Human,
             Self::Human => Ethnicity::Human,
             Self::Warforged => Ethnicity::Warforged,
         }
@@ -134,6 +138,7 @@ mod test_race {
     fn default_ethnicity_test() {
         assert_eq!(Ethnicity::Dwarvish, Race::Dwarf.default_ethnicity());
         assert_eq!(Ethnicity::Elvish, Race::Elf.default_ethnicity());
+        assert_eq!(Ethnicity::Human, Race::HalfElf.default_ethnicity());
         assert_eq!(Ethnicity::Human, Race::Human.default_ethnicity());
         assert_eq!(Ethnicity::Warforged, Race::Warforged.default_ethnicity());
     }
@@ -146,6 +151,7 @@ impl TryFrom<Noun> for Race {
         match noun {
             Noun::Dwarf => Ok(Race::Dwarf),
             Noun::Elf => Ok(Race::Elf),
+            Noun::HalfElf => Ok(Race::HalfElf),
             Noun::Human => Ok(Race::Human),
             Noun::Warforged => Ok(Race::Warforged),
             _ => Err(()),
@@ -173,6 +179,7 @@ impl fmt::Display for Race {
         match self {
             Self::Dwarf => write!(f, "dwarf"),
             Self::Elf => write!(f, "elf"),
+            Self::HalfElf => write!(f, "half-elf"),
             Self::Human => write!(f, "human"),
             Self::Warforged => write!(f, "warforged"),
         }
