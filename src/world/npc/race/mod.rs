@@ -6,6 +6,7 @@ use rand::Rng;
 use super::{Age, Ethnicity, Gender, Npc, Size};
 use crate::command::Noun;
 
+mod dragonborn;
 mod dwarf;
 mod elf;
 mod half_elf;
@@ -15,6 +16,7 @@ mod warforged;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum Race {
+    Dragonborn,
     Dwarf,
     Elf,
     HalfElf,
@@ -43,6 +45,7 @@ trait Generate {
 pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
     if let Some(race) = npc.race.value {
         match race {
+            Race::Dragonborn => dragonborn::Race::regenerate(rng, npc),
             Race::Dwarf => dwarf::Race::regenerate(rng, npc),
             Race::Elf => elf::Race::regenerate(rng, npc),
             Race::HalfElf => half_elf::Race::regenerate(rng, npc),
@@ -124,6 +127,7 @@ mod test {
 impl Race {
     pub fn default_ethnicity(&self) -> Ethnicity {
         match self {
+            Self::Dragonborn => Ethnicity::Dragonborn,
             Self::Dwarf => Ethnicity::Dwarvish,
             Self::Elf => Ethnicity::Elvish,
             Self::HalfElf => Ethnicity::Human,
@@ -140,6 +144,7 @@ mod test_race {
 
     #[test]
     fn default_ethnicity_test() {
+        assert_eq!(Ethnicity::Dragonborn, Race::Dragonborn.default_ethnicity());
         assert_eq!(Ethnicity::Dwarvish, Race::Dwarf.default_ethnicity());
         assert_eq!(Ethnicity::Elvish, Race::Elf.default_ethnicity());
         assert_eq!(Ethnicity::Human, Race::HalfElf.default_ethnicity());
@@ -154,6 +159,7 @@ impl TryFrom<Noun> for Race {
 
     fn try_from(noun: Noun) -> Result<Self, Self::Error> {
         match noun {
+            Noun::Dragonborn => Ok(Race::Dragonborn),
             Noun::Dwarf => Ok(Race::Dwarf),
             Noun::Elf => Ok(Race::Elf),
             Noun::HalfElf => Ok(Race::HalfElf),
@@ -172,6 +178,7 @@ mod test_try_from_noun_for_race {
 
     #[test]
     fn try_from_test() {
+        assert_eq!(Ok(Race::Dragonborn), Noun::Dragonborn.try_into());
         assert_eq!(Ok(Race::Dwarf), Noun::Dwarf.try_into());
         assert_eq!(Ok(Race::Elf), Noun::Elf.try_into());
         assert_eq!(Ok(Race::Halfling), Noun::Halfling.try_into());
@@ -184,6 +191,7 @@ mod test_try_from_noun_for_race {
 impl fmt::Display for Race {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Self::Dragonborn => write!(f, "dragonborn"),
             Self::Dwarf => write!(f, "dwarf"),
             Self::Elf => write!(f, "elf"),
             Self::HalfElf => write!(f, "half-elf"),
@@ -200,6 +208,7 @@ mod test_display_for_race {
 
     #[test]
     fn fmt_test() {
+        assert_eq!("dragonborn", format!("{}", Race::Dragonborn));
         assert_eq!("dwarf", format!("{}", Race::Dwarf));
         assert_eq!("elf", format!("{}", Race::Elf));
         assert_eq!("halfling", format!("{}", Race::Halfling));

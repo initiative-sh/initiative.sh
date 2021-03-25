@@ -7,6 +7,7 @@ use super::{Age, Gender, Npc, Race};
 mod arabic;
 mod celtic;
 mod chinese;
+mod dragonborn;
 mod dwarvish;
 mod egyptian;
 mod elvish;
@@ -61,6 +62,7 @@ pub enum Ethnicity {
     Spanish,
 
     // Races
+    Dragonborn,
     Dwarvish,
     Elvish,
     HalfElvish,
@@ -99,6 +101,7 @@ impl Ethnicity {
             | Self::Spanish
             | Self::Tethyrian
             | Self::Turami => Race::Human,
+            Self::Dragonborn => Race::Dragonborn,
             Self::Dwarvish => Race::Dwarf,
             Self::Elvish => Race::Elf,
             Self::HalfElvish => Race::HalfElf,
@@ -114,6 +117,7 @@ mod test_ethnicity {
 
     #[test]
     fn default_race_test() {
+        assert_eq!(Race::Dragonborn, Ethnicity::Dragonborn.default_race());
         assert_eq!(Race::Dwarf, Ethnicity::Dwarvish.default_race());
         assert_eq!(Race::Elf, Ethnicity::Elvish.default_race());
         assert_eq!(Race::HalfElf, Ethnicity::HalfElvish.default_race());
@@ -141,6 +145,7 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
                 celtic::Ethnicity::regenerate(rng, npc)
             }
             Ethnicity::Chinese | Ethnicity::Shou => chinese::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Dragonborn => dragonborn::Ethnicity::regenerate(rng, npc),
             Ethnicity::Dwarvish => dwarvish::Ethnicity::regenerate(rng, npc),
             Ethnicity::Egyptian => egyptian::Ethnicity::regenerate(rng, npc),
             Ethnicity::Elvish => elvish::Ethnicity::regenerate(rng, npc),
@@ -176,6 +181,7 @@ impl fmt::Display for Ethnicity {
             Self::Chinese => write!(f, "Chinese"),
             Self::Chondathan => write!(f, "Chondathan"),
             Self::Damaran => write!(f, "Damaran"),
+            Self::Dragonborn => write!(f, "Dragonborn"),
             Self::Dwarvish => write!(f, "Dwarvish"),
             Self::Egyptian => write!(f, "Egyptian"),
             Self::Elvish => write!(f, "Elvish"),
