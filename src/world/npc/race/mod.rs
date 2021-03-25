@@ -9,6 +9,7 @@ use crate::command::Noun;
 mod dragonborn;
 mod dwarf;
 mod elf;
+mod gnome;
 mod half_elf;
 mod halfling;
 mod human;
@@ -19,6 +20,7 @@ pub enum Race {
     Dragonborn,
     Dwarf,
     Elf,
+    Gnome,
     HalfElf,
     Halfling,
     Human,
@@ -48,6 +50,7 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
             Race::Dragonborn => dragonborn::Race::regenerate(rng, npc),
             Race::Dwarf => dwarf::Race::regenerate(rng, npc),
             Race::Elf => elf::Race::regenerate(rng, npc),
+            Race::Gnome => gnome::Race::regenerate(rng, npc),
             Race::HalfElf => half_elf::Race::regenerate(rng, npc),
             Race::Halfling => halfling::Race::regenerate(rng, npc),
             Race::Human => human::Race::regenerate(rng, npc),
@@ -130,6 +133,7 @@ impl Race {
             Self::Dragonborn => Ethnicity::Dragonborn,
             Self::Dwarf => Ethnicity::Dwarvish,
             Self::Elf => Ethnicity::Elvish,
+            Self::Gnome => Ethnicity::Gnomish,
             Self::HalfElf => Ethnicity::Human,
             Self::Halfling => Ethnicity::Halfling,
             Self::Human => Ethnicity::Human,
@@ -147,6 +151,7 @@ mod test_race {
         assert_eq!(Ethnicity::Dragonborn, Race::Dragonborn.default_ethnicity());
         assert_eq!(Ethnicity::Dwarvish, Race::Dwarf.default_ethnicity());
         assert_eq!(Ethnicity::Elvish, Race::Elf.default_ethnicity());
+        assert_eq!(Ethnicity::Gnomish, Race::Gnome.default_ethnicity());
         assert_eq!(Ethnicity::Human, Race::HalfElf.default_ethnicity());
         assert_eq!(Ethnicity::Halfling, Race::Halfling.default_ethnicity());
         assert_eq!(Ethnicity::Human, Race::Human.default_ethnicity());
@@ -162,6 +167,7 @@ impl TryFrom<Noun> for Race {
             Noun::Dragonborn => Ok(Race::Dragonborn),
             Noun::Dwarf => Ok(Race::Dwarf),
             Noun::Elf => Ok(Race::Elf),
+            Noun::Gnome => Ok(Race::Gnome),
             Noun::HalfElf => Ok(Race::HalfElf),
             Noun::Halfling => Ok(Race::Halfling),
             Noun::Human => Ok(Race::Human),
@@ -181,6 +187,7 @@ mod test_try_from_noun_for_race {
         assert_eq!(Ok(Race::Dragonborn), Noun::Dragonborn.try_into());
         assert_eq!(Ok(Race::Dwarf), Noun::Dwarf.try_into());
         assert_eq!(Ok(Race::Elf), Noun::Elf.try_into());
+        assert_eq!(Ok(Race::Gnome), Noun::Gnome.try_into());
         assert_eq!(Ok(Race::Halfling), Noun::Halfling.try_into());
         assert_eq!(Ok(Race::Human), Noun::Human.try_into());
         assert_eq!(Ok(Race::Warforged), Noun::Warforged.try_into());
@@ -194,6 +201,7 @@ impl fmt::Display for Race {
             Self::Dragonborn => write!(f, "dragonborn"),
             Self::Dwarf => write!(f, "dwarf"),
             Self::Elf => write!(f, "elf"),
+            Self::Gnome => write!(f, "gnome"),
             Self::HalfElf => write!(f, "half-elf"),
             Self::Halfling => write!(f, "halfling"),
             Self::Human => write!(f, "human"),
@@ -211,6 +219,7 @@ mod test_display_for_race {
         assert_eq!("dragonborn", format!("{}", Race::Dragonborn));
         assert_eq!("dwarf", format!("{}", Race::Dwarf));
         assert_eq!("elf", format!("{}", Race::Elf));
+        assert_eq!("gnome", format!("{}", Race::Gnome));
         assert_eq!("halfling", format!("{}", Race::Halfling));
         assert_eq!("human", format!("{}", Race::Human));
         assert_eq!("warforged", format!("{}", Race::Warforged));

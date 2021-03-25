@@ -6,6 +6,7 @@ pub enum Noun {
     Dragonborn,
     Dwarf,
     Elf,
+    Gnome,
     HalfElf,
     Halfling,
     Human,
