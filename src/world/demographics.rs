@@ -316,7 +316,7 @@ impl Default for Demographics {
         let mut groups = HashMap::new();
         groups.insert((Race::Human, Ethnicity::Human), 1_020_000);
         // groups.insert(Race::HalfElf, 320_000);
-        // groups.insert(Race::Elf, 220_000);
+        groups.insert((Race::Elf, Ethnicity::Elvish), 220_000);
         // groups.insert(Race::Gnome, 220_000);
         // groups.insert(Race::Halfling, 100_000);
         // groups.insert(Race::Shifter, 60_000);

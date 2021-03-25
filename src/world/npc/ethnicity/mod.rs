@@ -9,6 +9,7 @@ mod celtic;
 mod chinese;
 mod dwarvish;
 mod egyptian;
+mod elvish;
 mod english;
 mod french;
 mod german;
@@ -32,6 +33,7 @@ pub enum Ethnicity {
     Chinese,
     Dwarvish,
     Egyptian,
+    Elvish,
     English,
     French,
     German,
@@ -71,6 +73,7 @@ impl Ethnicity {
             | Self::Slavic
             | Self::Spanish => Race::Human,
             Self::Dwarvish => Race::Dwarf,
+            Self::Elvish => Race::Elf,
             Self::Warforged => Race::Warforged,
         }
     }
@@ -83,6 +86,7 @@ mod test_ethnicity {
     #[test]
     fn default_race_test() {
         assert_eq!(Race::Dwarf, Ethnicity::Dwarvish.default_race());
+        assert_eq!(Race::Elf, Ethnicity::Elvish.default_race());
         assert_eq!(Race::Human, Ethnicity::Arabic.default_race());
         assert_eq!(Race::Warforged, Ethnicity::Warforged.default_race());
     }
@@ -106,6 +110,7 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
             Ethnicity::Chinese => chinese::Ethnicity::regenerate(rng, npc),
             Ethnicity::Dwarvish => dwarvish::Ethnicity::regenerate(rng, npc),
             Ethnicity::Egyptian => egyptian::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Elvish => elvish::Ethnicity::regenerate(rng, npc),
             Ethnicity::English => english::Ethnicity::regenerate(rng, npc),
             Ethnicity::French => french::Ethnicity::regenerate(rng, npc),
             Ethnicity::German => german::Ethnicity::regenerate(rng, npc),
@@ -133,6 +138,7 @@ impl fmt::Display for Ethnicity {
             Self::Chinese => write!(f, "Chinese"),
             Self::Dwarvish => write!(f, "Dwarvish"),
             Self::Egyptian => write!(f, "Egyptian"),
+            Self::Elvish => write!(f, "Elvish"),
             Self::English => write!(f, "English"),
             Self::French => write!(f, "French"),
             Self::German => write!(f, "German"),

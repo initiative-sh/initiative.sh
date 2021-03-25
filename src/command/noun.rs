@@ -4,6 +4,7 @@ use initiative_macros::WordList;
 pub enum Noun {
     Building,
     Dwarf,
+    Elf,
     Human,
     Inn,
     Npc,
