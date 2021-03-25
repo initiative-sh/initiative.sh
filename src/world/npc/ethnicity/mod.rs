@@ -12,6 +12,7 @@ mod english;
 mod french;
 mod german;
 mod greek;
+mod human;
 mod indian;
 mod japanese;
 mod mesoamerican;
@@ -33,6 +34,7 @@ pub enum Ethnicity {
     French,
     German,
     Greek,
+    Human,
     Indian,
     Japanese,
     Mesoamerican,
@@ -56,6 +58,7 @@ impl Ethnicity {
             | Self::French
             | Self::German
             | Self::Greek
+            | Self::Human
             | Self::Indian
             | Self::Japanese
             | Self::Mesoamerican
@@ -102,6 +105,7 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
             Ethnicity::French => french::Ethnicity::regenerate(rng, npc),
             Ethnicity::German => german::Ethnicity::regenerate(rng, npc),
             Ethnicity::Greek => greek::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Human => human::Ethnicity::regenerate(rng, npc),
             Ethnicity::Indian => indian::Ethnicity::regenerate(rng, npc),
             Ethnicity::Japanese => japanese::Ethnicity::regenerate(rng, npc),
             Ethnicity::Mesoamerican => mesoamerican::Ethnicity::regenerate(rng, npc),
@@ -127,6 +131,7 @@ impl fmt::Display for Ethnicity {
             Self::French => write!(f, "French"),
             Self::German => write!(f, "German"),
             Self::Greek => write!(f, "Greek"),
+            Self::Human => write!(f, "Human"),
             Self::Indian => write!(f, "Indian"),
             Self::Japanese => write!(f, "Japanese"),
             Self::Mesoamerican => write!(f, "Mesoamerican"),
