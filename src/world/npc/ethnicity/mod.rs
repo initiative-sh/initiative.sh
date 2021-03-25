@@ -6,6 +6,7 @@ use super::{Age, Gender, Npc, Race};
 
 mod arabic;
 mod celtic;
+mod chinese;
 mod warforged;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -81,6 +82,7 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
         match ethnicity {
             Ethnicity::Arabic => arabic::Ethnicity::regenerate(rng, npc),
             Ethnicity::Celtic => celtic::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Chinese => chinese::Ethnicity::regenerate(rng, npc),
             Ethnicity::Warforged => warforged::Ethnicity::regenerate(rng, npc),
             _ => {}
         }
