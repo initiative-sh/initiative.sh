@@ -17,6 +17,7 @@ mod german;
 mod gnomish;
 mod greek;
 mod half_elvish;
+mod half_orcish;
 mod halfling;
 mod human;
 mod indian;
@@ -68,6 +69,7 @@ pub enum Ethnicity {
     Elvish,
     Gnomish,
     HalfElvish,
+    HalfOrcish,
     Halfling,
     Human,
     Warforged,
@@ -108,6 +110,7 @@ impl Ethnicity {
             Self::Elvish => Race::Elf,
             Self::Gnomish => Race::Gnome,
             Self::HalfElvish => Race::HalfElf,
+            Self::HalfOrcish => Race::HalfOrc,
             Self::Halfling => Race::Halfling,
             Self::Warforged => Race::Warforged,
         }
@@ -125,6 +128,7 @@ mod test_ethnicity {
         assert_eq!(Race::Elf, Ethnicity::Elvish.default_race());
         assert_eq!(Race::Gnome, Ethnicity::Gnomish.default_race());
         assert_eq!(Race::HalfElf, Ethnicity::HalfElvish.default_race());
+        assert_eq!(Race::HalfOrc, Ethnicity::HalfOrcish.default_race());
         assert_eq!(Race::Halfling, Ethnicity::Halfling.default_race());
         assert_eq!(Race::Human, Ethnicity::Arabic.default_race());
         assert_eq!(Race::Warforged, Ethnicity::Warforged.default_race());
@@ -159,6 +163,7 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
             Ethnicity::Gnomish => gnomish::Ethnicity::regenerate(rng, npc),
             Ethnicity::Greek => greek::Ethnicity::regenerate(rng, npc),
             Ethnicity::HalfElvish => half_elvish::Ethnicity::regenerate(rng, npc),
+            Ethnicity::HalfOrcish => half_orcish::Ethnicity::regenerate(rng, npc),
             Ethnicity::Halfling => halfling::Ethnicity::regenerate(rng, npc),
             Ethnicity::Human => human::Ethnicity::regenerate(rng, npc),
             Ethnicity::Indian | Ethnicity::Mulan | Ethnicity::Rashemi => {
@@ -196,6 +201,7 @@ impl fmt::Display for Ethnicity {
             Self::Gnomish => write!(f, "Gnomish"),
             Self::Greek => write!(f, "Greek"),
             Self::HalfElvish => write!(f, "Half-Elvish"),
+            Self::HalfOrcish => write!(f, "Half-Orcish"),
             Self::Halfling => write!(f, "Halfling"),
             Self::Human => write!(f, "Human"),
             Self::Illuskan => write!(f, "Illuskan"),

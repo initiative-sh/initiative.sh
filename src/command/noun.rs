@@ -8,6 +8,7 @@ pub enum Noun {
     Elf,
     Gnome,
     HalfElf,
+    HalfOrc,
     Halfling,
     Human,
     Inn,

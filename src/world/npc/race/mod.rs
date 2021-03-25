@@ -11,6 +11,7 @@ mod dwarf;
 mod elf;
 mod gnome;
 mod half_elf;
+mod half_orc;
 mod halfling;
 mod human;
 mod warforged;
@@ -22,6 +23,7 @@ pub enum Race {
     Elf,
     Gnome,
     HalfElf,
+    HalfOrc,
     Halfling,
     Human,
     Warforged,
@@ -52,6 +54,7 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
             Race::Elf => elf::Race::regenerate(rng, npc),
             Race::Gnome => gnome::Race::regenerate(rng, npc),
             Race::HalfElf => half_elf::Race::regenerate(rng, npc),
+            Race::HalfOrc => half_orc::Race::regenerate(rng, npc),
             Race::Halfling => halfling::Race::regenerate(rng, npc),
             Race::Human => human::Race::regenerate(rng, npc),
             Race::Warforged => warforged::Race::regenerate(rng, npc),
@@ -135,6 +138,7 @@ impl Race {
             Self::Elf => Ethnicity::Elvish,
             Self::Gnome => Ethnicity::Gnomish,
             Self::HalfElf => Ethnicity::Human,
+            Self::HalfOrc => Ethnicity::HalfOrcish,
             Self::Halfling => Ethnicity::Halfling,
             Self::Human => Ethnicity::Human,
             Self::Warforged => Ethnicity::Warforged,
@@ -153,6 +157,7 @@ mod test_race {
         assert_eq!(Ethnicity::Elvish, Race::Elf.default_ethnicity());
         assert_eq!(Ethnicity::Gnomish, Race::Gnome.default_ethnicity());
         assert_eq!(Ethnicity::Human, Race::HalfElf.default_ethnicity());
+        assert_eq!(Ethnicity::HalfOrcish, Race::HalfOrc.default_ethnicity());
         assert_eq!(Ethnicity::Halfling, Race::Halfling.default_ethnicity());
         assert_eq!(Ethnicity::Human, Race::Human.default_ethnicity());
         assert_eq!(Ethnicity::Warforged, Race::Warforged.default_ethnicity());
@@ -169,6 +174,7 @@ impl TryFrom<Noun> for Race {
             Noun::Elf => Ok(Race::Elf),
             Noun::Gnome => Ok(Race::Gnome),
             Noun::HalfElf => Ok(Race::HalfElf),
+            Noun::HalfOrc => Ok(Race::HalfOrc),
             Noun::Halfling => Ok(Race::Halfling),
             Noun::Human => Ok(Race::Human),
             Noun::Warforged => Ok(Race::Warforged),
@@ -203,6 +209,7 @@ impl fmt::Display for Race {
             Self::Elf => write!(f, "elf"),
             Self::Gnome => write!(f, "gnome"),
             Self::HalfElf => write!(f, "half-elf"),
+            Self::HalfOrc => write!(f, "half-orc"),
             Self::Halfling => write!(f, "halfling"),
             Self::Human => write!(f, "human"),
             Self::Warforged => write!(f, "warforged"),
