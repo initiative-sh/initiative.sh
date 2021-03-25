@@ -112,7 +112,7 @@ mod test {
 impl Race {
     pub fn default_ethnicity(&self) -> Ethnicity {
         match self {
-            Self::Human => Ethnicity::English, // Look, there's no good answer here.
+            Self::Human => Ethnicity::Human,
             Self::Warforged => Ethnicity::Warforged,
         }
     }
@@ -124,7 +124,7 @@ mod test_race {
 
     #[test]
     fn default_ethnicity_test() {
-        assert_eq!(Ethnicity::English, Race::Human.default_ethnicity());
+        assert_eq!(Ethnicity::Human, Race::Human.default_ethnicity());
         assert_eq!(Ethnicity::Warforged, Race::Warforged.default_ethnicity());
     }
 }

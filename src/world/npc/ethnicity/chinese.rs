@@ -6,23 +6,22 @@ use super::{Age, Gender, Generate, Rng};
 pub struct Ethnicity;
 
 impl Ethnicity {
+    #[rustfmt::skip]
     const FEMININE_NAMES: &'static [&'static str] = &[
-        "Aaliyah", "Aida", "Akilah", "Alia", "Amina", "Atefeh", "Chaima", "Dalia", "Ehsan",
-        "Elham", "Farah", "Fatemah", "Gamila", "Iesha", "Inbar", "Kamaria", "Khadija", "Layla",
-        "Lupe", "Nabila", "Nadine", "Naima", "Najila", "Najwa", "Kania", "Nashwa", "Nawra", "Nuha",
-        "Nura", "Oma", "Qadira", "Qamar", "Qistina", "Rahima", "Rihanna", "Saadia", "Sabah",
-        "Sada", "Saffron", "Sahar", "Salma", "Shatha", "Tahira", "Takisha", "Thana", "Yadira",
-        "Zahra", "Zaida", "Zaina", "Zeinab",
+        "Ai", "Anming", "Baozhai", "Bei", "Caixia", "Changchang", "Chen", "Chou", "Chunhua",
+        "Daianna", "Daiyu", "Die", "Ehuang", "Fenfang", "Ge", "Hong", "Huan", "Huifang", "Jia",
+        "Jiao", "Jiaying", "Jingfei", "Jinjing", "Lan", "Li", "Lihua", "Lin", "Ling", "Liu",
+        "Meili", "Ning", "Qi", "Qiao", "Rong", "Shu", "Shuang", "Song", "Ting", "Wen", "Xia",
+        "Xiaodan", "Xiaoli", "Xingjuan", "Xue", "Ya", "Yan", "Ying", "Yuan", "Yue", "Yun",
     ];
 
     #[rustfmt::skip]
     const MASCULINE_NAMES: &'static [&'static str] = &[
-        "Abbad", "Abdul", "Achmed", "Akeem", "Alif", "Amir", "Asim", "Bashir", "Bassam", "Fahim",
-        "Farid", "Farouk", "Fayez", "Fayyaad", "Fazil", "Hakim", "Halil", "Hamid", "Hazim",
-        "Heydar", "Hussein", "Jabari", "Jafar", "Jahid", "Jamal", "Kalim", "Karim", "Kazim",
-        "Khadim", "Khalid", "Mahmud", "Mansour", "Musharraf", "Mustafa", "Nadir", "Nazim", "Omar",
-        "Qadir", "Qusay", "Rafiq", "Rakim", "Rashad", "Rauf", "Saladin", "Sami", "Samir", "Talib",
-        "Tamir", "Tariq", "Yazid",
+        "Bingwen", "Bo", "Bolin", "Chang", "Chao", "Chen", "Cheng", "Da", "Dingxia", "ng", "Fang",
+        "Feng", "Fu", "Gang", "Guang", "Hai", "He", "ng", "Ho", "ng", "Huan", "Huang", "Huiliang",
+        "Huizhong", "Jian", "Jiayi", "Junjie", "Kang", "Lei", "Liang", "Ling", "Liwei", "Meilin",
+        "Niu", "Peizhi", "Peng", "Ping", "Qiang", "Qiu", "Quan", "Renshu", "Rong", "Ru", "Shan",
+        "Shen", "Tengfei", "Wei", "Xiaobo", "Xiaoli", "Xin", "Yang", "Ying", "Zhong",
     ];
 }
 
@@ -62,11 +61,16 @@ mod test_generate_for_ethnicity {
         let f = Gender::Feminine;
         let t = Gender::Trans;
 
-        assert_eq!("Abbad", Ethnicity::gen_name(&mut rng, &age, &m));
-        assert_eq!("Saladin", Ethnicity::gen_name(&mut rng, &age, &m));
-        assert_eq!("Qadira", Ethnicity::gen_name(&mut rng, &age, &f));
-        assert_eq!("Layla", Ethnicity::gen_name(&mut rng, &age, &f));
-        assert_eq!("Alif", Ethnicity::gen_name(&mut rng, &age, &t));
-        assert_eq!("Shatha", Ethnicity::gen_name(&mut rng, &age, &t));
+        assert_eq!(
+            ["Bingwen", "Wei", "Ning", "Huifang", "Chao", "Xiaoli"],
+            [
+                Ethnicity::gen_name(&mut rng, &age, &m),
+                Ethnicity::gen_name(&mut rng, &age, &m),
+                Ethnicity::gen_name(&mut rng, &age, &f),
+                Ethnicity::gen_name(&mut rng, &age, &f),
+                Ethnicity::gen_name(&mut rng, &age, &t),
+                Ethnicity::gen_name(&mut rng, &age, &t),
+            ]
+        );
     }
 }

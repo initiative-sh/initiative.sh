@@ -314,7 +314,7 @@ mod test_demographics {
 impl Default for Demographics {
     fn default() -> Self {
         let mut groups = HashMap::new();
-        groups.insert((Race::Human, Ethnicity::Arabic), 1_020_000);
+        groups.insert((Race::Human, Ethnicity::Human), 1_020_000);
         // groups.insert(Race::HalfElf, 320_000);
         // groups.insert(Race::Elf, 220_000);
         // groups.insert(Race::Gnome, 220_000);

@@ -5,6 +5,23 @@ use rand::Rng;
 use super::{Age, Gender, Npc, Race};
 
 mod arabic;
+mod celtic;
+mod chinese;
+mod egyptian;
+mod english;
+mod french;
+mod german;
+mod greek;
+mod human;
+mod indian;
+mod japanese;
+mod mesoamerican;
+mod niger_congo;
+mod norse;
+mod polynesian;
+mod roman;
+mod slavic;
+mod spanish;
 mod warforged;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -17,6 +34,7 @@ pub enum Ethnicity {
     French,
     German,
     Greek,
+    Human,
     Indian,
     Japanese,
     Mesoamerican,
@@ -40,6 +58,7 @@ impl Ethnicity {
             | Self::French
             | Self::German
             | Self::Greek
+            | Self::Human
             | Self::Indian
             | Self::Japanese
             | Self::Mesoamerican
@@ -79,8 +98,24 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
     if let Some(ethnicity) = &npc.ethnicity.value {
         match ethnicity {
             Ethnicity::Arabic => arabic::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Celtic => celtic::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Chinese => chinese::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Egyptian => egyptian::Ethnicity::regenerate(rng, npc),
+            Ethnicity::English => english::Ethnicity::regenerate(rng, npc),
+            Ethnicity::French => french::Ethnicity::regenerate(rng, npc),
+            Ethnicity::German => german::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Greek => greek::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Human => human::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Indian => indian::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Japanese => japanese::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Mesoamerican => mesoamerican::Ethnicity::regenerate(rng, npc),
+            Ethnicity::NigerCongo => niger_congo::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Norse => norse::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Polynesian => polynesian::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Roman => roman::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Slavic => slavic::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Spanish => spanish::Ethnicity::regenerate(rng, npc),
             Ethnicity::Warforged => warforged::Ethnicity::regenerate(rng, npc),
-            _ => {}
         }
     }
 }
@@ -96,6 +131,7 @@ impl fmt::Display for Ethnicity {
             Self::French => write!(f, "French"),
             Self::German => write!(f, "German"),
             Self::Greek => write!(f, "Greek"),
+            Self::Human => write!(f, "Human"),
             Self::Indian => write!(f, "Indian"),
             Self::Japanese => write!(f, "Japanese"),
             Self::Mesoamerican => write!(f, "Mesoamerican"),
