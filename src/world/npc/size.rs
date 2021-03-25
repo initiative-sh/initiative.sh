@@ -3,7 +3,7 @@ use std::fmt;
 #[derive(Debug, PartialEq)]
 pub enum Size {
     // Tiny { height: u16, weight: u16 },
-    // Small { height: u16, weight: u16 },
+    Small { height: u16, weight: u16 },
     Medium { height: u16, weight: u16 },
     // Large { height: u16, weight: u16 },
     // Huge { height: u16, weight: u16 },
@@ -13,6 +13,7 @@ pub enum Size {
 impl Size {
     pub fn height_weight(&self) -> (u16, u16) {
         match self {
+            Self::Small { height, weight } => (*height, *weight),
             Self::Medium { height, weight } => (*height, *weight),
         }
     }
@@ -32,6 +33,7 @@ impl Size {
 
     pub fn name(&self) -> &'static str {
         match self {
+            Self::Small { .. } => "small",
             Self::Medium { .. } => "medium",
         }
     }
@@ -43,7 +45,23 @@ mod test_size {
 
     #[test]
     fn height_weight_test() {
-        assert_eq!((71, 140), size().height_weight());
+        assert_eq!(
+            (71, 140),
+            Size::Small {
+                height: 71,
+                weight: 140
+            }
+            .height_weight()
+        );
+
+        assert_eq!(
+            (71, 140),
+            Size::Medium {
+                height: 71,
+                weight: 140
+            }
+            .height_weight()
+        );
     }
 
     #[test]
@@ -63,7 +81,22 @@ mod test_size {
 
     #[test]
     fn name_test() {
-        assert_eq!("medium", size().name());
+        assert_eq!(
+            "small",
+            Size::Small {
+                height: 0,
+                weight: 0
+            }
+            .name()
+        );
+        assert_eq!(
+            "medium",
+            Size::Medium {
+                height: 0,
+                weight: 0
+            }
+            .name()
+        );
     }
 
     fn size() -> Size {

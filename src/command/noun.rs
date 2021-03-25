@@ -3,12 +3,20 @@ use initiative_macros::WordList;
 #[derive(Clone, Copy, Debug, PartialEq, WordList)]
 pub enum Noun {
     Building,
+    Dragonborn,
+    Dwarf,
+    Elf,
+    Gnome,
+    HalfElf,
+    HalfOrc,
+    Halfling,
     Human,
     Inn,
     Npc,
     Residence,
     Shop,
     Temple,
+    Tiefling,
     Warehouse,
     Warforged,
 }
