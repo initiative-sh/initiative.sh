@@ -3,6 +3,7 @@ use initiative_macros::WordList;
 #[derive(Clone, Copy, Debug, PartialEq, WordList)]
 pub enum Noun {
     Building,
+    Dwarf,
     Human,
     Inn,
     Npc,

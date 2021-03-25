@@ -6,11 +6,13 @@ use rand::Rng;
 use super::{Age, Ethnicity, Gender, Npc, Size};
 use crate::command::Noun;
 
+mod dwarf;
 mod human;
 mod warforged;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum Race {
+    Dwarf,
     Human,
     Warforged,
 }
@@ -35,6 +37,7 @@ trait Generate {
 pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
     if let Some(race) = npc.race.value {
         match race {
+            Race::Dwarf => dwarf::Race::regenerate(rng, npc),
             Race::Human => human::Race::regenerate(rng, npc),
             Race::Warforged => warforged::Race::regenerate(rng, npc),
         }
@@ -112,6 +115,7 @@ mod test {
 impl Race {
     pub fn default_ethnicity(&self) -> Ethnicity {
         match self {
+            Self::Dwarf => Ethnicity::Dwarvish,
             Self::Human => Ethnicity::Human,
             Self::Warforged => Ethnicity::Warforged,
         }
@@ -124,6 +128,7 @@ mod test_race {
 
     #[test]
     fn default_ethnicity_test() {
+        assert_eq!(Ethnicity::Dwarvish, Race::Dwarf.default_ethnicity());
         assert_eq!(Ethnicity::Human, Race::Human.default_ethnicity());
         assert_eq!(Ethnicity::Warforged, Race::Warforged.default_ethnicity());
     }
@@ -134,6 +139,7 @@ impl TryFrom<Noun> for Race {
 
     fn try_from(noun: Noun) -> Result<Self, Self::Error> {
         match noun {
+            Noun::Dwarf => Ok(Race::Dwarf),
             Noun::Human => Ok(Race::Human),
             Noun::Warforged => Ok(Race::Warforged),
             _ => Err(()),
@@ -148,6 +154,7 @@ mod test_try_from_noun_for_race {
 
     #[test]
     fn try_from_test() {
+        assert_eq!(Ok(Race::Dwarf), Noun::Dwarf.try_into());
         assert_eq!(Ok(Race::Human), Noun::Human.try_into());
         assert_eq!(Ok(Race::Warforged), Noun::Warforged.try_into());
         assert_eq!(Err(()), Race::try_from(Noun::Inn));
@@ -157,6 +164,7 @@ mod test_try_from_noun_for_race {
 impl fmt::Display for Race {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Self::Dwarf => write!(f, "dwarf"),
             Self::Human => write!(f, "human"),
             Self::Warforged => write!(f, "warforged"),
         }
@@ -169,6 +177,7 @@ mod test_display_for_race {
 
     #[test]
     fn fmt_test() {
+        assert_eq!("dwarf", format!("{}", Race::Dwarf));
         assert_eq!("human", format!("{}", Race::Human));
         assert_eq!("warforged", format!("{}", Race::Warforged));
     }
