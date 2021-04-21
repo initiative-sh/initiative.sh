@@ -4,7 +4,7 @@ pub struct Ethnicity;
 
 impl Ethnicity {
     const NAMES: &'static [&'static str] = &[
-        "Anchor", "Banner", "Bastion", "Blade", "Blue", "Bow", "Cart", "Church", "Grnch",
+        "Anchor", "Banner", "Bastion", "Blade", "Blue", "Bow", "Cart", "Church", "Crunch",
         "Crystal", "Dagger", "Dent", "Five", "Glaive", "Hammer", "Iron", "Lucky", "Mace", "Oak",
         "Onyx", "Pants", "Pierce", "Red", "Rod", "Rusty", "Scout", "Seven", "Shield", "Slash",
         "Smith", "Spike", "Temple", "Vault", "Wall",

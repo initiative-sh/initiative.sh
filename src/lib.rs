@@ -26,18 +26,60 @@ impl Context {
             Box::new(format!("{:?}", verb))
         } else if let Some(&noun) = command.get_noun() {
             if let Ok(location_subtype) = noun.try_into() {
+                let mut output = String::new();
                 let location =
                     Location::generate_subtype(location_subtype, &mut thread_rng(), &demographics);
-                Box::new(format!("{}", location.display_details()))
+
+                output.push_str(&format!("\n{}\n", location.display_details()));
+
+                (0..10).for_each(|i| {
+                    output.push_str(&format!(
+                        "{} {}\n",
+                        i,
+                        Location::generate_subtype(
+                            location_subtype,
+                            &mut thread_rng(),
+                            &demographics
+                        )
+                        .display_summary()
+                    ))
+                });
+
+                Box::new(output)
             } else if let Ok(race) = noun.try_into() {
                 let demographics = demographics.only_race(&race);
+
+                let mut output = String::new();
                 let npc = Npc::generate(&mut thread_rng(), &demographics);
-                Box::new(format!("{}", npc.display_details()))
+
+                output.push_str(&format!("\n{}\n", npc.display_details()));
+
+                (0..10).for_each(|i| {
+                    output.push_str(&format!(
+                        "{} {}\n",
+                        i,
+                        Npc::generate(&mut thread_rng(), &demographics).display_summary()
+                    ))
+                });
+
+                Box::new(output)
             } else {
                 match noun {
                     Noun::Npc => {
+                        let mut output = String::new();
                         let npc = Npc::generate(&mut thread_rng(), &demographics);
-                        Box::new(format!("{}", npc.display_details()))
+
+                        output.push_str(&format!("\n{}\n", npc.display_details()));
+
+                        (0..10).for_each(|i| {
+                            output.push_str(&format!(
+                                "{} {}\n",
+                                i,
+                                Npc::generate(&mut thread_rng(), &demographics).display_summary()
+                            ))
+                        });
+
+                        Box::new(output)
                     }
                     _ => Box::new(format!("{:?}", noun)),
                 }
