@@ -3,11 +3,18 @@ use super::{Age, Gender, Generate, Rng};
 pub struct Ethnicity;
 
 impl Ethnicity {
+    #[rustfmt::skip]
     const NAMES: &'static [&'static str] = &[
-        "Anchor", "Banner", "Bastion", "Blade", "Blue", "Bow", "Cart", "Church", "Crunch",
-        "Crystal", "Dagger", "Dent", "Five", "Glaive", "Hammer", "Iron", "Lucky", "Mace", "Oak",
-        "Onyx", "Pants", "Pierce", "Red", "Rod", "Rusty", "Scout", "Seven", "Shield", "Slash",
-        "Smith", "Spike", "Temple", "Vault", "Wall",
+        "Anchor", "Angel", "Banner", "Bastion", "Biscuit", "Blade", "Blue", "Bones", "Bow",
+        "Brains", "Bridgehead", "Caboose", "Candle", "Cart", "Casper", "Chappie", "Church",
+        "Craft", "Crunch", "Crystal", "Curly", "Dagger", "Dash", "Dent", "Digger", "Five", "Flash",
+        "Foggy", "Four", "Furball", "Ghost", "Giggles", "Gilligan", "Ginger", "Glaive", "Gramps",
+        "Green", "Gunner", "Hammer", "Happy", "Hurricane", "Hyde", "Iron", "Juggernaut", "Junior",
+        "Keep", "Leaky", "Leatherman", "Lucky", "Mace", "Maverick", "Midas", "Mini", "Mumbles",
+        "Nitro", "Nugget", "Oak", "Onyx", "Pants", "Pierce", "Pump", "Raven", "Reaper", "Red",
+        "Rock", "Rod", "Rusty", "Scout", "Scratch", "Seven", "Shield", "Shrimp", "Six", "Slash",
+        "Slate", "Smith", "Snake", "Spear", "Spike", "Sword", "Temple", "Ten", "Three", "Turret",
+        "Twiggy", "Vault", "Wall",
     ];
 }
 
@@ -28,10 +35,16 @@ mod test_generate_for_ethnicity {
         let age = Age::Adult(0);
         let m = Gender::Masculine;
 
-        assert_eq!("Anchor", Ethnicity::gen_name(&mut rng, &age, &m));
-        assert_eq!("Scout", Ethnicity::gen_name(&mut rng, &age, &m));
-        assert_eq!("Lucky", Ethnicity::gen_name(&mut rng, &age, &m));
-        assert_eq!("Church", Ethnicity::gen_name(&mut rng, &age, &m));
-        assert_eq!("Blade", Ethnicity::gen_name(&mut rng, &age, &m));
+        assert_eq!(
+            ["Anchor", "Smith", "Rock", "Mumbles", "Ghost", "Crystal"],
+            [
+                Ethnicity::gen_name(&mut rng, &age, &m),
+                Ethnicity::gen_name(&mut rng, &age, &m),
+                Ethnicity::gen_name(&mut rng, &age, &m),
+                Ethnicity::gen_name(&mut rng, &age, &m),
+                Ethnicity::gen_name(&mut rng, &age, &m),
+                Ethnicity::gen_name(&mut rng, &age, &m),
+            ]
+        );
     }
 }

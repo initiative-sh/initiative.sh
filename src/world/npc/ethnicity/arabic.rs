@@ -62,11 +62,16 @@ mod test_generate_for_ethnicity {
         let f = Gender::Feminine;
         let t = Gender::Trans;
 
-        assert_eq!("Abbad", Ethnicity::gen_name(&mut rng, &age, &m));
-        assert_eq!("Saladin", Ethnicity::gen_name(&mut rng, &age, &m));
-        assert_eq!("Qadira", Ethnicity::gen_name(&mut rng, &age, &f));
-        assert_eq!("Layla", Ethnicity::gen_name(&mut rng, &age, &f));
-        assert_eq!("Alif", Ethnicity::gen_name(&mut rng, &age, &t));
-        assert_eq!("Shatha", Ethnicity::gen_name(&mut rng, &age, &t));
+        assert_eq!(
+            ["Abbad", "Saladin", "Qadira", "Layla", "Alif", "Shatha"],
+            [
+                Ethnicity::gen_name(&mut rng, &age, &m),
+                Ethnicity::gen_name(&mut rng, &age, &m),
+                Ethnicity::gen_name(&mut rng, &age, &f),
+                Ethnicity::gen_name(&mut rng, &age, &f),
+                Ethnicity::gen_name(&mut rng, &age, &t),
+                Ethnicity::gen_name(&mut rng, &age, &t),
+            ]
+        );
     }
 }
