@@ -47,7 +47,23 @@ fn impl_word_list(ast: &syn::DeriveInput) -> TokenStream {
             .variants
             .iter()
             .map(|variant| {
-                let word = variant.ident.to_string().to_lowercase();
+                let word: String = variant
+                    .ident
+                    .to_string()
+                    .chars()
+                    .enumerate()
+                    .map(|(i, c)| {
+                        if c.is_uppercase() {
+                            if i > 0 {
+                                format!("-{}", c.to_lowercase())
+                            } else {
+                                c.to_lowercase().to_string()
+                            }
+                        } else {
+                            c.to_string()
+                        }
+                    })
+                    .collect();
                 (
                     quote! { #word => Ok(#name::#variant), },
                     quote! { #name::#variant => #word, },
