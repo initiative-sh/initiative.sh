@@ -64,8 +64,21 @@ fn impl_word_list(ast: &syn::DeriveInput) -> TokenStream {
                         }
                     })
                     .collect();
+
                 (
-                    quote! { #word => Ok(#name::#variant), },
+                    if word.contains('-') {
+                        let alt_word: String = word
+                            .chars()
+                            .map(|c| if c == '-' { ' ' } else { c })
+                            .collect();
+
+                        quote! {
+                            #word => Ok(#name::#variant),
+                            #alt_word => Ok(#name::#variant),
+                        }
+                    } else {
+                        quote! { #word => Ok(#name::#variant), }
+                    },
                     quote! { #name::#variant => #word, },
                 )
             })

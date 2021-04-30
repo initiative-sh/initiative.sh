@@ -17,7 +17,6 @@ pub struct Command {
 enum Word {
     Verb(Verb),
     Noun(Noun),
-    ProperNoun(String),
     Unknown(String),
 }
 
@@ -47,54 +46,41 @@ impl FromStr for Command {
     type Err = Infallible;
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        Ok(Command {
-            raw: raw.to_string(),
-            words: raw
-                .split_whitespace()
-                .fold(Vec::new(), |mut acc, raw_word| {
-                    if raw_word.starts_with(char::is_uppercase) {
-                        let proper_noun_word_count = acc.iter().fold(0, |count, word| match word {
-                            Word::ProperNoun(_) => count + 1,
-                            Word::Unknown(_) if count > 0 => count + 1,
-                            _ => 0,
-                        });
+        Ok(raw.to_string().into())
+    }
+}
 
-                        if proper_noun_word_count > 0 {
-                            let mut new_proper_noun = acc
-                                .drain(acc.len() - proper_noun_word_count..)
-                                .fold(String::new(), |mut acc, word| {
-                                    if !acc.is_empty() {
-                                        acc.push(' ');
-                                    }
-                                    acc.push_str(&match word {
-                                        Word::ProperNoun(word) => word,
-                                        Word::Unknown(word) => {
-                                            let mut chars = word.chars();
-                                            match chars.next() {
-                                                None => String::new(),
-                                                Some(s) => {
-                                                    s.to_uppercase().collect::<String>()
-                                                        + chars.as_str()
-                                                }
-                                            }
-                                        }
-                                        _ => unreachable!(),
-                                    });
-                                    acc
-                                });
-                            new_proper_noun.push(' ');
-                            new_proper_noun.push_str(raw_word);
+impl From<String> for Command {
+    fn from(input: String) -> Command {
+        let mut raw_mut = input.as_str();
+        let mut words = Vec::new();
 
-                            acc.push(Word::ProperNoun(new_proper_noun));
-                        } else {
-                            acc.push(raw_word.parse().unwrap());
-                        }
-                    } else {
-                        acc.push(raw_word.parse().unwrap());
-                    };
-                    acc
-                }),
-        })
+        while raw_mut.len() > 0 {
+            let (word, remainder) = parse(raw_mut);
+            raw_mut = remainder;
+            words.push(word);
+        }
+
+        Command { raw: input, words }
+    }
+}
+
+fn parse<'a>(input: &'a str) -> (Word, &'a str) {
+    let input = input.trim_end();
+
+    if let Ok(word) = input.parse() {
+        (word, "")
+    } else if !input.contains(' ') {
+        (Word::Unknown(input.to_string()), "")
+    } else {
+        for (index, _) in input.match_indices(' ').rev() {
+            if let Ok(word) = input[..index].parse() {
+                return (word, &input[index + 1..]);
+            }
+        }
+
+        let (raw_word, remainder) = input.split_at(input.find(' ').unwrap());
+        return (Word::Unknown(raw_word.to_string()), remainder.trim_start());
     }
 }
 
@@ -108,15 +94,13 @@ impl FromStr for Word {
     type Err = ();
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        Ok(if raw.starts_with(char::is_uppercase) {
-            Self::ProperNoun(raw.to_string())
-        } else if let Ok(verb) = raw.parse() {
-            Self::Verb(verb)
+        if let Ok(verb) = raw.parse() {
+            Ok(Self::Verb(verb))
         } else if let Ok(noun) = raw.parse() {
-            Self::Noun(noun)
+            Ok(Self::Noun(noun))
         } else {
-            Self::Unknown(raw.to_string())
-        })
+            Err(())
+        }
     }
 }
 
@@ -125,7 +109,6 @@ impl From<Word> for String {
         match word {
             Word::Verb(v) => v.into(),
             Word::Noun(n) => n.into(),
-            Word::ProperNoun(s) => s,
             Word::Unknown(s) => s,
         }
     }
@@ -137,36 +120,19 @@ mod test_command {
 
     #[test]
     fn word_salad_test() {
-        let input = "tutorial inn Potato carrot";
+        let input = "tutorial potato inn carrot half elf turnip";
         let command: Command = input.parse().unwrap();
 
         assert_eq!(
             vec![
                 Word::Verb(Verb::Tutorial),
+                Word::Unknown("potato".to_string()),
                 Word::Noun(Noun::Inn),
-                Word::ProperNoun("Potato".to_string()),
                 Word::Unknown("carrot".to_string()),
+                Word::Noun(Noun::HalfElf),
+                Word::Unknown("turnip".to_string()),
             ],
             command.words
-        );
-        assert_eq!(input, command.raw.as_str());
-    }
-
-    #[test]
-    fn compound_proper_noun_test() {
-        let input = "some Words with Random Capitalization inn and Nouns in Between them";
-        let command: Command = input.parse().unwrap();
-
-        assert_eq!(
-            vec![
-                Word::Unknown("some".to_string()),
-                Word::ProperNoun("Words With Random Capitalization".to_string()),
-                Word::Noun(Noun::Inn),
-                Word::Unknown("and".to_string()),
-                Word::ProperNoun("Nouns In Between".to_string()),
-                Word::Unknown("them".to_string()),
-            ],
-            command.words,
         );
         assert_eq!(input, command.raw.as_str());
     }
@@ -191,14 +157,7 @@ mod test_word {
     fn from_str_test() {
         assert_eq!(Ok(Word::Verb(Verb::Tutorial)), "tutorial".parse::<Word>());
         assert_eq!(Ok(Word::Noun(Noun::Inn)), "inn".parse::<Word>());
-        assert_eq!(
-            Ok(Word::ProperNoun("Oaken Mermaid Inn".to_string())),
-            "Oaken Mermaid Inn".parse::<Word>(),
-        );
-        assert_eq!(
-            Ok(Word::Unknown("potato".to_string())),
-            "potato".parse::<Word>(),
-        );
+        assert_eq!(Err(()), "potato".parse::<Word>());
     }
 
     #[test]
@@ -208,10 +167,6 @@ mod test_word {
             String::from(Word::Verb(Verb::Tutorial)).as_str(),
         );
         assert_eq!("inn", String::from(Word::Noun(Noun::Inn)).as_str());
-        assert_eq!(
-            "Oaken Mermaid Inn",
-            String::from(Word::ProperNoun("Oaken Mermaid Inn".to_string())).as_str(),
-        );
         assert_eq!(
             "potato",
             String::from(Word::Unknown("potato".to_string())).as_str(),
