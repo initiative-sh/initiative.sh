@@ -46,15 +46,41 @@ impl FromStr for Command {
     type Err = Infallible;
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        Ok(Command {
-            raw: raw.to_string(),
-            words: raw
-                .split_whitespace()
-                .fold(Vec::new(), |mut acc, raw_word| {
-                    acc.push(raw_word.parse().unwrap());
-                    acc
-                }),
-        })
+        Ok(raw.to_string().into())
+    }
+}
+
+impl From<String> for Command {
+    fn from(input: String) -> Command {
+        let mut raw_mut = input.as_str();
+        let mut words = Vec::new();
+
+        while raw_mut.len() > 0 {
+            let (word, remainder) = parse(raw_mut);
+            raw_mut = remainder;
+            words.push(word);
+        }
+
+        Command { raw: input, words }
+    }
+}
+
+fn parse<'a>(input: &'a str) -> (Word, &'a str) {
+    let input = input.trim_end();
+
+    if let Ok(word) = input.parse() {
+        (word, "")
+    } else if !input.contains(' ') {
+        (Word::Unknown(input.to_string()), "")
+    } else {
+        for (index, _) in input.match_indices(' ').rev() {
+            if let Ok(word) = input[..index].parse() {
+                return (word, &input[index + 1..]);
+            }
+        }
+
+        let (raw_word, remainder) = input.split_at(input.find(' ').unwrap());
+        return (Word::Unknown(raw_word.to_string()), remainder.trim_start());
     }
 }
 
@@ -68,13 +94,13 @@ impl FromStr for Word {
     type Err = ();
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        Ok(if let Ok(verb) = raw.parse() {
-            Self::Verb(verb)
+        if let Ok(verb) = raw.parse() {
+            Ok(Self::Verb(verb))
         } else if let Ok(noun) = raw.parse() {
-            Self::Noun(noun)
+            Ok(Self::Noun(noun))
         } else {
-            Self::Unknown(raw.to_string())
-        })
+            Err(())
+        }
     }
 }
 
@@ -94,14 +120,17 @@ mod test_command {
 
     #[test]
     fn word_salad_test() {
-        let input = "tutorial inn carrot";
+        let input = "tutorial potato inn carrot half elf turnip";
         let command: Command = input.parse().unwrap();
 
         assert_eq!(
             vec![
                 Word::Verb(Verb::Tutorial),
+                Word::Unknown("potato".to_string()),
                 Word::Noun(Noun::Inn),
                 Word::Unknown("carrot".to_string()),
+                Word::Noun(Noun::HalfElf),
+                Word::Unknown("turnip".to_string()),
             ],
             command.words
         );
@@ -128,10 +157,7 @@ mod test_word {
     fn from_str_test() {
         assert_eq!(Ok(Word::Verb(Verb::Tutorial)), "tutorial".parse::<Word>());
         assert_eq!(Ok(Word::Noun(Noun::Inn)), "inn".parse::<Word>());
-        assert_eq!(
-            Ok(Word::Unknown("potato".to_string())),
-            "potato".parse::<Word>(),
-        );
+        assert_eq!(Err(()), "potato".parse::<Word>());
     }
 
     #[test]
