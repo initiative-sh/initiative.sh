@@ -27,6 +27,8 @@ impl Generate for Ethnicity {
 #[cfg(test)]
 mod test_generate_for_ethnicity {
     use super::*;
+    use crate::world::npc::ethnicity::{regenerate, Ethnicity};
+    use crate::world::Npc;
     use rand::rngs::mock::StepRng;
 
     #[test]
@@ -38,13 +40,22 @@ mod test_generate_for_ethnicity {
         assert_eq!(
             ["Anchor", "Smith", "Rock", "Mumbles", "Ghost", "Crystal"],
             [
-                Ethnicity::gen_name(&mut rng, &age, &m),
-                Ethnicity::gen_name(&mut rng, &age, &m),
-                Ethnicity::gen_name(&mut rng, &age, &m),
-                Ethnicity::gen_name(&mut rng, &age, &m),
-                Ethnicity::gen_name(&mut rng, &age, &m),
-                Ethnicity::gen_name(&mut rng, &age, &m),
+                gen_name(&mut rng, &age, &m),
+                gen_name(&mut rng, &age, &m),
+                gen_name(&mut rng, &age, &m),
+                gen_name(&mut rng, &age, &m),
+                gen_name(&mut rng, &age, &m),
+                gen_name(&mut rng, &age, &m),
             ]
         );
+    }
+
+    fn gen_name(rng: &mut impl Rng, age: &Age, gender: &Gender) -> String {
+        let mut npc = Npc::default();
+        npc.gender.replace(*gender);
+        npc.age.replace(*age);
+        npc.ethnicity.replace(Ethnicity::Warforged);
+        regenerate(rng, &mut npc);
+        npc.name.value.unwrap()
     }
 }

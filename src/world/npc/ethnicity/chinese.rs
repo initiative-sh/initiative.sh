@@ -51,6 +51,8 @@ impl Generate for Ethnicity {
 #[cfg(test)]
 mod test_generate_for_ethnicity {
     use super::*;
+    use crate::world::npc::ethnicity::{regenerate, Ethnicity};
+    use crate::world::Npc;
     use rand::rngs::mock::StepRng;
 
     #[test]
@@ -64,13 +66,22 @@ mod test_generate_for_ethnicity {
         assert_eq!(
             ["Bingwen", "Wei", "Ning", "Huifang", "Chao", "Xiaoli"],
             [
-                Ethnicity::gen_name(&mut rng, &age, &m),
-                Ethnicity::gen_name(&mut rng, &age, &m),
-                Ethnicity::gen_name(&mut rng, &age, &f),
-                Ethnicity::gen_name(&mut rng, &age, &f),
-                Ethnicity::gen_name(&mut rng, &age, &t),
-                Ethnicity::gen_name(&mut rng, &age, &t),
+                gen_name(&mut rng, &age, &m),
+                gen_name(&mut rng, &age, &m),
+                gen_name(&mut rng, &age, &f),
+                gen_name(&mut rng, &age, &f),
+                gen_name(&mut rng, &age, &t),
+                gen_name(&mut rng, &age, &t),
             ]
         );
+    }
+
+    fn gen_name(rng: &mut impl Rng, age: &Age, gender: &Gender) -> String {
+        let mut npc = Npc::default();
+        npc.gender.replace(*gender);
+        npc.age.replace(*age);
+        npc.ethnicity.replace(Ethnicity::Chinese);
+        regenerate(rng, &mut npc);
+        npc.name.value.unwrap()
     }
 }

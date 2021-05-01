@@ -2,7 +2,7 @@ use std::fmt;
 
 use super::Race;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Age {
     Infant(u16),
     Child(u16),
