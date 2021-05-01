@@ -70,6 +70,7 @@ impl<T: fmt::Display> Field<T> {
         }
     }
 
+    #[cfg(test)]
     pub fn new_generated(value: T) -> Self {
         Self {
             is_locked: false,
@@ -85,19 +86,23 @@ impl<T: fmt::Display> Field<T> {
         !self.is_locked()
     }
 
+    #[cfg(test)]
     pub fn lock(&mut self) {
         self.is_locked = true;
     }
 
+    #[cfg(test)]
     pub fn locked(mut self) -> Self {
         self.lock();
         self
     }
 
+    #[cfg(test)]
     pub fn unlock(&mut self) {
         self.is_locked = false;
     }
 
+    #[cfg(test)]
     pub fn unlocked(mut self) -> Self {
         self.unlock();
         self
