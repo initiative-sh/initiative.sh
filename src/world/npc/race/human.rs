@@ -2,6 +2,38 @@ use super::{Age, Gender, Generate, Rng, Size};
 
 pub struct Race;
 
+impl Race {
+    fn age(years: u16) -> Age {
+        match years {
+            y if y < 2 => Age::Infant(y),
+            y if y < 10 => Age::Child(y),
+            y if y < 20 => Age::Adolescent(y),
+            y if y < 30 => Age::YoungAdult(y),
+            y if y < 40 => Age::Adult(y),
+            y if y < 60 => Age::MiddleAged(y),
+            y if y < 70 => Age::Elderly(y),
+            y => Age::Geriatric(y),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_race {
+    use super::{Age, Race};
+
+    #[test]
+    fn age_test() {
+        assert_eq!(Age::Infant(0), Race::age(0));
+        assert_eq!(Age::Child(2), Race::age(2));
+        assert_eq!(Age::Adolescent(10), Race::age(10));
+        assert_eq!(Age::YoungAdult(20), Race::age(20));
+        assert_eq!(Age::Adult(30), Race::age(30));
+        assert_eq!(Age::MiddleAged(40), Race::age(40));
+        assert_eq!(Age::Elderly(60), Race::age(60));
+        assert_eq!(Age::Geriatric(70), Race::age(70));
+    }
+}
+
 impl Generate for Race {
     fn gen_gender(rng: &mut impl Rng) -> Gender {
         match rng.gen_range(1..=101) {
@@ -13,22 +45,63 @@ impl Generate for Race {
     }
 
     fn gen_age(rng: &mut impl Rng) -> Age {
-        match rng.gen_range(0..=79) {
-            i if i < 2 => Age::Infant(i),
-            i if i < 10 => Age::Child(i),
-            i if i < 20 => Age::Adolescent(i),
-            i if i < 30 => Age::YoungAdult(i),
-            i if i < 40 => Age::Adult(i),
-            i if i < 60 => Age::MiddleAged(i),
-            i if i < 70 => Age::Elderly(i),
-            i => Age::Geriatric(i),
-        }
+        Self::age(rng.gen_range(0..=79))
     }
 
-    fn gen_size(_rng: &mut impl Rng, _age: &Age, _gender: &Gender) -> Size {
-        Size::Medium {
-            height: 72,
-            weight: 180,
+    fn gen_size(rng: &mut impl Rng, age: &Age, gender: &Gender) -> Size {
+        let is_female = match gender {
+            Gender::Masculine => rng.gen_bool(0.01),
+            Gender::Feminine => rng.gen_bool(0.99),
+            _ => rng.gen_bool(0.5),
+        };
+
+        match (age, is_female) {
+            (Age::Infant(0), _) => {
+                let size = rng.gen_range(0..=30);
+                Size::Tiny {
+                    height: 20 + size / 3,
+                    weight: 7 + size / 2,
+                }
+            }
+            (Age::Infant(_), _) => {
+                let size = rng.gen_range(0..=5);
+                Size::Tiny {
+                    height: 30 + size,
+                    weight: 22 + size,
+                }
+            }
+            (Age::Child(i), _) => {
+                let y = (*i - 2) as f32 / 8.;
+                let (height, weight) =
+                    super::gen_height_weight(rng, (33. + y * 18.)..=(35. + y * 22.), 14.0..=17.0);
+                Size::Small { height, weight }
+            }
+            (Age::Adolescent(i), true) => {
+                let y = (*i - 10) as f32;
+                let (height, weight) = super::gen_height_weight(
+                    rng,
+                    (51. + y * 2.).min(61.)..=(65. + y * 2.).min(67.),
+                    (15. + y * 2.5 / 5.).min(18.5)..=(19. + y * 4.5 / 5.).min(25.),
+                );
+                Size::Medium { height, weight }
+            }
+            (Age::Adolescent(i), false) => {
+                let y = (*i - 10) as f32 / 5.;
+                let (height, weight) = super::gen_height_weight(
+                    rng,
+                    (51. + y * 12.).min(66.)..=(57. + y * 13.).min(72.),
+                    (15. + y * 2.5).min(18.5)..=(18.5 + y * 4.5).min(29.),
+                );
+                Size::Medium { height, weight }
+            }
+            (_, true) => {
+                let (height, weight) = super::gen_height_weight(rng, 61.0..=67.0, 19.0..=25.0);
+                Size::Medium { height, weight }
+            }
+            (_, false) => {
+                let (height, weight) = super::gen_height_weight(rng, 66.0..=72.0, 18.5..=29.0);
+                Size::Medium { height, weight }
+            }
         }
     }
 }
@@ -71,17 +144,72 @@ mod test_generate_for_race {
     }
 
     #[test]
-    fn gen_size_test() {
-        let mut rng = StepRng::new(0, 0xDECAFBAD);
-        let age = Age::Adult(0);
-        let t = Gender::Trans;
+    fn gen_size_male_test() {
+        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut iter = (0u16..=20).map(move |y| {
+            let age = Race::age(y);
+            let size = Race::gen_size(&mut rng, &age, &Gender::Masculine);
+            (y, size.name(), size.height(), size.weight())
+        });
 
-        assert_eq!(
-            Size::Medium {
-                height: 72,
-                weight: 180
-            },
-            Race::gen_size(&mut rng, &age, &t),
-        );
+        // (age, size, height, weight)
+        assert_eq!(Some((0, "tiny", 28, 20)), iter.next());
+        assert_eq!(Some((1, "tiny", 33, 25)), iter.next());
+        assert_eq!(Some((2, "small", 33, 20)), iter.next());
+        assert_eq!(Some((3, "small", 38, 37)), iter.next());
+        assert_eq!(Some((4, "small", 39, 33)), iter.next());
+        assert_eq!(Some((5, "small", 39, 27)), iter.next());
+        assert_eq!(Some((6, "small", 45, 49)), iter.next());
+        assert_eq!(Some((7, "small", 45, 41)), iter.next());
+        assert_eq!(Some((8, "small", 45, 52)), iter.next());
+        assert_eq!(Some((9, "small", 52, 60)), iter.next());
+        assert_eq!(Some((10, "medium", 51, 53)), iter.next());
+        assert_eq!(Some((11, "medium", 59, 94)), iter.next());
+        assert_eq!(Some((12, "medium", 58, 81)), iter.next());
+        assert_eq!(Some((13, "medium", 57, 106)), iter.next());
+        assert_eq!(Some((14, "medium", 65, 120)), iter.next());
+        assert_eq!(Some((15, "medium", 64, 100)), iter.next());
+        assert_eq!(Some((16, "medium", 71, 169)), iter.next());
+        assert_eq!(Some((17, "medium", 68, 137)), iter.next());
+        assert_eq!(Some((18, "medium", 66, 173)), iter.next());
+        assert_eq!(Some((19, "medium", 70, 164)), iter.next());
+        assert_eq!(Some((20, "medium", 68, 125)), iter.next());
+
+        assert_eq!(None, iter.next());
+    }
+
+    #[test]
+    fn gen_size_female_test() {
+        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut iter = (0u16..=20).map(move |y| {
+            let age = Race::age(y);
+            let size = Race::gen_size(&mut rng, &age, &Gender::Feminine);
+            (y, size.name(), size.height(), size.weight())
+        });
+
+        // (age, size, height, weight)
+        assert_eq!(Some((0, "tiny", 28, 20)), iter.next());
+        assert_eq!(Some((1, "tiny", 33, 25)), iter.next());
+        assert_eq!(Some((2, "small", 33, 20)), iter.next());
+        assert_eq!(Some((3, "small", 38, 37)), iter.next());
+        assert_eq!(Some((4, "small", 39, 33)), iter.next());
+        assert_eq!(Some((5, "small", 39, 27)), iter.next());
+        assert_eq!(Some((6, "small", 45, 49)), iter.next());
+        assert_eq!(Some((7, "small", 45, 41)), iter.next());
+        assert_eq!(Some((8, "small", 45, 52)), iter.next());
+        assert_eq!(Some((9, "small", 52, 60)), iter.next());
+        assert_eq!(Some((10, "medium", 52, 54)), iter.next());
+        assert_eq!(Some((11, "medium", 66, 121)), iter.next());
+        assert_eq!(Some((12, "medium", 60, 86)), iter.next());
+        assert_eq!(Some((13, "medium", 56, 104)), iter.next());
+        assert_eq!(Some((14, "medium", 64, 119)), iter.next());
+        assert_eq!(Some((15, "medium", 62, 93)), iter.next());
+        assert_eq!(Some((16, "medium", 66, 149)), iter.next());
+        assert_eq!(Some((17, "medium", 63, 118)), iter.next());
+        assert_eq!(Some((18, "medium", 61, 143)), iter.next());
+        assert_eq!(Some((19, "medium", 65, 136)), iter.next());
+        assert_eq!(Some((20, "medium", 63, 109)), iter.next());
+
+        assert_eq!(None, iter.next());
     }
 }

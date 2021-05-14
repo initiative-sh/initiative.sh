@@ -1,7 +1,9 @@
 use std::convert::TryFrom;
 use std::fmt;
+use std::ops::RangeInclusive;
 
 use rand::Rng;
+use rand_distr::{Distribution, Normal};
 
 use super::{Age, Ethnicity, Gender, Npc, Size};
 use crate::command::Noun;
@@ -63,6 +65,28 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
             Race::Warforged => warforged::Race::regenerate(rng, npc),
         }
     }
+}
+
+fn gen_height_weight(
+    rng: &mut impl Rng,
+    height_range: RangeInclusive<f32>,
+    bmi_range: RangeInclusive<f32>,
+) -> (u16, u16) {
+    let height = {
+        let mean = (height_range.end() + height_range.start()) / 2.;
+        let std_dev = mean - height_range.start();
+        Normal::new(mean, std_dev).unwrap().sample(rng)
+    };
+
+    let bmi = {
+        let mean = (bmi_range.end() + bmi_range.start()) / 2.;
+        let std_dev = mean - bmi_range.start();
+        Normal::new(mean, std_dev).unwrap().sample(rng)
+    };
+
+    let weight = bmi * height * height / 703.;
+
+    (height as u16, weight as u16)
 }
 
 #[cfg(test)]
@@ -130,6 +154,34 @@ mod test {
         assert!(npc.gender.is_some());
 
         assert!(npc.size.is_none());
+    }
+
+    #[test]
+    fn gen_height_weight_test() {
+        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+
+        assert_eq!(
+            (72, 147),
+            gen_height_weight(&mut rng, 72.0..=72.0, 20.0..=20.0),
+        );
+
+        assert_eq!(
+            vec![
+                (65, 123),
+                (62, 105),
+                (69, 185),
+                (66, 142),
+                (65, 124),
+                (63, 86),
+                (67, 160),
+                (67, 141),
+                (65, 112),
+                (64, 101),
+            ],
+            (0..10)
+                .map(|_| gen_height_weight(&mut rng, 64.0..=68.0, 18.5..=25.0))
+                .collect::<Vec<(u16, u16)>>(),
+        );
     }
 }
 

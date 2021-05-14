@@ -2,7 +2,7 @@ use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum Size {
-    // Tiny { height: u16, weight: u16 },
+    Tiny { height: u16, weight: u16 },
     Small { height: u16, weight: u16 },
     Medium { height: u16, weight: u16 },
     // Large { height: u16, weight: u16 },
@@ -13,6 +13,7 @@ pub enum Size {
 impl Size {
     pub fn height_weight(&self) -> (u16, u16) {
         match self {
+            Self::Tiny { height, weight } => (*height, *weight),
             Self::Small { height, weight } => (*height, *weight),
             Self::Medium { height, weight } => (*height, *weight),
         }
@@ -33,6 +34,7 @@ impl Size {
 
     pub fn name(&self) -> &'static str {
         match self {
+            Self::Tiny { .. } => "tiny",
             Self::Small { .. } => "small",
             Self::Medium { .. } => "medium",
         }
