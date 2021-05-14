@@ -2,6 +2,38 @@ use super::{Age, Gender, Generate, Rng, Size};
 
 pub struct Race;
 
+impl Race {
+    fn age(years: u16) -> Age {
+        match years {
+            y if y < 2 => Age::Infant(y),
+            y if y < 10 => Age::Child(y),
+            y if y < 20 => Age::Adolescent(y),
+            y if y < 30 => Age::YoungAdult(y),
+            y if y < 40 => Age::Adult(y),
+            y if y < 60 => Age::MiddleAged(y),
+            y if y < 70 => Age::Elderly(y),
+            y => Age::Geriatric(y),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_race {
+    use super::{Age, Race};
+
+    #[test]
+    fn age_test() {
+        assert_eq!(Age::Infant(0), Race::age(0));
+        assert_eq!(Age::Child(2), Race::age(2));
+        assert_eq!(Age::Adolescent(10), Race::age(10));
+        assert_eq!(Age::YoungAdult(20), Race::age(20));
+        assert_eq!(Age::Adult(30), Race::age(30));
+        assert_eq!(Age::MiddleAged(40), Race::age(40));
+        assert_eq!(Age::Elderly(60), Race::age(60));
+        assert_eq!(Age::Geriatric(70), Race::age(70));
+    }
+}
+
 impl Generate for Race {
     fn gen_gender(rng: &mut impl Rng) -> Gender {
         match rng.gen_range(1..=101) {
@@ -13,16 +45,7 @@ impl Generate for Race {
     }
 
     fn gen_age(rng: &mut impl Rng) -> Age {
-        match rng.gen_range(0..=79) {
-            i if i < 2 => Age::Infant(i),
-            i if i < 10 => Age::Child(i),
-            i if i < 20 => Age::Adolescent(i),
-            i if i < 30 => Age::YoungAdult(i),
-            i if i < 40 => Age::Adult(i),
-            i if i < 60 => Age::MiddleAged(i),
-            i if i < 70 => Age::Elderly(i),
-            i => Age::Geriatric(i),
-        }
+        Self::age(rng.gen_range(0..=79))
     }
 
     fn gen_size(_rng: &mut impl Rng, _age: &Age, _gender: &Gender) -> Size {
