@@ -10,6 +10,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "autocfg"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
+
+[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -32,6 +38,7 @@ version = "0.1.0"
 dependencies = [
  "initiative_macros",
  "rand",
+ "rand_distr",
  "uuid",
 ]
 
@@ -56,10 +63,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7282d924be3275cec7f6756ff4121987bc6481325397dde6ba3e7802b1a8b1c"
 
 [[package]]
+name = "libm"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7d73b3f436185384286bd8098d17ec07c9a7d2388a6599f824d8502b529702a"
+
+[[package]]
 name = "memchr"
 version = "2.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
+
+[[package]]
+name = "num-traits"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a64b1ec5cda2586e284722486d802acf1f7dbdc623e2bfc57e65ca1cd099290"
+dependencies = [
+ "autocfg",
+ "libm",
+]
 
 [[package]]
 name = "once_cell"
@@ -129,6 +152,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34cf66eb183df1c5876e2dcf6b13d57340741e8dc255b48e40a26de954d06ae7"
 dependencies = [
  "getrandom",
+]
+
+[[package]]
+name = "rand_distr"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da9e8f32ad24fb80d07d2323a9a2ce8b30d68a62b8cb4df88119ff49a698f038"
+dependencies = [
+ "num-traits",
+ "rand",
 ]
 
 [[package]]
