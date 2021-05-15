@@ -96,11 +96,18 @@ fn impl_word_list(ast: &syn::DeriveInput) -> TokenStream {
                 }
             }
 
-            impl From<#name> for String {
-                fn from(variant: #name) -> String {
+            impl From<#name> for &'static str {
+                fn from(variant: #name) -> &'static str {
                     match variant {
                         #(#variants_to_words)*
-                    }.to_string()
+                    }
+                }
+            }
+
+            impl From<#name> for String {
+                fn from(variant: #name) -> String {
+                    let variant_str: &'static str = variant.into();
+                    variant_str.to_string()
                 }
             }
         };
