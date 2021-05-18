@@ -10,6 +10,7 @@ use command::Noun;
 use world::{Generate, Location, Npc, World};
 
 mod command;
+mod terminal;
 mod world;
 
 pub struct Context {
