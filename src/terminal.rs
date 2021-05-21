@@ -16,6 +16,7 @@ const CTRL_RIGHT_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 67];
 const CTRL_LEFT_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 68];
 const CTRL_DELETE: [u8; 6] = [27, 91, 51, 59, 53, 126];
 
+#[derive(Debug)]
 struct Input {
     history: Vec<String>,
     index: usize,
@@ -28,15 +29,13 @@ pub fn run(mut context: Context) -> io::Result<()> {
         .unwrap();
 
     let mut events = termion::async_stdin().events();
+    let mut input = Input::default();
 
+    draw_input(&mut screen, &input)?;
     draw_status(&mut screen, "")?;
+    screen.flush()?;
 
     loop {
-        let mut input = Input::default();
-        draw_input(&mut screen, &input)?;
-
-        screen.flush()?;
-
         let command = loop {
             // TODO: Handle multi-byte characters
             if let Some(event) = events.next() {
@@ -44,7 +43,11 @@ pub fn run(mut context: Context) -> io::Result<()> {
 
                 match event {
                     Ok(Event::Key(key)) => match key {
-                        Key::Char('\n') => break input.text().to_string(),
+                        Key::Char('\n') => {
+                            let command = input.text().to_string();
+                            input.key(key, false);
+                            break command;
+                        }
                         Key::Ctrl('h') => input.key(Key::Backspace, true),
                         Key::Ctrl(c) => input.key(Key::Char(c), true),
                         Key::Esc => return Ok(()),
@@ -76,16 +79,20 @@ pub fn run(mut context: Context) -> io::Result<()> {
             termion::cursor::Goto(1, 1),
             context.run(&command)
         )?;
+
+        draw_status(&mut screen, "")?;
+        draw_input(&mut screen, &input)?;
+        screen.flush()?;
     }
 }
 
 impl Input {
     fn text(&self) -> &str {
-        self.history[self.index].as_str()
+        self.history.get(self.index).unwrap().as_str()
     }
 
     fn text_mut(&mut self) -> &mut String {
-        &mut self.history[self.index]
+        self.history.get_mut(self.index).unwrap()
     }
 
     fn key(&mut self, key: Key, ctrl: bool) {
@@ -94,6 +101,22 @@ impl Input {
             (Key::Left, true) => self.cursor = self.find_boundary_left(),
             (Key::Right, false) if !self.is_at_end() => self.cursor += 1,
             (Key::Right, true) => self.cursor = self.find_boundary_right(),
+            (Key::Up, false) if self.index > 0 => {
+                self.index -= 1;
+                self.cursor = self.text().len();
+            }
+            (Key::Down, false) if self.index < self.history.len() - 1 => {
+                self.index += 1;
+                self.cursor = self.text().len();
+            }
+
+            (Key::Char('\n'), false) => {
+                if !self.history.last().map_or(false, |s| s.is_empty()) {
+                    self.history.push(String::new());
+                }
+                self.index = self.history.len() - 1;
+                self.cursor = self.text().len();
+            }
 
             (Key::Backspace, false) if !self.is_at_start() => {
                 self.cursor -= 1;
@@ -238,6 +261,63 @@ mod test_input {
 
         input.key(Key::Right, true);
         assert_eq!(7, input.cursor);
+    }
+
+    #[test]
+    fn key_up_test() {
+        let mut input = Input {
+            history: vec!["foo bar".to_string(), "baz".to_string()],
+            index: 1,
+            cursor: 0,
+        };
+
+        assert_eq!("baz", input.text());
+
+        input.key(Key::Up, false);
+        assert_eq!("foo bar", input.text());
+        assert_eq!(0, input.index);
+        assert_eq!(7, input.cursor);
+
+        input.key(Key::Up, false);
+        assert_eq!("foo bar", input.text());
+    }
+
+    #[test]
+    fn key_down_test() {
+        let mut input = Input {
+            history: vec!["foo".to_string(), "bar baz".to_string()],
+            index: 0,
+            cursor: 0,
+        };
+
+        assert_eq!("foo", input.text());
+
+        input.key(Key::Down, false);
+        assert_eq!("bar baz", input.text());
+        assert_eq!(1, input.index);
+        assert_eq!(7, input.cursor);
+
+        input.key(Key::Down, false);
+        assert_eq!("bar baz", input.text());
+    }
+
+    #[test]
+    fn key_enter_test() {
+        let mut input = Input {
+            history: vec!["foo".to_string(), "bar".to_string()],
+            index: 0,
+            cursor: 3,
+        };
+
+        input.key(Key::Char('\n'), false);
+        assert_eq!(vec!["foo", "bar", ""], input.history);
+        assert_eq!(2, input.index);
+        assert_eq!(0, input.cursor);
+
+        input.key(Key::Char('\n'), false);
+        assert_eq!(vec!["foo", "bar", ""], input.history);
+        assert_eq!(2, input.index);
+        assert_eq!(0, input.cursor);
     }
 
     #[test]
