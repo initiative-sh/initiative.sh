@@ -16,10 +16,10 @@ const CTRL_RIGHT_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 67];
 const CTRL_LEFT_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 68];
 const CTRL_DELETE: [u8; 6] = [27, 91, 51, 59, 53, 126];
 
-#[derive(Default)]
 struct Input {
-    pub text: String,
-    pub cursor: usize,
+    history: Vec<String>,
+    index: usize,
+    cursor: usize,
 }
 
 pub fn run(mut context: Context) -> io::Result<()> {
@@ -44,7 +44,7 @@ pub fn run(mut context: Context) -> io::Result<()> {
 
                 match event {
                     Ok(Event::Key(key)) => match key {
-                        Key::Char('\n') => break input.text,
+                        Key::Char('\n') => break input.text().to_string(),
                         Key::Ctrl('h') => input.key(Key::Backspace, true),
                         Key::Ctrl(c) => input.key(Key::Char(c), true),
                         Key::Esc => return Ok(()),
@@ -80,6 +80,14 @@ pub fn run(mut context: Context) -> io::Result<()> {
 }
 
 impl Input {
+    fn text(&self) -> &str {
+        self.history[self.index].as_str()
+    }
+
+    fn text_mut(&mut self) -> &mut String {
+        &mut self.history[self.index]
+    }
+
     fn key(&mut self, key: Key, ctrl: bool) {
         match (key, ctrl) {
             (Key::Left, false) if !self.is_at_start() => self.cursor -= 1,
@@ -89,29 +97,34 @@ impl Input {
 
             (Key::Backspace, false) if !self.is_at_start() => {
                 self.cursor -= 1;
-                self.text.remove(self.cursor);
+                let cursor = self.cursor;
+                self.text_mut().remove(cursor);
             }
             (Key::Backspace, true) if !self.is_at_start() => {
                 let boundary = self.find_boundary_left();
-                self.text.replace_range(boundary..self.cursor, "");
+                let cursor = self.cursor;
+                self.text_mut().replace_range(boundary..cursor, "");
                 self.cursor = boundary;
             }
 
             (Key::Home, _) => self.cursor = 0,
-            (Key::End, _) => self.cursor = self.text.len(),
+            (Key::End, _) => self.cursor = self.text().len(),
 
             (Key::Delete, false) if !self.is_at_end() => {
-                self.text.remove(self.cursor);
+                let cursor = self.cursor;
+                self.text_mut().remove(cursor);
             }
-            (Key::Delete, true) if !self.is_at_end() => self
-                .text
-                .replace_range(self.cursor..self.find_boundary_right(), ""),
-
+            (Key::Delete, true) if !self.is_at_end() => {
+                let boundary = self.find_boundary_right();
+                let cursor = self.cursor;
+                self.text_mut().replace_range(cursor..boundary, "");
+            }
             (Key::Char(c), false) => {
-                if self.cursor == self.text.len() {
-                    self.text.push(c);
+                if self.cursor == self.text().len() {
+                    self.text_mut().push(c);
                 } else {
-                    self.text.insert(self.cursor, c);
+                    let cursor = self.cursor;
+                    self.text_mut().insert(cursor, c);
                 }
                 self.cursor += 1;
             }
@@ -124,17 +137,17 @@ impl Input {
     }
 
     fn is_at_end(&self) -> bool {
-        self.cursor == self.text.len()
+        self.cursor == self.text().len()
     }
 
     fn find_boundary_left(&self) -> usize {
         let mut boundary = self.cursor;
 
-        if self.text.len() > 0 && boundary > 0 {
+        if self.text().len() > 0 && boundary > 0 {
             boundary -= 1;
 
             while boundary > 0 {
-                let mut chars = self.text.chars().skip(boundary - 1);
+                let mut chars = self.text().chars().skip(boundary - 1);
                 let (prev_char, cur_char) = (chars.next().unwrap(), chars.next().unwrap());
                 if !prev_char.is_alphanumeric() && cur_char.is_alphanumeric() {
                     break;
@@ -149,12 +162,12 @@ impl Input {
     fn find_boundary_right(&self) -> usize {
         let mut boundary = self.cursor;
 
-        if boundary < self.text.len() {
+        if boundary < self.text().len() {
             boundary += 1;
             let mut alphanumeric_char_encountered = false;
 
-            while boundary < self.text.len() {
-                let mut chars = self.text.chars().skip(boundary - 1);
+            while boundary < self.text().len() {
+                let mut chars = self.text().chars().skip(boundary - 1);
                 let (prev_char, cur_char) = (chars.next().unwrap(), chars.next().unwrap());
 
                 if prev_char.is_alphanumeric() {
@@ -182,7 +195,8 @@ mod test_input {
     #[test]
     fn key_left_test() {
         let mut input = Input {
-            text: "foo bar".to_string(),
+            history: vec!["foo bar".to_string()],
+            index: 0,
             cursor: 7,
         };
 
@@ -205,7 +219,8 @@ mod test_input {
     #[test]
     fn key_right_test() {
         let mut input = Input {
-            text: "foo bar".to_string(),
+            history: vec!["foo bar".to_string()],
+            index: 0,
             cursor: 0,
         };
 
@@ -228,31 +243,33 @@ mod test_input {
     #[test]
     fn key_backspace_test() {
         let mut input = Input {
-            text: "foo bar".to_string(),
+            history: vec!["foo bar".to_string()],
+            index: 0,
             cursor: 4,
         };
 
         input.key(Key::Backspace, false);
-        assert_eq!("foobar", input.text.as_str());
+        assert_eq!("foobar", input.text());
         assert_eq!(3, input.cursor);
 
         input.key(Key::Backspace, true);
-        assert_eq!("bar", input.text.as_str());
+        assert_eq!("bar", input.text());
         assert_eq!(0, input.cursor);
 
         input.key(Key::Backspace, false);
-        assert_eq!("bar", input.text.as_str());
+        assert_eq!("bar", input.text());
         assert_eq!(0, input.cursor);
 
         input.key(Key::Backspace, true);
-        assert_eq!("bar", input.text.as_str());
+        assert_eq!("bar", input.text());
         assert_eq!(0, input.cursor);
     }
 
     #[test]
     fn key_home_end_test() {
         let mut input = Input {
-            text: "foo bar".to_string(),
+            history: vec!["foo bar".to_string()],
+            index: 0,
             cursor: 4,
         };
 
@@ -272,24 +289,25 @@ mod test_input {
     #[test]
     fn key_delete_test() {
         let mut input = Input {
-            text: "foo bar".to_string(),
+            history: vec!["foo bar".to_string()],
+            index: 0,
             cursor: 3,
         };
 
         input.key(Key::Delete, false);
-        assert_eq!("foobar", input.text.as_str());
+        assert_eq!("foobar", input.text());
         assert_eq!(3, input.cursor);
 
         input.key(Key::Delete, true);
-        assert_eq!("foo", input.text.as_str());
+        assert_eq!("foo", input.text());
         assert_eq!(3, input.cursor);
 
         input.key(Key::Delete, false);
-        assert_eq!("foo", input.text.as_str());
+        assert_eq!("foo", input.text());
         assert_eq!(3, input.cursor);
 
         input.key(Key::Delete, true);
-        assert_eq!("foo", input.text.as_str());
+        assert_eq!("foo", input.text());
         assert_eq!(3, input.cursor);
     }
 
@@ -300,12 +318,12 @@ mod test_input {
         input.key(Key::Char('A'), false);
         input.key(Key::Char('B'), false);
         input.key(Key::Char('X'), true);
-        assert_eq!("AB", input.text.as_str());
+        assert_eq!("AB", input.text());
         assert_eq!(2, input.cursor);
 
         input.cursor = 0;
         input.key(Key::Char('C'), false);
-        assert_eq!("CAB", input.text.as_str());
+        assert_eq!("CAB", input.text());
         assert_eq!(1, input.cursor);
     }
 
@@ -315,7 +333,7 @@ mod test_input {
         assert!(input.is_at_start());
         assert!(input.is_at_end());
 
-        input.text.push_str("ab");
+        input.text_mut().push_str("ab");
         assert!(input.is_at_start());
         assert!(!input.is_at_end());
 
@@ -331,10 +349,11 @@ mod test_input {
     #[test]
     fn find_boundary_left_test() {
         let mut input = Input {
-            text: "A test-string with words, punctuation - and a dash!  ".to_string(),
+            history: vec!["A test-string with words, punctuation - and a dash!  ".to_string()],
+            index: 0,
             cursor: 0,
         };
-        input.cursor = input.text.len();
+        input.cursor = input.text().len();
 
         let mut stops = Vec::new();
 
@@ -354,7 +373,8 @@ mod test_input {
     #[test]
     fn find_boundary_right_test() {
         let mut input = Input {
-            text: "A test-string with words, punctuation - and a dash!  ".to_string(),
+            history: vec!["A test-string with words, punctuation - and a dash!  ".to_string()],
+            index: 0,
             cursor: 0,
         };
 
@@ -364,32 +384,46 @@ mod test_input {
         //  ^     ^     ^    ^      ^           ^     ^ ^     ^ ^
         //  1     7     1    1      2           3     4 4     5 5
         //              3    8      5           7     3 5     1 3
-        while input.cursor < input.text.len() && stops.len() < 100 {
+        while input.cursor < input.text().len() && stops.len() < 100 {
             input.cursor = input.find_boundary_right();
             stops.push(input.cursor);
         }
 
         assert_eq!(vec![1, 7, 13, 18, 25, 37, 43, 45, 51, 53], stops);
-        assert_eq!(input.text.len(), input.find_boundary_right());
+        assert_eq!(input.text().len(), input.find_boundary_right());
+    }
+}
+
+impl Default for Input {
+    fn default() -> Input {
+        Input {
+            history: vec![String::new()],
+            index: 0,
+            cursor: 0,
+        }
     }
 }
 
 impl From<Input> for String {
-    fn from(input: Input) -> String {
-        input.text
+    fn from(mut input: Input) -> String {
+        input.history.drain(..).skip(input.index).next().unwrap()
     }
 }
 
 impl From<String> for Input {
     fn from(text: String) -> Input {
         let cursor = text.len();
-        Input { text, cursor }
+        Input {
+            history: vec![text],
+            index: 0,
+            cursor,
+        }
     }
 }
 
 impl fmt::Display for &Input {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.text)
+        write!(f, "{}", self.text())
     }
 }
 
@@ -432,7 +466,7 @@ fn draw_input(screen: &mut dyn Write, input: &Input) -> io::Result<()> {
         input
     )?;
 
-    for _ in (input.text.len() as u16 + 3)..=term_width {
+    for _ in (input.text().len() as u16 + 3)..=term_width {
         write!(screen, " ")?;
     }
 
