@@ -29,17 +29,19 @@ pub fn run(mut context: Context) -> io::Result<()> {
 
     let mut events = termion::async_stdin().events();
 
+    draw_status(&mut screen, "")?;
+
     loop {
         let mut input = Input::default();
+        draw_input(&mut screen, &input)?;
+
+        screen.flush()?;
 
         let command = loop {
-            draw_status(&mut screen)?;
-            draw_input(&mut screen, &input)?;
-            screen.flush().ok();
-
             // TODO: Handle multi-byte characters
             if let Some(event) = events.next() {
-                write!(&mut screen, "{}{:?}", termion::cursor::Goto(1, 1), event)?;
+                let status = format!("{:?}", event);
+
                 match event {
                     Ok(Event::Key(key)) => match key {
                         Key::Char('\n') => break input.text,
@@ -59,6 +61,10 @@ pub fn run(mut context: Context) -> io::Result<()> {
                     Err(e) => return Err(e),
                     _ => {}
                 }
+
+                draw_status(&mut screen, status.as_str())?;
+                draw_input(&mut screen, &input)?;
+                screen.flush()?;
             } else {
                 sleep(Duration::from_millis(100));
             }
@@ -387,23 +393,22 @@ impl fmt::Display for &Input {
     }
 }
 
-fn draw_status(screen: &mut dyn Write) -> io::Result<()> {
+fn draw_status(screen: &mut dyn Write, status: &str) -> io::Result<()> {
     let (term_width, term_height) = termion::terminal_size().unwrap();
 
     write!(
         screen,
-        "{}{}{}{}",
+        "{}{}{}{} {}",
         termion::cursor::Save,
         termion::cursor::Goto(1, term_height),
         termion::color::Fg(termion::color::White),
         termion::color::Bg(termion::color::Blue),
+        status,
     )?;
 
-    let mut status_text = String::with_capacity(term_width as usize);
-    status_text.push_str(" Hello, I am a status bar");
-    (status_text.len()..term_width as usize).for_each(|_| status_text.push(' '));
-
-    write!(screen, "{}", status_text)?;
+    for _ in status.len() + 1..term_width as usize {
+        write!(screen, " ")?;
+    }
 
     write!(
         screen,
