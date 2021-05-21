@@ -8,6 +8,8 @@ use termion::event::{Event, Key};
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
 
+use crate::Context;
+
 const CTRL_UP_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 65];
 const CTRL_DOWN_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 66];
 const CTRL_RIGHT_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 67];
@@ -20,43 +22,54 @@ struct Input {
     pub cursor: usize,
 }
 
-pub fn run() -> io::Result<()> {
+pub fn run(mut context: Context) -> io::Result<()> {
     let mut screen = termion::screen::AlternateScreen::from(io::stdout())
         .into_raw_mode()
         .unwrap();
 
     let mut events = termion::async_stdin().events();
-    let mut input = Input::default();
 
     loop {
-        draw_status(&mut screen)?;
-        draw_input(&mut screen, &input)?;
-        screen.flush().ok();
+        let mut input = Input::default();
 
-        // TODO: Handle multi-byte characters
-        if let Some(event) = events.next() {
-            write!(&mut screen, "{}{:?}", termion::cursor::Goto(1, 1), event)?;
-            match event {
-                Ok(Event::Key(key)) => match key {
-                    Key::Ctrl('h') => input.key(Key::Backspace, true),
-                    Key::Ctrl(c) => input.key(Key::Char(c), true),
-                    Key::Esc => return Ok(()),
-                    k => input.key(k, false),
-                },
-                Ok(Event::Unsupported(bytes)) => match bytes.as_slice() {
-                    s if s == &CTRL_LEFT_ARROW[..] => input.key(Key::Left, true),
-                    s if s == &CTRL_RIGHT_ARROW[..] => input.key(Key::Right, true),
-                    s if s == &CTRL_UP_ARROW[..] => input.key(Key::Up, true),
-                    s if s == &CTRL_DOWN_ARROW[..] => input.key(Key::Down, true),
-                    s if s == &CTRL_DELETE[..] => input.key(Key::Delete, true),
+        let command = loop {
+            draw_status(&mut screen)?;
+            draw_input(&mut screen, &input)?;
+            screen.flush().ok();
+
+            // TODO: Handle multi-byte characters
+            if let Some(event) = events.next() {
+                write!(&mut screen, "{}{:?}", termion::cursor::Goto(1, 1), event)?;
+                match event {
+                    Ok(Event::Key(key)) => match key {
+                        Key::Char('\n') => break input.text,
+                        Key::Ctrl('h') => input.key(Key::Backspace, true),
+                        Key::Ctrl(c) => input.key(Key::Char(c), true),
+                        Key::Esc => return Ok(()),
+                        k => input.key(k, false),
+                    },
+                    Ok(Event::Unsupported(bytes)) => match bytes.as_slice() {
+                        s if s == &CTRL_LEFT_ARROW[..] => input.key(Key::Left, true),
+                        s if s == &CTRL_RIGHT_ARROW[..] => input.key(Key::Right, true),
+                        s if s == &CTRL_UP_ARROW[..] => input.key(Key::Up, true),
+                        s if s == &CTRL_DOWN_ARROW[..] => input.key(Key::Down, true),
+                        s if s == &CTRL_DELETE[..] => input.key(Key::Delete, true),
+                        _ => {}
+                    },
+                    Err(e) => return Err(e),
                     _ => {}
-                },
-                Err(e) => return Err(e),
-                _ => {}
+                }
+            } else {
+                sleep(Duration::from_millis(100));
             }
-        } else {
-            sleep(Duration::from_millis(100));
-        }
+        };
+
+        write!(
+            &mut screen,
+            "{}{}",
+            termion::cursor::Goto(1, 1),
+            context.run(&command)
+        )?;
     }
 }
 
@@ -358,6 +371,13 @@ mod test_input {
 impl From<Input> for String {
     fn from(input: Input) -> String {
         input.text
+    }
+}
+
+impl From<String> for Input {
+    fn from(text: String) -> Input {
+        let cursor = text.len();
+        Input { text, cursor }
     }
 }
 
