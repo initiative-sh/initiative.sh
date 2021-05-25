@@ -21,8 +21,8 @@ impl Ethnicity {
     const MASCULINE_NAMES: &'static [&'static str] = &[
         "Adonis", "Adrastos", "Aeson", "Aias", "Aineias", "Aiolos", "Alekto", "Name", "Alkeides",
         "Argos", "Brontes", "Damazo", "Dardanos", "Deimos", "Diomedes", "Endymion", "Epimetheus",
-        "Erebos", "Euandros", "Ganymedes", "Glaukos", "Hektor", "Heros", "Hippolytos", "lacchus",
-        "lason", "Kadmos", "Kastor", "Kephalos", "Kepheus", "Koios", "Kreios", "Laios", "Leandros",
+        "Erebos", "Euandros", "Ganymedes", "Glaukos", "Hektor", "Heros", "Hippolytos", "Iacchus",
+        "Iason", "Kadmos", "Kastor", "Kephalos", "Kepheus", "Koios", "Kreios", "Laios", "Leandros",
         "Linos", "Lykos", "Melanthios", "Menelaus", "Mentor", "Neoptolemus", "Okeanos", "Orestes",
         "Pallas", "Patroklos", "Philandros", "Phoibos", "Phrixus", "Priamos", "Pyrrhos", "Xanthos",
         "Zephyros",

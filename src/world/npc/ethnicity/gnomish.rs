@@ -24,19 +24,19 @@ impl Ethnicity {
         "Fabien", "Fibblestib", "Fonkin", "Frouse", "Frug", "Gerbo", "Gimble", "Glim", "Igden",
         "Jabbie", "jebeddo", "Kellen", "Kipper", "Namfoodle", "Oppleby", "Orryn", "Paggen",
         "Pallabar", "Pog", "Qualen", "Ribbles", "Rimple", "Roondar", "Sapply", "Seebo", "Senteq",
-        "Sindri", "Umpen", "Warryn", "Wiggens", "Wobbles", "Wrenn", "Zaffrab", "Zook", 
+        "Sindri", "Umpen", "Warryn", "Wiggens", "Wobbles", "Wrenn", "Zaffrab", "Zook",
     ];
 
     #[rustfmt::skip]
     const FAMILY_NAMES: &'static [&'static str] = &[
         "Albaratie", "Bafflestone", "Beren", "Boondiggles", "Cobblelob", "Daergel", "Dunben",
-        "Fabblestabble", "Fapplestamp", "Fiddlefen", "Folkor", "Garrick", "Gim", "len",
-        "Glittergem", "Gobblefirn", "Gummen", "Horcusporcus", "Humplebumple", "Ironhide",
-        "Leffery", "Lingenhall", "Loofollue", "Maekkelferce", "Miggledy", "Munggen", "Murnig",
-        "Musgraben", "Nackle", "Ningel", "Nopenstallen", "Nucklestamp", "Offund", "Oomtrowl",
-        "Pilwicken", "Pingun", "Quillsharpener", "Rau", "lnor", "Reese", "Rofferton", "Scheppen",
-        "Shadowcloak", "Silverthread", "Sympony", "Tarkelby", "Timbers", "Turen", "Umbodoben",
-        "Waggletop", "Welber", "Wildwander",
+        "Fabblestabble", "Fapplestamp", "Fiddlefen", "Folkor", "Garrick", "Gimlen", "Glittergem",
+        "Gobblefirn", "Gummen", "Horcusporcus", "Humplebumple", "Ironhide", "Leffery",
+        "Lingenhall", "Loofollue", "Maekkelferce", "Miggledy", "Munggen", "Murnig", "Musgraben",
+        "Nackle", "Ningel", "Nopenstallen", "Nucklestamp", "Offund", "Oomtrowl", "Pilwicken",
+        "Pingun", "Quillsharpener", "Raulnor", "Reese", "Rofferton", "Scheppen", "Shadowcloak",
+        "Silverthread", "Sympony", "Tarkelby", "Timbers", "Turen", "Umbodoben", "Waggletop",
+        "Welber", "Wildwander",
     ];
 }
 
@@ -86,9 +86,9 @@ mod test_generate_for_ethnicity {
                 "Alston Tarkelby",
                 "Oppleby Humplebumple",
                 "Callybon Silverthread",
-                "Orla Loofollue",
-                "Anverth Turen",
-                "Oda Leffery"
+                "Orla Gummen",
+                "Anverth Scheppen",
+                "Oda Glittergem"
             ],
             [
                 gen_name(&mut rng, &age, &m),
