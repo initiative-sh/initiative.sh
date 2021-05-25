@@ -20,7 +20,7 @@ impl Ethnicity {
     const MASCULINE_NAMES: &'static [&'static str] = &[
         "Adrex", "Arjhan", "Azzakh", "Salasar", "Baradad", "Bharash", "Bidreked", "Dadalan",
         "Dazzazn", "Direcris", "Donaar", "Fax", "Gargax", "Ghesh", "Gorbundus", "Greethen",
-        "Heskan", "Hirrathak", "lldrex", "Kaladan", "Kerkad", "Kiirith", "Kriv", "Maagog",
+        "Heskan", "Hirrathak", "Ildrex", "Kaladan", "Kerkad", "Kiirith", "Kriv", "Maagog",
         "Medrash", "Mehen", "Mozikth", "Mreksh", "Mugrunden", "Nadarr", "Nithther", "Norkruuth",
         "Nykkan", "Pandjed", "Patrin", "Pijjirik", "Quarethon", "Rathkran", "Rhogar", "Rivaan",
         "Sethrekar", "Shamash", "Shedinn", "Srorthen", "Tarhun", "Torinn", "Trynnicus", "Valorean",
@@ -30,15 +30,15 @@ impl Ethnicity {
     #[rustfmt::skip]
     const CLAN_NAMES: &'static [&'static str] = &[
         "Akambherylliax", "Argenthrixus", "Baharoosh", "Beryntolthropal", "Bhenkumbyrznaax",
-        "Caavylteradyn", "Chumbyxirinnish", "Clethtinthial", "lor", "Daardendrian", "Delmirev",
+        "Caavylteradyn", "Chumbyxirinnish", "Clethtinthiallor", "Daardendrian", "Delmirev",
         "Dhyrktelonis", "Ebynichtomonis", "Esstyrlynn", "Fharngnarthnost", "Ghaallixirn",
-        "Grrrmmballhyst", "Gygazzylyshrift", "Hashphronyxadyn", "Hshhsstoroth", "lmbixtellrhyst",
+        "Grrrmmballhyst", "Gygazzylyshrift", "Hashphronyxadyn", "Hshhsstoroth", "Imbixtellrhyst",
         "Jerynomonis", "Jharthraxyn", "Kerrhylon", "Kimbatuul", "Lhamboldennish",
         "Linxakasendalor", "Mohradyllion", "Mys", "tan", "Nemmonis", "Norixius", "Ophinshtalajiir",
         "Orexijandilin", "Pfaphnyrennish", "Phrahdrandon", "Pyraxtallinost", "Qyxpahrgh",
         "Raghthroknaar", "Shestendeliath", "Skaarzborroosh", "Sumnarghthrysh", "Tiammanthyllish",
         "Turnuroth", "Umbyrphrael", "Vangdondalor", "Verthisathurgiesh", "Wivvyrholdalphiax",
-        "Wystongjiir", "Xephyrbahnor", "Yarjerit", "Zzzxaaxthroth", 
+        "Wystongjiir", "Xephyrbahnor", "Yarjerit", "Zzzxaaxthroth",
     ];
 }
 
@@ -85,10 +85,10 @@ mod test_generate_for_ethnicity {
             [
                 "Akambherylliax Srorthen",
                 "Raghthroknaar Nithther",
-                "Hashphronyxadyn Biri",
-                "Turnuroth Megren",
-                "Daardendrian Azzakh",
-                "Pfaphnyrennish Kava"
+                "Lhamboldennish Gilkass",
+                "Ebynichtomonis Biri",
+                "Kerrhylon Furrele",
+                "Wivvyrholdalphiax Rivaan"
             ],
             [
                 gen_name(&mut rng, &age, &m),

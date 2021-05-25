@@ -21,9 +21,9 @@ impl Ethnicity {
         "Agni", "Alaric", "Anvindr", "Arvid", "Asger", "Asmund", "Bjarte", "Bjorg", "Bjorn",
         "Brandr", "Brandt", "Brynjar", "Calder", "Colborn", "Cuyler", "Egil", "Einar", "Eric",
         "Erland", "Fiske", "Folkvar", "Fritjof", "Frede", "Geir", "Halvar", "Hemming", "Hjalmar",
-        "Hjortr", "lngimarr", "Ivar", "Knud", "Leif", "Liufr", "Manning", "Oddr", "Olin", "Ormr",
+        "Hjortr", "Ingimarr", "Ivar", "Knud", "Leif", "Liufr", "Manning", "Oddr", "Olin", "Ormr",
         "Ove", "Rannulfr", "Sigurd", "Skari", "Snorri", "Sten", "Stigandr", "Stigr", "Sven",
-        "Trygve", "Ulf", "Vali", "Vidar", 
+        "Trygve", "Ulf", "Vali", "Vidar",
     ];
 }
 

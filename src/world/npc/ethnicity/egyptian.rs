@@ -9,7 +9,7 @@ impl Ethnicity {
     #[rustfmt::skip]
     const FEMININE_NAMES: &'static [&'static str] = &[
         "A\'at", "Ahset", "Amunet", "Aneksi", "Atet", "Baketamon", "Betrest", "Bunefer", "Dedyet",
-        "Hatshepsut", "Hentie", "Herit", "Hetepheres", "lntakaes", "lpwet", "ltet", "Joba",
+        "Hatshepsut", "Hentie", "Herit", "Hetepheres", "Intakaes", "Ipwet", "Itet", "Joba",
         "Kasmut", "Kemanub", "Khemut", "Kiya", "Maia", "Menhet", "Merit", "Meritamen", "Merneith",
         "Merseger", "Muyet", "Nebet", "Nebetah", "Nedjemmut", "Nefertiti", "Neferu", "Neithotep",
         "Nit", "Nofret", "Nubemiunu", "Peseshet", "Pypuy", "Qalhata", "Rai", "Redji", "Sadeh",
@@ -19,8 +19,8 @@ impl Ethnicity {
     #[rustfmt::skip]
     const MASCULINE_NAMES: &'static [&'static str] = &[
         "Ahmose", "Akhom", "Amasis", "Amenemhet", "Anen", "Banefre", "Bek", "Djedefre", "Djoser",
-        "Hekaib", "Henenu", "Horemheb", "Horwedja", "Huya", "lbebi", "ldu", "lmhotep", "lneni",
-        "lpuki", "lrsu", "Kagemni", "Kawab", "Kenamon", "Kewap", "Khaemwaset", "Khafra",
+        "Hekaib", "Henenu", "Horemheb", "Horwedja", "Huya", "Ibebi", "Idu", "Imhotep", "Ineni",
+        "Ipuki", "Irsu", "Kagemni", "Kawab", "Kenamon", "Kewap", "Khaemwaset", "Khafra",
         "Khusebek", "Masaharta", "Meketre", "Menkhaf", "Merenre", "Metjen", "Nebamun", "Nebetka",
         "Nehi", "Nekure", "Nessumontu", "Pakhom", "Pawah", "Pawero", "Ramose", "Rudjek", "Sabaf",
         "Sebek-khu", "Sebni", "Senusret", "Shabaka", "Somintu", "Thaneni", "Thethi",

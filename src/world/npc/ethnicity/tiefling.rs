@@ -9,7 +9,7 @@ impl Ethnicity {
     #[rustfmt::skip]
     const FEMININE_NAMES: &'static [&'static str] = &[
         "Akta", "Anakis", "Armara", "Astaro", "Aym", "Azza", "Beleth", "Bryseis", "Bune",
-        "Criella", "Damaia", "Decarabia", "Ea", "Gadreel", "Gomory", "Hecat", "lshte", "Jezebeth",
+        "Criella", "Damaia", "Decarabia", "Ea", "Gadreel", "Gomory", "Hecat", "Ishte", "Jezebeth",
         "Kali", "Kallista", "Kasdeya", "Lerissa", "Lilith", "Makaria", "Manea", "Markosian",
         "Mastema", "Naamah", "Nemeia", "Nija", "Orianna", "Osah", "Phelaia", "Prosperine", "Purah",
         "Pyra", "Rieta", "Ronobe", "Ronwe", "Seddit", "Seere", "Sekhmet", "Semyaza", "Shava",
@@ -20,7 +20,7 @@ impl Ethnicity {
     const MASCULINE_NAMES: &'static [&'static str] = &[
         "Abad", "Ahrim", "Akmen", "Amnon", "Andram", "Astar", "Balam", "Barakas", "Bathin",
         "Cairn", "Chem", "Cimer", "Cressel", "Damakos", "Ekemon", "Euron", "Fenriz", "Forcas",
-        "Habor", "lados", "Kairon", "Leucis", "Mamnen", "Mantus", "Marbas", "Melech", "Merihim",
+        "Habor", "Iados", "Kairon", "Leucis", "Mamnen", "Mantus", "Marbas", "Melech", "Merihim",
         "Modean", "Mordai", "Mormo", "Morthos", "Nicor", "Nirgel", "Oriax", "Paymon", "Pelaios",
         "Purson", "Qemuel", "Raam", "Rimmon", "Sammal", "Skamos", "Tethren", "Thamuz", "Therai",
         "Valafar", "Vassago", "Xappan", "Zepar", "Zephan",
