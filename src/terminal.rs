@@ -60,9 +60,9 @@ pub fn run(mut context: Context) -> io::Result<()> {
                                 input.key(key, false);
                                 break command;
                             }
+                            Key::Esc | Key::Ctrl('c') => return Ok(()),
                             Key::Ctrl('h') => input.key(Key::Backspace, true),
                             Key::Ctrl(c) => input.key(Key::Char(c), true),
-                            Key::Esc => return Ok(()),
                             k => input.key(k, false),
                         },
                         Ok(Event::Unsupported(bytes)) => match bytes.as_slice() {
