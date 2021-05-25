@@ -86,12 +86,21 @@ pub fn run(mut context: Context) -> io::Result<()> {
             }
         };
 
-        write!(
-            &mut screen,
-            "{}{}",
-            termion::cursor::Goto(1, 1),
-            context.run(&command)
-        )?;
+        print!("{}", termion::clear::All);
+
+        let output = format!("{}", context.run(&command));
+        wrap(&output, termion::terminal_size().unwrap().0 as usize - 4)
+            .lines()
+            .enumerate()
+            .for_each(|(num, line)| {
+                write!(
+                    &mut screen,
+                    "{}{}",
+                    termion::cursor::Goto(3, num as u16 + 1),
+                    line
+                )
+                .unwrap();
+            });
 
         draw_status(&mut screen, "")?;
         draw_input(&mut screen, &input)?;
