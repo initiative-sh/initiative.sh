@@ -1,7 +1,8 @@
 use std::fmt;
 use std::io;
 use std::io::prelude::*;
-use std::thread::sleep;
+use std::sync::mpsc;
+use std::thread;
 use std::time::Duration;
 
 use termion::event::{Event, Key};
@@ -28,7 +29,17 @@ pub fn run(mut context: Context) -> io::Result<()> {
         .into_raw_mode()
         .unwrap();
 
-    let mut events = termion::async_stdin().events();
+    let (send, events) = mpsc::channel();
+    let tty = termion::get_tty().unwrap();
+
+    thread::spawn(move || {
+        for event in tty.events() {
+            if let Err(_) = send.send(event) {
+                return;
+            }
+        }
+    });
+
     let mut input = Input::default();
 
     draw_input(&mut screen, &input)?;
@@ -38,38 +49,40 @@ pub fn run(mut context: Context) -> io::Result<()> {
     loop {
         let command = loop {
             // TODO: Handle multi-byte characters
-            if let Some(event) = events.next() {
-                let status = format!("{:?}", event);
+            match events.recv_timeout(Duration::from_millis(100)) {
+                Ok(event) => {
+                    let status = format!("{:?}", event);
 
-                match event {
-                    Ok(Event::Key(key)) => match key {
-                        Key::Char('\n') => {
-                            let command = input.text().to_string();
-                            input.key(key, false);
-                            break command;
-                        }
-                        Key::Ctrl('h') => input.key(Key::Backspace, true),
-                        Key::Ctrl(c) => input.key(Key::Char(c), true),
-                        Key::Esc => return Ok(()),
-                        k => input.key(k, false),
-                    },
-                    Ok(Event::Unsupported(bytes)) => match bytes.as_slice() {
-                        s if s == &CTRL_LEFT_ARROW[..] => input.key(Key::Left, true),
-                        s if s == &CTRL_RIGHT_ARROW[..] => input.key(Key::Right, true),
-                        s if s == &CTRL_UP_ARROW[..] => input.key(Key::Up, true),
-                        s if s == &CTRL_DOWN_ARROW[..] => input.key(Key::Down, true),
-                        s if s == &CTRL_DELETE[..] => input.key(Key::Delete, true),
+                    match event {
+                        Ok(Event::Key(key)) => match key {
+                            Key::Char('\n') => {
+                                let command = input.text().to_string();
+                                input.key(key, false);
+                                break command;
+                            }
+                            Key::Ctrl('h') => input.key(Key::Backspace, true),
+                            Key::Ctrl(c) => input.key(Key::Char(c), true),
+                            Key::Esc => return Ok(()),
+                            k => input.key(k, false),
+                        },
+                        Ok(Event::Unsupported(bytes)) => match bytes.as_slice() {
+                            s if s == &CTRL_LEFT_ARROW[..] => input.key(Key::Left, true),
+                            s if s == &CTRL_RIGHT_ARROW[..] => input.key(Key::Right, true),
+                            s if s == &CTRL_UP_ARROW[..] => input.key(Key::Up, true),
+                            s if s == &CTRL_DOWN_ARROW[..] => input.key(Key::Down, true),
+                            s if s == &CTRL_DELETE[..] => input.key(Key::Delete, true),
+                            _ => {}
+                        },
+                        Err(e) => return Err(e),
                         _ => {}
-                    },
-                    Err(e) => return Err(e),
-                    _ => {}
-                }
+                    }
 
-                draw_status(&mut screen, status.as_str())?;
-                draw_input(&mut screen, &input)?;
-                screen.flush()?;
-            } else {
-                sleep(Duration::from_millis(100));
+                    draw_status(&mut screen, status.as_str())?;
+                    draw_input(&mut screen, &input)?;
+                    screen.flush()?;
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+                Err(mpsc::RecvTimeoutError::Disconnected) => return Ok(()),
             }
         };
 
