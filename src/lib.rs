@@ -10,7 +10,10 @@ use command::Noun;
 use world::{Generate, Location, Npc, World};
 
 mod command;
+mod terminal;
 mod world;
+
+pub use terminal::run;
 
 pub struct Context {
     worlds: HashMap<Rc<Uuid>, World>,
