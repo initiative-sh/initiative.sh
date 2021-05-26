@@ -22,6 +22,7 @@ struct Input {
     history: Vec<String>,
     index: usize,
     cursor: usize,
+    search_query: Option<String>,
 }
 
 pub fn run(mut context: Context) -> io::Result<()> {
@@ -60,7 +61,7 @@ pub fn run(mut context: Context) -> io::Result<()> {
                                 input.key(key, false);
                                 break command;
                             }
-                            Key::Esc | Key::Ctrl('c') => return Ok(()),
+                            Key::Ctrl('c') => return Ok(()),
                             Key::Ctrl('h') => input.key(Key::Backspace, true),
                             Key::Ctrl(c) => input.key(Key::Char(c), true),
                             k => input.key(k, false),
@@ -132,6 +133,21 @@ impl Input {
                 self.cursor = self.text().len();
             }
 
+            (Key::Char('r'), true) => {
+                if self.search_query.is_some() {
+                    self.index.checked_sub(1).map(|prev_index| {
+                        self.search_history(prev_index).map(|(index, cursor)| {
+                            self.index = index;
+                            self.cursor = cursor;
+                        })
+                    });
+                } else {
+                    self.search_query = Some(String::new());
+                }
+            }
+
+            (Key::Esc, false) => self.search_query = None,
+
             (Key::Char('\n'), false) => {
                 while self.history.last().map_or(false, |s| s.is_empty()) {
                     self.history.pop();
@@ -152,12 +168,17 @@ impl Input {
                 self.history.push(String::new());
                 self.index = self.history.len() - 1;
                 self.cursor = self.text().len();
+                self.search_query = None;
             }
 
             (Key::Backspace, false) if !self.is_at_start() => {
-                self.cursor -= 1;
-                let cursor = self.cursor;
-                self.text_mut().remove(cursor);
+                if let Some(query) = self.search_query.as_mut() {
+                    query.pop();
+                } else {
+                    self.cursor -= 1;
+                    let cursor = self.cursor;
+                    self.text_mut().remove(cursor);
+                }
             }
             (Key::Backspace, true) if !self.is_at_start() => {
                 let boundary = self.find_boundary_left();
@@ -179,16 +200,36 @@ impl Input {
                 self.text_mut().replace_range(cursor..boundary, "");
             }
             (Key::Char(c), false) => {
-                if self.cursor == self.text().len() {
-                    self.text_mut().push(c);
+                if let Some(query) = self.search_query.as_mut() {
+                    query.push(c);
+                    self.search_history(self.index).map(|(index, cursor)| {
+                        self.index = index;
+                        self.cursor = cursor;
+                    });
                 } else {
-                    let cursor = self.cursor;
-                    self.text_mut().insert(cursor, c);
+                    if self.cursor == self.text().len() {
+                        self.text_mut().push(c);
+                    } else {
+                        let cursor = self.cursor;
+                        self.text_mut().insert(cursor, c);
+                    }
+                    self.cursor += 1;
                 }
-                self.cursor += 1;
             }
             _ => {}
         }
+    }
+
+    fn search_history(&self, end_index: usize) -> Option<(usize, usize)> {
+        if let Some(query) = &self.search_query {
+            return self.history[0..=end_index]
+                .iter()
+                .enumerate()
+                .rev()
+                .find_map(|(index, command)| command.find(query).map(|cursor| (index, cursor)));
+        }
+
+        None
     }
 
     fn is_at_start(&self) -> bool {
@@ -257,6 +298,7 @@ mod test_input {
             history: vec!["foo bar".to_string()],
             index: 0,
             cursor: 7,
+            search_query: None,
         };
 
         input.key(Key::Left, false);
@@ -281,6 +323,7 @@ mod test_input {
             history: vec!["foo bar".to_string()],
             index: 0,
             cursor: 0,
+            search_query: None,
         };
 
         input.key(Key::Right, false);
@@ -305,6 +348,7 @@ mod test_input {
             history: vec!["foo bar".to_string(), "baz".to_string()],
             index: 1,
             cursor: 0,
+            search_query: None,
         };
 
         assert_eq!("baz", input.text());
@@ -324,6 +368,7 @@ mod test_input {
             history: vec!["foo".to_string(), "bar baz".to_string()],
             index: 0,
             cursor: 0,
+            search_query: None,
         };
 
         assert_eq!("foo", input.text());
@@ -343,6 +388,7 @@ mod test_input {
             history: vec!["foo".to_string(), "bar".to_string()],
             index: 1,
             cursor: 3,
+            search_query: None,
         };
 
         input.key(Key::Char('\n'), false);
@@ -362,6 +408,7 @@ mod test_input {
             history: vec!["foo".to_string(), "bar".to_string()],
             index: 0,
             cursor: 3,
+            search_query: None,
         };
 
         input.key(Key::Char('\n'), false);
@@ -380,11 +427,56 @@ mod test_input {
     }
 
     #[test]
+    fn key_ctrl_r_test() {
+        let mut input = Input {
+            history: vec![
+                "foobar".to_string(),
+                "barbaz".to_string(),
+                "foobaz".to_string(),
+                String::new(),
+            ],
+            index: 3,
+            cursor: 0,
+            search_query: None,
+        };
+
+        input.key(Key::Char('r'), true);
+        assert_eq!(Some(String::new()), input.search_query);
+        assert_eq!(3, input.index);
+
+        input.key(Key::Char('b'), false);
+        input.key(Key::Char('a'), false);
+        assert_eq!(Some("ba".to_string()), input.search_query);
+        assert!(input.history.last().map_or(false, |s| s.is_empty()));
+        assert_eq!(2, input.index);
+
+        input.key(Key::Char('r'), false);
+        assert_eq!(Some("bar".to_string()), input.search_query);
+        assert_eq!(1, input.index);
+
+        input.key(Key::Char('r'), true);
+        assert_eq!(0, input.index);
+    }
+
+    #[test]
+    fn key_esc_test() {
+        let mut input = Input::default();
+        input.search_query = Some(String::new());
+
+        input.key(Key::Esc, false);
+        assert_eq!(None, input.search_query);
+
+        input.key(Key::Esc, false);
+        assert_eq!(None, input.search_query);
+    }
+
+    #[test]
     fn key_backspace_test() {
         let mut input = Input {
             history: vec!["foo bar".to_string()],
             index: 0,
             cursor: 4,
+            search_query: None,
         };
 
         input.key(Key::Backspace, false);
@@ -410,6 +502,7 @@ mod test_input {
             history: vec!["foo bar".to_string()],
             index: 0,
             cursor: 4,
+            search_query: None,
         };
 
         input.key(Key::Home, false);
@@ -431,6 +524,7 @@ mod test_input {
             history: vec!["foo bar".to_string()],
             index: 0,
             cursor: 3,
+            search_query: None,
         };
 
         input.key(Key::Delete, false);
@@ -491,6 +585,7 @@ mod test_input {
             history: vec!["A test-string with words, punctuation - and a dash!  ".to_string()],
             index: 0,
             cursor: 0,
+            search_query: None,
         };
         input.cursor = input.text().len();
 
@@ -515,6 +610,7 @@ mod test_input {
             history: vec!["A test-string with words, punctuation - and a dash!  ".to_string()],
             index: 0,
             cursor: 0,
+            search_query: None,
         };
 
         let mut stops = Vec::new();
@@ -539,6 +635,7 @@ impl Default for Input {
             history: vec![String::new()],
             index: 0,
             cursor: 0,
+            search_query: None,
         }
     }
 }
@@ -556,6 +653,7 @@ impl From<String> for Input {
             history: vec![text],
             index: 0,
             cursor,
+            search_query: None,
         }
     }
 }
