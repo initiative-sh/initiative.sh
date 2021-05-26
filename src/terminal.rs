@@ -133,9 +133,23 @@ impl Input {
             }
 
             (Key::Char('\n'), false) => {
-                if !self.history.last().map_or(false, |s| s.is_empty()) {
-                    self.history.push(String::new());
+                while self.history.last().map_or(false, |s| s.is_empty()) {
+                    self.history.pop();
                 }
+
+                if self.index < self.history.len() - 1 {
+                    if let Some(command) = self.history.get(self.index).cloned() {
+                        self.history.push(command);
+                    }
+                }
+
+                if self.history.len() > 1
+                    && self.history.last() == self.history.get(self.history.len() - 2)
+                {
+                    self.history.pop();
+                }
+
+                self.history.push(String::new());
                 self.index = self.history.len() - 1;
                 self.cursor = self.text().len();
             }
@@ -327,7 +341,7 @@ mod test_input {
     fn key_enter_test() {
         let mut input = Input {
             history: vec!["foo".to_string(), "bar".to_string()],
-            index: 0,
+            index: 1,
             cursor: 3,
         };
 
@@ -339,6 +353,29 @@ mod test_input {
         input.key(Key::Char('\n'), false);
         assert_eq!(vec!["foo", "bar", ""], input.history);
         assert_eq!(2, input.index);
+        assert_eq!(0, input.cursor);
+    }
+
+    #[test]
+    fn key_enter_with_history_test() {
+        let mut input = Input {
+            history: vec!["foo".to_string(), "bar".to_string()],
+            index: 0,
+            cursor: 3,
+        };
+
+        input.key(Key::Char('\n'), false);
+        assert_eq!(vec!["foo", "bar", "foo", ""], input.history);
+        assert_eq!(3, input.index);
+        assert_eq!(0, input.cursor);
+
+        input.history.last_mut().map(|s| s.push_str("foo"));
+        input.cursor = 3;
+        assert_eq!(vec!["foo", "bar", "foo", "foo"], input.history);
+
+        input.key(Key::Char('\n'), false);
+        assert_eq!(vec!["foo", "bar", "foo", ""], input.history);
+        assert_eq!(3, input.index);
         assert_eq!(0, input.cursor);
     }
 
