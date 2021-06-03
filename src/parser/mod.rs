@@ -1,11 +1,10 @@
 use std::convert::Infallible;
 use std::str::FromStr;
 
-mod noun;
-mod verb;
+mod syntax;
 
-pub use noun::Noun;
-pub use verb::Verb;
+pub use syntax::Noun;
+pub use syntax::Verb;
 
 #[derive(Debug)]
 pub struct Command {
