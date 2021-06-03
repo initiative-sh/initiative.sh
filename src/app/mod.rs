@@ -1,3 +1,9 @@
-mod context;
+use std::io;
 
-pub use context::Context;
+mod context;
+mod interface;
+
+pub fn run() -> io::Result<()> {
+    let context = context::Context::default();
+    interface::run(context)
+}
