@@ -1,5 +1,5 @@
 mod app;
-mod command;
+mod parser;
 mod world;
 
 pub use app::run;

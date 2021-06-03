@@ -6,7 +6,7 @@ use std::rc::Rc;
 use rand::prelude::*;
 use uuid::Uuid;
 
-use crate::command;
+use crate::parser;
 use crate::world;
 use crate::world::Generate;
 
@@ -17,7 +17,7 @@ pub struct Context {
 
 impl Context {
     pub fn run(&mut self, command: &str) -> Box<impl fmt::Display> {
-        let command: command::Command = command.parse().unwrap();
+        let command: parser::Command = command.parse().unwrap();
         let demographics = world::Demographics::default();
 
         if let Some(verb) = command.get_verb() {
@@ -66,7 +66,7 @@ impl Context {
                 Box::new(output)
             } else {
                 match noun {
-                    command::Noun::Npc => {
+                    parser::Noun::Npc => {
                         let mut output = String::new();
                         let npc = world::Npc::generate(&mut thread_rng(), &demographics);
 
