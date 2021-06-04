@@ -7,7 +7,7 @@ use rand::Rng;
 
 use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
-use crate::parser::Noun;
+use crate::syntax::Noun;
 
 pub use building::*;
 
@@ -161,7 +161,6 @@ impl Generate for Location {
 mod test_generate_for_location {
     use super::{Demographics, Generate, Location};
     use rand::rngs::mock::StepRng;
-    use rand::{Rng, RngCore};
 
     #[test]
     fn generate_test() {

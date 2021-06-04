@@ -6,7 +6,8 @@ use std::rc::Rc;
 use rand::prelude::*;
 use uuid::Uuid;
 
-use crate::parser;
+use super::parser;
+use super::syntax;
 use crate::world;
 use crate::world::Generate;
 
@@ -66,7 +67,7 @@ impl Context {
                 Box::new(output)
             } else {
                 match noun {
-                    parser::Noun::Npc => {
+                    syntax::Noun::Npc => {
                         let mut output = String::new();
                         let npc = world::Npc::generate(&mut thread_rng(), &demographics);
 
