@@ -3,7 +3,7 @@ use std::fmt;
 
 use rand::prelude::*;
 
-use super::parser::Command;
+use super::parser::RawCommand;
 use super::syntax;
 use crate::world;
 use crate::world::Generate;
@@ -11,7 +11,7 @@ use crate::world::Generate;
 pub struct Context;
 
 impl Context {
-    pub fn run(&mut self, command: &Command) -> Box<impl fmt::Display> {
+    pub fn run(&mut self, command: &RawCommand) -> Box<impl fmt::Display> {
         let demographics = world::Demographics::default();
 
         if let Some(verb) = command.get_verb() {

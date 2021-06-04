@@ -4,12 +4,12 @@ use std::str::FromStr;
 use super::{Noun, Verb, Word};
 
 #[derive(Debug)]
-pub struct Command {
-    raw: String,
+pub struct RawCommand {
+    text: String,
     words: Vec<Word>,
 }
 
-impl Command {
+impl RawCommand {
     pub fn get_verb(&self) -> Option<&Verb> {
         self.words.iter().find_map(|word| {
             if let Word::Verb(v) = word {
@@ -31,7 +31,7 @@ impl Command {
     }
 }
 
-impl FromStr for Command {
+impl FromStr for RawCommand {
     type Err = Infallible;
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
@@ -39,8 +39,8 @@ impl FromStr for Command {
     }
 }
 
-impl From<String> for Command {
-    fn from(input: String) -> Command {
+impl From<String> for RawCommand {
+    fn from(input: String) -> RawCommand {
         let mut raw_mut = input.as_str();
         let mut words = Vec::new();
 
@@ -50,24 +50,24 @@ impl From<String> for Command {
             words.push(word);
         }
 
-        Command { raw: input, words }
+        RawCommand { text: input, words }
     }
 }
 
-impl From<Command> for String {
-    fn from(command: Command) -> Self {
-        command.raw
+impl From<RawCommand> for String {
+    fn from(command: RawCommand) -> Self {
+        command.text
     }
 }
 
 #[cfg(test)]
 mod test_command {
-    use super::{Command, Noun, Verb, Word};
+    use super::{Noun, RawCommand, Verb, Word};
 
     #[test]
     fn word_salad_test() {
         let input = "tutorial potato inn carrot half elf turnip";
-        let command: Command = input.parse().unwrap();
+        let command: RawCommand = input.parse().unwrap();
 
         assert_eq!(
             vec![
@@ -80,16 +80,16 @@ mod test_command {
             ],
             command.words
         );
-        assert_eq!(input, command.raw.as_str());
+        assert_eq!(input, command.text.as_str());
     }
 
     #[test]
     fn get_word_test() {
-        let command: Command = "blah inn shop blah".parse().unwrap();
+        let command: RawCommand = "blah inn shop blah".parse().unwrap();
         assert_eq!(Some(&Noun::Inn), command.get_noun());
         assert_eq!(None, command.get_verb());
 
-        let command: Command = "blah help tutorial blah".parse().unwrap();
+        let command: RawCommand = "blah help tutorial blah".parse().unwrap();
         assert_eq!(None, command.get_noun());
         assert_eq!(Some(&Verb::Help), command.get_verb());
     }
