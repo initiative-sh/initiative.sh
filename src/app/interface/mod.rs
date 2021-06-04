@@ -1,9 +1,9 @@
 use std::io;
 
-use super::context::Context;
+use super::App;
 
 mod rich;
 
-pub fn run(context: Context) -> io::Result<()> {
-    rich::run(context)
+pub fn run(app: App) -> io::Result<()> {
+    rich::run(app)
 }
