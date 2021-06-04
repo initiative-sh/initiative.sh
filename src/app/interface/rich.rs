@@ -9,7 +9,7 @@ use termion::event::{Event, Key};
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
 
-use crate::Context;
+use super::Context;
 
 const CTRL_UP_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 65];
 const CTRL_DOWN_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 66];

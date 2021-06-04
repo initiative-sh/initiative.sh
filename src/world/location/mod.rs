@@ -7,7 +7,7 @@ use rand::Rng;
 
 use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
-use crate::Noun;
+use crate::parser::Noun;
 
 pub use building::*;
 
