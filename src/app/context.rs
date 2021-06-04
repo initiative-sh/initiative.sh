@@ -6,7 +6,7 @@ use std::rc::Rc;
 use rand::prelude::*;
 use uuid::Uuid;
 
-use super::parser;
+use super::parser::Command;
 use super::syntax;
 use crate::world;
 use crate::world::Generate;
@@ -17,8 +17,7 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn run(&mut self, command: &str) -> Box<impl fmt::Display> {
-        let command: parser::Command = command.parse().unwrap();
+    pub fn run(&mut self, command: &Command) -> Box<impl fmt::Display> {
         let demographics = world::Demographics::default();
 
         if let Some(verb) = command.get_verb() {

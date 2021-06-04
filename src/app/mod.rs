@@ -24,7 +24,7 @@ impl App {
         App { context }
     }
 
-    fn command(&mut self, command: &str) -> Box<dyn Display> {
-        self.context.run(command)
+    fn command(&mut self, command: &str) -> Box<impl Display> {
+        self.context.run(&command.parse().unwrap())
     }
 }
