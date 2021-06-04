@@ -1,20 +1,14 @@
-use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt;
-use std::rc::Rc;
 
 use rand::prelude::*;
-use uuid::Uuid;
 
 use super::parser::Command;
 use super::syntax;
 use crate::world;
 use crate::world::Generate;
 
-pub struct Context {
-    worlds: HashMap<Rc<Uuid>, world::World>,
-    active_world: Rc<Uuid>,
-}
+pub struct Context;
 
 impl Context {
     pub fn run(&mut self, command: &Command) -> Box<impl fmt::Display> {
@@ -90,23 +84,10 @@ impl Context {
             Box::new(format!("{:?}", command))
         }
     }
-
-    fn get_world(&self) -> &world::World {
-        self.worlds.get(&self.active_world).unwrap()
-    }
 }
 
 impl Default for Context {
     fn default() -> Self {
-        let world = world::World::default();
-        let active_world = world.uuid.clone();
-
-        let mut worlds = HashMap::new();
-        worlds.insert(world.uuid.clone(), world);
-
-        Self {
-            worlds,
-            active_world,
-        }
+        Self
     }
 }
