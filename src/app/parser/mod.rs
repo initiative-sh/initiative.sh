@@ -1,6 +1,6 @@
 use syntax::{Noun, Verb, Word};
 
-pub use command::RawCommand;
+pub use command::Command;
 
 pub mod syntax;
 

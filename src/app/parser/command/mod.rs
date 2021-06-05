@@ -1,12 +1,120 @@
-use std::convert::Infallible;
+use std::convert::{Infallible, TryFrom, TryInto};
 use std::str::FromStr;
 
 use super::{Noun, Verb, Word};
 
 #[derive(Debug)]
+pub enum Command {
+    App(AppCommand),
+    // Context(ContextCommand),
+    Generate(GenerateCommand),
+    // Storage(StorageCommand),
+    Unknown(RawCommand),
+}
+
+#[derive(Debug)]
+pub enum AppCommand {
+    Help(RawCommand),
+    Quit(RawCommand),
+}
+
+#[derive(Debug)]
+pub enum GenerateCommand {
+    Location(RawCommand),
+    Npc(RawCommand),
+    //Region(RawCommand),
+}
+
+#[derive(Debug)]
 pub struct RawCommand {
     text: String,
     words: Vec<Word>,
+}
+
+impl Command {
+    pub fn raw(&self) -> &RawCommand {
+        match self {
+            Command::App(subtype) => subtype.raw(),
+            Command::Generate(subtype) => subtype.raw(),
+            Command::Unknown(c) => c,
+        }
+    }
+}
+
+impl AppCommand {
+    pub fn raw(&self) -> &RawCommand {
+        match self {
+            AppCommand::Help(c) => c,
+            AppCommand::Quit(c) => c,
+        }
+    }
+}
+
+impl GenerateCommand {
+    pub fn raw(&self) -> &RawCommand {
+        match self {
+            GenerateCommand::Location(c) => c,
+            GenerateCommand::Npc(c) => c,
+        }
+    }
+}
+
+impl From<RawCommand> for Command {
+    fn from(mut raw: RawCommand) -> Command {
+        raw = match raw.try_into() {
+            Ok(command) => return Command::App(command),
+            Err(raw) => raw,
+        };
+
+        raw = match raw.try_into() {
+            Ok(command) => return Command::Generate(command),
+            Err(raw) => raw,
+        };
+
+        Command::Unknown(raw)
+    }
+}
+
+impl TryFrom<RawCommand> for AppCommand {
+    type Error = RawCommand;
+
+    fn try_from(raw: RawCommand) -> Result<AppCommand, RawCommand> {
+        match raw.get_verb() {
+            Some(Verb::Help) => Ok(AppCommand::Help(raw)),
+            Some(Verb::Quit) => Ok(AppCommand::Quit(raw)),
+            _ => Err(raw),
+        }
+    }
+}
+
+impl TryFrom<RawCommand> for GenerateCommand {
+    type Error = RawCommand;
+
+    fn try_from(raw: RawCommand) -> Result<GenerateCommand, RawCommand> {
+        if let Some(&noun) = raw.get_noun() {
+            match noun {
+                Noun::Building
+                | Noun::Inn
+                | Noun::Residence
+                | Noun::Shop
+                | Noun::Temple
+                | Noun::Warehouse => Ok(GenerateCommand::Location(raw)),
+                Noun::Npc
+                | Noun::Dragonborn
+                | Noun::Dwarf
+                | Noun::Elf
+                | Noun::Gnome
+                | Noun::HalfElf
+                | Noun::HalfOrc
+                | Noun::Halfling
+                | Noun::Human
+                | Noun::Tiefling
+                | Noun::Warforged => Ok(GenerateCommand::Npc(raw)),
+            }
+        } else {
+            Err(raw)
+        }
+    }
 }
 
 impl RawCommand {
@@ -31,6 +139,21 @@ impl RawCommand {
     }
 }
 
+impl FromStr for Command {
+    type Err = Infallible;
+
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        Ok(raw.to_string().into())
+    }
+}
+
+impl From<String> for Command {
+    fn from(raw: String) -> Self {
+        let raw_command = RawCommand::from(raw);
+        raw_command.into()
+    }
+}
+
 impl FromStr for RawCommand {
     type Err = Infallible;
 
@@ -40,8 +163,8 @@ impl FromStr for RawCommand {
 }
 
 impl From<String> for RawCommand {
-    fn from(input: String) -> RawCommand {
-        let mut raw_mut = input.as_str();
+    fn from(raw: String) -> Self {
+        let mut raw_mut = raw.as_str();
         let mut words = Vec::new();
 
         while raw_mut.len() > 0 {
@@ -50,7 +173,7 @@ impl From<String> for RawCommand {
             words.push(word);
         }
 
-        RawCommand { text: input, words }
+        RawCommand { text: raw, words }
     }
 }
 
