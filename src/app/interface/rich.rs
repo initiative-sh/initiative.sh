@@ -9,7 +9,7 @@ use termion::event::{Event, Key};
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
 
-use super::Context;
+use super::App;
 
 const CTRL_UP_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 65];
 const CTRL_DOWN_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 66];
@@ -25,7 +25,7 @@ struct Input {
     search_query: Option<String>,
 }
 
-pub fn run(mut context: Context) -> io::Result<()> {
+pub fn run(mut app: App) -> io::Result<()> {
     let mut screen = termion::screen::AlternateScreen::from(io::stdout())
         .into_raw_mode()
         .unwrap();
@@ -89,7 +89,7 @@ pub fn run(mut context: Context) -> io::Result<()> {
 
         print!("{}", termion::clear::All);
 
-        let output = format!("{}", context.run(&command));
+        let output = format!("{}", app.command(&command));
         wrap(&output, termion::terminal_size().unwrap().0 as usize - 4)
             .lines()
             .enumerate()

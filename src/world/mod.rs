@@ -11,12 +11,21 @@ pub use location::Location;
 pub use npc::Npc;
 pub use region::Region;
 
+use crate::app::GenerateCommand;
+
 pub mod demographics;
 pub mod location;
 pub mod npc;
 pub mod region;
 
 pub type WorldUuid = Uuid;
+
+pub fn command(command: &GenerateCommand, demographics: &Demographics) -> Box<dyn fmt::Display> {
+    match command {
+        GenerateCommand::Location(raw) => location::command(raw, demographics),
+        GenerateCommand::Npc(raw) => npc::command(raw, demographics),
+    }
+}
 
 pub trait Generate: Default {
     fn generate(rng: &mut impl rand::Rng, demographics: &Demographics) -> Self {

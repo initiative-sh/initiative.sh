@@ -6,7 +6,7 @@ use rand::Rng;
 use rand_distr::{Distribution, Normal};
 
 use super::{Age, Ethnicity, Gender, Npc, Size};
-use crate::parser::Noun;
+use crate::syntax::Noun;
 
 mod dragonborn;
 mod dwarf;

@@ -1,9 +1,12 @@
+use std::convert::TryInto;
+use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use rand::Rng;
+use rand::prelude::*;
 
 use super::{Demographics, Field, Generate};
+use crate::app::RawCommand;
 
 pub use age::Age;
 pub use ethnicity::Ethnicity;
@@ -22,20 +25,6 @@ mod view;
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Uuid(uuid::Uuid);
 
-impl Deref for Uuid {
-    type Target = uuid::Uuid;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<uuid::Uuid> for Uuid {
-    fn from(uuid: uuid::Uuid) -> Self {
-        Self(uuid)
-    }
-}
-
 #[derive(Default, Debug)]
 pub struct Npc {
     pub uuid: Option<Rc<Uuid>>,
@@ -52,6 +41,47 @@ pub struct Npc {
     // pub spouses: Field<Vec<Uuid>>,
     // pub siblings: Field<Vec<Uuid>>,
     // pub children: Field<Vec<Uuid>>,
+}
+
+pub fn command(command: &RawCommand, demographics: &Demographics) -> Box<dyn fmt::Display> {
+    if let Some(&noun) = command.get_noun() {
+        let session_demographics = if let Ok(race) = noun.try_into() {
+            demographics.only_race(&race)
+        } else {
+            demographics.clone()
+        };
+
+        let mut output = String::new();
+        let npc = Npc::generate(&mut thread_rng(), &session_demographics);
+
+        output.push_str(&format!("\n{}\n", npc.display_details()));
+
+        (0..10).for_each(|i| {
+            output.push_str(&format!(
+                "{} {}\n",
+                i,
+                Npc::generate(&mut thread_rng(), demographics).display_summary()
+            ))
+        });
+
+        Box::new(output)
+    } else {
+        unimplemented!();
+    }
+}
+
+impl Deref for Uuid {
+    type Target = uuid::Uuid;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<uuid::Uuid> for Uuid {
+    fn from(uuid: uuid::Uuid) -> Self {
+        Self(uuid)
+    }
 }
 
 impl Npc {

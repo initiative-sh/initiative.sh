@@ -1,9 +1,14 @@
 use std::io;
 
-use super::context::Context;
+use super::App;
 
+mod light;
 mod rich;
 
-pub fn run(context: Context) -> io::Result<()> {
-    rich::run(context)
+pub fn run(app: App) -> io::Result<()> {
+    if termion::is_tty(&io::stdin()) {
+        rich::run(app)
+    } else {
+        light::run(app)
+    }
 }

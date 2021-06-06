@@ -3,11 +3,12 @@ use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use rand::Rng;
+use rand::prelude::*;
 
 use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
-use crate::parser::Noun;
+use crate::app::RawCommand;
+use crate::syntax::Noun;
 
 pub use building::*;
 
@@ -42,6 +43,30 @@ pub struct LocationDetailsView<'a>(&'a Location);
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LocationType {
     Building(BuildingType),
+}
+
+pub fn command(command: &RawCommand, demographics: &Demographics) -> Box<dyn fmt::Display> {
+    if let Some(&noun) = command.get_noun() {
+        let mut location = Location::default();
+        let mut output = String::new();
+
+        if let Ok(location_subtype) = noun.try_into() {
+            location.subtype = Field::new(location_subtype);
+        }
+
+        location.regenerate(&mut thread_rng(), demographics);
+
+        output.push_str(&format!("\n{}\n", location.display_details()));
+
+        (0..10).for_each(|i| {
+            location.regenerate(&mut thread_rng(), &demographics);
+            output.push_str(&format!("{} {}\n", i, location.display_summary()))
+        });
+
+        Box::new(output)
+    } else {
+        unimplemented!();
+    }
 }
 
 impl Deref for Uuid {
@@ -161,7 +186,6 @@ impl Generate for Location {
 mod test_generate_for_location {
     use super::{Demographics, Generate, Location};
     use rand::rngs::mock::StepRng;
-    use rand::{Rng, RngCore};
 
     #[test]
     fn generate_test() {
