@@ -1,6 +1,5 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn;
 
 #[proc_macro_derive(RandomTable)]
 pub fn random_table_derive(input: TokenStream) -> TokenStream {
