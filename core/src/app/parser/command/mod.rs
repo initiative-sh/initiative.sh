@@ -218,7 +218,7 @@ mod test_command {
     }
 }
 
-fn parse_chunk<'a>(input: &'a str) -> (Word, &'a str) {
+fn parse_chunk(input: &str) -> (Word, &str) {
     let input = input.trim_end();
 
     if let Ok(word) = input.parse() {
