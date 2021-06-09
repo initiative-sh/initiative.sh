@@ -103,58 +103,6 @@ impl Location {
     pub fn display_details(&self) -> LocationDetailsView {
         LocationDetailsView(self)
     }
-
-    pub fn generate_subtype(
-        subtype: LocationType,
-        rng: &mut impl Rng,
-        demographics: &Demographics,
-    ) -> Self {
-        let mut location = Self::default();
-        location.subtype = Field::new(subtype);
-        location.regenerate(rng, demographics);
-        location
-    }
-}
-
-#[cfg(test)]
-mod test_location {
-    use super::{BuildingType, Demographics, Field, Location};
-    use rand::rngs::mock::StepRng;
-
-    #[test]
-    fn generate_subtype_test() {
-        let demographics = Demographics::default();
-        let mut rng = StepRng::new(0, 0);
-
-        assert_eq!(
-            Location::generate_subtype(BuildingType::Inn.into(), &mut rng, &demographics).name,
-            Field::new_generated("The Silver Eel".into()),
-        );
-
-        assert_eq!(
-            Location::generate_subtype(BuildingType::Residence.into(), &mut rng, &demographics)
-                .description,
-            Field::new_generated("Abandoned squat".into()),
-        );
-
-        assert_eq!(
-            Location::generate_subtype(BuildingType::Shop.into(), &mut rng, &demographics)
-                .description,
-            Field::new_generated("Pawnshop".into()),
-        );
-
-        assert_eq!(
-            Location::generate_subtype(BuildingType::Temple.into(), &mut rng, &demographics)
-                .description,
-            Field::new_generated("Temple to a good or neutral deity".into()),
-        );
-
-        assert_eq!(
-            Location::generate_subtype(BuildingType::Warehouse.into(), &mut rng, &demographics)
-                .description,
-            Field::new_generated("Empty or abandoned".into()),
-        );
-    }
 }
 
 impl Generate for Location {
