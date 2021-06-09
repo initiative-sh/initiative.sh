@@ -35,7 +35,7 @@ pub fn run(mut app: App) -> io::Result<()> {
 
     thread::spawn(move || {
         for event in tty.events() {
-            if let Err(_) = send.send(event) {
+            if send.send(event).is_err() {
                 return;
             }
         }
