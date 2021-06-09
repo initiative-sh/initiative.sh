@@ -642,7 +642,7 @@ impl Default for Input {
 
 impl From<Input> for String {
     fn from(mut input: Input) -> String {
-        input.history.drain(..).skip(input.index).next().unwrap()
+        input.history.drain(..).nth(input.index).unwrap()
     }
 }
 
