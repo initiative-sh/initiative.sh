@@ -19,5 +19,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Run rustfmt
         run: find */src -name '*.rs' -exec rustfmt --check --verbose '{}' +
+      - name: Run Clippy
+        run: cargo clippy -- --deny warnings
       - name: Run unit tests
         run: cargo test --lib --workspace --verbose
