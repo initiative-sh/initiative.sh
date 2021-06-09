@@ -35,7 +35,7 @@ pub fn run(mut app: App) -> io::Result<()> {
 
     thread::spawn(move || {
         for event in tty.events() {
-            if let Err(_) = send.send(event) {
+            if send.send(event).is_err() {
                 return;
             }
         }
@@ -202,10 +202,10 @@ impl Input {
             (Key::Char(c), false) => {
                 if let Some(query) = self.search_query.as_mut() {
                     query.push(c);
-                    self.search_history(self.index).map(|(index, cursor)| {
+                    if let Some((index, cursor)) = self.search_history(self.index) {
                         self.index = index;
                         self.cursor = cursor;
-                    });
+                    }
                 } else {
                     if self.cursor == self.text().len() {
                         self.text_mut().push(c);
@@ -243,7 +243,7 @@ impl Input {
     fn find_boundary_left(&self) -> usize {
         let mut boundary = self.cursor;
 
-        if self.text().len() > 0 && boundary > 0 {
+        if !self.text().is_empty() && boundary > 0 {
             boundary -= 1;
 
             while boundary > 0 {
@@ -642,7 +642,7 @@ impl Default for Input {
 
 impl From<Input> for String {
     fn from(mut input: Input) -> String {
-        input.history.drain(..).skip(input.index).next().unwrap()
+        input.history.drain(..).nth(input.index).unwrap()
     }
 }
 

@@ -36,7 +36,6 @@ pub struct Region {
 
 pub enum RegionType {
     World,
-    Town,
 }
 
 impl Default for RegionType {

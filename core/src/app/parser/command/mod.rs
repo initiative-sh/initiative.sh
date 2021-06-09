@@ -167,7 +167,7 @@ impl From<String> for RawCommand {
         let mut raw_mut = raw.as_str();
         let mut words = Vec::new();
 
-        while raw_mut.len() > 0 {
+        while !raw_mut.is_empty() {
             let (word, remainder) = parse_chunk(raw_mut);
             raw_mut = remainder;
             words.push(word);
@@ -218,7 +218,7 @@ mod test_command {
     }
 }
 
-fn parse_chunk<'a>(input: &'a str) -> (Word, &'a str) {
+fn parse_chunk(input: &str) -> (Word, &str) {
     let input = input.trim_end();
 
     if let Ok(word) = input.parse() {

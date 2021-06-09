@@ -60,7 +60,7 @@ impl Demographics {
         amount: f64,
         default: (Race, Ethnicity),
     ) -> Self {
-        if amount < 0. || amount > 1. {
+        if !(0. ..=1.).contains(&amount) {
             panic!("Invalid input: {}", amount);
         }
 
