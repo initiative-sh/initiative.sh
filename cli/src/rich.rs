@@ -243,7 +243,7 @@ impl Input {
     fn find_boundary_left(&self) -> usize {
         let mut boundary = self.cursor;
 
-        if self.text().len() > 0 && boundary > 0 {
+        if !self.text().is_empty() && boundary > 0 {
             boundary -= 1;
 
             while boundary > 0 {
