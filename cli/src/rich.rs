@@ -202,10 +202,10 @@ impl Input {
             (Key::Char(c), false) => {
                 if let Some(query) = self.search_query.as_mut() {
                     query.push(c);
-                    self.search_history(self.index).map(|(index, cursor)| {
+                    if let Some((index, cursor)) = self.search_history(self.index) {
                         self.index = index;
                         self.cursor = cursor;
-                    });
+                    }
                 } else {
                     if self.cursor == self.text().len() {
                         self.text_mut().push(c);
