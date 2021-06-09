@@ -1,8 +1,6 @@
 use std::fmt::Display;
-use std::io;
 
-mod context;
-mod interface;
+pub mod context;
 mod parser;
 
 pub use parser::syntax;
@@ -10,22 +8,16 @@ pub use parser::{AppCommand, Command, GenerateCommand, RawCommand};
 
 use context::Context;
 
-pub fn run() -> io::Result<()> {
-    let context = context::Context::default();
-    let app = App::new(context);
-    interface::run(app)
-}
-
 pub struct App {
     context: Context,
 }
 
 impl App {
-    fn new(context: Context) -> App {
+    pub fn new(context: Context) -> App {
         App { context }
     }
 
-    fn command(&mut self, raw_command: &str) -> Box<dyn Display> {
+    pub fn command(&mut self, raw_command: &str) -> Box<dyn Display> {
         let command: Command = raw_command.parse().unwrap();
         let demographics = &self.context.demographics;
 

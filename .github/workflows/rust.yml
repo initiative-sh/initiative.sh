@@ -18,6 +18,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Run rustfmt
-        run: find src -name '*.rs' -exec rustfmt --check '{}' +
+        run: find */src -name '*.rs' -exec rustfmt --check --verbose '{}' +
       - name: Run unit tests
-        run: cargo test --lib --verbose
+        run: cargo test --lib --workspace --verbose

@@ -1,6 +1,6 @@
 use std::io;
 
-use super::App;
+use initiative_core::app::App;
 
 mod light;
 mod rich;
