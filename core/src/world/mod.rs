@@ -28,7 +28,7 @@ pub fn command(command: &GenerateCommand, demographics: &Demographics) -> Box<dy
 }
 
 pub trait Generate: Default {
-    fn generate(rng: &mut impl rand::Rng, demographics: &Demographics) -> Self {
+    fn generate(rng: &mut impl Rng, demographics: &Demographics) -> Self {
         let mut result = Self::default();
         result.regenerate(rng, demographics);
         result
