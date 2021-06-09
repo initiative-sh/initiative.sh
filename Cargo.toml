@@ -12,8 +12,9 @@ rand = "0.8"
 rand_distr = "0.4"
 termion = "1.5"
 
+initiative_cli = { path = "cli" }
 initiative_core = { path = "core" }
 initiative_macros = { path = "macros" }
 
 [workspace]
-members = ["core", "macros", "scripts"]
+members = ["cli", "core", "macros", "scripts"]

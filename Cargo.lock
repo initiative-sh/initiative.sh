@@ -42,6 +42,7 @@ dependencies = [
 name = "initiative"
 version = "0.1.0"
 dependencies = [
+ "initiative_cli",
  "initiative_core",
  "initiative_macros",
  "rand",
@@ -49,6 +50,10 @@ dependencies = [
  "termion",
  "uuid",
 ]
+
+[[package]]
+name = "initiative_cli"
+version = "0.1.0"
 
 [[package]]
 name = "initiative_core"
