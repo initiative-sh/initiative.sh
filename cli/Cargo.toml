@@ -1,5 +1,5 @@
 [package]
-name = "initiative_cli"
+name = "initiative-cli"
 version = "0.1.0"
 authors = ["Mikkel Paulson <git@email.mikkel.ca>"]
 edition = "2018"
@@ -9,4 +9,4 @@ edition = "2018"
 [dependencies]
 termion = "1.5"
 
-initiative_core = { path = "../core" }
+initiative-core = { path = "../core" }
