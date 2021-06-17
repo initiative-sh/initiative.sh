@@ -1,5 +1,5 @@
 [package]
-name = "initiative_core"
+name = "initiative-core"
 version = "0.1.0"
 authors = ["Mikkel Paulson <git@email.mikkel.ca>"]
 edition = "2018"
@@ -8,7 +8,10 @@ edition = "2018"
 
 [dependencies]
 rand = "0.8"
-rand_distr = "0.4"
+rand_distr = { version = "0.4", default-features = false }
 uuid = { version = "0.8", features = ["v4"] }
 
-initiative_macros = { path = "../macros" }
+initiative-macros = { path = "../macros" }
+
+[features]
+js = ["uuid/stdweb"]
