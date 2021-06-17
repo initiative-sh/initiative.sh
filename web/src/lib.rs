@@ -16,7 +16,7 @@ extern "C" {
 }
 
 #[wasm_bindgen]
-pub fn greet() {
+pub fn command(input: &str) {
     let mut app = app();
-    alert(format!("{}", app.command("npc")).as_str());
+    alert(format!("{}", app.command(input)).as_str());
 }
