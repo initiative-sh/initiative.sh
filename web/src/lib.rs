@@ -11,12 +11,7 @@ use initiative_core::app;
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
-extern "C" {
-    fn alert(s: &str);
-}
-
-#[wasm_bindgen]
-pub fn command(input: &str) {
+pub fn command(input: &str) -> String {
     let mut app = app();
-    alert(format!("{}", app.command(input)).as_str());
+    format!("{}", app.command(input))
 }
