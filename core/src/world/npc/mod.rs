@@ -60,7 +60,7 @@ pub fn command(command: &RawCommand, demographics: &Demographics) -> Box<dyn fmt
             output.push_str(&format!(
                 "{} {}\n",
                 i,
-                Npc::generate(&mut thread_rng(), demographics).display_summary()
+                Npc::generate(&mut thread_rng(), &session_demographics).display_summary()
             ))
         });
 
