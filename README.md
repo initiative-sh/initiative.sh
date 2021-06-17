@@ -37,3 +37,15 @@ hard to orchestrate all of that and tell a coherent story at the same time. By
 setting up integrations, you can use context changes in initiative.sh to trigger
 updates in your game environment. When the party enters an inn, you can trigger
 a Spotify playlist and have your lights grow dimmer and warmer.
+
+# Running the project
+
+Dependencies: rustup, wasm-pack (for web)
+
+## Linux
+
+`cargo run`
+
+## WebAssembly
+
+`(cd web && wasm-pack build && cd www && npm start)`
