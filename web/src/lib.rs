@@ -2,6 +2,8 @@ mod utils;
 
 use wasm_bindgen::prelude::*;
 
+use initiative_core::app;
+
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
 #[cfg(feature = "wee_alloc")]
@@ -9,11 +11,12 @@ use wasm_bindgen::prelude::*;
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
-extern {
+extern "C" {
     fn alert(s: &str);
 }
 
 #[wasm_bindgen]
 pub fn greet() {
-    alert("Hello, initiative-web!");
+    let mut app = app();
+    alert(format!("{}", app.command("npc")).as_str());
 }
