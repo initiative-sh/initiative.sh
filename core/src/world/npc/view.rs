@@ -21,7 +21,7 @@ impl<'a> DetailsView<'a> {
 impl<'a> fmt::Display for SummaryView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let npc = self.0;
-        let has_details = npc.age.is_some() || npc.race.is_some() || npc.gender.is_some();
+        let has_details = npc.age.is_some() || npc.species.is_some() || npc.gender.is_some();
 
         if let Some(name) = npc.name.value() {
             if has_details {
@@ -32,13 +32,13 @@ impl<'a> fmt::Display for SummaryView<'a> {
         }
 
         if let Some(age) = npc.age.value() {
-            age.fmt_with_race(npc.race.value(), f)?;
-        } else if let Some(race) = npc.race.value() {
-            write!(f, "{}", race)?;
+            age.fmt_with_species(npc.species.value(), f)?;
+        } else if let Some(species) = npc.species.value() {
+            write!(f, "{}", species)?;
         }
 
         if let Some(gender) = npc.gender.value() {
-            if npc.age.is_some() || npc.race.is_some() {
+            if npc.age.is_some() || npc.species.is_some() {
                 write!(f, ", ")?;
             }
 
@@ -56,7 +56,7 @@ impl<'a> fmt::Display for SummaryView<'a> {
 #[cfg(test)]
 mod test_display_for_npc_summary_view {
     use super::*;
-    use crate::world::npc::{Age, Gender, Race};
+    use crate::world::npc::{Age, Gender, Species};
     use crate::world::Field;
 
     #[test]
@@ -128,7 +128,7 @@ mod test_display_for_npc_summary_view {
             npc.age = Field::new_generated(Age::Adult(40));
         }
         if bitmask & 0b100 > 0 {
-            npc.race = Field::new_generated(Race::Human);
+            npc.species = Field::new_generated(Species::Human);
         }
         if bitmask & 0b1000 > 0 {
             npc.gender = Field::new_generated(Gender::Trans);
@@ -147,11 +147,11 @@ impl<'a> fmt::Display for DetailsView<'a> {
             .map(|name| write!(f, "{}", name))
             .unwrap_or_else(|| write!(f, "Unnamed NPC"))?;
 
-        match (npc.race.value(), npc.ethnicity.value()) {
-            (Some(race), Some(ethnicity)) if ethnicity != &race.default_ethnicity() => {
-                write!(f, "\nRace: {} ({})", race, ethnicity)?
+        match (npc.species.value(), npc.ethnicity.value()) {
+            (Some(species), Some(ethnicity)) if ethnicity != &species.default_ethnicity() => {
+                write!(f, "\nSpecies: {} ({})", species, ethnicity)?
             }
-            (Some(race), _) => write!(f, "\nRace: {}", race)?,
+            (Some(species), _) => write!(f, "\nSpecies: {}", species)?,
             (None, Some(ethnicity)) => write!(f, "\nEthnicity: {}", ethnicity)?,
             (None, None) => {}
         }
@@ -176,13 +176,13 @@ impl<'a> fmt::Display for DetailsView<'a> {
 #[cfg(test)]
 mod test_display_for_npc_details_view {
     use super::*;
-    use crate::world::npc::{Age, Ethnicity, Gender, Race, Size};
+    use crate::world::npc::{Age, Ethnicity, Gender, Size, Species};
 
     #[test]
     fn fmt_test_filled() {
         let mut npc = Npc::default();
         npc.name.replace("Potato Johnson".to_string());
-        npc.race.replace(Race::Human);
+        npc.species.replace(Species::Human);
         npc.ethnicity.replace(Ethnicity::Arabic);
         npc.gender.replace(Gender::Trans);
         npc.age.replace(Age::Adult(30));
@@ -193,7 +193,7 @@ mod test_display_for_npc_details_view {
 
         assert_eq!(
             "Potato Johnson\n\
-            Race: human (Arabic)\n\
+            Species: human (Arabic)\n\
             Gender: trans (they/them)\n\
             Age: adult (30 years)\n\
             Size: 5'11\", 140 lbs (medium)",
@@ -202,11 +202,11 @@ mod test_display_for_npc_details_view {
     }
 
     #[test]
-    fn fmt_test_race_ethnicity() {
+    fn fmt_test_species_ethnicity() {
         let npc = |b: u8| {
             let mut npc = Npc::default();
             if b & 0b1 != 0 {
-                npc.race.replace(Race::Human);
+                npc.species.replace(Species::Human);
             }
             if b & 0b10 != 0 {
                 npc.ethnicity.replace(Ethnicity::Arabic);
@@ -215,7 +215,7 @@ mod test_display_for_npc_details_view {
         };
 
         assert_eq!(
-            "Unnamed NPC\nRace: human",
+            "Unnamed NPC\nSpecies: human",
             format!("{}", npc(0b1).display_details())
         );
         assert_eq!(
@@ -223,7 +223,7 @@ mod test_display_for_npc_details_view {
             format!("{}", npc(0b10).display_details())
         );
         assert_eq!(
-            "Unnamed NPC\nRace: human (Arabic)",
+            "Unnamed NPC\nSpecies: human (Arabic)",
             format!("{}", npc(0b11).display_details())
         );
     }
