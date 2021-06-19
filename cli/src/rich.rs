@@ -696,24 +696,6 @@ impl Default for Input {
     }
 }
 
-impl From<Input> for String {
-    fn from(mut input: Input) -> String {
-        input.history.drain(..).nth(input.index).unwrap()
-    }
-}
-
-impl From<String> for Input {
-    fn from(text: String) -> Input {
-        let cursor = text.len();
-        Input {
-            history: vec![text],
-            index: 0,
-            cursor,
-            search_query: None,
-        }
-    }
-}
-
 impl fmt::Display for &Input {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.text())
@@ -749,23 +731,15 @@ fn draw_status(screen: &mut dyn Write, status: &str) -> io::Result<()> {
 }
 
 fn draw_input(screen: &mut dyn Write, input: &Input) -> io::Result<()> {
-    let (term_width, term_height) = termion::terminal_size().unwrap();
+    let (_, term_height) = termion::terminal_size().unwrap();
     let input_row = term_height - 2;
 
     write!(
         screen,
-        "{} > {}",
+        "{}{} > {}{}",
         termion::cursor::Goto(1, input_row),
-        input
-    )?;
-
-    for _ in (input.text().len() as u16 + 3)..=term_width {
-        write!(screen, " ")?;
-    }
-
-    write!(
-        screen,
-        "{}",
+        termion::clear::CurrentLine,
+        input,
         termion::cursor::Goto(4 + input.cursor as u16, input_row)
     )?;
 
