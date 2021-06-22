@@ -1,9 +1,8 @@
+use rand::Rng;
 use std::convert::TryInto;
 use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
-
-use rand::prelude::*;
 
 use super::{Demographics, Field, Generate};
 use crate::app::{Context, RawCommand};
@@ -43,7 +42,11 @@ pub struct Npc {
     // pub children: Field<Vec<Uuid>>,
 }
 
-pub fn command(command: &RawCommand, context: &mut Context) -> Box<dyn fmt::Display> {
+pub fn command(
+    command: &RawCommand,
+    context: &mut Context,
+    rng: &mut impl Rng,
+) -> Box<dyn fmt::Display> {
     if let Some(&noun) = command.get_noun() {
         let demographics = if let Ok(species) = noun.try_into() {
             context.demographics.only_species(&species)
@@ -52,7 +55,7 @@ pub fn command(command: &RawCommand, context: &mut Context) -> Box<dyn fmt::Disp
         };
 
         let mut output = String::new();
-        let npc = Npc::generate(&mut thread_rng(), &demographics);
+        let npc = Npc::generate(rng, &demographics);
 
         output.push_str(&format!("{}\n\nAlternatives:", npc.display_details()));
         context.push_recent(npc.into());
@@ -60,7 +63,7 @@ pub fn command(command: &RawCommand, context: &mut Context) -> Box<dyn fmt::Disp
         context.batch_push_recent(
             (0..10)
                 .map(|i| {
-                    let alt = Npc::generate(&mut thread_rng(), &demographics);
+                    let alt = Npc::generate(rng, &demographics);
                     output.push_str(&format!("\n{} {}", i, alt.display_summary()));
                     alt.into()
                 })

@@ -1,3 +1,5 @@
+use rand::prelude::*;
+use rand::rngs::SmallRng;
 use std::fmt::Display;
 
 mod context;
@@ -9,11 +11,15 @@ pub use parser::{AppCommand, Command, RawCommand, StorageCommand, WorldCommand};
 
 pub struct App {
     context: Context,
+    rng: SmallRng,
 }
 
 impl App {
     pub fn new(context: Context) -> App {
-        App { context }
+        App {
+            context,
+            rng: SmallRng::from_entropy(),
+        }
     }
 
     pub fn command(&mut self, raw_command: &str) -> Box<dyn Display> {
@@ -22,7 +28,7 @@ impl App {
         match command_subtype {
             Command::App(c) => command(&c, &mut self.context),
             Command::Storage(c) => crate::storage::command(&c, &mut self.context),
-            Command::World(c) => crate::world::command(&c, &mut self.context),
+            Command::World(c) => crate::world::command(&c, &mut self.context, &mut self.rng),
             Command::Unknown(c) => Box::new(format!("{:?}", c)),
         }
     }
