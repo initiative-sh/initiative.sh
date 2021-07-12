@@ -7,7 +7,7 @@ use rand::prelude::*;
 
 use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
-use crate::app::RawCommand;
+use crate::app::{Context, RawCommand};
 use crate::syntax::Noun;
 
 pub use building::*;
@@ -45,7 +45,7 @@ pub enum LocationType {
     Building(BuildingType),
 }
 
-pub fn command(command: &RawCommand, demographics: &Demographics) -> Box<dyn fmt::Display> {
+pub fn command(command: &RawCommand, context: &mut Context) -> Box<dyn fmt::Display> {
     if let Some(&noun) = command.get_noun() {
         let mut location = Location::default();
         let mut output = String::new();
@@ -54,12 +54,12 @@ pub fn command(command: &RawCommand, demographics: &Demographics) -> Box<dyn fmt
             location.subtype = Field::new(location_subtype);
         }
 
-        location.regenerate(&mut thread_rng(), demographics);
+        location.regenerate(&mut thread_rng(), &context.demographics);
 
         output.push_str(&format!("\n{}\n", location.display_details()));
 
         (0..10).for_each(|i| {
-            location.regenerate(&mut thread_rng(), &demographics);
+            location.regenerate(&mut thread_rng(), &context.demographics);
             output.push_str(&format!("{} {}\n", i, location.display_summary()))
         });
 

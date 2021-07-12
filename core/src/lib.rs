@@ -4,6 +4,6 @@ mod world;
 use app::syntax;
 
 pub fn app() -> app::App {
-    let context = app::context::Context::default();
+    let context = app::Context::default();
     app::App::new(context)
 }

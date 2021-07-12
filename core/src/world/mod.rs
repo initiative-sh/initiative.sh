@@ -11,7 +11,7 @@ pub use location::Location;
 pub use npc::Npc;
 pub use region::Region;
 
-use crate::app::GenerateCommand;
+use crate::app::{Context, GenerateCommand};
 
 pub mod demographics;
 pub mod location;
@@ -22,10 +22,10 @@ mod field;
 
 pub type WorldUuid = Uuid;
 
-pub fn command(command: &GenerateCommand, demographics: &Demographics) -> Box<dyn fmt::Display> {
+pub fn command(command: &GenerateCommand, context: &mut Context) -> Box<dyn fmt::Display> {
     match command {
-        GenerateCommand::Location(raw) => location::command(raw, demographics),
-        GenerateCommand::Npc(raw) => npc::command(raw, demographics),
+        GenerateCommand::Location(raw) => location::command(raw, context),
+        GenerateCommand::Npc(raw) => npc::command(raw, context),
     }
 }
 
