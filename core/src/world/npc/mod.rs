@@ -55,14 +55,17 @@ pub fn command(command: &RawCommand, context: &mut Context) -> Box<dyn fmt::Disp
         let npc = Npc::generate(&mut thread_rng(), &demographics);
 
         output.push_str(&format!("\n{}\n", npc.display_details()));
+        context.push_recent(npc.into());
 
-        (0..10).for_each(|i| {
-            output.push_str(&format!(
-                "{} {}\n",
-                i,
-                Npc::generate(&mut thread_rng(), &demographics).display_summary()
-            ))
-        });
+        context.batch_push_recent(
+            (0..10)
+                .map(|i| {
+                    let alt = Npc::generate(&mut thread_rng(), &demographics);
+                    output.push_str(&format!("{} {}\n", i, alt.display_summary()));
+                    alt.into()
+                })
+                .collect(),
+        );
 
         Box::new(output)
     } else {

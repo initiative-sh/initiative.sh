@@ -17,7 +17,7 @@ mod building;
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Uuid(uuid::Uuid);
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Location {
     pub uuid: Option<Rc<Uuid>>,
     pub parent_uuid: Option<Rc<RegionUuid>>,
@@ -54,14 +54,23 @@ pub fn command(command: &RawCommand, context: &mut Context) -> Box<dyn fmt::Disp
             location.subtype = Field::new(location_subtype);
         }
 
-        location.regenerate(&mut thread_rng(), &context.demographics);
-
-        output.push_str(&format!("\n{}\n", location.display_details()));
-
-        (0..10).for_each(|i| {
+        {
+            let mut location = location.clone();
             location.regenerate(&mut thread_rng(), &context.demographics);
-            output.push_str(&format!("{} {}\n", i, location.display_summary()))
-        });
+            output.push_str(&format!("\n{}\n", location.display_details()));
+            context.push_recent(location.into());
+        }
+
+        context.batch_push_recent(
+            (0..10)
+                .map(|i| {
+                    let mut location = location.clone();
+                    location.regenerate(&mut thread_rng(), &context.demographics);
+                    output.push_str(&format!("{} {}\n", i, location.display_summary()));
+                    location.into()
+                })
+                .collect(),
+        );
 
         Box::new(output)
     } else {
@@ -284,7 +293,7 @@ impl Default for LocationType {
 
 impl Generate for LocationType {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
-        *self = Self::Building(BuildingType::generate(rng, demographics))
+        *self = Self::Building(BuildingType::generate(rng, demographics));
     }
 }
 
