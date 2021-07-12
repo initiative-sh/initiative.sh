@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 use std::fmt;
-use std::ops::RangeInclusive;
+use std::ops::{Deref, RangeInclusive};
 
 use rand::Rng;
 use rand_distr::{Distribution, Normal};
@@ -38,7 +38,7 @@ trait Generate {
         npc.gender.replace_with(|_| Self::gen_gender(rng));
         npc.age.replace_with(|_| Self::gen_age(rng));
 
-        if let (Some(gender), Some(age)) = (&npc.gender.value, &npc.age.value) {
+        if let (Some(gender), Some(age)) = (npc.gender.deref(), npc.age.deref()) {
             npc.size.replace_with(|_| Self::gen_size(rng, age, gender));
         }
     }
@@ -51,7 +51,7 @@ trait Generate {
 }
 
 pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
-    if let Some(race) = npc.race.value {
+    if let Some(race) = npc.race.deref() {
         match race {
             Race::Dragonborn => dragonborn::Race::regenerate(rng, npc),
             Race::Dwarf => dwarf::Race::regenerate(rng, npc),
