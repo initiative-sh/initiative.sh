@@ -116,7 +116,7 @@ impl Generate for Location {
             }
         });
 
-        if let Some(value) = self.subtype.as_ref() {
+        if let Some(value) = self.subtype.value() {
             match value {
                 LocationType::Building(building_type) => match building_type {
                     BuildingType::Inn => generate_inn(self, rng, demographics),
@@ -240,17 +240,17 @@ impl<'a> fmt::Display for LocationDetailsView<'a> {
 
         location
             .name
-            .as_ref()
+            .value()
             .map(|name| writeln!(f, "{}", name))
             .transpose()?;
         location
             .subtype
-            .as_ref()
+            .value()
             .map(|subtype| writeln!(f, "Type: {}", subtype))
             .transpose()?;
         location
             .description
-            .as_ref()
+            .value()
             .map(|description| writeln!(f, "{}", description))
             .transpose()?;
         Ok(())

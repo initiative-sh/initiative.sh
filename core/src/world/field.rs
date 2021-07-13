@@ -1,5 +1,4 @@
 use std::fmt;
-use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Field<T: fmt::Display> {
@@ -69,6 +68,22 @@ impl<T: fmt::Display> Field<T> {
             self.value = None;
         }
     }
+
+    pub fn value(&self) -> Option<&T> {
+        self.value.as_ref()
+    }
+
+    pub fn value_mut(&mut self) -> Option<&mut T> {
+        self.value.as_mut()
+    }
+
+    pub fn is_some(&self) -> bool {
+        self.value.is_some()
+    }
+
+    pub fn is_none(&self) -> bool {
+        !self.is_some()
+    }
 }
 
 impl<T: fmt::Display> Default for Field<T> {
@@ -98,20 +113,6 @@ impl From<&str> for Field<String> {
     }
 }
 
-impl<T: fmt::Display> Deref for Field<T> {
-    type Target = Option<T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.value
-    }
-}
-
-impl<T: fmt::Display> DerefMut for Field<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.value
-    }
-}
-
 impl<T: fmt::Display> fmt::Display for Field<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(value) = &self.value {
@@ -126,14 +127,6 @@ mod test_field {
     use super::Field;
 
     #[test]
-    fn from_deref_test() {
-        let mut field: Field<u8> = 123.into();
-        assert!(field.is_some());
-        assert_eq!(Some(123), field.take());
-        assert!(field.is_none());
-    }
-
-    #[test]
     fn default_test() {
         let field: Field<bool> = Field::default();
         assert!(!field.is_locked());
@@ -143,17 +136,17 @@ mod test_field {
     #[test]
     fn new_test() {
         {
-            let mut field: Field<_> = Field::new("hello");
+            let field: Field<_> = Field::new("hello");
             assert!(field.is_locked());
             assert!(field.is_some());
-            assert_eq!(Some("hello"), field.take());
+            assert_eq!(Some(&"hello"), field.value());
         }
 
         {
-            let mut field: Field<_> = Field::new_generated("goodbye");
+            let field: Field<_> = Field::new_generated("goodbye");
             assert!(!field.is_locked());
             assert!(field.is_some());
-            assert_eq!(Some("goodbye"), field.take());
+            assert_eq!(Some(&"goodbye"), field.value());
         }
     }
 

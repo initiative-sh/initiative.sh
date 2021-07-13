@@ -23,7 +23,7 @@ impl<'a> fmt::Display for NpcSummaryView<'a> {
         let npc = self.0;
         let has_details = npc.age.is_some() || npc.race.is_some() || npc.gender.is_some();
 
-        if let Some(name) = npc.name.as_ref() {
+        if let Some(name) = npc.name.value() {
             if has_details {
                 write!(f, "{} (", name)?;
             } else {
@@ -31,13 +31,13 @@ impl<'a> fmt::Display for NpcSummaryView<'a> {
             }
         }
 
-        if let Some(age) = npc.age.as_ref() {
-            age.fmt_with_race(npc.race.as_ref(), f)?;
-        } else if let Some(race) = npc.race.as_ref() {
+        if let Some(age) = npc.age.value() {
+            age.fmt_with_race(npc.race.value(), f)?;
+        } else if let Some(race) = npc.race.value() {
             write!(f, "{}", race)?;
         }
 
-        if let Some(gender) = npc.gender.as_ref() {
+        if let Some(gender) = npc.gender.value() {
             if npc.age.is_some() || npc.race.is_some() {
                 write!(f, ", ")?;
             }
@@ -143,11 +143,11 @@ impl<'a> fmt::Display for NpcDetailsView<'a> {
         let npc = self.0;
 
         npc.name
-            .as_ref()
+            .value()
             .map(|name| writeln!(f, "{}", name))
             .transpose()?;
 
-        match (npc.race.as_ref(), npc.ethnicity.as_ref()) {
+        match (npc.race.value(), npc.ethnicity.value()) {
             (Some(race), Some(ethnicity)) if ethnicity != &race.default_ethnicity() => {
                 writeln!(f, "Race: {} ({})", race, ethnicity)?
             }
@@ -157,15 +157,15 @@ impl<'a> fmt::Display for NpcDetailsView<'a> {
         }
 
         npc.gender
-            .as_ref()
+            .value()
             .map(|gender| writeln!(f, "Gender: {}", gender))
             .transpose()?;
         npc.age
-            .as_ref()
+            .value()
             .map(|age| writeln!(f, "Age: {}", age))
             .transpose()?;
         npc.size
-            .as_ref()
+            .value()
             .map(|size| writeln!(f, "Size: {}", size))
             .transpose()?;
 
