@@ -1,6 +1,6 @@
 use syntax::{Noun, Verb, Word};
 
-pub use command::{AppCommand, Command, GenerateCommand, RawCommand};
+pub use command::{AppCommand, Command, WorldCommand, RawCommand};
 
 pub mod syntax;
 

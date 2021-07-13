@@ -7,7 +7,7 @@ use super::{Noun, Verb, Word};
 pub enum Command {
     App(AppCommand),
     // Context(ContextCommand),
-    Generate(GenerateCommand),
+    World(WorldCommand),
     // Storage(StorageCommand),
     Unknown(RawCommand),
 }
@@ -20,7 +20,7 @@ pub enum AppCommand {
 }
 
 #[derive(Debug)]
-pub enum GenerateCommand {
+pub enum WorldCommand {
     Location(RawCommand),
     Npc(RawCommand),
     //Region(RawCommand),
@@ -36,7 +36,7 @@ impl Command {
     pub fn raw(&self) -> &RawCommand {
         match self {
             Command::App(subtype) => subtype.raw(),
-            Command::Generate(subtype) => subtype.raw(),
+            Command::World(subtype) => subtype.raw(),
             Command::Unknown(c) => c,
         }
     }
@@ -52,11 +52,11 @@ impl AppCommand {
     }
 }
 
-impl GenerateCommand {
+impl WorldCommand {
     pub fn raw(&self) -> &RawCommand {
         match self {
-            GenerateCommand::Location(c) => c,
-            GenerateCommand::Npc(c) => c,
+            WorldCommand::Location(c) => c,
+            WorldCommand::Npc(c) => c,
         }
     }
 }
@@ -69,7 +69,7 @@ impl From<RawCommand> for Command {
         };
 
         raw = match raw.try_into() {
-            Ok(command) => return Command::Generate(command),
+            Ok(command) => return Command::World(command),
             Err(raw) => raw,
         };
 
@@ -90,10 +90,10 @@ impl TryFrom<RawCommand> for AppCommand {
     }
 }
 
-impl TryFrom<RawCommand> for GenerateCommand {
+impl TryFrom<RawCommand> for WorldCommand {
     type Error = RawCommand;
 
-    fn try_from(raw: RawCommand) -> Result<GenerateCommand, RawCommand> {
+    fn try_from(raw: RawCommand) -> Result<WorldCommand, RawCommand> {
         if let Some(&noun) = raw.get_noun() {
             match noun {
                 Noun::Building
@@ -101,7 +101,7 @@ impl TryFrom<RawCommand> for GenerateCommand {
                 | Noun::Residence
                 | Noun::Shop
                 | Noun::Temple
-                | Noun::Warehouse => Ok(GenerateCommand::Location(raw)),
+                | Noun::Warehouse => Ok(WorldCommand::Location(raw)),
                 Noun::Npc
                 | Noun::Dragonborn
                 | Noun::Dwarf
@@ -112,7 +112,7 @@ impl TryFrom<RawCommand> for GenerateCommand {
                 | Noun::Halfling
                 | Noun::Human
                 | Noun::Tiefling
-                | Noun::Warforged => Ok(GenerateCommand::Npc(raw)),
+                | Noun::Warforged => Ok(WorldCommand::Npc(raw)),
             }
         } else {
             Err(raw)

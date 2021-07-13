@@ -5,7 +5,7 @@ mod parser;
 
 pub use context::Context;
 pub use parser::syntax;
-pub use parser::{AppCommand, Command, GenerateCommand, RawCommand};
+pub use parser::{AppCommand, Command, RawCommand, WorldCommand};
 
 pub struct App {
     context: Context,
@@ -21,8 +21,8 @@ impl App {
 
         match command_subtype {
             Command::App(app_command) => command(&app_command, &mut self.context),
-            Command::Generate(generate_command) => {
-                crate::world::command(&generate_command, &mut self.context)
+            Command::World(world_command) => {
+                crate::world::command(&world_command, &mut self.context)
             }
             Command::Unknown(raw_command) => Box::new(format!("{:?}", raw_command)),
         }
