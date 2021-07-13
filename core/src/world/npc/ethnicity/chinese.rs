@@ -82,6 +82,6 @@ mod test_generate_for_ethnicity {
         npc.age.replace(*age);
         npc.ethnicity.replace(Ethnicity::Chinese);
         regenerate(rng, &mut npc);
-        npc.name.value.unwrap()
+        format!("{}", npc.name)
     }
 }

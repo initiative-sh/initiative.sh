@@ -141,7 +141,7 @@ mod test_ethnicity {
 
 trait Generate {
     fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
-        if let (Some(gender), Some(age)) = (&npc.gender.value, &npc.age.value) {
+        if let (Some(gender), Some(age)) = (npc.gender.value(), npc.age.value()) {
             npc.name.replace_with(|_| Self::gen_name(rng, age, gender));
         }
     }
@@ -150,7 +150,7 @@ trait Generate {
 }
 
 pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
-    if let Some(ethnicity) = &npc.ethnicity.value {
+    if let Some(ethnicity) = npc.ethnicity.value() {
         match ethnicity {
             Ethnicity::Arabic | Ethnicity::Calishite => arabic::Ethnicity::regenerate(rng, npc),
             Ethnicity::Celtic | Ethnicity::Chondathan | Ethnicity::Tethyrian => {
