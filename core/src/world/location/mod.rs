@@ -9,10 +9,12 @@ use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
 use crate::app::{Context, RawCommand};
 use crate::syntax::Noun;
+use view::{DetailsView, SummaryView};
 
 pub use building::*;
 
 mod building;
+mod view;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Uuid(uuid::Uuid);
@@ -36,10 +38,6 @@ pub struct Location {
     // pub price: something
 }
 
-pub struct LocationSummaryView<'a>(&'a Location);
-
-pub struct LocationDetailsView<'a>(&'a Location);
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LocationType {
     Building(BuildingType),
@@ -57,7 +55,7 @@ pub fn command(command: &RawCommand, context: &mut Context) -> Box<dyn fmt::Disp
         {
             let mut location = location.clone();
             location.regenerate(&mut thread_rng(), &context.demographics);
-            output.push_str(&format!("\n{}\n", location.display_details()));
+            output.push_str(&format!("{}\n\nAlternatives:", location.display_details()));
             context.push_recent(location.into());
         }
 
@@ -66,7 +64,7 @@ pub fn command(command: &RawCommand, context: &mut Context) -> Box<dyn fmt::Disp
                 .map(|i| {
                     let mut location = location.clone();
                     location.regenerate(&mut thread_rng(), &context.demographics);
-                    output.push_str(&format!("{} {}\n", i, location.display_summary()));
+                    output.push_str(&format!("\n{} {}", i, location.display_summary()));
                     location.into()
                 })
                 .collect(),
@@ -105,12 +103,12 @@ mod test_uuid {
 }
 
 impl Location {
-    pub fn display_summary(&self) -> LocationSummaryView {
-        LocationSummaryView(self)
+    pub fn display_summary(&self) -> SummaryView {
+        SummaryView::new(self)
     }
 
-    pub fn display_details(&self) -> LocationDetailsView {
-        LocationDetailsView(self)
+    pub fn display_details(&self) -> DetailsView {
+        DetailsView::new(self)
     }
 }
 
@@ -158,129 +156,6 @@ mod test_generate_for_location {
         assert_eq!(
             Location::generate(&mut rng, &demographics).subtype,
             Location::generate(&mut rng, &demographics).subtype,
-        );
-    }
-}
-
-impl<'a> fmt::Display for LocationSummaryView<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let location = self.0;
-
-        match (
-            location.subtype.is_some(),
-            location.name.is_some(),
-            location.description.is_some(),
-        ) {
-            (true, true, _) => {
-                let subtype = format!("{}", location.subtype);
-                if subtype.starts_with(&['A', 'E', 'I', 'O', 'U'][..]) {
-                    write!(f, "{}, an {}", location.name, subtype)
-                } else {
-                    write!(f, "{}, a {}", location.name, subtype)
-                }
-            }
-            (true, false, true) => write!(f, "{} ({})", location.subtype, location.description),
-            (true, false, false) => write!(f, "{}", location.subtype),
-            (false, true, true) => write!(f, "{} ({})", location.name, location.description),
-            (false, true, false) => write!(f, "{}", location.name),
-            (false, false, true) => write!(f, "{}", location.description),
-            (false, false, false) => Ok(()),
-        }
-    }
-}
-
-#[cfg(test)]
-mod test_display_for_location_summary_view {
-    use super::{BuildingType, Field, Location, LocationType};
-
-    #[test]
-    fn fmt_test() {
-        let mut location = Location::default();
-        location.subtype = LocationType::from(BuildingType::Inn).into();
-        location.name = "Oaken Mermaid Inn".into();
-        location.description = "I am Mordenkainen".into();
-
-        assert_eq!(
-            "Oaken Mermaid Inn, an Inn",
-            format!("{}", location.display_summary()),
-        );
-
-        location.subtype = LocationType::from(BuildingType::Residence).into();
-        assert_eq!(
-            "Oaken Mermaid Inn, a Residence",
-            format!("{}", location.display_summary()),
-        );
-
-        location.name = Field::default();
-        assert_eq!(
-            "Residence (I am Mordenkainen)",
-            format!("{}", location.display_summary()),
-        );
-
-        location.description = Field::default();
-        assert_eq!("Residence", format!("{}", location.display_summary()));
-
-        location.subtype = Field::default();
-        assert_eq!("", format!("{}", location.display_summary()));
-
-        location.name = "The Invulnerable Vagrant".into();
-        assert_eq!(
-            "The Invulnerable Vagrant",
-            format!("{}", location.display_summary()),
-        );
-
-        location.description = "Come in and see me, and me, and me!".into();
-        assert_eq!(
-            "The Invulnerable Vagrant (Come in and see me, and me, and me!)",
-            format!("{}", location.display_summary()),
-        );
-
-        location.name = Field::default();
-        assert_eq!(
-            "Come in and see me, and me, and me!",
-            format!("{}", location.display_summary()),
-        );
-    }
-}
-
-impl<'a> fmt::Display for LocationDetailsView<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let location = self.0;
-
-        location
-            .name
-            .value()
-            .map(|name| writeln!(f, "{}", name))
-            .transpose()?;
-        location
-            .subtype
-            .value()
-            .map(|subtype| writeln!(f, "Type: {}", subtype))
-            .transpose()?;
-        location
-            .description
-            .value()
-            .map(|description| writeln!(f, "{}", description))
-            .transpose()?;
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test_display_for_location_details_view {
-    use super::{BuildingType, Location, LocationType};
-
-    #[test]
-    fn fmt_test() {
-        let mut location = Location::default();
-        location.subtype = LocationType::from(BuildingType::Inn).into();
-        location.name = "Oaken Mermaid Inn".into();
-        location.description = "I am Mordenkainen".into();
-        assert_eq!(
-            "Oaken Mermaid Inn\n\
-            Type: Inn\n\
-            I am Mordenkainen\n",
-            format!("{}", location.display_details()),
         );
     }
 }

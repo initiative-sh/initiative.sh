@@ -30,6 +30,10 @@ impl Context {
 
         self.recent.push(thing);
     }
+
+    pub fn recent(&self) -> &[world::Thing] {
+        self.recent.as_ref()
+    }
 }
 
 #[cfg(test)]

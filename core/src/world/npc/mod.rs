@@ -13,7 +13,7 @@ pub use ethnicity::Ethnicity;
 pub use gender::Gender;
 pub use race::Race;
 pub use size::Size;
-pub use view::{NpcDetailsView, NpcSummaryView};
+pub use view::{DetailsView, SummaryView};
 
 mod age;
 mod ethnicity;
@@ -54,14 +54,14 @@ pub fn command(command: &RawCommand, context: &mut Context) -> Box<dyn fmt::Disp
         let mut output = String::new();
         let npc = Npc::generate(&mut thread_rng(), &demographics);
 
-        output.push_str(&format!("\n{}\n", npc.display_details()));
+        output.push_str(&format!("{}\n\nAlternatives:", npc.display_details()));
         context.push_recent(npc.into());
 
         context.batch_push_recent(
             (0..10)
                 .map(|i| {
                     let alt = Npc::generate(&mut thread_rng(), &demographics);
-                    output.push_str(&format!("{} {}\n", i, alt.display_summary()));
+                    output.push_str(&format!("\n{} {}", i, alt.display_summary()));
                     alt.into()
                 })
                 .collect(),
@@ -88,12 +88,12 @@ impl From<uuid::Uuid> for Uuid {
 }
 
 impl Npc {
-    pub fn display_summary(&self) -> NpcSummaryView {
-        NpcSummaryView::new(self)
+    pub fn display_summary(&self) -> SummaryView {
+        SummaryView::new(self)
     }
 
-    pub fn display_details(&self) -> NpcDetailsView {
-        NpcDetailsView::new(self)
+    pub fn display_details(&self) -> DetailsView {
+        DetailsView::new(self)
     }
 }
 

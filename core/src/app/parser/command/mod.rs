@@ -7,8 +7,8 @@ use super::{Noun, Verb, Word};
 pub enum Command {
     App(AppCommand),
     // Context(ContextCommand),
-    Generate(GenerateCommand),
-    // Storage(StorageCommand),
+    World(WorldCommand),
+    Storage(StorageCommand),
     Unknown(RawCommand),
 }
 
@@ -20,7 +20,12 @@ pub enum AppCommand {
 }
 
 #[derive(Debug)]
-pub enum GenerateCommand {
+pub enum StorageCommand {
+    Load(RawCommand),
+}
+
+#[derive(Debug)]
+pub enum WorldCommand {
     Location(RawCommand),
     Npc(RawCommand),
     //Region(RawCommand),
@@ -36,7 +41,8 @@ impl Command {
     pub fn raw(&self) -> &RawCommand {
         match self {
             Command::App(subtype) => subtype.raw(),
-            Command::Generate(subtype) => subtype.raw(),
+            Command::Storage(subtype) => subtype.raw(),
+            Command::World(subtype) => subtype.raw(),
             Command::Unknown(c) => c,
         }
     }
@@ -52,11 +58,19 @@ impl AppCommand {
     }
 }
 
-impl GenerateCommand {
+impl StorageCommand {
     pub fn raw(&self) -> &RawCommand {
         match self {
-            GenerateCommand::Location(c) => c,
-            GenerateCommand::Npc(c) => c,
+            StorageCommand::Load(c) => c,
+        }
+    }
+}
+
+impl WorldCommand {
+    pub fn raw(&self) -> &RawCommand {
+        match self {
+            WorldCommand::Location(c) => c,
+            WorldCommand::Npc(c) => c,
         }
     }
 }
@@ -69,7 +83,12 @@ impl From<RawCommand> for Command {
         };
 
         raw = match raw.try_into() {
-            Ok(command) => return Command::Generate(command),
+            Ok(command) => return Command::Storage(command),
+            Err(raw) => raw,
+        };
+
+        raw = match raw.try_into() {
+            Ok(command) => return Command::World(command),
             Err(raw) => raw,
         };
 
@@ -90,10 +109,22 @@ impl TryFrom<RawCommand> for AppCommand {
     }
 }
 
-impl TryFrom<RawCommand> for GenerateCommand {
+impl TryFrom<RawCommand> for StorageCommand {
     type Error = RawCommand;
 
-    fn try_from(raw: RawCommand) -> Result<GenerateCommand, RawCommand> {
+    fn try_from(raw: RawCommand) -> Result<StorageCommand, RawCommand> {
+        if raw.get_proper_noun().is_some() {
+            Ok(StorageCommand::Load(raw))
+        } else {
+            Err(raw)
+        }
+    }
+}
+
+impl TryFrom<RawCommand> for WorldCommand {
+    type Error = RawCommand;
+
+    fn try_from(raw: RawCommand) -> Result<WorldCommand, RawCommand> {
         if let Some(&noun) = raw.get_noun() {
             match noun {
                 Noun::Building
@@ -101,7 +132,7 @@ impl TryFrom<RawCommand> for GenerateCommand {
                 | Noun::Residence
                 | Noun::Shop
                 | Noun::Temple
-                | Noun::Warehouse => Ok(GenerateCommand::Location(raw)),
+                | Noun::Warehouse => Ok(WorldCommand::Location(raw)),
                 Noun::Npc
                 | Noun::Dragonborn
                 | Noun::Dwarf
@@ -112,7 +143,7 @@ impl TryFrom<RawCommand> for GenerateCommand {
                 | Noun::Halfling
                 | Noun::Human
                 | Noun::Tiefling
-                | Noun::Warforged => Ok(GenerateCommand::Npc(raw)),
+                | Noun::Warforged => Ok(WorldCommand::Npc(raw)),
             }
         } else {
             Err(raw)
@@ -135,6 +166,16 @@ impl RawCommand {
         self.words.iter().find_map(|word| {
             if let Word::Noun(n) = word {
                 Some(n)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn get_proper_noun(&self) -> Option<&String> {
+        self.words.iter().find_map(|word| {
+            if let Word::ProperNoun(s) = word {
+                Some(s)
             } else {
                 None
             }
@@ -192,17 +233,17 @@ mod test_command {
 
     #[test]
     fn word_salad_test() {
-        let input = "tutorial potato inn carrot half elf turnip";
+        let input = "tutorial Potato Carrot inn Turnip half elf parsnip";
         let command: RawCommand = input.parse().unwrap();
 
         assert_eq!(
             vec![
                 Word::Verb(Verb::Tutorial),
-                Word::Unknown("potato".to_string()),
+                Word::ProperNoun("Potato Carrot".to_string()),
                 Word::Noun(Noun::Inn),
-                Word::Unknown("carrot".to_string()),
+                Word::ProperNoun("Turnip".to_string()),
                 Word::Noun(Noun::HalfElf),
-                Word::Unknown("turnip".to_string()),
+                Word::Unknown("parsnip".to_string()),
             ],
             command.words
         );
