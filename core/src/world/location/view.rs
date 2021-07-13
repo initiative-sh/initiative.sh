@@ -2,23 +2,23 @@ use std::fmt;
 
 use super::Location;
 
-pub struct LocationSummaryView<'a>(&'a Location);
+pub struct SummaryView<'a>(&'a Location);
 
-pub struct LocationDetailsView<'a>(&'a Location);
+pub struct DetailsView<'a>(&'a Location);
 
-impl<'a> LocationSummaryView<'a> {
+impl<'a> SummaryView<'a> {
     pub fn new(location: &'a Location) -> Self {
         Self(location)
     }
 }
 
-impl<'a> LocationDetailsView<'a> {
+impl<'a> DetailsView<'a> {
     pub fn new(location: &'a Location) -> Self {
         Self(location)
     }
 }
 
-impl<'a> fmt::Display for LocationSummaryView<'a> {
+impl<'a> fmt::Display for SummaryView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let location = self.0;
 
@@ -102,7 +102,7 @@ mod test_display_for_location_summary_view {
     }
 }
 
-impl<'a> fmt::Display for LocationDetailsView<'a> {
+impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let location = self.0;
 

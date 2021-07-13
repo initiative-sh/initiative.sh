@@ -13,7 +13,7 @@ pub use ethnicity::Ethnicity;
 pub use gender::Gender;
 pub use race::Race;
 pub use size::Size;
-pub use view::{NpcDetailsView, NpcSummaryView};
+pub use view::{DetailsView, SummaryView};
 
 mod age;
 mod ethnicity;
@@ -88,12 +88,12 @@ impl From<uuid::Uuid> for Uuid {
 }
 
 impl Npc {
-    pub fn display_summary(&self) -> NpcSummaryView {
-        NpcSummaryView::new(self)
+    pub fn display_summary(&self) -> SummaryView {
+        SummaryView::new(self)
     }
 
-    pub fn display_details(&self) -> NpcDetailsView {
-        NpcDetailsView::new(self)
+    pub fn display_details(&self) -> DetailsView {
+        DetailsView::new(self)
     }
 }
 

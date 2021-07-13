@@ -9,7 +9,7 @@ use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
 use crate::app::{Context, RawCommand};
 use crate::syntax::Noun;
-use view::{LocationDetailsView, LocationSummaryView};
+use view::{DetailsView, SummaryView};
 
 pub use building::*;
 
@@ -103,12 +103,12 @@ mod test_uuid {
 }
 
 impl Location {
-    pub fn display_summary(&self) -> LocationSummaryView {
-        LocationSummaryView::new(self)
+    pub fn display_summary(&self) -> SummaryView {
+        SummaryView::new(self)
     }
 
-    pub fn display_details(&self) -> LocationDetailsView {
-        LocationDetailsView::new(self)
+    pub fn display_details(&self) -> DetailsView {
+        DetailsView::new(self)
     }
 }
 

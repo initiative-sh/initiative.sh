@@ -2,23 +2,23 @@ use std::fmt;
 
 use super::Npc;
 
-pub struct NpcSummaryView<'a>(&'a Npc);
+pub struct SummaryView<'a>(&'a Npc);
 
-pub struct NpcDetailsView<'a>(&'a Npc);
+pub struct DetailsView<'a>(&'a Npc);
 
-impl<'a> NpcSummaryView<'a> {
+impl<'a> SummaryView<'a> {
     pub fn new(npc: &'a Npc) -> Self {
         Self(npc)
     }
 }
 
-impl<'a> NpcDetailsView<'a> {
+impl<'a> DetailsView<'a> {
     pub fn new(npc: &'a Npc) -> Self {
         Self(npc)
     }
 }
 
-impl<'a> fmt::Display for NpcSummaryView<'a> {
+impl<'a> fmt::Display for SummaryView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let npc = self.0;
         let has_details = npc.age.is_some() || npc.race.is_some() || npc.gender.is_some();
@@ -138,7 +138,7 @@ mod test_display_for_npc_summary_view {
     }
 }
 
-impl<'a> fmt::Display for NpcDetailsView<'a> {
+impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let npc = self.0;
 
