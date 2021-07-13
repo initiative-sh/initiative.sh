@@ -192,17 +192,17 @@ mod test_command {
 
     #[test]
     fn word_salad_test() {
-        let input = "tutorial potato inn carrot half elf turnip";
+        let input = "tutorial Potato Carrot inn Turnip half elf parsnip";
         let command: RawCommand = input.parse().unwrap();
 
         assert_eq!(
             vec![
                 Word::Verb(Verb::Tutorial),
-                Word::Unknown("potato".to_string()),
+                Word::ProperNoun("Potato Carrot".to_string()),
                 Word::Noun(Noun::Inn),
-                Word::Unknown("carrot".to_string()),
+                Word::ProperNoun("Turnip".to_string()),
                 Word::Noun(Noun::HalfElf),
-                Word::Unknown("turnip".to_string()),
+                Word::Unknown("parsnip".to_string()),
             ],
             command.words
         );
