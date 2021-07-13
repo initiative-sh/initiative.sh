@@ -8,7 +8,7 @@ pub enum Command {
     App(AppCommand),
     // Context(ContextCommand),
     World(WorldCommand),
-    // Storage(StorageCommand),
+    Storage(StorageCommand),
     Unknown(RawCommand),
 }
 
@@ -17,6 +17,11 @@ pub enum AppCommand {
     Debug(RawCommand),
     Help(RawCommand),
     Quit(RawCommand),
+}
+
+#[derive(Debug)]
+pub enum StorageCommand {
+    Load(RawCommand),
 }
 
 #[derive(Debug)]
@@ -36,6 +41,7 @@ impl Command {
     pub fn raw(&self) -> &RawCommand {
         match self {
             Command::App(subtype) => subtype.raw(),
+            Command::Storage(subtype) => subtype.raw(),
             Command::World(subtype) => subtype.raw(),
             Command::Unknown(c) => c,
         }
@@ -48,6 +54,14 @@ impl AppCommand {
             AppCommand::Debug(c) => c,
             AppCommand::Help(c) => c,
             AppCommand::Quit(c) => c,
+        }
+    }
+}
+
+impl StorageCommand {
+    pub fn raw(&self) -> &RawCommand {
+        match self {
+            StorageCommand::Load(c) => c,
         }
     }
 }
@@ -69,6 +83,11 @@ impl From<RawCommand> for Command {
         };
 
         raw = match raw.try_into() {
+            Ok(command) => return Command::Storage(command),
+            Err(raw) => raw,
+        };
+
+        raw = match raw.try_into() {
             Ok(command) => return Command::World(command),
             Err(raw) => raw,
         };
@@ -86,6 +105,18 @@ impl TryFrom<RawCommand> for AppCommand {
             Some(Verb::Help) => Ok(AppCommand::Help(raw)),
             Some(Verb::Quit) => Ok(AppCommand::Quit(raw)),
             _ => Err(raw),
+        }
+    }
+}
+
+impl TryFrom<RawCommand> for StorageCommand {
+    type Error = RawCommand;
+
+    fn try_from(raw: RawCommand) -> Result<StorageCommand, RawCommand> {
+        if raw.get_proper_noun().is_some() {
+            Ok(StorageCommand::Load(raw))
+        } else {
+            Err(raw)
         }
     }
 }
@@ -135,6 +166,16 @@ impl RawCommand {
         self.words.iter().find_map(|word| {
             if let Word::Noun(n) = word {
                 Some(n)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn get_proper_noun(&self) -> Option<&String> {
+        self.words.iter().find_map(|word| {
+            if let Word::ProperNoun(s) = word {
+                Some(s)
             } else {
                 None
             }
