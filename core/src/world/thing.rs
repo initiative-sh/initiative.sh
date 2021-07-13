@@ -1,3 +1,5 @@
+use std::fmt;
+
 use super::{Field, Location, Npc, Region};
 
 #[derive(Debug)]
@@ -7,6 +9,10 @@ pub enum Thing {
     Region(Region),
 }
 
+pub struct SummaryView<'a>(&'a Thing);
+
+pub struct DetailsView<'a>(&'a Thing);
+
 impl Thing {
     pub fn name(&self) -> &Field<String> {
         match self {
@@ -14,6 +20,14 @@ impl Thing {
             Thing::Npc(npc) => &npc.name,
             Thing::Region(region) => &region.name,
         }
+    }
+
+    pub fn display_summary(&self) -> SummaryView {
+        SummaryView(self)
+    }
+
+    pub fn display_details(&self) -> DetailsView {
+        DetailsView(self)
     }
 }
 
@@ -32,6 +46,26 @@ impl From<Npc> for Thing {
 impl From<Region> for Thing {
     fn from(region: Region) -> Thing {
         Thing::Region(region)
+    }
+}
+
+impl<'a> fmt::Display for SummaryView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.0 {
+            Thing::Location(l) => write!(f, "{}", l.display_summary()),
+            Thing::Npc(n) => write!(f, "{}", n.display_summary()),
+            Thing::Region(_) => unimplemented!(),
+        }
+    }
+}
+
+impl<'a> fmt::Display for DetailsView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.0 {
+            Thing::Location(l) => write!(f, "{}", l.display_details()),
+            Thing::Npc(n) => write!(f, "{}", n.display_details()),
+            Thing::Region(_) => unimplemented!(),
+        }
     }
 }
 
