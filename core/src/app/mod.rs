@@ -17,14 +17,21 @@ impl App {
     }
 
     pub fn command(&mut self, raw_command: &str) -> Box<dyn Display> {
-        let command: Command = raw_command.parse().unwrap();
+        let command_subtype: Command = raw_command.parse().unwrap();
 
-        match command {
-            Command::App(app_command) => Box::new(format!("{:?}", app_command)),
+        match command_subtype {
+            Command::App(app_command) => command(&app_command, &mut self.context),
             Command::Generate(generate_command) => {
                 crate::world::command(&generate_command, &mut self.context)
             }
             Command::Unknown(raw_command) => Box::new(format!("{:?}", raw_command)),
         }
+    }
+}
+
+pub fn command(command: &AppCommand, context: &mut Context) -> Box<dyn Display> {
+    match command {
+        AppCommand::Debug(_) => Box::new(format!("{:?}", context)),
+        app_command => Box::new(format!("{:?}", app_command)),
     }
 }
