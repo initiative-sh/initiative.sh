@@ -109,17 +109,17 @@ impl<'a> fmt::Display for DetailsView<'a> {
         location
             .name
             .value()
-            .map(|name| writeln!(f, "{}", name))
+            .map(|name| write!(f, "{}", name))
             .transpose()?;
         location
             .subtype
             .value()
-            .map(|subtype| writeln!(f, "Type: {}", subtype))
+            .map(|subtype| write!(f, "\nType: {}", subtype))
             .transpose()?;
         location
             .description
             .value()
-            .map(|description| writeln!(f, "{}", description))
+            .map(|description| write!(f, "\n{}", description))
             .transpose()?;
         Ok(())
     }
@@ -140,7 +140,7 @@ mod test_display_for_location_details_view {
         assert_eq!(
             "Oaken Mermaid Inn\n\
             Type: Inn\n\
-            I am Mordenkainen\n",
+            I am Mordenkainen",
             format!("{}", location.display_details()),
         );
     }

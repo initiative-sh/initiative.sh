@@ -55,7 +55,7 @@ pub fn command(command: &RawCommand, context: &mut Context) -> Box<dyn fmt::Disp
         {
             let mut location = location.clone();
             location.regenerate(&mut thread_rng(), &context.demographics);
-            output.push_str(&format!("\n{}\n", location.display_details()));
+            output.push_str(&format!("{}\n\nAlternatives:", location.display_details()));
             context.push_recent(location.into());
         }
 
@@ -64,7 +64,7 @@ pub fn command(command: &RawCommand, context: &mut Context) -> Box<dyn fmt::Disp
                 .map(|i| {
                     let mut location = location.clone();
                     location.regenerate(&mut thread_rng(), &context.demographics);
-                    output.push_str(&format!("{} {}\n", i, location.display_summary()));
+                    output.push_str(&format!("\n{} {}", i, location.display_summary()));
                     location.into()
                 })
                 .collect(),

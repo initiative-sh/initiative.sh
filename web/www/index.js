@@ -11,7 +11,7 @@ promptForm.addEventListener("submit", event => {
 
   output.insertAdjacentHTML(
     'beforeend',
-    "\n> " + input + "\n"
+    "\n\n> " + input + "\n\n"
   );
 
   output.insertAdjacentHTML(

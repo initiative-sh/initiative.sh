@@ -144,29 +144,29 @@ impl<'a> fmt::Display for DetailsView<'a> {
 
         npc.name
             .value()
-            .map(|name| writeln!(f, "{}", name))
-            .transpose()?;
+            .map(|name| write!(f, "{}", name))
+            .unwrap_or_else(|| write!(f, "Unnamed NPC"))?;
 
         match (npc.race.value(), npc.ethnicity.value()) {
             (Some(race), Some(ethnicity)) if ethnicity != &race.default_ethnicity() => {
-                writeln!(f, "Race: {} ({})", race, ethnicity)?
+                write!(f, "\nRace: {} ({})", race, ethnicity)?
             }
-            (Some(race), _) => writeln!(f, "Race: {}", race)?,
-            (None, Some(ethnicity)) => writeln!(f, "Ethnicity: {}", ethnicity)?,
+            (Some(race), _) => write!(f, "\nRace: {}", race)?,
+            (None, Some(ethnicity)) => write!(f, "\nEthnicity: {}", ethnicity)?,
             (None, None) => {}
         }
 
         npc.gender
             .value()
-            .map(|gender| writeln!(f, "Gender: {}", gender))
+            .map(|gender| write!(f, "\nGender: {}", gender))
             .transpose()?;
         npc.age
             .value()
-            .map(|age| writeln!(f, "Age: {}", age))
+            .map(|age| write!(f, "\nAge: {}", age))
             .transpose()?;
         npc.size
             .value()
-            .map(|size| writeln!(f, "Size: {}", size))
+            .map(|size| write!(f, "\nSize: {}", size))
             .transpose()?;
 
         Ok(())
@@ -196,7 +196,7 @@ mod test_display_for_npc_details_view {
             Race: human (Arabic)\n\
             Gender: trans (they/them)\n\
             Age: adult (30 years)\n\
-            Size: 5'11\", 140 lbs (medium)\n",
+            Size: 5'11\", 140 lbs (medium)",
             format!("{}", npc.display_details())
         );
     }
@@ -214,19 +214,25 @@ mod test_display_for_npc_details_view {
             npc
         };
 
-        assert_eq!("Race: human\n", format!("{}", npc(0b1).display_details()));
         assert_eq!(
-            "Ethnicity: Arabic\n",
+            "Unnamed NPC\nRace: human",
+            format!("{}", npc(0b1).display_details())
+        );
+        assert_eq!(
+            "Unnamed NPC\nEthnicity: Arabic",
             format!("{}", npc(0b10).display_details())
         );
         assert_eq!(
-            "Race: human (Arabic)\n",
+            "Unnamed NPC\nRace: human (Arabic)",
             format!("{}", npc(0b11).display_details())
         );
     }
 
     #[test]
     fn fmt_test_empty() {
-        assert_eq!("", format!("{}", &Npc::default().display_details()));
+        assert_eq!(
+            "Unnamed NPC",
+            format!("{}", &Npc::default().display_details())
+        );
     }
 }
