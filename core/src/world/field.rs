@@ -1,29 +1,25 @@
 use std::fmt;
+use std::mem;
 
-#[derive(Debug, Eq, PartialEq)]
-pub struct Field<T: fmt::Display> {
-    is_locked: bool,
-    value: Option<T>,
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Field<T: fmt::Display> {
+    Locked(T),
+    Unlocked(T),
+    Empty,
 }
 
 impl<T: fmt::Display> Field<T> {
     pub fn new(value: T) -> Self {
-        Self {
-            is_locked: true,
-            value: Some(value),
-        }
+        Self::Locked(value)
     }
 
     #[cfg(test)]
     pub fn new_generated(value: T) -> Self {
-        Self {
-            is_locked: false,
-            value: Some(value),
-        }
+        Self::Unlocked(value)
     }
 
     pub fn is_locked(&self) -> bool {
-        self.is_locked
+        matches!(self, Self::Locked(_))
     }
 
     pub fn is_unlocked(&self) -> bool {
@@ -32,7 +28,10 @@ impl<T: fmt::Display> Field<T> {
 
     #[cfg(test)]
     pub fn lock(&mut self) {
-        self.is_locked = true;
+        *self = match mem::take(self) {
+            Self::Unlocked(value) => Self::Locked(value),
+            field => field,
+        }
     }
 
     #[cfg(test)]
@@ -43,7 +42,10 @@ impl<T: fmt::Display> Field<T> {
 
     #[cfg(test)]
     pub fn unlock(&mut self) {
-        self.is_locked = false;
+        *self = match mem::take(self) {
+            Self::Locked(value) => Self::Unlocked(value),
+            field => field,
+        }
     }
 
     #[cfg(test)]
@@ -57,41 +59,47 @@ impl<T: fmt::Display> Field<T> {
     }
 
     pub fn replace_with<F: FnOnce(Option<T>) -> T>(&mut self, f: F) {
-        if self.is_unlocked() {
-            let value = self.value.take();
-            self.value.replace(f(value));
+        *self = match mem::take(self) {
+            Self::Unlocked(value) => Self::Unlocked(f(Some(value))),
+            Self::Empty => Self::Unlocked(f(None)),
+            field => field,
         }
     }
 
     pub fn clear(&mut self) {
-        if self.is_unlocked() {
-            self.value = None;
+        if let Self::Unlocked(_) = self {
+            *self = Self::Empty;
         }
     }
 
     pub fn value(&self) -> Option<&T> {
-        self.value.as_ref()
+        match self {
+            Self::Locked(value) => Some(value),
+            Self::Unlocked(value) => Some(value),
+            Self::Empty => None,
+        }
     }
 
     pub fn value_mut(&mut self) -> Option<&mut T> {
-        self.value.as_mut()
+        match self {
+            Self::Locked(value) => Some(value),
+            Self::Unlocked(value) => Some(value),
+            Self::Empty => None,
+        }
     }
 
     pub fn is_some(&self) -> bool {
-        self.value.is_some()
+        !self.is_none()
     }
 
     pub fn is_none(&self) -> bool {
-        !self.is_some()
+        matches!(self, Self::Empty)
     }
 }
 
 impl<T: fmt::Display> Default for Field<T> {
     fn default() -> Self {
-        Self {
-            is_locked: false,
-            value: None,
-        }
+        Self::Empty
     }
 }
 
@@ -103,7 +111,11 @@ impl<T: fmt::Display> From<T> for Field<T> {
 
 impl<T: fmt::Display> From<Field<T>> for Option<T> {
     fn from(field: Field<T>) -> Option<T> {
-        field.value
+        match field {
+            Field::Locked(value) => Some(value),
+            Field::Unlocked(value) => Some(value),
+            Field::Empty => None,
+        }
     }
 }
 
@@ -115,7 +127,7 @@ impl From<&str> for Field<String> {
 
 impl<T: fmt::Display> fmt::Display for Field<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(value) = &self.value {
+        if let Some(value) = &self.value() {
             write!(f, "{}", value)?;
         }
         Ok(())
@@ -152,7 +164,7 @@ mod test_field {
 
     #[test]
     fn lock_unlock_test() {
-        let mut field: Field<bool> = Field::default();
+        let mut field = Field::Unlocked(false);
 
         assert!(field.is_unlocked());
         assert!(!field.is_locked());

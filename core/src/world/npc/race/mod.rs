@@ -109,51 +109,29 @@ mod test {
     }
 
     #[test]
-    fn regenerate_test_age_none() {
+    fn regenerate_test_locked() {
         let mut npc = Npc::default();
         npc.race = Field::new_generated(Race::Human);
-        npc.age.lock();
+        npc.age = Field::Locked(Age::Adult(u16::MAX));
+        npc.gender = Field::Locked(Gender::Neuter);
+        npc.size = Field::Locked(Size::Tiny {
+            height: u16::MAX,
+            weight: u16::MAX,
+        });
 
         let mut rng = StepRng::new(0, 0xDEADBEEF);
 
         regenerate(&mut rng, &mut npc);
 
-        assert!(npc.gender.is_some());
-
-        assert!(npc.age.is_none());
-        assert!(npc.size.is_none());
-    }
-
-    #[test]
-    fn regenerate_test_gender_none() {
-        let mut npc = Npc::default();
-        npc.race = Field::new_generated(Race::Human);
-        npc.gender.lock();
-
-        let mut rng = StepRng::new(0, 0xDEADBEEF);
-
-        regenerate(&mut rng, &mut npc);
-
-        assert!(npc.age.is_some());
-
-        assert!(npc.gender.is_none());
-        assert!(npc.size.is_none());
-    }
-
-    #[test]
-    fn regenerate_test_size_none() {
-        let mut npc = Npc::default();
-        npc.race = Field::new_generated(Race::Human);
-        npc.size.lock();
-
-        let mut rng = StepRng::new(0, 0xDEADBEEF);
-
-        regenerate(&mut rng, &mut npc);
-
-        assert!(npc.age.is_some());
-        assert!(npc.gender.is_some());
-
-        assert!(npc.size.is_none());
+        assert_eq!(Some(&Age::Adult(u16::MAX)), npc.age.value());
+        assert_eq!(Some(&Gender::Neuter), npc.gender.value());
+        assert_eq!(
+            Some(&Size::Tiny {
+                height: u16::MAX,
+                weight: u16::MAX
+            }),
+            npc.size.value()
+        );
     }
 
     #[test]
