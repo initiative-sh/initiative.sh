@@ -20,7 +20,7 @@ impl From<uuid::Uuid> for Uuid {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Region {
     pub uuid: Option<Rc<Uuid>>,
     pub parent_uuid: Option<Rc<Uuid>>,
@@ -34,6 +34,7 @@ pub struct Region {
     // pub inhabitants: Field<Vec<NpcUuid>>,
 }
 
+#[derive(Debug)]
 pub enum RegionType {
     World,
 }

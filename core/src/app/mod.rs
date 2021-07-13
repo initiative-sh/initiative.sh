@@ -1,12 +1,11 @@
 use std::fmt::Display;
 
-pub mod context;
+mod context;
 mod parser;
 
+pub use context::Context;
 pub use parser::syntax;
 pub use parser::{AppCommand, Command, GenerateCommand, RawCommand};
-
-use context::Context;
 
 pub struct App {
     context: Context,
@@ -18,15 +17,21 @@ impl App {
     }
 
     pub fn command(&mut self, raw_command: &str) -> Box<dyn Display> {
-        let command: Command = raw_command.parse().unwrap();
-        let demographics = &self.context.demographics;
+        let command_subtype: Command = raw_command.parse().unwrap();
 
-        match command {
-            Command::App(app_command) => Box::new(format!("{:?}", app_command)),
+        match command_subtype {
+            Command::App(app_command) => command(&app_command, &mut self.context),
             Command::Generate(generate_command) => {
-                crate::world::command(&generate_command, demographics)
+                crate::world::command(&generate_command, &mut self.context)
             }
             Command::Unknown(raw_command) => Box::new(format!("{:?}", raw_command)),
         }
+    }
+}
+
+pub fn command(command: &AppCommand, context: &mut Context) -> Box<dyn Display> {
+    match command {
+        AppCommand::Debug(_) => Box::new(format!("{:?}", context)),
+        app_command => Box::new(format!("{:?}", app_command)),
     }
 }

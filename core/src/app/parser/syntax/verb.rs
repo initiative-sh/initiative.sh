@@ -2,9 +2,10 @@ use initiative_macros::WordList;
 
 #[derive(Debug, PartialEq, WordList)]
 pub enum Verb {
-    Tutorial,
+    Debug,
     Help,
     Quit,
+    Tutorial,
 }
 
 #[cfg(test)]
