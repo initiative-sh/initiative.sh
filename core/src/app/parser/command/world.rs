@@ -20,7 +20,7 @@ impl TryFrom<RawCommand> for WorldCommand {
                 return Ok(WorldCommand::Npc { species: None });
             }
 
-            if let Ok(species) = noun.try_into() {
+            if let Ok(species) = raw.text.parse() {
                 return Ok(WorldCommand::Npc {
                     species: Some(species),
                 });
