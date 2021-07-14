@@ -30,7 +30,7 @@ pub fn command(
     rng: &mut impl Rng,
 ) -> Box<dyn fmt::Display> {
     match command {
-        WorldCommand::Location(raw) => location::command(raw, context, rng),
+        WorldCommand::Location { location_type } => location::command(location_type, context, rng),
         WorldCommand::Npc { species } => npc::command(species, context, rng),
     }
 }

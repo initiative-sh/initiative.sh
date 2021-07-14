@@ -1,11 +1,12 @@
 use std::convert::{TryFrom, TryInto};
 
 use super::{Noun, RawCommand};
+use crate::world::location::LocationType;
 use crate::world::npc::Species;
 
 #[derive(Debug)]
 pub enum WorldCommand {
-    Location(RawCommand),
+    Location { location_type: LocationType },
     Npc { species: Option<Species> },
     //Region(RawCommand),
 }
@@ -15,20 +16,19 @@ impl TryFrom<RawCommand> for WorldCommand {
 
     fn try_from(raw: RawCommand) -> Result<WorldCommand, RawCommand> {
         if let Some(&noun) = raw.get_noun() {
-            match noun {
-                Noun::Building
-                | Noun::Inn
-                | Noun::Residence
-                | Noun::Shop
-                | Noun::Temple
-                | Noun::Warehouse => return Ok(WorldCommand::Location(raw)),
-                Noun::Npc => return Ok(WorldCommand::Npc { species: None }),
-                _ => {}
+            if let Noun::Npc = noun {
+                return Ok(WorldCommand::Npc { species: None });
             }
 
             if let Ok(species) = noun.try_into() {
                 return Ok(WorldCommand::Npc {
                     species: Some(species),
+                });
+            }
+
+            if let Ok(location) = noun.try_into() {
+                return Ok(WorldCommand::Location {
+                    location_type: location,
                 });
             }
         }

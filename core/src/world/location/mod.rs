@@ -7,7 +7,7 @@ use rand::Rng;
 
 use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
-use crate::app::{Context, RawCommand};
+use crate::app::Context;
 use crate::syntax::Noun;
 use view::{DetailsView, SummaryView};
 
@@ -44,40 +44,36 @@ pub enum LocationType {
 }
 
 pub fn command(
-    command: &RawCommand,
+    location_type: &LocationType,
     context: &mut Context,
     rng: &mut impl Rng,
 ) -> Box<dyn fmt::Display> {
-    if let Some(&noun) = command.get_noun() {
-        let mut location = Location::default();
-        let mut output = String::new();
+    let location = Location {
+        subtype: Field::Locked(*location_type),
+        ..Default::default()
+    };
 
-        if let Ok(location_subtype) = noun.try_into() {
-            location.subtype = Field::new(location_subtype);
-        }
+    let mut output = String::new();
 
-        {
-            let mut location = location.clone();
-            location.regenerate(rng, &context.demographics);
-            output.push_str(&format!("{}\n\nAlternatives:", location.display_details()));
-            context.push_recent(location.into());
-        }
-
-        context.batch_push_recent(
-            (0..10)
-                .map(|i| {
-                    let mut location = location.clone();
-                    location.regenerate(rng, &context.demographics);
-                    output.push_str(&format!("\n{} {}", i, location.display_summary()));
-                    location.into()
-                })
-                .collect(),
-        );
-
-        Box::new(output)
-    } else {
-        unimplemented!();
+    {
+        let mut location = location.clone();
+        location.regenerate(rng, &context.demographics);
+        output.push_str(&format!("{}\n\nAlternatives:", location.display_details()));
+        context.push_recent(location.into());
     }
+
+    context.batch_push_recent(
+        (0..10)
+            .map(|i| {
+                let mut location = location.clone();
+                location.regenerate(rng, &context.demographics);
+                output.push_str(&format!("\n{} {}", i, location.display_summary()));
+                location.into()
+            })
+            .collect(),
+    );
+
+    Box::new(output)
 }
 
 impl Deref for Uuid {
@@ -127,13 +123,15 @@ impl Generate for Location {
             }
         });
 
-        if let Some(value) = self.subtype.value() {
+        if let Some(value) = self.subtype.value_mut() {
             match value {
-                LocationType::Building(building_type) => {
-                    let building_type =
-                        building_type.unwrap_or_else(|| BuildingType::generate(rng, demographics));
+                LocationType::Building(mut building_type) => {
+                    if building_type.is_none() {
+                        building_type.replace(BuildingType::generate(rng, demographics));
+                        self.subtype = Field::Locked(LocationType::Building(building_type));
+                    }
 
-                    match building_type {
+                    match building_type.unwrap() {
                         BuildingType::Inn => generate_inn(self, rng, demographics),
                         BuildingType::Residence => generate_residence(self, rng, demographics),
                         BuildingType::Shop => generate_shop(self, rng, demographics),
@@ -194,7 +192,9 @@ impl TryFrom<Noun> for LocationType {
     type Error = ();
 
     fn try_from(value: Noun) -> Result<Self, Self::Error> {
-        if let Ok(building_type) = value.try_into() {
+        if let Noun::Building = value {
+            Ok(LocationType::Building(None))
+        } else if let Ok(building_type) = value.try_into() {
             Ok(LocationType::Building(Some(building_type)))
         } else {
             Err(())
@@ -240,7 +240,71 @@ mod test_location_type {
             Noun::Inn.try_into(),
         );
 
-        let location_type: Result<LocationType, ()> = Noun::Building.try_into();
+        assert_eq!(Ok(LocationType::Building(None)), Noun::Building.try_into());
+
+        let location_type: Result<LocationType, ()> = Noun::Npc.try_into();
         assert_eq!(Err(()), location_type);
+    }
+}
+
+#[cfg(test)]
+mod test_command {
+    use super::*;
+    use crate::world::Thing;
+    use rand::rngs::mock::StepRng;
+    use std::collections::HashMap;
+
+    #[test]
+    fn any_building_test() {
+        let mut context = Context::default();
+        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut results: HashMap<_, u8> = HashMap::new();
+
+        command(&LocationType::Building(None), &mut context, &mut rng);
+
+        context.recent().iter().for_each(|thing| {
+            if let Thing::Location(location) = thing {
+                if let Some(location_type) = location.subtype.value() {
+                    *results.entry(format!("{}", location_type)).or_default() += 1;
+                }
+            }
+        });
+
+        assert!(results.len() > 1, "{:?}\n{:?}", context, results);
+        assert_eq!(11u8, results.values().sum(), "{:?}\n{:?}", context, results);
+    }
+
+    #[test]
+    fn specific_building_test() {
+        let mut context = Context::default();
+        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+
+        command(
+            &LocationType::Building(Some(BuildingType::Inn)),
+            &mut context,
+            &mut rng,
+        );
+
+        assert_eq!(
+            11,
+            context
+                .recent()
+                .iter()
+                .map(|thing| {
+                    if let Thing::Location(location) = thing {
+                        assert_eq!(
+                            Some(&LocationType::Building(Some(BuildingType::Inn))),
+                            location.subtype.value(),
+                            "{:?}",
+                            context,
+                        );
+                    } else {
+                        panic!("{:?}\n{:?}", thing, context);
+                    }
+                })
+                .count(),
+            "{:?}",
+            context,
+        );
     }
 }
