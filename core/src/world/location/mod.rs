@@ -1,14 +1,13 @@
-use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::str::FromStr;
 
 use rand::Rng;
 
 use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
 use crate::app::Context;
-use crate::syntax::Noun;
 use view::{DetailsView, SummaryView};
 
 pub use building::*;
@@ -188,14 +187,14 @@ impl fmt::Display for LocationType {
     }
 }
 
-impl TryFrom<Noun> for LocationType {
-    type Error = ();
+impl FromStr for LocationType {
+    type Err = ();
 
-    fn try_from(value: Noun) -> Result<Self, Self::Error> {
-        if let Noun::Building = value {
-            Ok(LocationType::Building(None))
-        } else if let Ok(building_type) = value.try_into() {
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        if let Ok(building_type) = raw.parse() {
             Ok(LocationType::Building(Some(building_type)))
+        } else if raw == "building" {
+            Ok(LocationType::Building(None))
         } else {
             Err(())
         }
@@ -204,7 +203,7 @@ impl TryFrom<Noun> for LocationType {
 
 #[cfg(test)]
 mod test_location_type {
-    use super::{BuildingType, Demographics, Generate, LocationType, Noun, TryInto};
+    use super::{BuildingType, Demographics, Generate, LocationType};
     use rand::rngs::mock::StepRng;
 
     #[test]
@@ -237,12 +236,12 @@ mod test_location_type {
     fn try_from_noun_test() {
         assert_eq!(
             Ok(LocationType::Building(Some(BuildingType::Inn))),
-            Noun::Inn.try_into(),
+            "inn".parse()
         );
 
-        assert_eq!(Ok(LocationType::Building(None)), Noun::Building.try_into());
+        assert_eq!(Ok(LocationType::Building(None)), "building".parse());
 
-        let location_type: Result<LocationType, ()> = Noun::Npc.try_into();
+        let location_type: Result<LocationType, ()> = "npc".parse();
         assert_eq!(Err(()), location_type);
     }
 }

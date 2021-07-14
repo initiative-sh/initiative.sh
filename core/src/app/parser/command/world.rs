@@ -1,4 +1,4 @@
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 
 use super::{Noun, RawCommand};
 use crate::world::location::LocationType;
@@ -26,7 +26,7 @@ impl TryFrom<RawCommand> for WorldCommand {
                 });
             }
 
-            if let Ok(location) = noun.try_into() {
+            if let Ok(location) = raw.text.parse() {
                 return Ok(WorldCommand::Location {
                     location_type: location,
                 });
