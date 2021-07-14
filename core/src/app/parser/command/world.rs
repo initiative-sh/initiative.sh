@@ -9,15 +9,6 @@ pub enum WorldCommand {
     //Region(RawCommand),
 }
 
-impl WorldCommand {
-    pub fn raw(&self) -> &RawCommand {
-        match self {
-            WorldCommand::Location(c) => c,
-            WorldCommand::Npc(c) => c,
-        }
-    }
-}
-
 impl TryFrom<RawCommand> for WorldCommand {
     type Error = RawCommand;
 

@@ -7,14 +7,6 @@ pub enum StorageCommand {
     Load(RawCommand),
 }
 
-impl StorageCommand {
-    pub fn raw(&self) -> &RawCommand {
-        match self {
-            StorageCommand::Load(c) => c,
-        }
-    }
-}
-
 impl TryFrom<RawCommand> for StorageCommand {
     type Error = RawCommand;
 

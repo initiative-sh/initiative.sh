@@ -26,17 +26,6 @@ pub struct RawCommand {
     words: Vec<Word>,
 }
 
-impl Command {
-    pub fn raw(&self) -> &RawCommand {
-        match self {
-            Command::App(subtype) => subtype.raw(),
-            Command::Storage(subtype) => subtype.raw(),
-            Command::World(subtype) => subtype.raw(),
-            Command::Unknown(c) => c,
-        }
-    }
-}
-
 impl From<RawCommand> for Command {
     fn from(mut raw: RawCommand) -> Command {
         raw = match raw.try_into() {

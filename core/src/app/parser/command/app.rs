@@ -9,16 +9,6 @@ pub enum AppCommand {
     Quit(RawCommand),
 }
 
-impl AppCommand {
-    pub fn raw(&self) -> &RawCommand {
-        match self {
-            AppCommand::Debug(c) => c,
-            AppCommand::Help(c) => c,
-            AppCommand::Quit(c) => c,
-        }
-    }
-}
-
 impl TryFrom<RawCommand> for AppCommand {
     type Error = RawCommand;
 
