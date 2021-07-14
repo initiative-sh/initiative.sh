@@ -1,6 +1,5 @@
-use std::convert::TryFrom;
+use std::str::FromStr;
 
-use super::{Noun, RawCommand};
 use crate::world::location::LocationType;
 use crate::world::npc::Species;
 
@@ -11,28 +10,62 @@ pub enum WorldCommand {
     //Region(RawCommand),
 }
 
-impl TryFrom<RawCommand> for WorldCommand {
-    type Error = RawCommand;
+impl FromStr for WorldCommand {
+    type Err = ();
 
-    fn try_from(raw: RawCommand) -> Result<WorldCommand, RawCommand> {
-        if let Some(&noun) = raw.get_noun() {
-            if let Noun::Npc = noun {
-                return Ok(WorldCommand::Npc { species: None });
-            }
-
-            if let Ok(species) = raw.text.parse() {
-                return Ok(WorldCommand::Npc {
-                    species: Some(species),
-                });
-            }
-
-            if let Ok(location) = raw.text.parse() {
-                return Ok(WorldCommand::Location {
-                    location_type: location,
-                });
-            }
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        if let Ok(species) = raw.parse() {
+            Ok(WorldCommand::Npc {
+                species: Some(species),
+            })
+        } else if let Ok(location_type) = raw.parse() {
+            Ok(WorldCommand::Location { location_type })
+        } else if "npc" == raw {
+            Ok(WorldCommand::Npc { species: None })
+        } else {
+            Err(())
         }
+    }
+}
 
-        Err(raw)
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn from_str_test() {
+        let parsed_command = "building".parse();
+        assert!(
+            matches!(
+                parsed_command,
+                Ok(WorldCommand::Location {
+                    location_type: LocationType::Building(None)
+                }),
+            ),
+            "{:?}",
+            parsed_command,
+        );
+
+        let parsed_command = "npc".parse();
+        assert!(
+            matches!(parsed_command, Ok(WorldCommand::Npc { species: None })),
+            "{:?}",
+            parsed_command,
+        );
+
+        let parsed_command = "elf".parse();
+        assert!(
+            matches!(
+                parsed_command,
+                Ok(WorldCommand::Npc {
+                    species: Some(Species::Elf)
+                }),
+            ),
+            "{:?}",
+            parsed_command,
+        );
+
+        let parsed_command = "potato".parse::<WorldCommand>();
+        assert!(matches!(parsed_command, Err(())), "{:?}", parsed_command);
     }
 }

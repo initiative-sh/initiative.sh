@@ -38,10 +38,9 @@ impl From<RawCommand> for Command {
             Err(raw) => raw,
         };
 
-        raw = match raw.try_into() {
-            Ok(command) => return Command::World(command),
-            Err(raw) => raw,
-        };
+        if let Ok(command) = raw.text.parse() {
+            return Command::World(command);
+        }
 
         Command::Unknown(raw)
     }
