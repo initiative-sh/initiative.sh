@@ -1,4 +1,12 @@
-use std::convert::{Infallible, TryFrom, TryInto};
+pub use app::AppCommand;
+pub use storage::StorageCommand;
+pub use world::WorldCommand;
+
+mod app;
+mod storage;
+mod world;
+
+use std::convert::{Infallible, TryInto};
 use std::str::FromStr;
 
 use super::{Noun, Verb, Word};
@@ -10,25 +18,6 @@ pub enum Command {
     World(WorldCommand),
     Storage(StorageCommand),
     Unknown(RawCommand),
-}
-
-#[derive(Debug)]
-pub enum AppCommand {
-    Debug(RawCommand),
-    Help(RawCommand),
-    Quit(RawCommand),
-}
-
-#[derive(Debug)]
-pub enum StorageCommand {
-    Load(RawCommand),
-}
-
-#[derive(Debug)]
-pub enum WorldCommand {
-    Location(RawCommand),
-    Npc(RawCommand),
-    //Region(RawCommand),
 }
 
 #[derive(Debug)]
@@ -44,33 +33,6 @@ impl Command {
             Command::Storage(subtype) => subtype.raw(),
             Command::World(subtype) => subtype.raw(),
             Command::Unknown(c) => c,
-        }
-    }
-}
-
-impl AppCommand {
-    pub fn raw(&self) -> &RawCommand {
-        match self {
-            AppCommand::Debug(c) => c,
-            AppCommand::Help(c) => c,
-            AppCommand::Quit(c) => c,
-        }
-    }
-}
-
-impl StorageCommand {
-    pub fn raw(&self) -> &RawCommand {
-        match self {
-            StorageCommand::Load(c) => c,
-        }
-    }
-}
-
-impl WorldCommand {
-    pub fn raw(&self) -> &RawCommand {
-        match self {
-            WorldCommand::Location(c) => c,
-            WorldCommand::Npc(c) => c,
         }
     }
 }
@@ -93,61 +55,6 @@ impl From<RawCommand> for Command {
         };
 
         Command::Unknown(raw)
-    }
-}
-
-impl TryFrom<RawCommand> for AppCommand {
-    type Error = RawCommand;
-
-    fn try_from(raw: RawCommand) -> Result<AppCommand, RawCommand> {
-        match raw.get_verb() {
-            Some(Verb::Debug) => Ok(AppCommand::Debug(raw)),
-            Some(Verb::Help) => Ok(AppCommand::Help(raw)),
-            Some(Verb::Quit) => Ok(AppCommand::Quit(raw)),
-            _ => Err(raw),
-        }
-    }
-}
-
-impl TryFrom<RawCommand> for StorageCommand {
-    type Error = RawCommand;
-
-    fn try_from(raw: RawCommand) -> Result<StorageCommand, RawCommand> {
-        if raw.get_proper_noun().is_some() {
-            Ok(StorageCommand::Load(raw))
-        } else {
-            Err(raw)
-        }
-    }
-}
-
-impl TryFrom<RawCommand> for WorldCommand {
-    type Error = RawCommand;
-
-    fn try_from(raw: RawCommand) -> Result<WorldCommand, RawCommand> {
-        if let Some(&noun) = raw.get_noun() {
-            match noun {
-                Noun::Building
-                | Noun::Inn
-                | Noun::Residence
-                | Noun::Shop
-                | Noun::Temple
-                | Noun::Warehouse => Ok(WorldCommand::Location(raw)),
-                Noun::Npc
-                | Noun::Dragonborn
-                | Noun::Dwarf
-                | Noun::Elf
-                | Noun::Gnome
-                | Noun::HalfElf
-                | Noun::HalfOrc
-                | Noun::Halfling
-                | Noun::Human
-                | Noun::Tiefling
-                | Noun::Warforged => Ok(WorldCommand::Npc(raw)),
-            }
-        } else {
-            Err(raw)
-        }
     }
 }
 
