@@ -1,11 +1,12 @@
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use super::{Noun, RawCommand};
+use crate::world::npc::Species;
 
 #[derive(Debug)]
 pub enum WorldCommand {
     Location(RawCommand),
-    Npc(RawCommand),
+    Npc { species: Option<Species> },
     //Region(RawCommand),
 }
 
@@ -20,21 +21,18 @@ impl TryFrom<RawCommand> for WorldCommand {
                 | Noun::Residence
                 | Noun::Shop
                 | Noun::Temple
-                | Noun::Warehouse => Ok(WorldCommand::Location(raw)),
-                Noun::Npc
-                | Noun::Dragonborn
-                | Noun::Dwarf
-                | Noun::Elf
-                | Noun::Gnome
-                | Noun::HalfElf
-                | Noun::HalfOrc
-                | Noun::Halfling
-                | Noun::Human
-                | Noun::Tiefling
-                | Noun::Warforged => Ok(WorldCommand::Npc(raw)),
+                | Noun::Warehouse => return Ok(WorldCommand::Location(raw)),
+                Noun::Npc => return Ok(WorldCommand::Npc { species: None }),
+                _ => {}
             }
-        } else {
-            Err(raw)
+
+            if let Ok(species) = noun.try_into() {
+                return Ok(WorldCommand::Npc {
+                    species: Some(species),
+                });
+            }
         }
+
+        Err(raw)
     }
 }
