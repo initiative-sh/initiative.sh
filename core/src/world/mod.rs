@@ -24,10 +24,14 @@ mod thing;
 
 pub type WorldUuid = Uuid;
 
-pub fn command(command: &WorldCommand, context: &mut Context) -> Box<dyn fmt::Display> {
+pub fn command(
+    command: &WorldCommand,
+    context: &mut Context,
+    rng: &mut impl Rng,
+) -> Box<dyn fmt::Display> {
     match command {
-        WorldCommand::Location(raw) => location::command(raw, context),
-        WorldCommand::Npc(raw) => npc::command(raw, context),
+        WorldCommand::Location(raw) => location::command(raw, context, rng),
+        WorldCommand::Npc(raw) => npc::command(raw, context, rng),
     }
 }
 

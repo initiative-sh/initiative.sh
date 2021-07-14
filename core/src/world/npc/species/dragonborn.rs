@@ -1,8 +1,8 @@
 use super::{Age, Gender, Generate, Rng, Size};
 
-pub struct Race;
+pub struct Species;
 
-impl Generate for Race {
+impl Generate for Species {
     fn gen_gender(rng: &mut impl Rng) -> Gender {
         match rng.gen_range(1..=101) {
             1..=50 => Gender::Feminine,
@@ -34,7 +34,7 @@ impl Generate for Race {
 }
 
 #[cfg(test)]
-mod test_generate_for_race {
+mod test_generate_for_species {
     use super::*;
     use rand::rngs::mock::StepRng;
     use std::collections::HashMap;
@@ -45,7 +45,7 @@ mod test_generate_for_race {
         let mut genders: HashMap<String, u16> = HashMap::new();
 
         for _ in 0..100 {
-            let gender = Race::gen_gender(&mut rng);
+            let gender = Species::gen_gender(&mut rng);
             *genders.entry(format!("{}", gender)).or_default() += 1;
         }
 
@@ -68,11 +68,11 @@ mod test_generate_for_race {
                 Age::Adult(38)
             ],
             [
-                Race::gen_age(&mut rng),
-                Race::gen_age(&mut rng),
-                Race::gen_age(&mut rng),
-                Race::gen_age(&mut rng),
-                Race::gen_age(&mut rng)
+                Species::gen_age(&mut rng),
+                Species::gen_age(&mut rng),
+                Species::gen_age(&mut rng),
+                Species::gen_age(&mut rng),
+                Species::gen_age(&mut rng)
             ]
         );
     }
@@ -94,11 +94,11 @@ mod test_generate_for_race {
                 size(83, 286)
             ],
             [
-                Race::gen_size(&mut rng, &age, &t),
-                Race::gen_size(&mut rng, &age, &t),
-                Race::gen_size(&mut rng, &age, &t),
-                Race::gen_size(&mut rng, &age, &t),
-                Race::gen_size(&mut rng, &age, &t)
+                Species::gen_size(&mut rng, &age, &t),
+                Species::gen_size(&mut rng, &age, &t),
+                Species::gen_size(&mut rng, &age, &t),
+                Species::gen_size(&mut rng, &age, &t),
+                Species::gen_size(&mut rng, &age, &t)
             ]
         );
     }

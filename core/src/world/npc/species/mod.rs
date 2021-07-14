@@ -20,7 +20,7 @@ mod tiefling;
 mod warforged;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub enum Race {
+pub enum Species {
     Dragonborn,
     Dwarf,
     Elf,
@@ -51,18 +51,18 @@ trait Generate {
 }
 
 pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
-    if let Some(race) = npc.race.value() {
-        match race {
-            Race::Dragonborn => dragonborn::Race::regenerate(rng, npc),
-            Race::Dwarf => dwarf::Race::regenerate(rng, npc),
-            Race::Elf => elf::Race::regenerate(rng, npc),
-            Race::Gnome => gnome::Race::regenerate(rng, npc),
-            Race::HalfElf => half_elf::Race::regenerate(rng, npc),
-            Race::HalfOrc => half_orc::Race::regenerate(rng, npc),
-            Race::Halfling => halfling::Race::regenerate(rng, npc),
-            Race::Human => human::Race::regenerate(rng, npc),
-            Race::Tiefling => tiefling::Race::regenerate(rng, npc),
-            Race::Warforged => warforged::Race::regenerate(rng, npc),
+    if let Some(species) = npc.species.value() {
+        match species {
+            Species::Dragonborn => dragonborn::Species::regenerate(rng, npc),
+            Species::Dwarf => dwarf::Species::regenerate(rng, npc),
+            Species::Elf => elf::Species::regenerate(rng, npc),
+            Species::Gnome => gnome::Species::regenerate(rng, npc),
+            Species::HalfElf => half_elf::Species::regenerate(rng, npc),
+            Species::HalfOrc => half_orc::Species::regenerate(rng, npc),
+            Species::Halfling => halfling::Species::regenerate(rng, npc),
+            Species::Human => human::Species::regenerate(rng, npc),
+            Species::Tiefling => tiefling::Species::regenerate(rng, npc),
+            Species::Warforged => warforged::Species::regenerate(rng, npc),
         }
     }
 }
@@ -98,7 +98,7 @@ mod test {
     #[test]
     fn regenerate_test_default() {
         let mut npc = Npc::default();
-        npc.race = Field::new_generated(Race::Human);
+        npc.species = Field::new_generated(Species::Human);
         let mut rng = StepRng::new(0, 0xDEADBEEF);
 
         regenerate(&mut rng, &mut npc);
@@ -111,7 +111,7 @@ mod test {
     #[test]
     fn regenerate_test_locked() {
         let mut npc = Npc::default();
-        npc.race = Field::new_generated(Race::Human);
+        npc.species = Field::new_generated(Species::Human);
         npc.age = Field::Locked(Age::Adult(u16::MAX));
         npc.gender = Field::Locked(Gender::Neuter);
         npc.size = Field::Locked(Size::Tiny {
@@ -163,7 +163,7 @@ mod test {
     }
 }
 
-impl Race {
+impl Species {
     pub fn default_ethnicity(&self) -> Ethnicity {
         match self {
             Self::Dragonborn => Ethnicity::Dragonborn,
@@ -181,64 +181,67 @@ impl Race {
 }
 
 #[cfg(test)]
-mod test_race {
+mod test_species {
     use super::*;
 
     #[test]
     fn default_ethnicity_test() {
-        assert_eq!(Ethnicity::Dragonborn, Race::Dragonborn.default_ethnicity());
-        assert_eq!(Ethnicity::Dwarvish, Race::Dwarf.default_ethnicity());
-        assert_eq!(Ethnicity::Elvish, Race::Elf.default_ethnicity());
-        assert_eq!(Ethnicity::Gnomish, Race::Gnome.default_ethnicity());
-        assert_eq!(Ethnicity::Human, Race::HalfElf.default_ethnicity());
-        assert_eq!(Ethnicity::HalfOrcish, Race::HalfOrc.default_ethnicity());
-        assert_eq!(Ethnicity::Halfling, Race::Halfling.default_ethnicity());
-        assert_eq!(Ethnicity::Human, Race::Human.default_ethnicity());
-        assert_eq!(Ethnicity::Tiefling, Race::Tiefling.default_ethnicity());
-        assert_eq!(Ethnicity::Warforged, Race::Warforged.default_ethnicity());
+        assert_eq!(
+            Ethnicity::Dragonborn,
+            Species::Dragonborn.default_ethnicity()
+        );
+        assert_eq!(Ethnicity::Dwarvish, Species::Dwarf.default_ethnicity());
+        assert_eq!(Ethnicity::Elvish, Species::Elf.default_ethnicity());
+        assert_eq!(Ethnicity::Gnomish, Species::Gnome.default_ethnicity());
+        assert_eq!(Ethnicity::Human, Species::HalfElf.default_ethnicity());
+        assert_eq!(Ethnicity::HalfOrcish, Species::HalfOrc.default_ethnicity());
+        assert_eq!(Ethnicity::Halfling, Species::Halfling.default_ethnicity());
+        assert_eq!(Ethnicity::Human, Species::Human.default_ethnicity());
+        assert_eq!(Ethnicity::Tiefling, Species::Tiefling.default_ethnicity());
+        assert_eq!(Ethnicity::Warforged, Species::Warforged.default_ethnicity());
     }
 }
 
-impl TryFrom<Noun> for Race {
+impl TryFrom<Noun> for Species {
     type Error = ();
 
     fn try_from(noun: Noun) -> Result<Self, Self::Error> {
         match noun {
-            Noun::Dragonborn => Ok(Race::Dragonborn),
-            Noun::Dwarf => Ok(Race::Dwarf),
-            Noun::Elf => Ok(Race::Elf),
-            Noun::Gnome => Ok(Race::Gnome),
-            Noun::HalfElf => Ok(Race::HalfElf),
-            Noun::HalfOrc => Ok(Race::HalfOrc),
-            Noun::Halfling => Ok(Race::Halfling),
-            Noun::Human => Ok(Race::Human),
-            Noun::Tiefling => Ok(Race::Tiefling),
-            Noun::Warforged => Ok(Race::Warforged),
+            Noun::Dragonborn => Ok(Species::Dragonborn),
+            Noun::Dwarf => Ok(Species::Dwarf),
+            Noun::Elf => Ok(Species::Elf),
+            Noun::Gnome => Ok(Species::Gnome),
+            Noun::HalfElf => Ok(Species::HalfElf),
+            Noun::HalfOrc => Ok(Species::HalfOrc),
+            Noun::Halfling => Ok(Species::Halfling),
+            Noun::Human => Ok(Species::Human),
+            Noun::Tiefling => Ok(Species::Tiefling),
+            Noun::Warforged => Ok(Species::Warforged),
             _ => Err(()),
         }
     }
 }
 
 #[cfg(test)]
-mod test_try_from_noun_for_race {
+mod test_try_from_noun_for_species {
     use super::*;
     use std::convert::TryInto;
 
     #[test]
     fn try_from_test() {
-        assert_eq!(Ok(Race::Dragonborn), Noun::Dragonborn.try_into());
-        assert_eq!(Ok(Race::Dwarf), Noun::Dwarf.try_into());
-        assert_eq!(Ok(Race::Elf), Noun::Elf.try_into());
-        assert_eq!(Ok(Race::Gnome), Noun::Gnome.try_into());
-        assert_eq!(Ok(Race::Halfling), Noun::Halfling.try_into());
-        assert_eq!(Ok(Race::Human), Noun::Human.try_into());
-        assert_eq!(Ok(Race::Tiefling), Noun::Tiefling.try_into());
-        assert_eq!(Ok(Race::Warforged), Noun::Warforged.try_into());
-        assert_eq!(Err(()), Race::try_from(Noun::Inn));
+        assert_eq!(Ok(Species::Dragonborn), Noun::Dragonborn.try_into());
+        assert_eq!(Ok(Species::Dwarf), Noun::Dwarf.try_into());
+        assert_eq!(Ok(Species::Elf), Noun::Elf.try_into());
+        assert_eq!(Ok(Species::Gnome), Noun::Gnome.try_into());
+        assert_eq!(Ok(Species::Halfling), Noun::Halfling.try_into());
+        assert_eq!(Ok(Species::Human), Noun::Human.try_into());
+        assert_eq!(Ok(Species::Tiefling), Noun::Tiefling.try_into());
+        assert_eq!(Ok(Species::Warforged), Noun::Warforged.try_into());
+        assert_eq!(Err(()), Species::try_from(Noun::Inn));
     }
 }
 
-impl fmt::Display for Race {
+impl fmt::Display for Species {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Dragonborn => write!(f, "dragonborn"),
@@ -256,18 +259,18 @@ impl fmt::Display for Race {
 }
 
 #[cfg(test)]
-mod test_display_for_race {
+mod test_display_for_species {
     use super::*;
 
     #[test]
     fn fmt_test() {
-        assert_eq!("dragonborn", format!("{}", Race::Dragonborn));
-        assert_eq!("dwarf", format!("{}", Race::Dwarf));
-        assert_eq!("elf", format!("{}", Race::Elf));
-        assert_eq!("gnome", format!("{}", Race::Gnome));
-        assert_eq!("halfling", format!("{}", Race::Halfling));
-        assert_eq!("human", format!("{}", Race::Human));
-        assert_eq!("tiefling", format!("{}", Race::Tiefling));
-        assert_eq!("warforged", format!("{}", Race::Warforged));
+        assert_eq!("dragonborn", format!("{}", Species::Dragonborn));
+        assert_eq!("dwarf", format!("{}", Species::Dwarf));
+        assert_eq!("elf", format!("{}", Species::Elf));
+        assert_eq!("gnome", format!("{}", Species::Gnome));
+        assert_eq!("halfling", format!("{}", Species::Halfling));
+        assert_eq!("human", format!("{}", Species::Human));
+        assert_eq!("tiefling", format!("{}", Species::Tiefling));
+        assert_eq!("warforged", format!("{}", Species::Warforged));
     }
 }

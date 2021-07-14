@@ -2,7 +2,7 @@ use std::fmt;
 
 use rand::Rng;
 
-use super::{Age, Gender, Npc, Race};
+use super::{Age, Gender, Npc, Species};
 
 mod arabic;
 mod celtic;
@@ -64,7 +64,7 @@ pub enum Ethnicity {
     Slavic,
     Spanish,
 
-    // Races
+    // Species
     Dragonborn,
     Dwarvish,
     Elvish,
@@ -78,7 +78,7 @@ pub enum Ethnicity {
 }
 
 impl Ethnicity {
-    pub fn default_race(&self) -> Race {
+    pub fn default_species(&self) -> Species {
         match self {
             Self::Arabic
             | Self::Calishite
@@ -106,16 +106,16 @@ impl Ethnicity {
             | Self::Slavic
             | Self::Spanish
             | Self::Tethyrian
-            | Self::Turami => Race::Human,
-            Self::Dragonborn => Race::Dragonborn,
-            Self::Dwarvish => Race::Dwarf,
-            Self::Elvish => Race::Elf,
-            Self::Gnomish => Race::Gnome,
-            Self::HalfElvish => Race::HalfElf,
-            Self::HalfOrcish => Race::HalfOrc,
-            Self::Halfling => Race::Halfling,
-            Self::Tiefling => Race::Tiefling,
-            Self::Warforged => Race::Warforged,
+            | Self::Turami => Species::Human,
+            Self::Dragonborn => Species::Dragonborn,
+            Self::Dwarvish => Species::Dwarf,
+            Self::Elvish => Species::Elf,
+            Self::Gnomish => Species::Gnome,
+            Self::HalfElvish => Species::HalfElf,
+            Self::HalfOrcish => Species::HalfOrc,
+            Self::Halfling => Species::Halfling,
+            Self::Tiefling => Species::Tiefling,
+            Self::Warforged => Species::Warforged,
         }
     }
 }
@@ -125,17 +125,17 @@ mod test_ethnicity {
     use super::*;
 
     #[test]
-    fn default_race_test() {
-        assert_eq!(Race::Dragonborn, Ethnicity::Dragonborn.default_race());
-        assert_eq!(Race::Dwarf, Ethnicity::Dwarvish.default_race());
-        assert_eq!(Race::Elf, Ethnicity::Elvish.default_race());
-        assert_eq!(Race::Gnome, Ethnicity::Gnomish.default_race());
-        assert_eq!(Race::HalfElf, Ethnicity::HalfElvish.default_race());
-        assert_eq!(Race::HalfOrc, Ethnicity::HalfOrcish.default_race());
-        assert_eq!(Race::Halfling, Ethnicity::Halfling.default_race());
-        assert_eq!(Race::Human, Ethnicity::Arabic.default_race());
-        assert_eq!(Race::Tiefling, Ethnicity::Tiefling.default_race());
-        assert_eq!(Race::Warforged, Ethnicity::Warforged.default_race());
+    fn default_species_test() {
+        assert_eq!(Species::Dragonborn, Ethnicity::Dragonborn.default_species());
+        assert_eq!(Species::Dwarf, Ethnicity::Dwarvish.default_species());
+        assert_eq!(Species::Elf, Ethnicity::Elvish.default_species());
+        assert_eq!(Species::Gnome, Ethnicity::Gnomish.default_species());
+        assert_eq!(Species::HalfElf, Ethnicity::HalfElvish.default_species());
+        assert_eq!(Species::HalfOrc, Ethnicity::HalfOrcish.default_species());
+        assert_eq!(Species::Halfling, Ethnicity::Halfling.default_species());
+        assert_eq!(Species::Human, Ethnicity::Arabic.default_species());
+        assert_eq!(Species::Tiefling, Ethnicity::Tiefling.default_species());
+        assert_eq!(Species::Warforged, Ethnicity::Warforged.default_species());
     }
 }
 

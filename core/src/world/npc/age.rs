@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::Race;
+use super::Species;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Age {
@@ -41,11 +41,15 @@ impl Age {
         }
     }
 
-    pub fn fmt_with_race(&self, race: Option<&Race>, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(race) = race {
+    pub fn fmt_with_species(
+        &self,
+        species: Option<&Species>,
+        f: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        if let Some(species) = species {
             match self {
-                Age::Infant(_) | Age::Child(_) => write!(f, "{} {}", race, self.category()),
-                _ => write!(f, "{} {}", self.category(), race),
+                Age::Infant(_) | Age::Child(_) => write!(f, "{} {}", species, self.category()),
+                _ => write!(f, "{} {}", self.category(), species),
             }
         } else {
             write!(f, "{}", self.category())
@@ -82,8 +86,8 @@ mod test_age {
     }
 
     #[test]
-    fn fmt_with_race_test_some_race() {
-        let r = Race::Human;
+    fn fmt_with_species_test_some_species() {
+        let r = Species::Human;
 
         assert_eq!(
             "human infant",
@@ -120,16 +124,16 @@ mod test_age {
     }
 
     #[test]
-    fn fmt_with_race_test_none() {
+    fn fmt_with_species_test_none() {
         assert_eq!("infant", format!("{}", TestWrapper(&Age::Infant(1), None)));
         assert_eq!("adult", format!("{}", TestWrapper(&Age::Adult(5), None)));
     }
 
-    struct TestWrapper<'a>(&'a Age, Option<&'a Race>);
+    struct TestWrapper<'a>(&'a Age, Option<&'a Species>);
 
     impl<'a> fmt::Display for TestWrapper<'a> {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            self.0.fmt_with_race(self.1, f)
+            self.0.fmt_with_species(self.1, f)
         }
     }
 }

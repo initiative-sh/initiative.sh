@@ -3,7 +3,7 @@ use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use rand::prelude::*;
+use rand::Rng;
 
 use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
@@ -43,7 +43,11 @@ pub enum LocationType {
     Building(BuildingType),
 }
 
-pub fn command(command: &RawCommand, context: &mut Context) -> Box<dyn fmt::Display> {
+pub fn command(
+    command: &RawCommand,
+    context: &mut Context,
+    rng: &mut impl Rng,
+) -> Box<dyn fmt::Display> {
     if let Some(&noun) = command.get_noun() {
         let mut location = Location::default();
         let mut output = String::new();
@@ -54,7 +58,7 @@ pub fn command(command: &RawCommand, context: &mut Context) -> Box<dyn fmt::Disp
 
         {
             let mut location = location.clone();
-            location.regenerate(&mut thread_rng(), &context.demographics);
+            location.regenerate(rng, &context.demographics);
             output.push_str(&format!("{}\n\nAlternatives:", location.display_details()));
             context.push_recent(location.into());
         }
@@ -63,7 +67,7 @@ pub fn command(command: &RawCommand, context: &mut Context) -> Box<dyn fmt::Disp
             (0..10)
                 .map(|i| {
                     let mut location = location.clone();
-                    location.regenerate(&mut thread_rng(), &context.demographics);
+                    location.regenerate(rng, &context.demographics);
                     output.push_str(&format!("\n{} {}", i, location.display_summary()));
                     location.into()
                 })

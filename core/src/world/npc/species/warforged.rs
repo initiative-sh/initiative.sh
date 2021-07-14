@@ -1,8 +1,8 @@
 use super::{Age, Gender, Generate, Rng, Size};
 
-pub struct Race;
+pub struct Species;
 
-impl Generate for Race {
+impl Generate for Species {
     fn gen_gender(rng: &mut impl Rng) -> Gender {
         match rng.gen_range(1..=100) {
             1..=60 => Gender::Neuter,
@@ -27,7 +27,7 @@ impl Generate for Race {
 }
 
 #[cfg(test)]
-mod test_generate_for_race {
+mod test_generate_for_species {
     use super::*;
     use rand::rngs::mock::StepRng;
     use std::collections::HashMap;
@@ -38,7 +38,7 @@ mod test_generate_for_race {
         let mut genders: HashMap<String, u16> = HashMap::new();
 
         for _ in 0..100 {
-            let gender = Race::gen_gender(&mut rng);
+            let gender = Species::gen_gender(&mut rng);
             *genders.entry(format!("{}", gender)).or_default() += 1;
         }
 
@@ -53,11 +53,11 @@ mod test_generate_for_race {
     fn gen_age_test() {
         let mut rng = StepRng::new(0, 0xDECAFBAD);
 
-        assert_eq!(Age::Adult(2), Race::gen_age(&mut rng));
-        assert_eq!(Age::Adult(27), Race::gen_age(&mut rng));
-        assert_eq!(Age::Adult(23), Race::gen_age(&mut rng));
-        assert_eq!(Age::Adult(19), Race::gen_age(&mut rng));
-        assert_eq!(Age::Adult(15), Race::gen_age(&mut rng));
+        assert_eq!(Age::Adult(2), Species::gen_age(&mut rng));
+        assert_eq!(Age::Adult(27), Species::gen_age(&mut rng));
+        assert_eq!(Age::Adult(23), Species::gen_age(&mut rng));
+        assert_eq!(Age::Adult(19), Species::gen_age(&mut rng));
+        assert_eq!(Age::Adult(15), Species::gen_age(&mut rng));
     }
 
     #[test]
@@ -68,10 +68,10 @@ mod test_generate_for_race {
 
         let size = |height, weight| Size::Medium { height, weight };
 
-        assert_eq!(size(77, 298), Race::gen_size(&mut rng, &age, &t));
-        assert_eq!(size(79, 306), Race::gen_size(&mut rng, &age, &t));
-        assert_eq!(size(76, 294), Race::gen_size(&mut rng, &age, &t));
-        assert_eq!(size(73, 282), Race::gen_size(&mut rng, &age, &t));
-        assert_eq!(size(81, 314), Race::gen_size(&mut rng, &age, &t));
+        assert_eq!(size(77, 298), Species::gen_size(&mut rng, &age, &t));
+        assert_eq!(size(79, 306), Species::gen_size(&mut rng, &age, &t));
+        assert_eq!(size(76, 294), Species::gen_size(&mut rng, &age, &t));
+        assert_eq!(size(73, 282), Species::gen_size(&mut rng, &age, &t));
+        assert_eq!(size(81, 314), Species::gen_size(&mut rng, &age, &t));
     }
 }

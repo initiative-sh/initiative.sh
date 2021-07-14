@@ -1,8 +1,8 @@
 use super::{Age, Gender, Generate, Rng, Size};
 
-pub struct Race;
+pub struct Species;
 
-impl Race {
+impl Species {
     fn age(years: u16) -> Age {
         match years {
             y if y < 2 => Age::Infant(y),
@@ -18,23 +18,23 @@ impl Race {
 }
 
 #[cfg(test)]
-mod test_race {
-    use super::{Age, Race};
+mod test_species {
+    use super::{Age, Species};
 
     #[test]
     fn age_test() {
-        assert_eq!(Age::Infant(0), Race::age(0));
-        assert_eq!(Age::Child(2), Race::age(2));
-        assert_eq!(Age::Adolescent(10), Race::age(10));
-        assert_eq!(Age::YoungAdult(20), Race::age(20));
-        assert_eq!(Age::Adult(30), Race::age(30));
-        assert_eq!(Age::MiddleAged(40), Race::age(40));
-        assert_eq!(Age::Elderly(60), Race::age(60));
-        assert_eq!(Age::Geriatric(70), Race::age(70));
+        assert_eq!(Age::Infant(0), Species::age(0));
+        assert_eq!(Age::Child(2), Species::age(2));
+        assert_eq!(Age::Adolescent(10), Species::age(10));
+        assert_eq!(Age::YoungAdult(20), Species::age(20));
+        assert_eq!(Age::Adult(30), Species::age(30));
+        assert_eq!(Age::MiddleAged(40), Species::age(40));
+        assert_eq!(Age::Elderly(60), Species::age(60));
+        assert_eq!(Age::Geriatric(70), Species::age(70));
     }
 }
 
-impl Generate for Race {
+impl Generate for Species {
     fn gen_gender(rng: &mut impl Rng) -> Gender {
         match rng.gen_range(1..=101) {
             1..=50 => Gender::Feminine,
@@ -107,7 +107,7 @@ impl Generate for Race {
 }
 
 #[cfg(test)]
-mod test_generate_for_race {
+mod test_generate_for_species {
     use super::*;
     use rand::rngs::mock::StepRng;
     use std::collections::HashMap;
@@ -118,7 +118,7 @@ mod test_generate_for_race {
         let mut genders: HashMap<String, u16> = HashMap::new();
 
         for _ in 0..100 {
-            let gender = Race::gen_gender(&mut rng);
+            let gender = Species::gen_gender(&mut rng);
             *genders.entry(format!("{}", gender)).or_default() += 1;
         }
 
@@ -132,23 +132,23 @@ mod test_generate_for_race {
     fn gen_age_test() {
         let mut rng = StepRng::new(0, 0xDECAFBAD);
 
-        assert_eq!(Age::Infant(0), Race::gen_age(&mut rng));
-        assert_eq!(Age::Elderly(69), Race::gen_age(&mut rng));
-        assert_eq!(Age::MiddleAged(59), Race::gen_age(&mut rng));
-        assert_eq!(Age::MiddleAged(48), Race::gen_age(&mut rng));
-        assert_eq!(Age::Adult(38), Race::gen_age(&mut rng));
-        assert_eq!(Age::YoungAdult(28), Race::gen_age(&mut rng));
-        assert_eq!(Age::Adolescent(17), Race::gen_age(&mut rng));
-        assert_eq!(Age::Child(7), Race::gen_age(&mut rng));
-        assert_eq!(Age::Geriatric(76), Race::gen_age(&mut rng));
+        assert_eq!(Age::Infant(0), Species::gen_age(&mut rng));
+        assert_eq!(Age::Elderly(69), Species::gen_age(&mut rng));
+        assert_eq!(Age::MiddleAged(59), Species::gen_age(&mut rng));
+        assert_eq!(Age::MiddleAged(48), Species::gen_age(&mut rng));
+        assert_eq!(Age::Adult(38), Species::gen_age(&mut rng));
+        assert_eq!(Age::YoungAdult(28), Species::gen_age(&mut rng));
+        assert_eq!(Age::Adolescent(17), Species::gen_age(&mut rng));
+        assert_eq!(Age::Child(7), Species::gen_age(&mut rng));
+        assert_eq!(Age::Geriatric(76), Species::gen_age(&mut rng));
     }
 
     #[test]
     fn gen_size_male_test() {
         let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
         let mut iter = (0u16..=20).map(move |y| {
-            let age = Race::age(y);
-            let size = Race::gen_size(&mut rng, &age, &Gender::Masculine);
+            let age = Species::age(y);
+            let size = Species::gen_size(&mut rng, &age, &Gender::Masculine);
             (y, size.name(), size.height(), size.weight())
         });
 
@@ -182,8 +182,8 @@ mod test_generate_for_race {
     fn gen_size_female_test() {
         let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
         let mut iter = (0u16..=20).map(move |y| {
-            let age = Race::age(y);
-            let size = Race::gen_size(&mut rng, &age, &Gender::Feminine);
+            let age = Species::age(y);
+            let size = Species::gen_size(&mut rng, &age, &Gender::Feminine);
             (y, size.name(), size.height(), size.weight())
         });
 

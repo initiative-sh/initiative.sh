@@ -178,7 +178,7 @@ pub fn generate_inn(location: &mut Location, rng: &mut impl Rng, _demographics: 
             11 => "Gathering place for a secret society",
             12..=13 => "Upper-class dining club",
             14..=15 => "Gambling den",
-            16..=17 => "Caters to a specific race or guild",
+            16..=17 => "Caters to a specific species or guild",
             18 => "Members-only club",
             19..=20 => "Members-only club",
             _ => unreachable!(),
