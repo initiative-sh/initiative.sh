@@ -115,7 +115,7 @@ mod test_try_from_noun_for_building_type {
 
 impl From<BuildingType> for LocationType {
     fn from(building_type: BuildingType) -> LocationType {
-        LocationType::Building(building_type)
+        LocationType::Building(Some(building_type))
     }
 }
 
@@ -126,7 +126,7 @@ mod test_from_building_type_for_location_type {
     #[test]
     fn from_test() {
         assert_eq!(
-            LocationType::Building(BuildingType::Inn),
+            LocationType::Building(Some(BuildingType::Inn)),
             BuildingType::Inn.into(),
         );
     }

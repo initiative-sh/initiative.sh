@@ -40,7 +40,7 @@ pub struct Location {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LocationType {
-    Building(BuildingType),
+    Building(Option<BuildingType>),
 }
 
 pub fn command(
@@ -129,13 +129,18 @@ impl Generate for Location {
 
         if let Some(value) = self.subtype.value() {
             match value {
-                LocationType::Building(building_type) => match building_type {
-                    BuildingType::Inn => generate_inn(self, rng, demographics),
-                    BuildingType::Residence => generate_residence(self, rng, demographics),
-                    BuildingType::Shop => generate_shop(self, rng, demographics),
-                    BuildingType::Temple => generate_temple(self, rng, demographics),
-                    BuildingType::Warehouse => generate_warehouse(self, rng, demographics),
-                },
+                LocationType::Building(building_type) => {
+                    let building_type =
+                        building_type.unwrap_or_else(|| BuildingType::generate(rng, demographics));
+
+                    match building_type {
+                        BuildingType::Inn => generate_inn(self, rng, demographics),
+                        BuildingType::Residence => generate_residence(self, rng, demographics),
+                        BuildingType::Shop => generate_shop(self, rng, demographics),
+                        BuildingType::Temple => generate_temple(self, rng, demographics),
+                        BuildingType::Warehouse => generate_warehouse(self, rng, demographics),
+                    }
+                }
             }
         }
     }
@@ -172,14 +177,15 @@ impl Default for LocationType {
 
 impl Generate for LocationType {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
-        *self = Self::Building(BuildingType::generate(rng, demographics));
+        *self = Self::Building(Some(BuildingType::generate(rng, demographics)));
     }
 }
 
 impl fmt::Display for LocationType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Building(building_type) => write!(f, "{}", building_type),
+            Self::Building(Some(building_type)) => write!(f, "{}", building_type),
+            Self::Building(None) => write!(f, "Building"),
         }
     }
 }
@@ -189,7 +195,7 @@ impl TryFrom<Noun> for LocationType {
 
     fn try_from(value: Noun) -> Result<Self, Self::Error> {
         if let Ok(building_type) = value.try_into() {
-            Ok(LocationType::Building(building_type))
+            Ok(LocationType::Building(Some(building_type)))
         } else {
             Err(())
         }
@@ -203,10 +209,7 @@ mod test_location_type {
 
     #[test]
     fn default_test() {
-        assert_eq!(
-            LocationType::Building(BuildingType::default()),
-            LocationType::default(),
-        );
+        assert_eq!(LocationType::Building(None), LocationType::default());
     }
 
     #[test]
@@ -224,14 +227,16 @@ mod test_location_type {
     fn display_test() {
         assert_eq!(
             format!("{}", BuildingType::Inn),
-            format!("{}", LocationType::Building(BuildingType::Inn)),
+            format!("{}", LocationType::Building(Some(BuildingType::Inn))),
         );
+
+        assert_eq!("Building", format!("{}", LocationType::Building(None)));
     }
 
     #[test]
     fn try_from_noun_test() {
         assert_eq!(
-            Ok(LocationType::Building(BuildingType::Inn)),
+            Ok(LocationType::Building(Some(BuildingType::Inn))),
             Noun::Inn.try_into(),
         );
 
