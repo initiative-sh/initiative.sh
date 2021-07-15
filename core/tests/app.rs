@@ -21,7 +21,7 @@ fn debug() {
 #[test]
 fn unknown() {
     assert_eq!(
-        "RawCommand { text: \"blah blah\", words: [Unknown(\"blah\"), Unknown(\"blah\")] }",
+        "Unknown command: \"blah blah\"",
         format!("{}", app().command("blah blah")).as_str()
     );
 }

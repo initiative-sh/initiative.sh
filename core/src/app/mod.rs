@@ -7,7 +7,7 @@ mod parser;
 
 pub use context::Context;
 pub use parser::syntax;
-pub use parser::{AppCommand, Command, RawCommand, StorageCommand, WorldCommand};
+pub use parser::{AppCommand, Command, StorageCommand, WorldCommand};
 
 pub struct App {
     context: Context,
@@ -22,14 +22,12 @@ impl App {
         }
     }
 
-    pub fn command(&mut self, raw_command: &str) -> Box<dyn Display> {
-        let command_subtype: Command = raw_command.parse().unwrap();
-
-        match command_subtype {
-            Command::App(c) => command(&c, &mut self.context),
-            Command::Storage(c) => crate::storage::command(&c, &mut self.context),
-            Command::World(c) => crate::world::command(&c, &mut self.context, &mut self.rng),
-            Command::Unknown(c) => Box::new(format!("{:?}", c)),
+    pub fn command(&mut self, input: &str) -> Box<dyn Display> {
+        match input.parse() {
+            Ok(Command::App(c)) => command(&c, &mut self.context),
+            Ok(Command::Storage(c)) => crate::storage::command(&c, &mut self.context),
+            Ok(Command::World(c)) => crate::world::command(&c, &mut self.context, &mut self.rng),
+            Err(()) => Box::new(format!("Unknown command: \"{}\"", input)),
         }
     }
 }
