@@ -28,10 +28,9 @@ pub struct RawCommand {
 
 impl From<RawCommand> for Command {
     fn from(mut raw: RawCommand) -> Command {
-        raw = match raw.try_into() {
-            Ok(command) => return Command::App(command),
-            Err(raw) => raw,
-        };
+        if let Ok(command) = raw.text.parse() {
+            return Command::App(command);
+        }
 
         raw = match raw.try_into() {
             Ok(command) => return Command::Storage(command),

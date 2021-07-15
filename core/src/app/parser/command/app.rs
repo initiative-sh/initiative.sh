@@ -1,23 +1,24 @@
-use std::convert::TryFrom;
+use initiative_macros::WordList;
 
-use super::{RawCommand, Verb};
-
-#[derive(Debug)]
+#[derive(Debug, WordList)]
 pub enum AppCommand {
-    Debug(RawCommand),
-    Help(RawCommand),
-    Quit(RawCommand),
+    Debug,
 }
 
-impl TryFrom<RawCommand> for AppCommand {
-    type Error = RawCommand;
+#[cfg(test)]
+mod test {
+    use super::*;
 
-    fn try_from(raw: RawCommand) -> Result<AppCommand, RawCommand> {
-        match raw.get_verb() {
-            Some(Verb::Debug) => Ok(AppCommand::Debug(raw)),
-            Some(Verb::Help) => Ok(AppCommand::Help(raw)),
-            Some(Verb::Quit) => Ok(AppCommand::Quit(raw)),
-            _ => Err(raw),
-        }
+    #[test]
+    fn from_str_test() {
+        let parsed_command = "debug".parse();
+        assert!(
+            matches!(parsed_command, Ok(AppCommand::Debug)),
+            "{:?}",
+            parsed_command,
+        );
+
+        let parsed_command = "potato".parse::<AppCommand>();
+        assert!(matches!(parsed_command, Err(())), "{:?}", parsed_command);
     }
 }
