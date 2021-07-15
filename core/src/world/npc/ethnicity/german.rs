@@ -9,11 +9,11 @@ impl Ethnicity {
     #[rustfmt::skip]
     const FEMININE_NAMES: &'static [&'static str] = &[
         "Adelhayt", "Affra", "Agatha", "Allet", "Angnes", "Anna", "Apell", "Applonia", "Barbara",
-        "Brida", "Brigita", "Cecilia", "Clara", "Cristi", "na", "Dorothea", "Duretta", "Ella",
-        "Els", "Elsbeth", "Engel", "Enlein", "Enndlin", "Eva", "Fela", "Fronicka", "Genefe",
-        "Geras", "Gerhauss", "Gertrudt", "Guttel", "Helena", "Irmel", "Jonata", "Kate", "rina",
-        "Kuen", "Kungund", "Lucia", "Madalena", "Magdalen", "Margret", "Marlein", "Martha",
-        "Otilia", "Ottilg", "Peternella", "Reusin", "Sibilla", "Ursel", "Vrsula", "Walpurg",
+        "Brida", "Brigita", "Cecilia", "Clara", "Cristina", "Dorothea", "Duretta", "Ella", "Els",
+        "Elsbeth", "Engel", "Enlein", "Enndlin", "Eva", "Fela", "Fronicka", "Genefe", "Geras",
+        "Gerhauss", "Gertrudt", "Guttel", "Helena", "Irmel", "Jonata", "Katerina", "Kuen",
+        "Kungund", "Lucia", "Madalena", "Magdalen", "Margret", "Marlein", "Martha", "Otilia",
+        "Ottilg", "Peternella", "Reusin", "Sibilla", "Ursel", "Vrsula", "Walpurg",
     ];
 
     #[rustfmt::skip]
@@ -66,7 +66,7 @@ mod test_generate_for_ethnicity {
         let t = Gender::Trans;
 
         assert_eq!(
-            ["Albrecht", "Thoman", "Lucia", "Helena", "Hans", "Berhart"],
+            ["Albrecht", "Thoman", "Helena", "Els", "Berhart", "Martha"],
             [
                 gen_name(&mut rng, &age, &m),
                 gen_name(&mut rng, &age, &m),

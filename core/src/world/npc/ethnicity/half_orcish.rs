@@ -56,7 +56,14 @@ mod test_generate_for_ethnicity {
         let t = Gender::Trans;
 
         assert_eq!(
-            ["Thokk", "Ilhicamina", "Rosario", "Agnez", "Kamakani", "Wei"],
+            [
+                "Thokk",
+                "Ilhicamina",
+                "Rosario",
+                "Agnez",
+                "Kamakani",
+                "Renshu",
+            ],
             [
                 gen_name(&mut rng, &age, &m),
                 gen_name(&mut rng, &age, &m),
@@ -64,7 +71,7 @@ mod test_generate_for_ethnicity {
                 gen_name(&mut rng, &age, &f),
                 gen_name(&mut rng, &age, &t),
                 gen_name(&mut rng, &age, &t),
-            ]
+            ],
         );
     }
 
