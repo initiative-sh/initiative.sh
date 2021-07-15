@@ -6,7 +6,6 @@ mod context;
 mod parser;
 
 pub use context::Context;
-pub use parser::syntax;
 pub use parser::{AppCommand, Command, StorageCommand, WorldCommand};
 
 pub struct App {
