@@ -6,7 +6,7 @@ mod app;
 mod storage;
 mod world;
 
-use std::convert::{Infallible, TryInto};
+use std::convert::Infallible;
 use std::str::FromStr;
 
 use super::{Noun, Verb, Word};
@@ -27,15 +27,14 @@ pub struct RawCommand {
 }
 
 impl From<RawCommand> for Command {
-    fn from(mut raw: RawCommand) -> Command {
+    fn from(raw: RawCommand) -> Command {
         if let Ok(command) = raw.text.parse() {
             return Command::App(command);
         }
 
-        raw = match raw.try_into() {
-            Ok(command) => return Command::Storage(command),
-            Err(raw) => raw,
-        };
+        if let Ok(command) = raw.text.parse() {
+            return Command::Storage(command);
+        }
 
         if let Ok(command) = raw.text.parse() {
             return Command::World(command);
