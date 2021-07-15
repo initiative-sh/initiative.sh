@@ -2,11 +2,11 @@ use rand::prelude::*;
 use rand::rngs::SmallRng;
 use std::fmt::Display;
 
+mod command;
 mod context;
-mod parser;
 
+pub use command::{AppCommand, Command, StorageCommand, WorldCommand};
 pub use context::Context;
-pub use parser::{AppCommand, Command, StorageCommand, WorldCommand};
 
 pub struct App {
     context: Context,
