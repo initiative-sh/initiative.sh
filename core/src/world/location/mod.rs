@@ -1,14 +1,13 @@
-use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::str::FromStr;
 
 use rand::Rng;
 
 use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
-use crate::app::{Context, RawCommand};
-use crate::syntax::Noun;
+use crate::app::Context;
 use view::{DetailsView, SummaryView};
 
 pub use building::*;
@@ -40,44 +39,40 @@ pub struct Location {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LocationType {
-    Building(BuildingType),
+    Building(Option<BuildingType>),
 }
 
 pub fn command(
-    command: &RawCommand,
+    location_type: &LocationType,
     context: &mut Context,
     rng: &mut impl Rng,
 ) -> Box<dyn fmt::Display> {
-    if let Some(&noun) = command.get_noun() {
-        let mut location = Location::default();
-        let mut output = String::new();
+    let location = Location {
+        subtype: Field::Locked(*location_type),
+        ..Default::default()
+    };
 
-        if let Ok(location_subtype) = noun.try_into() {
-            location.subtype = Field::new(location_subtype);
-        }
+    let mut output = String::new();
 
-        {
-            let mut location = location.clone();
-            location.regenerate(rng, &context.demographics);
-            output.push_str(&format!("{}\n\nAlternatives:", location.display_details()));
-            context.push_recent(location.into());
-        }
-
-        context.batch_push_recent(
-            (0..10)
-                .map(|i| {
-                    let mut location = location.clone();
-                    location.regenerate(rng, &context.demographics);
-                    output.push_str(&format!("\n{} {}", i, location.display_summary()));
-                    location.into()
-                })
-                .collect(),
-        );
-
-        Box::new(output)
-    } else {
-        unimplemented!();
+    {
+        let mut location = location.clone();
+        location.regenerate(rng, &context.demographics);
+        output.push_str(&format!("{}\n\nAlternatives:", location.display_details()));
+        context.push_recent(location.into());
     }
+
+    context.batch_push_recent(
+        (0..10)
+            .map(|i| {
+                let mut location = location.clone();
+                location.regenerate(rng, &context.demographics);
+                output.push_str(&format!("\n{} {}", i, location.display_summary()));
+                location.into()
+            })
+            .collect(),
+    );
+
+    Box::new(output)
 }
 
 impl Deref for Uuid {
@@ -127,15 +122,22 @@ impl Generate for Location {
             }
         });
 
-        if let Some(value) = self.subtype.value() {
+        if let Some(value) = self.subtype.value_mut() {
             match value {
-                LocationType::Building(building_type) => match building_type {
-                    BuildingType::Inn => generate_inn(self, rng, demographics),
-                    BuildingType::Residence => generate_residence(self, rng, demographics),
-                    BuildingType::Shop => generate_shop(self, rng, demographics),
-                    BuildingType::Temple => generate_temple(self, rng, demographics),
-                    BuildingType::Warehouse => generate_warehouse(self, rng, demographics),
-                },
+                LocationType::Building(mut building_type) => {
+                    if building_type.is_none() {
+                        building_type.replace(BuildingType::generate(rng, demographics));
+                        self.subtype = Field::Locked(LocationType::Building(building_type));
+                    }
+
+                    match building_type.unwrap() {
+                        BuildingType::Inn => generate_inn(self, rng, demographics),
+                        BuildingType::Residence => generate_residence(self, rng, demographics),
+                        BuildingType::Shop => generate_shop(self, rng, demographics),
+                        BuildingType::Temple => generate_temple(self, rng, demographics),
+                        BuildingType::Warehouse => generate_warehouse(self, rng, demographics),
+                    }
+                }
             }
         }
     }
@@ -172,24 +174,27 @@ impl Default for LocationType {
 
 impl Generate for LocationType {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
-        *self = Self::Building(BuildingType::generate(rng, demographics));
+        *self = Self::Building(Some(BuildingType::generate(rng, demographics)));
     }
 }
 
 impl fmt::Display for LocationType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Building(building_type) => write!(f, "{}", building_type),
+            Self::Building(Some(building_type)) => write!(f, "{}", building_type),
+            Self::Building(None) => write!(f, "Building"),
         }
     }
 }
 
-impl TryFrom<Noun> for LocationType {
-    type Error = ();
+impl FromStr for LocationType {
+    type Err = ();
 
-    fn try_from(value: Noun) -> Result<Self, Self::Error> {
-        if let Ok(building_type) = value.try_into() {
-            Ok(LocationType::Building(building_type))
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        if let Ok(building_type) = raw.parse() {
+            Ok(LocationType::Building(Some(building_type)))
+        } else if raw == "building" {
+            Ok(LocationType::Building(None))
         } else {
             Err(())
         }
@@ -198,15 +203,12 @@ impl TryFrom<Noun> for LocationType {
 
 #[cfg(test)]
 mod test_location_type {
-    use super::{BuildingType, Demographics, Generate, LocationType, Noun, TryInto};
+    use super::{BuildingType, Demographics, Generate, LocationType};
     use rand::rngs::mock::StepRng;
 
     #[test]
     fn default_test() {
-        assert_eq!(
-            LocationType::Building(BuildingType::default()),
-            LocationType::default(),
-        );
+        assert_eq!(LocationType::Building(None), LocationType::default());
     }
 
     #[test]
@@ -224,18 +226,84 @@ mod test_location_type {
     fn display_test() {
         assert_eq!(
             format!("{}", BuildingType::Inn),
-            format!("{}", LocationType::Building(BuildingType::Inn)),
+            format!("{}", LocationType::Building(Some(BuildingType::Inn))),
         );
+
+        assert_eq!("Building", format!("{}", LocationType::Building(None)));
     }
 
     #[test]
     fn try_from_noun_test() {
         assert_eq!(
-            Ok(LocationType::Building(BuildingType::Inn)),
-            Noun::Inn.try_into(),
+            Ok(LocationType::Building(Some(BuildingType::Inn))),
+            "inn".parse()
         );
 
-        let location_type: Result<LocationType, ()> = Noun::Building.try_into();
+        assert_eq!(Ok(LocationType::Building(None)), "building".parse());
+
+        let location_type: Result<LocationType, ()> = "npc".parse();
         assert_eq!(Err(()), location_type);
+    }
+}
+
+#[cfg(test)]
+mod test_command {
+    use super::*;
+    use crate::world::Thing;
+    use rand::rngs::mock::StepRng;
+    use std::collections::HashMap;
+
+    #[test]
+    fn any_building_test() {
+        let mut context = Context::default();
+        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut results: HashMap<_, u8> = HashMap::new();
+
+        command(&LocationType::Building(None), &mut context, &mut rng);
+
+        context.recent().iter().for_each(|thing| {
+            if let Thing::Location(location) = thing {
+                if let Some(location_type) = location.subtype.value() {
+                    *results.entry(format!("{}", location_type)).or_default() += 1;
+                }
+            }
+        });
+
+        assert!(results.len() > 1, "{:?}\n{:?}", context, results);
+        assert_eq!(11u8, results.values().sum(), "{:?}\n{:?}", context, results);
+    }
+
+    #[test]
+    fn specific_building_test() {
+        let mut context = Context::default();
+        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+
+        command(
+            &LocationType::Building(Some(BuildingType::Inn)),
+            &mut context,
+            &mut rng,
+        );
+
+        assert_eq!(
+            11,
+            context
+                .recent()
+                .iter()
+                .map(|thing| {
+                    if let Thing::Location(location) = thing {
+                        assert_eq!(
+                            Some(&LocationType::Building(Some(BuildingType::Inn))),
+                            location.subtype.value(),
+                            "{:?}",
+                            context,
+                        );
+                    } else {
+                        panic!("{:?}\n{:?}", thing, context);
+                    }
+                })
+                .count(),
+            "{:?}",
+            context,
+        );
     }
 }

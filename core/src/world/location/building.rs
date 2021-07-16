@@ -1,11 +1,11 @@
-use std::convert::TryFrom;
 use std::fmt;
 
 use rand::Rng;
 
-use super::{Demographics, Generate, Location, LocationType, Noun};
+use super::{Demographics, Generate, Location, LocationType};
+use initiative_macros::WordList;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, WordList)]
 pub enum BuildingType {
     Inn,
     Residence,
@@ -80,42 +80,22 @@ mod test_display_for_building_type {
     }
 }
 
-impl TryFrom<Noun> for BuildingType {
-    type Error = ();
-
-    fn try_from(value: Noun) -> Result<Self, Self::Error> {
-        match value {
-            Noun::Inn => Ok(BuildingType::Inn),
-            Noun::Temple => Ok(BuildingType::Temple),
-            Noun::Residence => Ok(BuildingType::Residence),
-            Noun::Shop => Ok(BuildingType::Shop),
-            Noun::Warehouse => Ok(BuildingType::Warehouse),
-            _ => Err(()),
-        }
-    }
-}
-
 #[cfg(test)]
 mod test_try_from_noun_for_building_type {
-    use super::{BuildingType, Noun};
-    use std::convert::TryInto;
+    use super::BuildingType;
 
     #[test]
     fn try_from_test() {
-        assert_eq!(Ok(BuildingType::Inn), Noun::Inn.try_into());
-        assert_eq!(Ok(BuildingType::Temple), Noun::Temple.try_into());
-        assert_eq!(Ok(BuildingType::Residence), Noun::Residence.try_into());
-        assert_eq!(Ok(BuildingType::Shop), Noun::Shop.try_into());
-        assert_eq!(Ok(BuildingType::Warehouse), Noun::Warehouse.try_into());
+        assert_eq!(Ok(BuildingType::Inn), "inn".parse());
 
-        let building_type: Result<BuildingType, ()> = Noun::Building.try_into();
+        let building_type: Result<BuildingType, ()> = "potato".parse();
         assert_eq!(Err(()), building_type);
     }
 }
 
 impl From<BuildingType> for LocationType {
     fn from(building_type: BuildingType) -> LocationType {
-        LocationType::Building(building_type)
+        LocationType::Building(Some(building_type))
     }
 }
 
@@ -126,7 +106,7 @@ mod test_from_building_type_for_location_type {
     #[test]
     fn from_test() {
         assert_eq!(
-            LocationType::Building(BuildingType::Inn),
+            LocationType::Building(Some(BuildingType::Inn)),
             BuildingType::Inn.into(),
         );
     }

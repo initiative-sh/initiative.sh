@@ -1,0 +1,33 @@
+pub use app::AppCommand;
+pub use storage::StorageCommand;
+pub use world::WorldCommand;
+
+mod app;
+mod storage;
+mod world;
+
+use std::str::FromStr;
+
+#[derive(Debug)]
+pub enum Command {
+    App(AppCommand),
+    // Context(ContextCommand),
+    World(WorldCommand),
+    Storage(StorageCommand),
+}
+
+impl FromStr for Command {
+    type Err = ();
+
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        if let Ok(command) = raw.parse() {
+            Ok(Command::App(command))
+        } else if let Ok(command) = raw.parse() {
+            Ok(Command::Storage(command))
+        } else if let Ok(command) = raw.parse() {
+            Ok(Command::World(command))
+        } else {
+            Err(())
+        }
+    }
+}

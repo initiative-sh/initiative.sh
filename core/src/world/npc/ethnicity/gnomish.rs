@@ -22,7 +22,7 @@ impl Ethnicity {
         "Alston", "Alvyn", "Anverth", "Arumawann", "Bilbron", "Boddynock", "Broce", "Burgell",
         "Cockaby", "Crampernap", "Dabbledob", "Delebean", "Dimble", "Eberdeb", "Eldon", "Erky",
         "Fabien", "Fibblestib", "Fonkin", "Frouse", "Frug", "Gerbo", "Gimble", "Glim", "Igden",
-        "Jabbie", "jebeddo", "Kellen", "Kipper", "Namfoodle", "Oppleby", "Orryn", "Paggen",
+        "Jabbie", "Jebeddo", "Kellen", "Kipper", "Namfoodle", "Oppleby", "Orryn", "Paggen",
         "Pallabar", "Pog", "Qualen", "Ribbles", "Rimple", "Roondar", "Sapply", "Seebo", "Senteq",
         "Sindri", "Umpen", "Warryn", "Wiggens", "Wobbles", "Wrenn", "Zaffrab", "Zook",
     ];

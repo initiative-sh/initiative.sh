@@ -11,7 +11,7 @@ impl Ethnicity {
         "Adelaide", "Agatha", "Agnes", "Alice", "Aline", "Anne", "Avelina", "Avice", "Beatrice",
         "Cecily", "Egelina", "Eleanor", "Elizabeth", "Ella", "Eloise", "Elysande", "Emeny", "Emma",
         "Emmeline", "Ermina", "Eva", "Galiena", "Geva", "Giselle", "Griselda", "Hadwisa", "Helen",
-        "Herleva", "Hugolina", "Ida", "Isabella", "jacoba", "Jane", "Joan", "Juliana", "Katherine",
+        "Herleva", "Hugolina", "Ida", "Isabella", "Jacoba", "Jane", "Joan", "Juliana", "Katherine",
         "Margery", "Mary", "Matilda", "Maynild", "Millicent", "Oriel", "Rohesia", "Rosalind",
         "Rosamund", "Sarah", "Susannah", "Sybil", "Williamina", "Yvonne",
     ];
@@ -21,7 +21,7 @@ impl Ethnicity {
         "Adam", "Adelard", "Aldous", "Anselm", "Arnold", "Bernard", "Bertram", "Charles",
         "Clerebold", "Conrad", "Diggory", "Drogo", "Everard", "Frederick", "Geoffrey", "Gerald",
         "Gilbert", "Godfrey", "Gunter", "Guy", "Henry", "Heward", "Hubert", "Hugh", "Jocelyn",
-        "john", "Lance", "Manfred", "Miles", "Nicholas", "Norman", "Odo", "Percival", "Peter",
+        "John", "Lance", "Manfred", "Miles", "Nicholas", "Norman", "Odo", "Percival", "Peter",
         "Ralf", "Randal", "Raymond", "Reynard", "Richard", "Robert", "Roger", "Roland", "Rolf",
         "Simon", "Theobald", "Theodoric", "Thomas", "Timm", "William", "Wymar",
     ];

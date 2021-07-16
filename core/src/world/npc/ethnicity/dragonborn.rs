@@ -34,7 +34,7 @@ impl Ethnicity {
         "Dhyrktelonis", "Ebynichtomonis", "Esstyrlynn", "Fharngnarthnost", "Ghaallixirn",
         "Grrrmmballhyst", "Gygazzylyshrift", "Hashphronyxadyn", "Hshhsstoroth", "Imbixtellrhyst",
         "Jerynomonis", "Jharthraxyn", "Kerrhylon", "Kimbatuul", "Lhamboldennish",
-        "Linxakasendalor", "Mohradyllion", "Mys", "tan", "Nemmonis", "Norixius", "Ophinshtalajiir",
+        "Linxakasendalor", "Mohradyllion", "Mystan", "Nemmonis", "Norixius", "Ophinshtalajiir",
         "Orexijandilin", "Pfaphnyrennish", "Phrahdrandon", "Pyraxtallinost", "Qyxpahrgh",
         "Raghthroknaar", "Shestendeliath", "Skaarzborroosh", "Sumnarghthrysh", "Tiammanthyllish",
         "Turnuroth", "Umbyrphrael", "Vangdondalor", "Verthisathurgiesh", "Wivvyrholdalphiax",
@@ -84,11 +84,11 @@ mod test_generate_for_ethnicity {
         assert_eq!(
             [
                 "Akambherylliax Srorthen",
-                "Raghthroknaar Nithther",
-                "Lhamboldennish Gilkass",
-                "Ebynichtomonis Biri",
-                "Kerrhylon Furrele",
-                "Wivvyrholdalphiax Rivaan"
+                "Ophinshtalajiir Hirrathak",
+                "Bhenkumbyrznaax Savaran",
+                "Nemmonis Furrele",
+                "Sumnarghthrysh Kava",
+                "Akambherylliax Rathkran",
             ],
             [
                 gen_name(&mut rng, &age, &m),

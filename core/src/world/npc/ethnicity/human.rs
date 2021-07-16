@@ -51,7 +51,7 @@ mod test_generate_for_ethnicity {
                 "Rosario",
                 "Agnez",
                 "Kamakani",
-                "Wei"
+                "Renshu",
             ],
             [
                 gen_name(&mut rng, &age, &m),

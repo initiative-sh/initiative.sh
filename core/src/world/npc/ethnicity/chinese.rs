@@ -17,8 +17,8 @@ impl Ethnicity {
 
     #[rustfmt::skip]
     const MASCULINE_NAMES: &'static [&'static str] = &[
-        "Bingwen", "Bo", "Bolin", "Chang", "Chao", "Chen", "Cheng", "Da", "Dingxia", "ng", "Fang",
-        "Feng", "Fu", "Gang", "Guang", "Hai", "He", "ng", "Ho", "ng", "Huan", "Huang", "Huiliang",
+        "Bingwen", "Bo", "Bolin", "Chang", "Chao", "Chen", "Cheng", "Da", "Dingxiang", "Fang",
+        "Feng", "Fu", "Gang", "Guang", "Hai", "Heng", "Hong", "Huan", "Huang", "Huiliang",
         "Huizhong", "Jian", "Jiayi", "Junjie", "Kang", "Lei", "Liang", "Ling", "Liwei", "Meilin",
         "Niu", "Peizhi", "Peng", "Ping", "Qiang", "Qiu", "Quan", "Renshu", "Rong", "Ru", "Shan",
         "Shen", "Tengfei", "Wei", "Xiaobo", "Xiaoli", "Xin", "Yang", "Ying", "Zhong",

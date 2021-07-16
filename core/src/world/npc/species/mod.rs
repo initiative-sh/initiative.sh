@@ -1,4 +1,3 @@
-use std::convert::TryFrom;
 use std::fmt;
 use std::ops::RangeInclusive;
 
@@ -6,7 +5,7 @@ use rand::Rng;
 use rand_distr::{Distribution, Normal};
 
 use super::{Age, Ethnicity, Gender, Npc, Size};
-use crate::syntax::Noun;
+use initiative_macros::WordList;
 
 mod dragonborn;
 mod dwarf;
@@ -19,7 +18,7 @@ mod human;
 mod tiefling;
 mod warforged;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, WordList)]
 pub enum Species {
     Dragonborn,
     Dwarf,
@@ -202,42 +201,16 @@ mod test_species {
     }
 }
 
-impl TryFrom<Noun> for Species {
-    type Error = ();
-
-    fn try_from(noun: Noun) -> Result<Self, Self::Error> {
-        match noun {
-            Noun::Dragonborn => Ok(Species::Dragonborn),
-            Noun::Dwarf => Ok(Species::Dwarf),
-            Noun::Elf => Ok(Species::Elf),
-            Noun::Gnome => Ok(Species::Gnome),
-            Noun::HalfElf => Ok(Species::HalfElf),
-            Noun::HalfOrc => Ok(Species::HalfOrc),
-            Noun::Halfling => Ok(Species::Halfling),
-            Noun::Human => Ok(Species::Human),
-            Noun::Tiefling => Ok(Species::Tiefling),
-            Noun::Warforged => Ok(Species::Warforged),
-            _ => Err(()),
-        }
-    }
-}
-
 #[cfg(test)]
 mod test_try_from_noun_for_species {
     use super::*;
-    use std::convert::TryInto;
 
     #[test]
     fn try_from_test() {
-        assert_eq!(Ok(Species::Dragonborn), Noun::Dragonborn.try_into());
-        assert_eq!(Ok(Species::Dwarf), Noun::Dwarf.try_into());
-        assert_eq!(Ok(Species::Elf), Noun::Elf.try_into());
-        assert_eq!(Ok(Species::Gnome), Noun::Gnome.try_into());
-        assert_eq!(Ok(Species::Halfling), Noun::Halfling.try_into());
-        assert_eq!(Ok(Species::Human), Noun::Human.try_into());
-        assert_eq!(Ok(Species::Tiefling), Noun::Tiefling.try_into());
-        assert_eq!(Ok(Species::Warforged), Noun::Warforged.try_into());
-        assert_eq!(Err(()), Species::try_from(Noun::Inn));
+        assert_eq!(Ok(Species::Dragonborn), "dragonborn".parse());
+        assert_eq!(Ok(Species::HalfElf), "half elf".parse());
+        assert_eq!(Ok(Species::HalfElf), "half-elf".parse());
+        assert_eq!(Err(()), "potato".parse::<Species>());
     }
 }
 
