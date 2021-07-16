@@ -42,48 +42,54 @@ fn impl_word_list(ast: &syn::DeriveInput) -> TokenStream {
     let name = &ast.ident;
 
     if let syn::Data::Enum(data_enum) = &ast.data {
-        let (words_to_variants, variants_to_words): (Vec<_>, Vec<_>) = data_enum
-            .variants
-            .iter()
-            .map(|variant| {
-                let word: String = variant
-                    .ident
-                    .to_string()
-                    .chars()
-                    .enumerate()
-                    .map(|(i, c)| {
-                        if c.is_uppercase() {
-                            if i > 0 {
-                                format!("-{}", c.to_lowercase())
-                            } else {
-                                c.to_lowercase().to_string()
-                            }
+        let mut words_to_variants = Vec::new();
+        let mut variants_to_words = Vec::new();
+        let mut words = Vec::new();
+
+        data_enum.variants.iter().for_each(|variant| {
+            let word: String = variant
+                .ident
+                .to_string()
+                .chars()
+                .enumerate()
+                .map(|(i, c)| {
+                    if c.is_uppercase() {
+                        if i > 0 {
+                            format!("-{}", c.to_lowercase())
                         } else {
-                            c.to_string()
-                        }
-                    })
-                    .collect();
-
-                (
-                    if word.contains('-') {
-                        let alt_word: String = word
-                            .chars()
-                            .map(|c| if c == '-' { ' ' } else { c })
-                            .collect();
-
-                        quote! {
-                            #word => Ok(#name::#variant),
-                            #alt_word => Ok(#name::#variant),
+                            c.to_lowercase().to_string()
                         }
                     } else {
-                        quote! { #word => Ok(#name::#variant), }
-                    },
-                    quote! { #name::#variant => #word, },
-                )
-            })
-            .unzip();
+                        c.to_string()
+                    }
+                })
+                .collect();
+
+            words.push(quote! { #word, });
+            variants_to_words.push(quote! { #name::#variant => #word, });
+            words_to_variants.push(quote! { #word => Ok(#name::#variant),});
+
+            if word.contains('-') {
+                let alt_word: String = word
+                    .chars()
+                    .map(|c| if c == '-' { ' ' } else { c })
+                    .collect();
+
+                words_to_variants.push(quote! {
+                    #alt_word => Ok(#name::#variant),
+                });
+            }
+        });
 
         let gen = quote! {
+            impl #name {
+                pub fn get_words() -> &'static [&'static str] {
+                    return &[
+                        #(#words)*
+                    ];
+                }
+            }
+
             impl std::str::FromStr for #name {
                 type Err = ();
 
@@ -110,6 +116,7 @@ fn impl_word_list(ast: &syn::DeriveInput) -> TokenStream {
                 }
             }
         };
+        //panic!("{}", gen);
         gen.into()
     } else {
         unimplemented!();
