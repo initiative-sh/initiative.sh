@@ -1,8 +1,10 @@
 pub use app::AppCommand;
+pub use autocomplete::Autocomplete;
 pub use storage::StorageCommand;
 pub use world::WorldCommand;
 
 mod app;
+mod autocomplete;
 mod storage;
 mod world;
 
