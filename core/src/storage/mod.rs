@@ -1,7 +1,6 @@
 use crate::app::{Context, StorageCommand};
-use std::fmt;
 
-pub fn command(command: &StorageCommand, context: &mut Context) -> Box<dyn fmt::Display> {
+pub fn command(command: &StorageCommand, context: &mut Context) -> String {
     match command {
         StorageCommand::Load { query } => {
             let lowercase_query = query.to_lowercase();
@@ -10,9 +9,9 @@ pub fn command(command: &StorageCommand, context: &mut Context) -> Box<dyn fmt::
                     .value()
                     .map_or(false, |s| s.to_lowercase() == lowercase_query)
             }) {
-                Box::new(format!("{}", result.display_details()))
+                format!("{}", result.display_details())
             } else {
-                Box::new(format!("No matches for \"{}\"", query))
+                format!("No matches for \"{}\"", query)
             }
         }
     }

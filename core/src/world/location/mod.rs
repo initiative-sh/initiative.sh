@@ -40,11 +40,7 @@ pub enum LocationType {
     Building(Option<BuildingType>),
 }
 
-pub fn command(
-    location_type: &LocationType,
-    context: &mut Context,
-    rng: &mut impl Rng,
-) -> Box<dyn fmt::Display> {
+pub fn command(location_type: &LocationType, context: &mut Context, rng: &mut impl Rng) -> String {
     let location = Location {
         subtype: Field::Locked(*location_type),
         ..Default::default()
@@ -70,7 +66,7 @@ pub fn command(
             .collect(),
     );
 
-    Box::new(output)
+    output
 }
 
 impl Deref for Uuid {

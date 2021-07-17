@@ -15,7 +15,6 @@ mod view;
 use super::{Demographics, Field, Generate};
 use crate::app::Context;
 use rand::Rng;
-use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -40,11 +39,7 @@ pub struct Npc {
     // pub children: Field<Vec<Uuid>>,
 }
 
-pub fn command(
-    species: &Option<Species>,
-    context: &mut Context,
-    rng: &mut impl Rng,
-) -> Box<dyn fmt::Display> {
+pub fn command(species: &Option<Species>, context: &mut Context, rng: &mut impl Rng) -> String {
     let demographics = if let Some(species) = species {
         context.demographics.only_species(&species)
     } else {
@@ -67,7 +62,7 @@ pub fn command(
             .collect(),
     );
 
-    Box::new(output)
+    output
 }
 
 impl Deref for Uuid {
