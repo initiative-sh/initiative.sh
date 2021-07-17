@@ -31,7 +31,7 @@ impl App {
     }
 }
 
-pub fn command(command: &AppCommand, context: &mut Context) -> Box<dyn Display> {
+fn command(command: &AppCommand, context: &mut Context) -> Box<dyn Display> {
     match command {
         AppCommand::Debug => Box::new(format!("{:?}", context)),
     }
