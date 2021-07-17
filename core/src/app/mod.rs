@@ -1,12 +1,12 @@
-use rand::prelude::*;
-use rand::rngs::SmallRng;
-use std::fmt::Display;
+pub use command::{AppCommand, Command, StorageCommand, WorldCommand};
+pub use context::Context;
 
 mod command;
 mod context;
 
-pub use command::{AppCommand, Command, StorageCommand, WorldCommand};
-pub use context::Context;
+use rand::prelude::*;
+use rand::rngs::SmallRng;
+use std::fmt::Display;
 
 pub struct App {
     context: Context,

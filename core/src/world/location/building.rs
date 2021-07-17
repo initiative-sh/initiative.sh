@@ -1,9 +1,7 @@
-use std::fmt;
-
-use rand::Rng;
-
 use super::{Demographics, Generate, Location, LocationType};
 use initiative_macros::WordList;
+use rand::Rng;
+use std::fmt;
 
 #[derive(Clone, Copy, Debug, PartialEq, WordList)]
 pub enum BuildingType {

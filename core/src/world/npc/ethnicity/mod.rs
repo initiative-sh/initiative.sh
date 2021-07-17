@@ -1,9 +1,3 @@
-use std::fmt;
-
-use rand::Rng;
-
-use super::{Age, Gender, Npc, Species};
-
 mod arabic;
 mod celtic;
 mod chinese;
@@ -31,6 +25,10 @@ mod slavic;
 mod spanish;
 mod tiefling;
 mod warforged;
+
+use super::{Age, Gender, Npc, Species};
+use rand::Rng;
+use std::fmt;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum Ethnicity {

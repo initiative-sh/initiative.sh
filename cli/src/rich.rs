@@ -1,15 +1,13 @@
+use super::App;
 use std::fmt;
 use std::io;
 use std::io::prelude::*;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
-
 use termion::event::{Event, Key};
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
-
-use super::App;
 
 const CTRL_UP_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 65];
 const CTRL_DOWN_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 66];

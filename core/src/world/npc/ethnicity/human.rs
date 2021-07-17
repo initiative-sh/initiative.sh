@@ -1,6 +1,5 @@
-use rand::prelude::*;
-
 use super::{Age, Gender, Generate};
+use rand::prelude::*;
 
 pub struct Ethnicity;
 

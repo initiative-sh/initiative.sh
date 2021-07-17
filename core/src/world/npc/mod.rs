@@ -1,11 +1,3 @@
-use rand::Rng;
-use std::fmt;
-use std::ops::Deref;
-use std::rc::Rc;
-
-use super::{Demographics, Field, Generate};
-use crate::app::Context;
-
 pub use age::Age;
 pub use ethnicity::Ethnicity;
 pub use gender::Gender;
@@ -19,6 +11,13 @@ mod gender;
 mod size;
 mod species;
 mod view;
+
+use super::{Demographics, Field, Generate};
+use crate::app::Context;
+use rand::Rng;
+use std::fmt;
+use std::ops::Deref;
+use std::rc::Rc;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Uuid(uuid::Uuid);

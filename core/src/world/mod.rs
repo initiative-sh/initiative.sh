@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-use std::fmt;
-use std::rc::Rc;
-
-use rand::Rng;
-use uuid::Uuid;
+pub mod demographics;
+pub mod location;
+pub mod npc;
+pub mod region;
 
 pub use demographics::Demographics;
 pub use field::Field;
@@ -12,15 +10,15 @@ pub use npc::Npc;
 pub use region::Region;
 pub use thing::Thing;
 
-use crate::app::{Context, WorldCommand};
-
-pub mod demographics;
-pub mod location;
-pub mod npc;
-pub mod region;
-
 mod field;
 mod thing;
+
+use crate::app::{Context, WorldCommand};
+use rand::Rng;
+use std::collections::HashMap;
+use std::fmt;
+use std::rc::Rc;
+use uuid::Uuid;
 
 pub type WorldUuid = Uuid;
 

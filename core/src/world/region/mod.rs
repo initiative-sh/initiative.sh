@@ -1,7 +1,6 @@
+use super::{Demographics, Field};
 use std::ops::Deref;
 use std::rc::Rc;
-
-use super::{Demographics, Field};
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Uuid(uuid::Uuid);

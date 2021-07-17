@@ -1,6 +1,5 @@
-use std::fmt;
-
 use super::{Field, Location, Npc, Region};
+use std::fmt;
 
 #[derive(Debug)]
 pub enum Thing {

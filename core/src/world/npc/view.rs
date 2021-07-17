@@ -1,6 +1,5 @@
-use std::fmt;
-
 use super::Npc;
+use std::fmt;
 
 pub struct SummaryView<'a>(&'a Npc);
 

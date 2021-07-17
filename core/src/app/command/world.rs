@@ -1,7 +1,6 @@
-use std::str::FromStr;
-
 use crate::world::location::LocationType;
 use crate::world::npc::Species;
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub enum WorldCommand {
