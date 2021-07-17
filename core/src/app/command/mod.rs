@@ -34,3 +34,51 @@ impl FromStr for Command {
         }
     }
 }
+
+impl Autocomplete for Command {
+    fn autocomplete(input: &str) -> Vec<String> {
+        let mut suggestions = Vec::new();
+
+        suggestions.append(&mut AppCommand::autocomplete(input));
+        suggestions.append(&mut WorldCommand::autocomplete(input));
+
+        suggestions
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn from_str_test() {
+        {
+            let result = "debug".parse();
+            assert!(
+                matches!(result, Ok(Command::App(AppCommand::Debug))),
+                "{:?}",
+                result,
+            );
+        }
+
+        {
+            let result = "npc".parse();
+            assert!(
+                matches!(
+                    result,
+                    Ok(Command::World(WorldCommand::Npc { species: None })),
+                ),
+                "{:?}",
+                result,
+            );
+        }
+    }
+
+    #[test]
+    fn autocomplete_test() {
+        assert_eq!(
+            vec!["debug", "dragonborn", "dwarf"],
+            Command::autocomplete("d"),
+        );
+    }
+}
