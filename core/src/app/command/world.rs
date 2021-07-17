@@ -30,36 +30,13 @@ impl FromStr for WorldCommand {
 
 impl Autocomplete for WorldCommand {
     fn autocomplete(input: &str) -> Vec<String> {
-        let (start, partial) = input.split_at(
-            input
-                .rfind(char::is_whitespace)
-                .map(|i| {
-                    ((i + 1)..input.len())
-                        .find(|&i| input.is_char_boundary(i))
-                        .unwrap_or(input.len())
-                })
-                .unwrap_or(0),
-        );
-
-        if partial.is_empty() {
-            return Vec::new();
-        }
-
-        ["npc", "building"]
-            .iter()
-            .chain(Species::get_words().iter())
-            .chain(BuildingType::get_words().iter())
-            .filter_map(|word| {
-                if word.starts_with(partial) {
-                    let mut suggestion = String::with_capacity(start.len() + partial.len());
-                    suggestion.push_str(start);
-                    suggestion.push_str(word);
-                    Some(suggestion)
-                } else {
-                    None
-                }
-            })
-            .collect()
+        super::autocomplete_words(
+            input,
+            &mut ["npc", "building"]
+                .iter()
+                .chain(Species::get_words().iter())
+                .chain(BuildingType::get_words().iter()),
+        )
     }
 }
 
@@ -106,22 +83,6 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        assert_eq!(vec!["npc"], WorldCommand::autocomplete("n"));
-        assert_eq!(vec!["some npc"], WorldCommand::autocomplete("some n"));
-        assert_eq!(
-            vec!["potato half-elf", "potato half-orc", "potato halfling"],
-            WorldCommand::autocomplete("potato half"),
-        );
-
-        // Non-ASCII whitespace
-        assert_eq!(
-            vec!["foo\u{2003}npc"],
-            WorldCommand::autocomplete("foo\u{2003}n")
-        );
-    }
-
-    #[test]
-    fn autocomplete_test_all_words() {
         [
             "building",
             "npc",
@@ -145,13 +106,5 @@ mod test {
         ]
         .iter()
         .for_each(|word| assert_eq!(vec![word.to_string()], WorldCommand::autocomplete(word)));
-    }
-
-    #[test]
-    fn autocomplete_test_no_suggestions() {
-        assert_eq!(Vec::<String>::new(), WorldCommand::autocomplete(""));
-        assert_eq!(Vec::<String>::new(), WorldCommand::autocomplete("potato"));
-        assert_eq!(Vec::<String>::new(), WorldCommand::autocomplete("npc "));
-        assert_eq!(Vec::<String>::new(), WorldCommand::autocomplete("🥔"));
     }
 }

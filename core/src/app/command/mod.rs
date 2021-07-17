@@ -8,6 +8,7 @@ mod autocomplete;
 mod storage;
 mod world;
 
+use autocomplete::autocomplete_words;
 use std::str::FromStr;
 
 #[derive(Debug)]
