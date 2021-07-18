@@ -1,6 +1,5 @@
-use std::fmt;
-
 use super::Species;
+use std::fmt;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Age {

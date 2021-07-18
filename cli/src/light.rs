@@ -1,6 +1,5 @@
-use std::io;
-
 use super::App;
+use std::io;
 
 pub fn run(mut app: App) -> io::Result<()> {
     let mut buffer = String::new();

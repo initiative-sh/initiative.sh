@@ -1,12 +1,3 @@
-use std::fmt;
-use std::ops::RangeInclusive;
-
-use rand::Rng;
-use rand_distr::{Distribution, Normal};
-
-use super::{Age, Ethnicity, Gender, Npc, Size};
-use initiative_macros::WordList;
-
 mod dragonborn;
 mod dwarf;
 mod elf;
@@ -17,6 +8,13 @@ mod halfling;
 mod human;
 mod tiefling;
 mod warforged;
+
+use super::{Age, Ethnicity, Gender, Npc, Size};
+use initiative_macros::WordList;
+use rand::Rng;
+use rand_distr::{Distribution, Normal};
+use std::fmt;
+use std::ops::RangeInclusive;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, WordList)]
 pub enum Species {

@@ -1,7 +1,6 @@
+use super::{Age, Gender, Generate};
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
-
-use super::{Age, Gender, Generate};
 
 pub struct Ethnicity;
 

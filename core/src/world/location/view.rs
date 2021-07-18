@@ -1,6 +1,5 @@
-use std::fmt;
-
 use super::Location;
+use std::fmt;
 
 pub struct SummaryView<'a>(&'a Location);
 

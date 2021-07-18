@@ -1,6 +1,5 @@
-use std::fmt;
-
 use crate::app::{Context, StorageCommand};
+use std::fmt;
 
 pub fn command(command: &StorageCommand, context: &mut Context) -> Box<dyn fmt::Display> {
     match command {

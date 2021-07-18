@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-use std::iter;
-
+use super::npc::{Ethnicity, Species};
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
-
-use super::npc::{Ethnicity, Species};
+use std::collections::HashMap;
+use std::iter;
 
 #[derive(Clone, Debug)]
 pub struct Demographics {

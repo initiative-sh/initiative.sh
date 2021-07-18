@@ -1,19 +1,17 @@
-use std::fmt;
-use std::ops::Deref;
-use std::rc::Rc;
-use std::str::FromStr;
-
-use rand::Rng;
-
-use super::region::Uuid as RegionUuid;
-use super::{Demographics, Field, Generate};
-use crate::app::Context;
-use view::{DetailsView, SummaryView};
-
 pub use building::*;
 
 mod building;
 mod view;
+
+use super::region::Uuid as RegionUuid;
+use super::{Demographics, Field, Generate};
+use crate::app::Context;
+use rand::Rng;
+use std::fmt;
+use std::ops::Deref;
+use std::rc::Rc;
+use std::str::FromStr;
+use view::{DetailsView, SummaryView};
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Uuid(uuid::Uuid);
