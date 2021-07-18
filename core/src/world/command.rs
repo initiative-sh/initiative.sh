@@ -1,36 +1,36 @@
-use super::Autocomplete;
+use crate::app::{autocomplete_phrase, Autocomplete};
 use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
 use std::str::FromStr;
 
 #[derive(Debug)]
-pub enum WorldCommand {
+pub enum Command {
     Location { location_type: LocationType },
     Npc { species: Option<Species> },
     //Region(RawCommand),
 }
 
-impl FromStr for WorldCommand {
+impl FromStr for Command {
     type Err = ();
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
         if let Ok(species) = raw.parse() {
-            Ok(WorldCommand::Npc {
+            Ok(Self::Npc {
                 species: Some(species),
             })
         } else if let Ok(location_type) = raw.parse() {
-            Ok(WorldCommand::Location { location_type })
+            Ok(Self::Location { location_type })
         } else if "npc" == raw {
-            Ok(WorldCommand::Npc { species: None })
+            Ok(Self::Npc { species: None })
         } else {
             Err(())
         }
     }
 }
 
-impl Autocomplete for WorldCommand {
+impl Autocomplete for Command {
     fn autocomplete(input: &str) -> Vec<String> {
-        super::autocomplete_phrase(
+        autocomplete_phrase(
             input,
             &mut ["npc", "building"]
                 .iter()
@@ -50,7 +50,7 @@ mod test {
         assert!(
             matches!(
                 parsed_command,
-                Ok(WorldCommand::Location {
+                Ok(Command::Location {
                     location_type: LocationType::Building(None)
                 }),
             ),
@@ -60,7 +60,7 @@ mod test {
 
         let parsed_command = "npc".parse();
         assert!(
-            matches!(parsed_command, Ok(WorldCommand::Npc { species: None })),
+            matches!(parsed_command, Ok(Command::Npc { species: None })),
             "{:?}",
             parsed_command,
         );
@@ -69,7 +69,7 @@ mod test {
         assert!(
             matches!(
                 parsed_command,
-                Ok(WorldCommand::Npc {
+                Ok(Command::Npc {
                     species: Some(Species::Elf)
                 }),
             ),
@@ -77,7 +77,7 @@ mod test {
             parsed_command,
         );
 
-        let parsed_command = "potato".parse::<WorldCommand>();
+        let parsed_command = "potato".parse::<Command>();
         assert!(matches!(parsed_command, Err(())), "{:?}", parsed_command);
     }
 
@@ -105,6 +105,6 @@ mod test {
             "warehouse",
         ]
         .iter()
-        .for_each(|word| assert_eq!(vec![word.to_string()], WorldCommand::autocomplete(word)));
+        .for_each(|word| assert_eq!(vec![word.to_string()], Command::autocomplete(word)));
     }
 }

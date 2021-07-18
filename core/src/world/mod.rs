@@ -3,6 +3,7 @@ pub mod location;
 pub mod npc;
 pub mod region;
 
+pub use command::Command;
 pub use demographics::Demographics;
 pub use field::Field;
 pub use location::Location;
@@ -10,10 +11,11 @@ pub use npc::Npc;
 pub use region::Region;
 pub use thing::Thing;
 
+mod command;
 mod field;
 mod thing;
 
-use crate::app::{Context, WorldCommand};
+use crate::app::Context;
 use rand::Rng;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -21,10 +23,10 @@ use uuid::Uuid;
 
 pub type WorldUuid = Uuid;
 
-pub fn command(command: &WorldCommand, context: &mut Context, rng: &mut impl Rng) -> String {
+pub fn command(command: &Command, context: &mut Context, rng: &mut impl Rng) -> String {
     match command {
-        WorldCommand::Location { location_type } => location::command(location_type, context, rng),
-        WorldCommand::Npc { species } => npc::command(species, context, rng),
+        Command::Location { location_type } => location::command(location_type, context, rng),
+        Command::Npc { species } => npc::command(species, context, rng),
     }
 }
 
