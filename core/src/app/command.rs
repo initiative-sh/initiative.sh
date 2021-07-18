@@ -51,6 +51,7 @@ impl Autocomplete for Command {
         };
 
         append(AppCommand::autocomplete(input, context));
+        append(StorageCommand::autocomplete(input, context));
         append(WorldCommand::autocomplete(input, context));
 
         // No need to re-sort and truncate if we've only received suggestions from one command.

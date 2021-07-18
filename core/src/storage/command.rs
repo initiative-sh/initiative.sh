@@ -1,4 +1,4 @@
-use crate::app::Context;
+use crate::app::{Autocomplete, Context};
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -39,9 +39,36 @@ impl FromStr for Command {
     }
 }
 
+impl Autocomplete for Command {
+    fn autocomplete(input: &str, context: &Context) -> Vec<String> {
+        if !input
+            .chars()
+            .next()
+            .map(char::is_uppercase)
+            .unwrap_or_default()
+        {
+            Vec::new()
+        } else {
+            let mut suggestions: Vec<String> = context
+                .recent()
+                .iter()
+                .filter_map(|thing| thing.name().value())
+                .filter(|word| word.starts_with(input))
+                .cloned()
+                .collect();
+
+            suggestions.sort();
+            suggestions.truncate(10);
+
+            suggestions
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::world::{Location, Npc};
 
     #[test]
     fn from_str_test() {
@@ -54,5 +81,50 @@ mod test {
 
         let parsed_command = "potato".parse::<Command>();
         assert!(matches!(parsed_command, Err(())), "{:?}", parsed_command);
+    }
+
+    #[test]
+    fn autocomplete_test() {
+        let mut context = Context::default();
+
+        context.push_recent(
+            Npc {
+                name: "Potato Johnson".into(),
+                ..Default::default()
+            }
+            .into(),
+        );
+
+        context.push_recent(
+            Npc {
+                name: "potato should be capitalized".into(),
+                ..Default::default()
+            }
+            .into(),
+        );
+
+        context.push_recent(
+            Location {
+                name: "Potato & Potato, Esq.".into(),
+                ..Default::default()
+            }
+            .into(),
+        );
+
+        context.push_recent(
+            Location {
+                name: "Spud Stop".into(),
+                ..Default::default()
+            }
+            .into(),
+        );
+
+        assert_eq!(
+            vec!["Potato & Potato, Esq.", "Potato Johnson"],
+            Command::autocomplete("P", &context),
+        );
+
+        assert_eq!(Vec::<String>::new(), Command::autocomplete("p", &context));
+        assert_eq!(Vec::<String>::new(), Command::autocomplete("", &context));
     }
 }
