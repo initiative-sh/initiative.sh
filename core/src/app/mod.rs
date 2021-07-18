@@ -24,7 +24,7 @@ impl App {
 
     pub fn command(&mut self, input: &str) -> String {
         match input.parse() {
-            Ok(Command::App(c)) => command(&c, &mut self.context),
+            Ok(Command::App(c)) => c.run(&mut self.context),
             Ok(Command::Storage(c)) => crate::storage::command(&c, &mut self.context),
             Ok(Command::World(c)) => crate::world::command(&c, &mut self.context, &mut self.rng),
             Err(()) => format!("Unknown command: \"{}\"", input),
@@ -33,11 +33,5 @@ impl App {
 
     pub fn autocomplete(&self, input: &str) -> Vec<String> {
         Command::autocomplete(input)
-    }
-}
-
-fn command(command: &AppCommand, context: &mut Context) -> String {
-    match command {
-        AppCommand::Debug => format!("{:?}", context),
     }
 }

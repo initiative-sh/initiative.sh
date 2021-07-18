@@ -1,4 +1,4 @@
-use super::{autocomplete_phrase, Autocomplete};
+use super::{autocomplete_phrase, Autocomplete, Context};
 use crate::storage::Command as StorageCommand;
 use crate::world::Command as WorldCommand;
 use initiative_macros::WordList;
@@ -55,6 +55,14 @@ impl Autocomplete for Command {
 #[derive(Debug, WordList)]
 pub enum AppCommand {
     Debug,
+}
+
+impl AppCommand {
+    pub fn run(&self, context: &Context) -> String {
+        match self {
+            Self::Debug => format!("{:?}", context),
+        }
+    }
 }
 
 impl Autocomplete for AppCommand {
