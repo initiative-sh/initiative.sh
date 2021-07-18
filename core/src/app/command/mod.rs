@@ -1,11 +1,14 @@
 pub use app::AppCommand;
+pub use autocomplete::Autocomplete;
 pub use storage::StorageCommand;
 pub use world::WorldCommand;
 
 mod app;
+mod autocomplete;
 mod storage;
 mod world;
 
+use autocomplete::autocomplete_phrase;
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -29,5 +32,66 @@ impl FromStr for Command {
         } else {
             Err(())
         }
+    }
+}
+
+impl Autocomplete for Command {
+    fn autocomplete(input: &str) -> Vec<String> {
+        let mut suggestions = Vec::new();
+        let mut inputs = 0;
+        let mut append = |mut cmd_suggestions: Vec<String>| {
+            if !cmd_suggestions.is_empty() {
+                inputs += 1;
+                suggestions.append(&mut cmd_suggestions);
+            }
+        };
+
+        append(AppCommand::autocomplete(input));
+        append(WorldCommand::autocomplete(input));
+
+        // No need to re-sort and truncate if we've only received suggestions from one command.
+        if inputs > 1 {
+            suggestions.sort();
+            suggestions.truncate(10);
+        }
+
+        suggestions
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn from_str_test() {
+        {
+            let result = "debug".parse();
+            assert!(
+                matches!(result, Ok(Command::App(AppCommand::Debug))),
+                "{:?}",
+                result,
+            );
+        }
+
+        {
+            let result = "npc".parse();
+            assert!(
+                matches!(
+                    result,
+                    Ok(Command::World(WorldCommand::Npc { species: None })),
+                ),
+                "{:?}",
+                result,
+            );
+        }
+    }
+
+    #[test]
+    fn autocomplete_test() {
+        assert_eq!(
+            vec!["debug", "dragonborn", "dwarf"],
+            Command::autocomplete("d"),
+        );
     }
 }

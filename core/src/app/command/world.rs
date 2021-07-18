@@ -1,4 +1,5 @@
-use crate::world::location::LocationType;
+use super::Autocomplete;
+use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
 use std::str::FromStr;
 
@@ -24,6 +25,18 @@ impl FromStr for WorldCommand {
         } else {
             Err(())
         }
+    }
+}
+
+impl Autocomplete for WorldCommand {
+    fn autocomplete(input: &str) -> Vec<String> {
+        super::autocomplete_phrase(
+            input,
+            &mut ["npc", "building"]
+                .iter()
+                .chain(Species::get_words().iter())
+                .chain(BuildingType::get_words().iter()),
+        )
     }
 }
 
@@ -66,5 +79,32 @@ mod test {
 
         let parsed_command = "potato".parse::<WorldCommand>();
         assert!(matches!(parsed_command, Err(())), "{:?}", parsed_command);
+    }
+
+    #[test]
+    fn autocomplete_test() {
+        [
+            "building",
+            "npc",
+            // Species
+            "dragonborn",
+            "dwarf",
+            "elf",
+            "gnome",
+            "half-elf",
+            "half-orc",
+            "halfling",
+            "human",
+            "tiefling",
+            "warforged",
+            // BuildingType
+            "inn",
+            "residence",
+            "shop",
+            "temple",
+            "warehouse",
+        ]
+        .iter()
+        .for_each(|word| assert_eq!(vec![word.to_string()], WorldCommand::autocomplete(word)));
     }
 }

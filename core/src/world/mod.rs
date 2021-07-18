@@ -16,17 +16,12 @@ mod thing;
 use crate::app::{Context, WorldCommand};
 use rand::Rng;
 use std::collections::HashMap;
-use std::fmt;
 use std::rc::Rc;
 use uuid::Uuid;
 
 pub type WorldUuid = Uuid;
 
-pub fn command(
-    command: &WorldCommand,
-    context: &mut Context,
-    rng: &mut impl Rng,
-) -> Box<dyn fmt::Display> {
+pub fn command(command: &WorldCommand, context: &mut Context, rng: &mut impl Rng) -> String {
     match command {
         WorldCommand::Location { location_type } => location::command(location_type, context, rng),
         WorldCommand::Npc { species } => npc::command(species, context, rng),

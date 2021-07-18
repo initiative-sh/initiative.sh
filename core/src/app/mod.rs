@@ -4,9 +4,9 @@ pub use context::Context;
 mod command;
 mod context;
 
+use command::Autocomplete;
 use rand::prelude::*;
 use rand::rngs::SmallRng;
-use std::fmt::Display;
 
 pub struct App {
     context: Context,
@@ -21,18 +21,22 @@ impl App {
         }
     }
 
-    pub fn command(&mut self, input: &str) -> Box<dyn Display> {
+    pub fn command(&mut self, input: &str) -> String {
         match input.parse() {
             Ok(Command::App(c)) => command(&c, &mut self.context),
             Ok(Command::Storage(c)) => crate::storage::command(&c, &mut self.context),
             Ok(Command::World(c)) => crate::world::command(&c, &mut self.context, &mut self.rng),
-            Err(()) => Box::new(format!("Unknown command: \"{}\"", input)),
+            Err(()) => format!("Unknown command: \"{}\"", input),
         }
+    }
+
+    pub fn autocomplete(&self, input: &str) -> Vec<String> {
+        Command::autocomplete(input)
     }
 }
 
-pub fn command(command: &AppCommand, context: &mut Context) -> Box<dyn Display> {
+fn command(command: &AppCommand, context: &mut Context) -> String {
     match command {
-        AppCommand::Debug => Box::new(format!("{:?}", context)),
+        AppCommand::Debug => format!("{:?}", context),
     }
 }

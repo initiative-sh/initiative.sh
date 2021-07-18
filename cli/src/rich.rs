@@ -87,7 +87,7 @@ pub fn run(mut app: App) -> io::Result<()> {
 
         print!("{}", termion::clear::All);
 
-        let output = format!("{}", app.command(&command));
+        let output = app.command(&command);
         wrap(&output, termion::terminal_size().unwrap().0 as usize - 4)
             .lines()
             .enumerate()
