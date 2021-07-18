@@ -1,7 +1,8 @@
+use super::Context;
 use std::iter::Iterator;
 
 pub trait Autocomplete {
-    fn autocomplete(input: &str) -> Vec<String>;
+    fn autocomplete(input: &str, context: &Context) -> Vec<String>;
 }
 
 pub fn autocomplete_phrase(

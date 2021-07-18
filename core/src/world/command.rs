@@ -41,7 +41,7 @@ impl FromStr for Command {
 }
 
 impl Autocomplete for Command {
-    fn autocomplete(input: &str) -> Vec<String> {
+    fn autocomplete(input: &str, _context: &Context) -> Vec<String> {
         autocomplete_phrase(
             input,
             &mut ["npc", "building"]
@@ -117,6 +117,11 @@ mod test {
             "warehouse",
         ]
         .iter()
-        .for_each(|word| assert_eq!(vec![word.to_string()], Command::autocomplete(word)));
+        .for_each(|word| {
+            assert_eq!(
+                vec![word.to_string()],
+                Command::autocomplete(word, &Context::default()),
+            )
+        });
     }
 }

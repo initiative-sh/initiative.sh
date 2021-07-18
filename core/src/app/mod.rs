@@ -31,6 +31,6 @@ impl App {
     }
 
     pub fn autocomplete(&self, input: &str) -> Vec<String> {
-        Command::autocomplete(input)
+        Command::autocomplete(input, &self.context)
     }
 }
