@@ -23,11 +23,10 @@ impl App {
     }
 
     pub fn command(&mut self, input: &str) -> String {
-        match input.parse() {
-            Ok(Command::App(c)) => c.run(&mut self.context),
-            Ok(Command::Storage(c)) => c.run(&mut self.context),
-            Ok(Command::World(c)) => c.run(&mut self.context, &mut self.rng),
-            Err(()) => format!("Unknown command: \"{}\"", input),
+        if let Ok(command) = input.parse::<Command>() {
+            command.run(&mut self.context, &mut self.rng)
+        } else {
+            format!("Unknown command: \"{}\"", input)
         }
     }
 

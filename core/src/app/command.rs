@@ -2,6 +2,7 @@ use super::{autocomplete_phrase, Autocomplete, Context};
 use crate::storage::Command as StorageCommand;
 use crate::world::Command as WorldCommand;
 use initiative_macros::WordList;
+use rand::Rng;
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -10,6 +11,16 @@ pub enum Command {
     // Context(ContextCommand),
     World(WorldCommand),
     Storage(StorageCommand),
+}
+
+impl Command {
+    pub fn run(&self, context: &mut Context, rng: &mut impl Rng) -> String {
+        match self {
+            Self::App(c) => c.run(context),
+            Self::Storage(c) => c.run(context),
+            Self::World(c) => c.run(context, rng),
+        }
+    }
 }
 
 impl FromStr for Command {
