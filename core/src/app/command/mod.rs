@@ -38,9 +38,22 @@ impl FromStr for Command {
 impl Autocomplete for Command {
     fn autocomplete(input: &str) -> Vec<String> {
         let mut suggestions = Vec::new();
+        let mut inputs = 0;
+        let mut append = |mut cmd_suggestions: Vec<String>| {
+            if !cmd_suggestions.is_empty() {
+                inputs += 1;
+                suggestions.append(&mut cmd_suggestions);
+            }
+        };
 
-        suggestions.append(&mut AppCommand::autocomplete(input));
-        suggestions.append(&mut WorldCommand::autocomplete(input));
+        append(AppCommand::autocomplete(input));
+        append(WorldCommand::autocomplete(input));
+
+        // No need to re-sort and truncate if we've only received suggestions from one command.
+        if inputs > 1 {
+            suggestions.sort();
+            suggestions.truncate(10);
+        }
 
         suggestions
     }

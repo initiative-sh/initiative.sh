@@ -11,11 +11,15 @@ pub fn autocomplete_phrase(
     if input.is_empty() {
         Vec::new()
     } else {
-        vocabulary
+        let mut suggestions: Vec<String> = vocabulary
             .filter(|word| word.starts_with(input))
-            .take(10)
             .map(|&s| s.to_string())
-            .collect()
+            .collect();
+
+        suggestions.sort();
+        suggestions.truncate(10);
+
+        suggestions
     }
 }
 
@@ -58,41 +62,41 @@ mod test {
     #[test]
     fn autocomplete_phrase_test() {
         let words = [
-            "Solanum aethiopicum",
-            "Solanum betaceum",
-            "Solanum cheesmanii",
-            "Solanum chilense",
-            "Solanum galapagense",
-            "Solanum lycocarpum",
-            "Solanum lycopersicum",
-            "Solanum melongena",
-            "Solanum muricatum",
-            "Solanum peruvianum",
-            "Solanum pimpinellifolium",
-            "Solanum quitoense",
-            "Solanum scabrum",
-            "Solanum torvum",
-            "Solanum tuberosum",
-            "Tamarillo",
-            "Turkey berry",
-            "bush tomato",
-            "desert raisin",
-            "eggplant",
-            "garden huckleberry",
-            "gilo",
-            "kangaroo apple",
-            "naranjilla",
-            "pepino melon",
-            "potato bush",
-            "potato",
-            "tomato",
-            "wild tomato",
             "wolf apple",
+            "wild tomato",
+            "tomato",
+            "potato",
+            "potato bush",
+            "pepino melon",
+            "naranjilla",
+            "kangaroo apple",
+            "gilo",
+            "garden huckleberry",
+            "eggplant",
+            "desert raisin",
+            "bush tomato",
+            "Turkey berry",
+            "Tamarillo",
+            "Solanum tuberosum",
+            "Solanum torvum",
+            "Solanum scabrum",
+            "Solanum quitoense",
+            "Solanum pimpinellifolium",
+            "Solanum peruvianum",
+            "Solanum muricatum",
+            "Solanum melongena",
+            "Solanum lycopersicum",
+            "Solanum lycocarpum",
+            "Solanum galapagense",
+            "Solanum chilense",
+            "Solanum cheesmanii",
+            "Solanum betaceum",
+            "Solanum aethiopicum",
         ];
         let empty_vec: Vec<String> = Vec::new();
 
         assert_eq!(
-            vec!["potato bush", "potato"],
+            vec!["potato", "potato bush"],
             autocomplete_phrase("pot", &mut words.iter()),
         );
 
