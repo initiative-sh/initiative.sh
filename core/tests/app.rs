@@ -1,6 +1,16 @@
 use initiative_core::app;
 
 #[test]
+fn autocomplete() {
+    assert_eq!(
+        vec!["debug", "dragonborn", "dwarf"],
+        app().autocomplete("d"),
+    );
+
+    assert_eq!(Vec::<String>::new(), app().autocomplete("potato"))
+}
+
+#[test]
 fn debug() {
     let mut app = app();
 

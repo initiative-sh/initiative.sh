@@ -4,6 +4,7 @@ pub use context::Context;
 mod command;
 mod context;
 
+use command::Autocomplete;
 use rand::prelude::*;
 use rand::rngs::SmallRng;
 
@@ -27,6 +28,10 @@ impl App {
             Ok(Command::World(c)) => crate::world::command(&c, &mut self.context, &mut self.rng),
             Err(()) => format!("Unknown command: \"{}\"", input),
         }
+    }
+
+    pub fn autocomplete(&self, input: &str) -> Vec<String> {
+        Command::autocomplete(input)
     }
 }
 
