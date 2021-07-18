@@ -40,7 +40,7 @@ impl FromStr for Command {
 }
 
 impl Autocomplete for Command {
-    fn autocomplete(input: &str) -> Vec<String> {
+    fn autocomplete(input: &str, context: &Context) -> Vec<String> {
         let mut suggestions = Vec::new();
         let mut inputs = 0;
         let mut append = |mut cmd_suggestions: Vec<String>| {
@@ -50,8 +50,8 @@ impl Autocomplete for Command {
             }
         };
 
-        append(AppCommand::autocomplete(input));
-        append(WorldCommand::autocomplete(input));
+        append(AppCommand::autocomplete(input, context));
+        append(WorldCommand::autocomplete(input, context));
 
         // No need to re-sort and truncate if we've only received suggestions from one command.
         if inputs > 1 {
@@ -77,7 +77,7 @@ impl AppCommand {
 }
 
 impl Autocomplete for AppCommand {
-    fn autocomplete(input: &str) -> Vec<String> {
+    fn autocomplete(input: &str, _context: &Context) -> Vec<String> {
         autocomplete_phrase(input, &mut Self::get_words().iter())
     }
 }
@@ -114,7 +114,7 @@ mod test_command {
     fn autocomplete_test() {
         assert_eq!(
             vec!["debug", "dragonborn", "dwarf"],
-            Command::autocomplete("d"),
+            Command::autocomplete("d", &Context::default()),
         );
     }
 }
@@ -138,8 +138,11 @@ mod test_app_command {
 
     #[test]
     fn autocomplete_test() {
-        ["debug"]
-            .iter()
-            .for_each(|word| assert_eq!(vec![word.to_string()], AppCommand::autocomplete(word)));
+        ["debug"].iter().for_each(|word| {
+            assert_eq!(
+                vec![word.to_string()],
+                AppCommand::autocomplete(word, &Context::default()),
+            )
+        });
     }
 }
