@@ -1,14 +1,12 @@
 pub use app::AppCommand;
-pub use autocomplete::Autocomplete;
 pub use storage::StorageCommand;
 pub use world::WorldCommand;
 
 mod app;
-mod autocomplete;
 mod storage;
 mod world;
 
-use autocomplete::autocomplete_phrase;
+use super::{autocomplete_phrase, Autocomplete};
 use std::str::FromStr;
 
 #[derive(Debug)]

@@ -1,10 +1,11 @@
+pub use autocomplete::{autocomplete_phrase, Autocomplete};
 pub use command::{AppCommand, Command, StorageCommand, WorldCommand};
 pub use context::Context;
 
+mod autocomplete;
 mod command;
 mod context;
 
-use command::Autocomplete;
 use rand::prelude::*;
 use rand::rngs::SmallRng;
 
