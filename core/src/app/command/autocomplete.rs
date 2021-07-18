@@ -4,6 +4,22 @@ pub trait Autocomplete {
     fn autocomplete(input: &str) -> Vec<String>;
 }
 
+pub fn autocomplete_phrase(
+    input: &str,
+    vocabulary: &mut dyn Iterator<Item = &&str>,
+) -> Vec<String> {
+    if input.is_empty() {
+        Vec::new()
+    } else {
+        vocabulary
+            .filter(|word| word.starts_with(input))
+            .take(10)
+            .map(|&s| s.to_string())
+            .collect()
+    }
+}
+
+/*
 pub fn autocomplete_words(input: &str, vocabulary: &mut dyn Iterator<Item = &&str>) -> Vec<String> {
     let (start, partial) = input.split_at(
         input
@@ -33,37 +49,89 @@ pub fn autocomplete_words(input: &str, vocabulary: &mut dyn Iterator<Item = &&st
         })
         .collect()
 }
+*/
 
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[test]
-    fn autocomplete_test() {
-        let words = ["potato", "sweet potato", "Potato", "potato salad"];
+    fn autocomplete_phrase_test() {
+        let words = [
+            "Solanum aethiopicum",
+            "Solanum betaceum",
+            "Solanum cheesmanii",
+            "Solanum chilense",
+            "Solanum galapagense",
+            "Solanum lycocarpum",
+            "Solanum lycopersicum",
+            "Solanum melongena",
+            "Solanum muricatum",
+            "Solanum peruvianum",
+            "Solanum pimpinellifolium",
+            "Solanum quitoense",
+            "Solanum scabrum",
+            "Solanum torvum",
+            "Solanum tuberosum",
+            "Tamarillo",
+            "Turkey berry",
+            "bush tomato",
+            "desert raisin",
+            "eggplant",
+            "garden huckleberry",
+            "gilo",
+            "kangaroo apple",
+            "naranjilla",
+            "pepino melon",
+            "potato bush",
+            "potato",
+            "tomato",
+            "wild tomato",
+            "wolf apple",
+        ];
         let empty_vec: Vec<String> = Vec::new();
 
         assert_eq!(
-            vec!["potato", "potato salad"],
-            autocomplete_words("pot", &mut words.iter()),
+            vec!["potato bush", "potato"],
+            autocomplete_phrase("pot", &mut words.iter()),
         );
 
         assert_eq!(
-            vec!["my tasty potato", "my tasty potato salad"],
-            autocomplete_words("my tasty potato", &mut words.iter()),
+            vec!["potato bush"],
+            autocomplete_phrase("potato ", &mut words.iter()),
         );
 
-        assert_eq!(vec!["Potato"], autocomplete_words("Pot", &mut words.iter()));
-
-        assert_eq!(empty_vec, autocomplete_words("", &mut words.iter()));
-        assert_eq!(empty_vec, autocomplete_words("carrot", &mut words.iter()));
-        assert_eq!(empty_vec, autocomplete_words("potato ", &mut words.iter()));
-        assert_eq!(empty_vec, autocomplete_words("🥔", &mut words.iter()));
-
-        // Non-ASCII whitespace
         assert_eq!(
-            vec!["foo\u{2003}sweet potato"],
-            autocomplete_words("foo\u{2003}s", &mut words.iter())
+            empty_vec,
+            autocomplete_phrase("my tasty potato", &mut words.iter()),
+        );
+
+        assert_eq!(
+            vec!["Tamarillo", "Turkey berry"],
+            autocomplete_phrase("T", &mut words.iter()),
+        );
+
+        assert_eq!(
+            vec![
+                "Solanum aethiopicum",
+                "Solanum betaceum",
+                "Solanum cheesmanii",
+                "Solanum chilense",
+                "Solanum galapagense",
+                "Solanum lycocarpum",
+                "Solanum lycopersicum",
+                "Solanum melongena",
+                "Solanum muricatum",
+                "Solanum peruvianum",
+            ],
+            autocomplete_phrase("Solanum", &mut words.iter()),
+        );
+
+        assert_eq!(empty_vec, autocomplete_phrase("", &mut words.iter()));
+        assert_eq!(empty_vec, autocomplete_phrase("carrot", &mut words.iter()));
+        assert_eq!(
+            empty_vec,
+            autocomplete_phrase("\u{1f954}\u{2003}\u{1f954}", &mut words.iter()),
         );
     }
 }

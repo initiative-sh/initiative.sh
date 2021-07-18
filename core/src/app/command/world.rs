@@ -30,7 +30,7 @@ impl FromStr for WorldCommand {
 
 impl Autocomplete for WorldCommand {
     fn autocomplete(input: &str) -> Vec<String> {
-        super::autocomplete_words(
+        super::autocomplete_phrase(
             input,
             &mut ["npc", "building"]
                 .iter()

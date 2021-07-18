@@ -8,7 +8,7 @@ pub enum AppCommand {
 
 impl Autocomplete for AppCommand {
     fn autocomplete(input: &str) -> Vec<String> {
-        super::autocomplete_words(input, &mut Self::get_words().iter())
+        super::autocomplete_phrase(input, &mut Self::get_words().iter())
     }
 }
 
