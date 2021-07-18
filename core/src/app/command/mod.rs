@@ -1,10 +1,9 @@
 pub use app::AppCommand;
-pub use storage::StorageCommand;
 
 mod app;
-mod storage;
 
 use super::{autocomplete_phrase, Autocomplete};
+use crate::storage::Command as StorageCommand;
 use crate::world::Command as WorldCommand;
 use std::str::FromStr;
 

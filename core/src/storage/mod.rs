@@ -1,8 +1,12 @@
-use crate::app::{Context, StorageCommand};
+pub use command::Command;
 
-pub fn command(command: &StorageCommand, context: &mut Context) -> String {
+mod command;
+
+use crate::app::Context;
+
+pub fn command(command: &Command, context: &mut Context) -> String {
     match command {
-        StorageCommand::Load { query } => {
+        Command::Load { query } => {
             let lowercase_query = query.to_lowercase();
             if let Some(result) = context.recent().iter().find(|t| {
                 t.name()

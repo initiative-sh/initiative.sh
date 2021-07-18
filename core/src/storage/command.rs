@@ -1,16 +1,16 @@
 use std::str::FromStr;
 
 #[derive(Debug)]
-pub enum StorageCommand {
+pub enum Command {
     Load { query: String },
 }
 
-impl FromStr for StorageCommand {
+impl FromStr for Command {
     type Err = ();
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
         if raw.starts_with(char::is_uppercase) {
-            Ok(StorageCommand::Load {
+            Ok(Self::Load {
                 query: raw.to_string(),
             })
         } else {
@@ -26,13 +26,13 @@ mod test {
     #[test]
     fn from_str_test() {
         let parsed_command = "Gandalf the Grey".parse();
-        if let Ok(StorageCommand::Load { query }) = parsed_command {
+        if let Ok(Command::Load { query }) = parsed_command {
             assert_eq!("Gandalf the Grey", query.as_str());
         } else {
             panic!("{:?}", parsed_command);
         }
 
-        let parsed_command = "potato".parse::<StorageCommand>();
+        let parsed_command = "potato".parse::<Command>();
         assert!(matches!(parsed_command, Err(())), "{:?}", parsed_command);
     }
 }

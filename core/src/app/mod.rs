@@ -1,5 +1,5 @@
 pub use autocomplete::{autocomplete_phrase, Autocomplete};
-pub use command::{AppCommand, Command, StorageCommand};
+pub use command::{AppCommand, Command};
 pub use context::Context;
 
 mod autocomplete;
