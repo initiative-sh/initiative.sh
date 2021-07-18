@@ -52,15 +52,18 @@ pub fn command(species: &Option<Species>, context: &mut Context, rng: &mut impl 
     output.push_str(&format!("{}\n\nAlternatives:", npc.display_details()));
     context.push_recent(npc.into());
 
-    context.batch_push_recent(
-        (0..10)
-            .map(|i| {
-                let alt = Npc::generate(rng, &demographics);
-                output.push_str(&format!("\n{} {}", i, alt.display_summary()));
-                alt.into()
-            })
-            .collect(),
-    );
+    let recent = (0..10)
+        .map(|i| {
+            let alt = Npc::generate(rng, &demographics);
+            output.push_str(&format!("\n{} {}", i, alt.display_summary()));
+            context
+                .command_aliases
+                .insert(format!("{}", i), alt.name.value().unwrap().to_owned());
+            alt.into()
+        })
+        .collect();
+
+    context.batch_push_recent(recent);
 
     output
 }

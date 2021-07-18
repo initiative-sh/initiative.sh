@@ -23,7 +23,13 @@ impl App {
     }
 
     pub fn command(&mut self, input: &str) -> String {
-        if let Ok(command) = input.parse::<Command>() {
+        if let Ok(command) = self
+            .context
+            .command_aliases
+            .get(input)
+            .map_or(input, |s| s.as_str())
+            .parse::<Command>()
+        {
             command.run(&mut self.context, &mut self.rng)
         } else {
             format!("Unknown command: \"{}\"", input)

@@ -94,3 +94,37 @@ fn generated_content_is_persisted() {
         generated_output,
     );
 }
+
+#[test]
+fn numeric_aliases_exist_for_npcs() {
+    let mut app = app();
+
+    // Generate a data set to potentially interfere with the one being tested.
+    app.command("npc");
+
+    let generated_output = app.command("npc");
+
+    assert_eq!(
+        10,
+        generated_output
+            .lines()
+            .filter(|line| line.starts_with(char::is_numeric))
+            .map(|s| {
+                if let Some(pos) = s.find('(') {
+                    let digit = &s[0..1];
+                    let digit_output = app.command(digit);
+
+                    let name = &s[2..(pos - 1)];
+                    let name_output = app.command(name);
+
+                    assert_eq!(Some(name), digit_output.lines().next());
+                    assert_eq!(digit_output, name_output);
+                } else {
+                    panic!("Missing ( in \"{}\"", s);
+                }
+            })
+            .count(),
+        "{}",
+        generated_output,
+    );
+}
