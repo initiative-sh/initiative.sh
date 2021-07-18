@@ -1,10 +1,7 @@
-pub use app::AppCommand;
-
-mod app;
-
 use super::{autocomplete_phrase, Autocomplete};
 use crate::storage::Command as StorageCommand;
 use crate::world::Command as WorldCommand;
+use initiative_macros::WordList;
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -55,8 +52,19 @@ impl Autocomplete for Command {
     }
 }
 
+#[derive(Debug, WordList)]
+pub enum AppCommand {
+    Debug,
+}
+
+impl Autocomplete for AppCommand {
+    fn autocomplete(input: &str) -> Vec<String> {
+        autocomplete_phrase(input, &mut Self::get_words().iter())
+    }
+}
+
 #[cfg(test)]
-mod test {
+mod test_command {
     use super::*;
 
     #[test]
@@ -89,5 +97,30 @@ mod test {
             vec!["debug", "dragonborn", "dwarf"],
             Command::autocomplete("d"),
         );
+    }
+}
+
+#[cfg(test)]
+mod test_app_command {
+    use super::*;
+
+    #[test]
+    fn from_str_test() {
+        let parsed_command = "debug".parse();
+        assert!(
+            matches!(parsed_command, Ok(AppCommand::Debug)),
+            "{:?}",
+            parsed_command,
+        );
+
+        let parsed_command = "potato".parse::<AppCommand>();
+        assert!(matches!(parsed_command, Err(())), "{:?}", parsed_command);
+    }
+
+    #[test]
+    fn autocomplete_test() {
+        ["debug"]
+            .iter()
+            .for_each(|word| assert_eq!(vec![word.to_string()], AppCommand::autocomplete(word)));
     }
 }
