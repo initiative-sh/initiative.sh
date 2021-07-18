@@ -1,6 +1,9 @@
-use crate::app::{autocomplete_phrase, Autocomplete};
+use super::location;
+use super::npc;
+use crate::app::{autocomplete_phrase, Autocomplete, Context};
 use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
+use rand::Rng;
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -8,6 +11,15 @@ pub enum Command {
     Location { location_type: LocationType },
     Npc { species: Option<Species> },
     //Region(RawCommand),
+}
+
+impl Command {
+    pub fn run(&self, context: &mut Context, rng: &mut impl Rng) -> String {
+        match self {
+            Self::Location { location_type } => location::command(location_type, context, rng),
+            Self::Npc { species } => npc::command(species, context, rng),
+        }
+    }
 }
 
 impl FromStr for Command {

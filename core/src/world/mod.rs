@@ -15,20 +15,12 @@ mod command;
 mod field;
 mod thing;
 
-use crate::app::Context;
 use rand::Rng;
 use std::collections::HashMap;
 use std::rc::Rc;
 use uuid::Uuid;
 
 pub type WorldUuid = Uuid;
-
-pub fn command(command: &Command, context: &mut Context, rng: &mut impl Rng) -> String {
-    match command {
-        Command::Location { location_type } => location::command(location_type, context, rng),
-        Command::Npc { species } => npc::command(species, context, rng),
-    }
-}
 
 pub trait Generate: Default {
     fn generate(rng: &mut impl Rng, demographics: &Demographics) -> Self {

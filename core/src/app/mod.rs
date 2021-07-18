@@ -26,7 +26,7 @@ impl App {
         match input.parse() {
             Ok(Command::App(c)) => c.run(&mut self.context),
             Ok(Command::Storage(c)) => crate::storage::command(&c, &mut self.context),
-            Ok(Command::World(c)) => crate::world::command(&c, &mut self.context, &mut self.rng),
+            Ok(Command::World(c)) => c.run(&mut self.context, &mut self.rng),
             Err(()) => format!("Unknown command: \"{}\"", input),
         }
     }
