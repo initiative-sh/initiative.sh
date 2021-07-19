@@ -1,4 +1,5 @@
 import * as wasm from "initiative-web";
+import autoComplete from "@tarekraafat/autocomplete.js";
 
 const promptForm = document.getElementById("prompt-form");
 const prompt = document.getElementById("prompt");
@@ -21,6 +22,14 @@ promptForm.addEventListener("submit", event => {
 
   prompt.value = "";
   window.scrollBy(0, window.innerHeight);
+});
+
+const autoCompleteJS = new autoComplete({
+  selector: "#prompt",
+  data: {
+    src: async (query) => wasm.autocomplete(query),
+  },
+  submit: true,
 });
 
 prompt.focus();
