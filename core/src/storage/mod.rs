@@ -1,3 +1,3 @@
-pub use command::Command;
+pub use command::StorageCommand;
 
 mod command;

@@ -2,11 +2,11 @@ use crate::app::{Autocomplete, Context};
 use std::str::FromStr;
 
 #[derive(Debug)]
-pub enum Command {
+pub enum StorageCommand {
     Load { query: String },
 }
 
-impl Command {
+impl StorageCommand {
     pub fn run(&self, context: &mut Context) -> String {
         match self {
             Self::Load { query } => {
@@ -25,7 +25,7 @@ impl Command {
     }
 }
 
-impl FromStr for Command {
+impl FromStr for StorageCommand {
     type Err = ();
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
@@ -39,7 +39,7 @@ impl FromStr for Command {
     }
 }
 
-impl Autocomplete for Command {
+impl Autocomplete for StorageCommand {
     fn autocomplete(input: &str, context: &Context) -> Vec<String> {
         if !input
             .chars()
@@ -73,13 +73,13 @@ mod test {
     #[test]
     fn from_str_test() {
         let parsed_command = "Gandalf the Grey".parse();
-        if let Ok(Command::Load { query }) = parsed_command {
+        if let Ok(StorageCommand::Load { query }) = parsed_command {
             assert_eq!("Gandalf the Grey", query.as_str());
         } else {
             panic!("{:?}", parsed_command);
         }
 
-        let parsed_command = "potato".parse::<Command>();
+        let parsed_command = "potato".parse::<StorageCommand>();
         assert!(matches!(parsed_command, Err(())), "{:?}", parsed_command);
     }
 
@@ -121,10 +121,16 @@ mod test {
 
         assert_eq!(
             vec!["Potato & Potato, Esq.", "Potato Johnson"],
-            Command::autocomplete("P", &context),
+            StorageCommand::autocomplete("P", &context),
         );
 
-        assert_eq!(Vec::<String>::new(), Command::autocomplete("p", &context));
-        assert_eq!(Vec::<String>::new(), Command::autocomplete("", &context));
+        assert_eq!(
+            Vec::<String>::new(),
+            StorageCommand::autocomplete("p", &context)
+        );
+        assert_eq!(
+            Vec::<String>::new(),
+            StorageCommand::autocomplete("", &context)
+        );
     }
 }

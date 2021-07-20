@@ -1,6 +1,6 @@
 use super::{autocomplete_phrase, Autocomplete, Context};
-use crate::storage::Command as StorageCommand;
-use crate::world::Command as WorldCommand;
+use crate::storage::StorageCommand;
+use crate::world::WorldCommand;
 use initiative_macros::WordList;
 use rand::Rng;
 use std::str::FromStr;

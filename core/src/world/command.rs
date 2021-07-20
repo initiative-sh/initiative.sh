@@ -7,13 +7,13 @@ use rand::Rng;
 use std::str::FromStr;
 
 #[derive(Debug)]
-pub enum Command {
+pub enum WorldCommand {
     Location { location_type: LocationType },
     Npc { species: Option<Species> },
     //Region(RawCommand),
 }
 
-impl Command {
+impl WorldCommand {
     pub fn run(&self, context: &mut Context, rng: &mut impl Rng) -> String {
         match self {
             Self::Location { location_type } => location::command(location_type, context, rng),
@@ -22,7 +22,7 @@ impl Command {
     }
 }
 
-impl FromStr for Command {
+impl FromStr for WorldCommand {
     type Err = ();
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
@@ -40,7 +40,7 @@ impl FromStr for Command {
     }
 }
 
-impl Autocomplete for Command {
+impl Autocomplete for WorldCommand {
     fn autocomplete(input: &str, _context: &Context) -> Vec<String> {
         autocomplete_phrase(
             input,
@@ -62,7 +62,7 @@ mod test {
         assert!(
             matches!(
                 parsed_command,
-                Ok(Command::Location {
+                Ok(WorldCommand::Location {
                     location_type: LocationType::Building(None)
                 }),
             ),
@@ -72,7 +72,7 @@ mod test {
 
         let parsed_command = "npc".parse();
         assert!(
-            matches!(parsed_command, Ok(Command::Npc { species: None })),
+            matches!(parsed_command, Ok(WorldCommand::Npc { species: None })),
             "{:?}",
             parsed_command,
         );
@@ -81,7 +81,7 @@ mod test {
         assert!(
             matches!(
                 parsed_command,
-                Ok(Command::Npc {
+                Ok(WorldCommand::Npc {
                     species: Some(Species::Elf)
                 }),
             ),
@@ -89,7 +89,7 @@ mod test {
             parsed_command,
         );
 
-        let parsed_command = "potato".parse::<Command>();
+        let parsed_command = "potato".parse::<WorldCommand>();
         assert!(matches!(parsed_command, Err(())), "{:?}", parsed_command);
     }
 
@@ -120,7 +120,7 @@ mod test {
         .for_each(|word| {
             assert_eq!(
                 vec![word.to_string()],
-                Command::autocomplete(word, &Context::default()),
+                WorldCommand::autocomplete(word, &Context::default()),
             )
         });
     }

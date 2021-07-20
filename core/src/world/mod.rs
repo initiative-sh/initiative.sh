@@ -3,7 +3,7 @@ pub mod location;
 pub mod npc;
 pub mod region;
 
-pub use command::Command;
+pub use command::WorldCommand;
 pub use demographics::Demographics;
 pub use field::Field;
 pub use location::Location;
