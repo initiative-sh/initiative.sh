@@ -1,7 +1,7 @@
-use crate::app::{Autocomplete, Context};
+use crate::app::{Autocomplete, Command, Context};
 use std::str::FromStr;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum StorageCommand {
     Load { query: String },
 }
@@ -40,7 +40,7 @@ impl FromStr for StorageCommand {
 }
 
 impl Autocomplete for StorageCommand {
-    fn autocomplete(input: &str, context: &Context) -> Vec<String> {
+    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Command)> {
         if !input
             .chars()
             .next()
@@ -61,6 +61,9 @@ impl Autocomplete for StorageCommand {
             suggestions.truncate(10);
 
             suggestions
+                .drain(..)
+                .filter_map(|s| s.parse().ok().map(|c| (s, Command::Storage(c))))
+                .collect()
         }
     }
 }
@@ -120,17 +123,24 @@ mod test {
         );
 
         assert_eq!(
-            vec!["Potato & Potato, Esq.", "Potato Johnson"],
+            vec![
+                (
+                    "Potato & Potato, Esq.".to_string(),
+                    Command::Storage(StorageCommand::Load {
+                        query: "Potato & Potato, Esq.".to_string(),
+                    })
+                ),
+                (
+                    "Potato Johnson".to_string(),
+                    Command::Storage(StorageCommand::Load {
+                        query: "Potato Johnson".to_string(),
+                    })
+                ),
+            ],
             StorageCommand::autocomplete("P", &context),
         );
 
-        assert_eq!(
-            Vec::<String>::new(),
-            StorageCommand::autocomplete("p", &context)
-        );
-        assert_eq!(
-            Vec::<String>::new(),
-            StorageCommand::autocomplete("", &context)
-        );
+        assert!(StorageCommand::autocomplete("p", &context).is_empty());
+        assert!(StorageCommand::autocomplete("", &context).is_empty());
     }
 }

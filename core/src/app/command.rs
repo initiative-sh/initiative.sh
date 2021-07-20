@@ -5,7 +5,7 @@ use initiative_macros::WordList;
 use rand::Rng;
 use std::str::FromStr;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Command {
     App(AppCommand),
     // Context(ContextCommand),
@@ -40,10 +40,10 @@ impl FromStr for Command {
 }
 
 impl Autocomplete for Command {
-    fn autocomplete(input: &str, context: &Context) -> Vec<String> {
+    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Command)> {
         let mut suggestions = Vec::new();
         let mut inputs = 0;
-        let mut append = |mut cmd_suggestions: Vec<String>| {
+        let mut append = |mut cmd_suggestions: Vec<(String, Command)>| {
             if !cmd_suggestions.is_empty() {
                 inputs += 1;
                 suggestions.append(&mut cmd_suggestions);
@@ -56,7 +56,7 @@ impl Autocomplete for Command {
 
         // No need to re-sort and truncate if we've only received suggestions from one command.
         if inputs > 1 {
-            suggestions.sort();
+            suggestions.sort_by(|(a, _), (b, _)| a.cmp(b));
             suggestions.truncate(10);
         }
 
@@ -64,7 +64,7 @@ impl Autocomplete for Command {
     }
 }
 
-#[derive(Debug, WordList)]
+#[derive(Debug, PartialEq, WordList)]
 pub enum AppCommand {
     Debug,
 }
@@ -78,14 +78,18 @@ impl AppCommand {
 }
 
 impl Autocomplete for AppCommand {
-    fn autocomplete(input: &str, _context: &Context) -> Vec<String> {
+    fn autocomplete(input: &str, _context: &Context) -> Vec<(String, Command)> {
         autocomplete_phrase(input, &mut Self::get_words().iter())
+            .drain(..)
+            .filter_map(|s| s.parse().ok().map(|c| (s, Command::App(c))))
+            .collect()
     }
 }
 
 #[cfg(test)]
 mod test_command {
     use super::*;
+    use crate::world::npc::Species;
 
     #[test]
     fn from_str_test() {
@@ -113,10 +117,40 @@ mod test_command {
 
     #[test]
     fn autocomplete_test() {
-        assert_eq!(
-            vec!["debug", "dragonborn", "dwarf"],
-            Command::autocomplete("d", &Context::default()),
-        );
+        let results = Command::autocomplete("d", &Context::default());
+        let mut result_iter = results.iter();
+
+        if let Some((command_string, Command::App(AppCommand::Debug))) = result_iter.next() {
+            assert_eq!("debug", command_string);
+        } else {
+            panic!("{:?}", results);
+        }
+
+        if let Some((
+            command_string,
+            Command::World(WorldCommand::Npc {
+                species: Some(Species::Dragonborn),
+            }),
+        )) = result_iter.next()
+        {
+            assert_eq!("dragonborn", command_string);
+        } else {
+            panic!("{:?}", results);
+        }
+
+        if let Some((
+            command_string,
+            Command::World(WorldCommand::Npc {
+                species: Some(Species::Dwarf),
+            }),
+        )) = result_iter.next()
+        {
+            assert_eq!("dwarf", command_string);
+        } else {
+            panic!("{:?}", results);
+        }
+
+        assert!(result_iter.next().is_none());
     }
 }
 
@@ -139,11 +173,13 @@ mod test_app_command {
 
     #[test]
     fn autocomplete_test() {
-        ["debug"].iter().for_each(|word| {
-            assert_eq!(
-                vec![word.to_string()],
-                AppCommand::autocomplete(word, &Context::default()),
-            )
-        });
+        vec![("debug", AppCommand::Debug)]
+            .drain(..)
+            .for_each(|(word, command)| {
+                assert_eq!(
+                    vec![(word.to_string(), Command::App(command))],
+                    AppCommand::autocomplete(word, &Context::default()),
+                )
+            });
     }
 }

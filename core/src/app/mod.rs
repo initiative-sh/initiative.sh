@@ -38,5 +38,8 @@ impl App {
 
     pub fn autocomplete(&self, input: &str) -> Vec<String> {
         Command::autocomplete(input, &self.context)
+            .iter()
+            .map(|(s, _)| s.clone())
+            .collect()
     }
 }

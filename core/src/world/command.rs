@@ -1,12 +1,12 @@
 use super::location;
 use super::npc;
-use crate::app::{autocomplete_phrase, Autocomplete, Context};
+use crate::app::{autocomplete_phrase, Autocomplete, Command, Context};
 use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
 use rand::Rng;
 use std::str::FromStr;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum WorldCommand {
     Location { location_type: LocationType },
     Npc { species: Option<Species> },
@@ -41,7 +41,7 @@ impl FromStr for WorldCommand {
 }
 
 impl Autocomplete for WorldCommand {
-    fn autocomplete(input: &str, _context: &Context) -> Vec<String> {
+    fn autocomplete(input: &str, _context: &Context) -> Vec<(String, Command)> {
         autocomplete_phrase(
             input,
             &mut ["npc", "building"]
@@ -49,6 +49,9 @@ impl Autocomplete for WorldCommand {
                 .chain(Species::get_words().iter())
                 .chain(BuildingType::get_words().iter()),
         )
+        .drain(..)
+        .filter_map(|s| s.parse().ok().map(|c| (s, Command::World(c))))
+        .collect()
     }
 }
 
@@ -95,31 +98,111 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        [
-            "building",
-            "npc",
+        vec![
+            (
+                "building",
+                WorldCommand::Location {
+                    location_type: LocationType::Building(None),
+                },
+            ),
+            ("npc", WorldCommand::Npc { species: None }),
             // Species
-            "dragonborn",
-            "dwarf",
-            "elf",
-            "gnome",
-            "half-elf",
-            "half-orc",
-            "halfling",
-            "human",
-            "tiefling",
-            "warforged",
+            (
+                "dragonborn",
+                WorldCommand::Npc {
+                    species: Some(Species::Dragonborn),
+                },
+            ),
+            (
+                "dwarf",
+                WorldCommand::Npc {
+                    species: Some(Species::Dwarf),
+                },
+            ),
+            (
+                "elf",
+                WorldCommand::Npc {
+                    species: Some(Species::Elf),
+                },
+            ),
+            (
+                "gnome",
+                WorldCommand::Npc {
+                    species: Some(Species::Gnome),
+                },
+            ),
+            (
+                "half-elf",
+                WorldCommand::Npc {
+                    species: Some(Species::HalfElf),
+                },
+            ),
+            (
+                "half-orc",
+                WorldCommand::Npc {
+                    species: Some(Species::HalfOrc),
+                },
+            ),
+            (
+                "halfling",
+                WorldCommand::Npc {
+                    species: Some(Species::Halfling),
+                },
+            ),
+            (
+                "human",
+                WorldCommand::Npc {
+                    species: Some(Species::Human),
+                },
+            ),
+            (
+                "tiefling",
+                WorldCommand::Npc {
+                    species: Some(Species::Tiefling),
+                },
+            ),
+            (
+                "warforged",
+                WorldCommand::Npc {
+                    species: Some(Species::Warforged),
+                },
+            ),
             // BuildingType
-            "inn",
-            "residence",
-            "shop",
-            "temple",
-            "warehouse",
+            (
+                "inn",
+                WorldCommand::Location {
+                    location_type: LocationType::Building(Some(BuildingType::Inn)),
+                },
+            ),
+            (
+                "residence",
+                WorldCommand::Location {
+                    location_type: LocationType::Building(Some(BuildingType::Residence)),
+                },
+            ),
+            (
+                "shop",
+                WorldCommand::Location {
+                    location_type: LocationType::Building(Some(BuildingType::Shop)),
+                },
+            ),
+            (
+                "temple",
+                WorldCommand::Location {
+                    location_type: LocationType::Building(Some(BuildingType::Temple)),
+                },
+            ),
+            (
+                "warehouse",
+                WorldCommand::Location {
+                    location_type: LocationType::Building(Some(BuildingType::Warehouse)),
+                },
+            ),
         ]
-        .iter()
-        .for_each(|word| {
+        .drain(..)
+        .for_each(|(word, command)| {
             assert_eq!(
-                vec![word.to_string()],
+                vec![(word.to_string(), Command::World(command))],
                 WorldCommand::autocomplete(word, &Context::default()),
             )
         });
