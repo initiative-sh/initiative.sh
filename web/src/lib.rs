@@ -5,7 +5,12 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub fn command(input: &str) -> String {
-    format!("{}", app().command(input))
+    app().command(input)
+}
+
+#[wasm_bindgen]
+pub fn autocomplete(input: &str) -> JsValue {
+    JsValue::from_serde(&app().autocomplete(input)).unwrap()
 }
 
 static mut APP: Option<core::app::App> = None;

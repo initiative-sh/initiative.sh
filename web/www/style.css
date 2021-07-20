@@ -1,0 +1,77 @@
+* {
+    font-family: monospace;
+    font-size: 100%;
+    line-height: 1.5rem;
+}
+
+body {
+    background: var(--solarized-base3);
+    color: var(--solarized-base03);
+    font-size: 1.2rem;
+}
+
+#output {
+    margin: 0;
+    padding: 0 0 1rem;
+    white-space: pre-wrap;
+}
+
+#prompt-form {
+    margin: 0.5rem 0 0;
+    position: relative;
+    white-space: nowrap;
+}
+
+#prompt-form::before {
+    content: ">";
+}
+
+#prompt {
+    background: none;
+    border: none;
+    height: 1.5rem;
+    padding-bottom: 0;
+    padding-left: 1ch;
+    padding-right: 0;
+    padding-top: 0;
+    width: calc(100% - 1ch);
+}
+
+#prompt:focus {
+    outline: none;
+}
+
+ul.autocomplete-list {
+    background: var(--solarized-base2);
+    bottom: 0;
+    left: 0;
+    margin-bottom: 1.5rem;
+    margin-left: 1ch;
+    margin-right: 0;
+    margin-top: 0;
+    padding-bottom: 0;
+    padding-left: 1ch;
+    padding-right: 1ch;
+    padding-top: 0;
+    position: absolute;
+}
+
+li.autocomplete-item {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+li.autocomplete-item mark.autocomplete-item-highlight {
+    background: var(--solarized-base1);
+}
+
+li.autocomplete-item.autocomplete-item-selected {
+    background: var(--solarized-base03);
+    color: var(--solarized-base3);
+}
+
+li.autocomplete-item.autocomplete-item-selected mark.autocomplete-item-highlight {
+    background: var(--solarized-base01);
+    color: var(--solarized-base3);
+}
