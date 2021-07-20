@@ -6,12 +6,20 @@ const prompt = document.getElementById("prompt");
 const output = document.getElementById("output");
 
 const autoCompleteJS = new autoComplete({
-  selector: "#prompt",
   data: {
     src: async (query) => wasm.autocomplete(query),
   },
-  wrapper: false,
+  resultsList: {
+    class: "autocomplete-list",
+  },
+  resultItem: {
+    class: "autocomplete-item",
+    highlight: "autocomplete-item-highlight",
+    selected: "autocomplete-item-selected",
+  },
+  selector: "#prompt",
   submit: true,
+  wrapper: false,
 });
 
 const runCommand = command => {
