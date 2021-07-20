@@ -20,3 +20,4 @@ wasm-pack build --release
 cd www || exit
 npm install
 npm run build
+cp -v -- *.css dist/
