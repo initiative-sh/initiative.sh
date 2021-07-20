@@ -10,6 +10,7 @@ const autoCompleteJS = new autoComplete({
   data: {
     src: async (query) => wasm.autocomplete(query),
   },
+  wrapper: false,
   submit: true,
 });
 
@@ -44,5 +45,13 @@ promptForm.addEventListener("navigate", event => {
 promptForm.addEventListener("selection", event => {
   runCommand(event.detail.selection.value);
 });
+
+// Keep the prompt focused
+prompt.addEventListener("blur", event => {
+  console.log("blur");
+  setTimeout(() => prompt.focus(), 100);
+});
+
+window.addEventListener("click", event => prompt.focus());
 
 prompt.focus();

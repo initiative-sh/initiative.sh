@@ -1,0 +1,35 @@
+* {
+    font-family: monospace;
+    font-size: 100%;
+    line-height: 1.5rem;
+}
+
+body {
+    font-size: 1.2rem;
+}
+
+#output {
+    margin: 0;
+    padding: 0 0 1rem;
+    white-space: pre-wrap;
+}
+
+#prompt-form {
+    margin: 0.5rem 0 0;
+    white-space: nowrap;
+}
+
+#prompt-form::before {
+    content: "> ";
+}
+
+#prompt {
+    border: none;
+    height: 1.5rem;
+    padding: 0;
+    width: calc(100% - 2ch);
+}
+
+#prompt:focus {
+    outline: none;
+}
