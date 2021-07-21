@@ -1,6 +1,6 @@
 use super::location;
 use super::npc;
-use crate::app::{autocomplete_phrase, Command, Context, Runnable};
+use crate::app::{autocomplete_phrase, Context, Runnable};
 use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
 use rand::Rng;
@@ -41,7 +41,7 @@ impl FromStr for WorldCommand {
 }
 
 impl Runnable for WorldCommand {
-    fn autocomplete(input: &str, _context: &Context) -> Vec<(String, Command)> {
+    fn autocomplete(input: &str, _context: &Context) -> Vec<(String, Self)> {
         autocomplete_phrase(
             input,
             &mut ["npc", "building"]
@@ -50,7 +50,7 @@ impl Runnable for WorldCommand {
                 .chain(BuildingType::get_words().iter()),
         )
         .drain(..)
-        .filter_map(|s| s.parse().ok().map(|c| (s, Command::World(c))))
+        .filter_map(|s| s.parse().ok().map(|c| (s, c)))
         .collect()
     }
 }
@@ -202,7 +202,7 @@ mod test {
         .drain(..)
         .for_each(|(word, command)| {
             assert_eq!(
-                vec![(word.to_string(), Command::World(command))],
+                vec![(word.to_string(), command)],
                 WorldCommand::autocomplete(word, &Context::default()),
             )
         });

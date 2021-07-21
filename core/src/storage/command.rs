@@ -1,4 +1,4 @@
-use crate::app::{Command, Context, Runnable};
+use crate::app::{Context, Runnable};
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
@@ -40,7 +40,7 @@ impl FromStr for StorageCommand {
 }
 
 impl Runnable for StorageCommand {
-    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Command)> {
+    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)> {
         if !input
             .chars()
             .next()
@@ -62,7 +62,7 @@ impl Runnable for StorageCommand {
 
             suggestions
                 .drain(..)
-                .filter_map(|s| s.parse().ok().map(|c| (s, Command::Storage(c))))
+                .filter_map(|s| s.parse().ok().map(|c| (s, c)))
                 .collect()
         }
     }
@@ -126,15 +126,15 @@ mod test {
             vec![
                 (
                     "Potato & Potato, Esq.".to_string(),
-                    Command::Storage(StorageCommand::Load {
+                    StorageCommand::Load {
                         query: "Potato & Potato, Esq.".to_string(),
-                    })
+                    }
                 ),
                 (
                     "Potato Johnson".to_string(),
-                    Command::Storage(StorageCommand::Load {
+                    StorageCommand::Load {
                         query: "Potato Johnson".to_string(),
-                    })
+                    }
                 ),
             ],
             StorageCommand::autocomplete("P", &context),

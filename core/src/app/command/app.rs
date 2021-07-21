@@ -1,4 +1,4 @@
-use crate::app::{autocomplete_phrase, Command, Context, Runnable};
+use crate::app::{autocomplete_phrase, Context, Runnable};
 use initiative_macros::WordList;
 
 #[derive(Debug, PartialEq, WordList)]
@@ -15,10 +15,10 @@ impl AppCommand {
 }
 
 impl Runnable for AppCommand {
-    fn autocomplete(input: &str, _context: &Context) -> Vec<(String, Command)> {
+    fn autocomplete(input: &str, _context: &Context) -> Vec<(String, Self)> {
         autocomplete_phrase(input, &mut Self::get_words().iter())
             .drain(..)
-            .filter_map(|s| s.parse().ok().map(|c| (s, Command::App(c))))
+            .filter_map(|s| s.parse().ok().map(|c| (s, c)))
             .collect()
     }
 }
@@ -46,7 +46,7 @@ mod test {
             .drain(..)
             .for_each(|(word, command)| {
                 assert_eq!(
-                    vec![(word.to_string(), Command::App(command))],
+                    vec![(word.to_string(), command)],
                     AppCommand::autocomplete(word, &Context::default()),
                 )
             });

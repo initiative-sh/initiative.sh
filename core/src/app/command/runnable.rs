@@ -1,7 +1,7 @@
-use crate::app::{Command, Context};
+use crate::app::Context;
 
 pub trait Runnable: Sized {
-    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Command)>;
+    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)>;
 }
 
 pub fn autocomplete_phrase(

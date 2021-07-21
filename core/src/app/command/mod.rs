@@ -45,27 +45,47 @@ impl FromStr for Command {
 }
 
 impl Runnable for Command {
-    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Command)> {
-        let mut suggestions = Vec::new();
-        let mut inputs = 0;
-        let mut append = |mut cmd_suggestions: Vec<(String, Command)>| {
-            if !cmd_suggestions.is_empty() {
-                inputs += 1;
-                suggestions.append(&mut cmd_suggestions);
-            }
-        };
+    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)> {
+        let mut suggestions: Vec<(String, Command)> = std::iter::empty()
+            .chain(
+                AppCommand::autocomplete(input, context)
+                    .drain(..)
+                    .map(|(s, c)| (s, c.into())),
+            )
+            .chain(
+                StorageCommand::autocomplete(input, context)
+                    .drain(..)
+                    .map(|(s, c)| (s, c.into())),
+            )
+            .chain(
+                WorldCommand::autocomplete(input, context)
+                    .drain(..)
+                    .map(|(s, c)| (s, c.into())),
+            )
+            .collect();
 
-        append(AppCommand::autocomplete(input, context));
-        append(StorageCommand::autocomplete(input, context));
-        append(WorldCommand::autocomplete(input, context));
-
-        // No need to re-sort and truncate if we've only received suggestions from one command.
-        if inputs > 1 {
-            suggestions.sort_by(|(a, _), (b, _)| a.cmp(b));
-            suggestions.truncate(10);
-        }
+        suggestions.sort_by(|(a, _), (b, _)| a.cmp(b));
+        suggestions.truncate(10);
 
         suggestions
+    }
+}
+
+impl From<AppCommand> for Command {
+    fn from(c: AppCommand) -> Command {
+        Command::App(c)
+    }
+}
+
+impl From<StorageCommand> for Command {
+    fn from(c: StorageCommand) -> Command {
+        Command::Storage(c)
+    }
+}
+
+impl From<WorldCommand> for Command {
+    fn from(c: WorldCommand) -> Command {
+        Command::World(c)
     }
 }
 
