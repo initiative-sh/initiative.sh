@@ -1,8 +1,6 @@
-pub use autocomplete::{autocomplete_phrase, Autocomplete};
-pub use command::{AppCommand, Command};
+pub use command::{autocomplete_phrase, AppCommand, Command, Runnable};
 pub use context::Context;
 
-mod autocomplete;
 mod command;
 mod context;
 

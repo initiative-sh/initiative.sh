@@ -1,4 +1,4 @@
-use crate::app::{Autocomplete, Command, Context};
+use crate::app::{Command, Context, Runnable};
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
@@ -39,7 +39,7 @@ impl FromStr for StorageCommand {
     }
 }
 
-impl Autocomplete for StorageCommand {
+impl Runnable for StorageCommand {
     fn autocomplete(input: &str, context: &Context) -> Vec<(String, Command)> {
         if !input
             .chars()

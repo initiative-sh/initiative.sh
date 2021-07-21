@@ -1,6 +1,6 @@
 use super::location;
 use super::npc;
-use crate::app::{autocomplete_phrase, Autocomplete, Command, Context};
+use crate::app::{autocomplete_phrase, Command, Context, Runnable};
 use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
 use rand::Rng;
@@ -40,7 +40,7 @@ impl FromStr for WorldCommand {
     }
 }
 
-impl Autocomplete for WorldCommand {
+impl Runnable for WorldCommand {
     fn autocomplete(input: &str, _context: &Context) -> Vec<(String, Command)> {
         autocomplete_phrase(
             input,

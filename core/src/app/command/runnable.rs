@@ -1,7 +1,6 @@
-use super::{Command, Context};
-use std::iter::Iterator;
+use crate::app::{Command, Context};
 
-pub trait Autocomplete {
+pub trait Runnable: Sized {
     fn autocomplete(input: &str, context: &Context) -> Vec<(String, Command)>;
 }
 
@@ -23,38 +22,6 @@ pub fn autocomplete_phrase(
         suggestions
     }
 }
-
-/*
-pub fn autocomplete_words(input: &str, vocabulary: &mut dyn Iterator<Item = &&str>) -> Vec<String> {
-    let (start, partial) = input.split_at(
-        input
-            .rfind(char::is_whitespace)
-            .map(|i| {
-                ((i + 1)..input.len())
-                    .find(|&i| input.is_char_boundary(i))
-                    .unwrap_or(input.len())
-            })
-            .unwrap_or(0),
-    );
-
-    if partial.is_empty() {
-        return Vec::new();
-    }
-
-    vocabulary
-        .filter_map(|word| {
-            if word.starts_with(partial) {
-                let mut suggestion = String::with_capacity(start.len() + partial.len());
-                suggestion.push_str(start);
-                suggestion.push_str(word);
-                Some(suggestion)
-            } else {
-                None
-            }
-        })
-        .collect()
-}
-*/
 
 #[cfg(test)]
 mod test {

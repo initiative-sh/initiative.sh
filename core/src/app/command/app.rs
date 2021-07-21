@@ -1,4 +1,4 @@
-use crate::app::{autocomplete_phrase, Autocomplete, Command, Context};
+use crate::app::{autocomplete_phrase, Command, Context, Runnable};
 use initiative_macros::WordList;
 
 #[derive(Debug, PartialEq, WordList)]
@@ -14,7 +14,7 @@ impl AppCommand {
     }
 }
 
-impl Autocomplete for AppCommand {
+impl Runnable for AppCommand {
     fn autocomplete(input: &str, _context: &Context) -> Vec<(String, Command)> {
         autocomplete_phrase(input, &mut Self::get_words().iter())
             .drain(..)

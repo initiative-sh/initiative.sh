@@ -1,8 +1,10 @@
 pub use app::AppCommand;
+pub use runnable::{autocomplete_phrase, Runnable};
 
 mod app;
+mod runnable;
 
-use super::{Autocomplete, Context};
+use super::Context;
 use crate::storage::StorageCommand;
 use crate::world::WorldCommand;
 use rand::Rng;
@@ -42,7 +44,7 @@ impl FromStr for Command {
     }
 }
 
-impl Autocomplete for Command {
+impl Runnable for Command {
     fn autocomplete(input: &str, context: &Context) -> Vec<(String, Command)> {
         let mut suggestions = Vec::new();
         let mut inputs = 0;
