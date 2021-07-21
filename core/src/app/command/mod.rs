@@ -17,17 +17,15 @@ pub enum Command {
     Storage(StorageCommand),
 }
 
-impl Command {
-    pub fn run(&self, context: &mut Context, rng: &mut impl Rng) -> String {
+impl Runnable for Command {
+    fn run(&self, context: &mut Context, rng: &mut impl Rng) -> String {
         match self {
-            Self::App(c) => c.run(context),
-            Self::Storage(c) => c.run(context),
+            Self::App(c) => c.run(context, rng),
+            Self::Storage(c) => c.run(context, rng),
             Self::World(c) => c.run(context, rng),
         }
     }
-}
 
-impl Runnable for Command {
     fn parse_input(input: &str, context: &Context) -> Vec<Self> {
         std::iter::empty()
             .chain(

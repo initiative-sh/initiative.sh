@@ -12,16 +12,14 @@ pub enum WorldCommand {
     //Region(RawCommand),
 }
 
-impl WorldCommand {
-    pub fn run(&self, context: &mut Context, rng: &mut impl Rng) -> String {
+impl Runnable for WorldCommand {
+    fn run(&self, context: &mut Context, rng: &mut impl Rng) -> String {
         match self {
             Self::Location { location_type } => location::command(location_type, context, rng),
             Self::Npc { species } => npc::command(species, context, rng),
         }
     }
-}
 
-impl Runnable for WorldCommand {
     fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
         if let Ok(species) = input.parse() {
             vec![Self::Npc {

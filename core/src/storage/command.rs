@@ -1,12 +1,13 @@
 use crate::app::{Context, Runnable};
+use rand::Rng;
 
 #[derive(Debug, PartialEq)]
 pub enum StorageCommand {
     Load { query: String },
 }
 
-impl StorageCommand {
-    pub fn run(&self, context: &mut Context) -> String {
+impl Runnable for StorageCommand {
+    fn run(&self, context: &mut Context, _rng: &mut impl Rng) -> String {
         match self {
             Self::Load { query } => {
                 let lowercase_query = query.to_lowercase();
@@ -22,9 +23,7 @@ impl StorageCommand {
             }
         }
     }
-}
 
-impl Runnable for StorageCommand {
     fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
         if input.starts_with(char::is_uppercase) {
             vec![Self::Load {

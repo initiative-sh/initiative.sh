@@ -1,20 +1,19 @@
 use crate::app::{autocomplete_phrase, Context, Runnable};
 use initiative_macros::WordList;
+use rand::Rng;
 
 #[derive(Debug, PartialEq, WordList)]
 pub enum AppCommand {
     Debug,
 }
 
-impl AppCommand {
-    pub fn run(&self, context: &Context) -> String {
+impl Runnable for AppCommand {
+    fn run(&self, context: &mut Context, _rng: &mut impl Rng) -> String {
         match self {
             Self::Debug => format!("{:?}", context),
         }
     }
-}
 
-impl Runnable for AppCommand {
     fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
         input.parse().map(|c| vec![c]).unwrap_or_default()
     }
