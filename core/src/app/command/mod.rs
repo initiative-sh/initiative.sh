@@ -8,7 +8,6 @@ use super::Context;
 use crate::storage::StorageCommand;
 use crate::world::WorldCommand;
 use rand::Rng;
-use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
 pub enum Command {
@@ -28,23 +27,27 @@ impl Command {
     }
 }
 
-impl FromStr for Command {
-    type Err = ();
-
-    fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        if let Ok(command) = raw.parse() {
-            Ok(Command::App(command))
-        } else if let Ok(command) = raw.parse() {
-            Ok(Command::Storage(command))
-        } else if let Ok(command) = raw.parse() {
-            Ok(Command::World(command))
-        } else {
-            Err(())
-        }
-    }
-}
-
 impl Runnable for Command {
+    fn parse_input(input: &str, context: &Context) -> Vec<Self> {
+        std::iter::empty()
+            .chain(
+                AppCommand::parse_input(input, context)
+                    .drain(..)
+                    .map(|c| c.into()),
+            )
+            .chain(
+                StorageCommand::parse_input(input, context)
+                    .drain(..)
+                    .map(|c| c.into()),
+            )
+            .chain(
+                WorldCommand::parse_input(input, context)
+                    .drain(..)
+                    .map(|c| c.into()),
+            )
+            .collect()
+    }
+
     fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)> {
         let mut suggestions: Vec<(String, Command)> = std::iter::empty()
             .chain(
@@ -95,27 +98,25 @@ mod test {
     use crate::world::npc::Species;
 
     #[test]
-    fn from_str_test() {
-        {
-            let result = "debug".parse();
-            assert!(
-                matches!(result, Ok(Command::App(AppCommand::Debug))),
-                "{:?}",
-                result,
-            );
-        }
+    fn parse_input_test() {
+        let context = Context::default();
 
-        {
-            let result = "npc".parse();
-            assert!(
-                matches!(
-                    result,
-                    Ok(Command::World(WorldCommand::Npc { species: None })),
-                ),
-                "{:?}",
-                result,
-            );
-        }
+        assert_eq!(
+            vec![Command::App(AppCommand::Debug)],
+            Command::parse_input("debug", &context),
+        );
+
+        assert_eq!(
+            vec![Command::Storage(StorageCommand::Load {
+                query: "Gandalf the Grey".to_string(),
+            })],
+            Command::parse_input("Gandalf the Grey", &context),
+        );
+
+        assert_eq!(
+            vec![Command::World(WorldCommand::Npc { species: None })],
+            Command::parse_input("npc", &context),
+        );
     }
 
     #[test]

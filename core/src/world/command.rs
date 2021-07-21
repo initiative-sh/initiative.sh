@@ -4,7 +4,6 @@ use crate::app::{autocomplete_phrase, Context, Runnable};
 use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
 use rand::Rng;
-use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
 pub enum WorldCommand {
@@ -22,36 +21,38 @@ impl WorldCommand {
     }
 }
 
-impl FromStr for WorldCommand {
-    type Err = ();
-
-    fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        if let Ok(species) = raw.parse() {
-            Ok(Self::Npc {
+impl Runnable for WorldCommand {
+    fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
+        if let Ok(species) = input.parse() {
+            vec![Self::Npc {
                 species: Some(species),
-            })
-        } else if let Ok(location_type) = raw.parse() {
-            Ok(Self::Location { location_type })
-        } else if "npc" == raw {
-            Ok(Self::Npc { species: None })
+            }]
+        } else if let Ok(location_type) = input.parse() {
+            vec![Self::Location { location_type }]
+        } else if "npc" == input {
+            vec![Self::Npc { species: None }]
         } else {
-            Err(())
+            Vec::new()
         }
     }
-}
 
-impl Runnable for WorldCommand {
-    fn autocomplete(input: &str, _context: &Context) -> Vec<(String, Self)> {
-        autocomplete_phrase(
+    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)> {
+        let mut suggestions = autocomplete_phrase(
             input,
             &mut ["npc", "building"]
                 .iter()
                 .chain(Species::get_words().iter())
                 .chain(BuildingType::get_words().iter()),
-        )
-        .drain(..)
-        .filter_map(|s| s.parse().ok().map(|c| (s, c)))
-        .collect()
+        );
+
+        suggestions.sort();
+        suggestions.truncate(10);
+
+        suggestions
+            .iter()
+            .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), context)))
+            .map(|(s, c)| (s.clone(), c))
+            .collect()
     }
 }
 
@@ -60,40 +61,32 @@ mod test {
     use super::*;
 
     #[test]
-    fn from_str_test() {
-        let parsed_command = "building".parse();
-        assert!(
-            matches!(
-                parsed_command,
-                Ok(WorldCommand::Location {
-                    location_type: LocationType::Building(None)
-                }),
-            ),
-            "{:?}",
-            parsed_command,
+    fn parse_input_test() {
+        let context = Context::default();
+
+        assert_eq!(
+            vec![WorldCommand::Location {
+                location_type: LocationType::Building(None)
+            }],
+            WorldCommand::parse_input("building", &context),
         );
 
-        let parsed_command = "npc".parse();
-        assert!(
-            matches!(parsed_command, Ok(WorldCommand::Npc { species: None })),
-            "{:?}",
-            parsed_command,
+        assert_eq!(
+            vec![WorldCommand::Npc { species: None }],
+            WorldCommand::parse_input("npc", &context),
         );
 
-        let parsed_command = "elf".parse();
-        assert!(
-            matches!(
-                parsed_command,
-                Ok(WorldCommand::Npc {
-                    species: Some(Species::Elf)
-                }),
-            ),
-            "{:?}",
-            parsed_command,
+        assert_eq!(
+            vec![WorldCommand::Npc {
+                species: Some(Species::Elf)
+            }],
+            WorldCommand::parse_input("elf", &context),
         );
 
-        let parsed_command = "potato".parse::<WorldCommand>();
-        assert!(matches!(parsed_command, Err(())), "{:?}", parsed_command);
+        assert_eq!(
+            Vec::<WorldCommand>::new(),
+            WorldCommand::parse_input("potato", &context),
+        );
     }
 
     #[test]

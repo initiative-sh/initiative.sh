@@ -21,13 +21,15 @@ impl App {
     }
 
     pub fn command(&mut self, input: &str) -> String {
-        if let Ok(command) = self
-            .context
-            .command_aliases
-            .get(input)
-            .map_or(input, |s| s.as_str())
-            .parse::<Command>()
-        {
+        let commands = Command::parse_input(
+            self.context
+                .command_aliases
+                .get(input)
+                .map_or(input, |s| s.as_str()),
+            &self.context,
+        );
+
+        if let Some(command) = commands.first() {
             command.run(&mut self.context, &mut self.rng)
         } else {
             format!("Unknown command: \"{}\"", input)
@@ -36,8 +38,8 @@ impl App {
 
     pub fn autocomplete(&self, input: &str) -> Vec<String> {
         Command::autocomplete(input, &self.context)
-            .iter()
-            .map(|(s, _)| s.clone())
+            .drain(..)
+            .map(|(s, _)| s)
             .collect()
     }
 }

@@ -15,6 +15,10 @@ impl AppCommand {
 }
 
 impl Runnable for AppCommand {
+    fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
+        input.parse().map(|c| vec![c]).unwrap_or_default()
+    }
+
     fn autocomplete(input: &str, _context: &Context) -> Vec<(String, Self)> {
         autocomplete_phrase(input, &mut Self::get_words().iter())
             .drain(..)
@@ -28,16 +32,18 @@ mod test {
     use super::*;
 
     #[test]
-    fn from_str_test() {
-        let parsed_command = "debug".parse();
-        assert!(
-            matches!(parsed_command, Ok(AppCommand::Debug)),
-            "{:?}",
-            parsed_command,
+    fn parse_input_test() {
+        let context = Context::default();
+
+        assert_eq!(
+            vec![AppCommand::Debug],
+            AppCommand::parse_input("debug", &context),
         );
 
-        let parsed_command = "potato".parse::<AppCommand>();
-        assert!(matches!(parsed_command, Err(())), "{:?}", parsed_command);
+        assert_eq!(
+            Vec::<AppCommand>::new(),
+            AppCommand::parse_input("potato", &context),
+        );
     }
 
     #[test]

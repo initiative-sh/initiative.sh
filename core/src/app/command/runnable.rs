@@ -1,6 +1,8 @@
 use crate::app::Context;
 
 pub trait Runnable: Sized {
+    fn parse_input(input: &str, context: &Context) -> Vec<Self>;
+
     fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)>;
 }
 

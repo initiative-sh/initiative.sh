@@ -1,5 +1,4 @@
 use crate::app::{Context, Runnable};
-use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
 pub enum StorageCommand {
@@ -25,21 +24,17 @@ impl StorageCommand {
     }
 }
 
-impl FromStr for StorageCommand {
-    type Err = ();
-
-    fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        if raw.starts_with(char::is_uppercase) {
-            Ok(Self::Load {
-                query: raw.to_string(),
-            })
+impl Runnable for StorageCommand {
+    fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
+        if input.starts_with(char::is_uppercase) {
+            vec![Self::Load {
+                query: input.to_string(),
+            }]
         } else {
-            Err(())
+            Vec::new()
         }
     }
-}
 
-impl Runnable for StorageCommand {
     fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)> {
         if !input
             .chars()
@@ -61,8 +56,9 @@ impl Runnable for StorageCommand {
             suggestions.truncate(10);
 
             suggestions
-                .drain(..)
-                .filter_map(|s| s.parse().ok().map(|c| (s, c)))
+                .iter()
+                .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), context)))
+                .map(|(s, c)| (s.clone(), c))
                 .collect()
         }
     }
@@ -74,16 +70,20 @@ mod test {
     use crate::world::{Location, Npc};
 
     #[test]
-    fn from_str_test() {
-        let parsed_command = "Gandalf the Grey".parse();
-        if let Ok(StorageCommand::Load { query }) = parsed_command {
-            assert_eq!("Gandalf the Grey", query.as_str());
-        } else {
-            panic!("{:?}", parsed_command);
-        }
+    fn parse_input_test() {
+        let context = Context::default();
 
-        let parsed_command = "potato".parse::<StorageCommand>();
-        assert!(matches!(parsed_command, Err(())), "{:?}", parsed_command);
+        assert_eq!(
+            vec![StorageCommand::Load {
+                query: "Gandalf the Grey".to_string()
+            }],
+            StorageCommand::parse_input("Gandalf the Grey", &context),
+        );
+
+        assert_eq!(
+            Vec::<StorageCommand>::new(),
+            StorageCommand::parse_input("potato", &context),
+        );
     }
 
     #[test]
