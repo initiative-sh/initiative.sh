@@ -1,54 +1,62 @@
 use super::location;
 use super::npc;
-use crate::app::{autocomplete_phrase, Autocomplete, Context};
+use crate::app::{autocomplete_phrase, Context, Runnable};
 use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
 use rand::Rng;
-use std::str::FromStr;
 
-#[derive(Debug)]
-pub enum Command {
+#[derive(Clone, Debug, PartialEq)]
+pub enum WorldCommand {
     Location { location_type: LocationType },
     Npc { species: Option<Species> },
     //Region(RawCommand),
 }
 
-impl Command {
-    pub fn run(&self, context: &mut Context, rng: &mut impl Rng) -> String {
+impl Runnable for WorldCommand {
+    fn run(&self, context: &mut Context, rng: &mut impl Rng) -> String {
         match self {
             Self::Location { location_type } => location::command(location_type, context, rng),
             Self::Npc { species } => npc::command(species, context, rng),
         }
     }
-}
 
-impl FromStr for Command {
-    type Err = ();
-
-    fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        if let Ok(species) = raw.parse() {
-            Ok(Self::Npc {
-                species: Some(species),
-            })
-        } else if let Ok(location_type) = raw.parse() {
-            Ok(Self::Location { location_type })
-        } else if "npc" == raw {
-            Ok(Self::Npc { species: None })
-        } else {
-            Err(())
+    fn summarize(&self) -> &str {
+        match self {
+            Self::Location { .. } | Self::Npc { .. } => "generate",
         }
     }
-}
 
-impl Autocomplete for Command {
-    fn autocomplete(input: &str, _context: &Context) -> Vec<String> {
-        autocomplete_phrase(
+    fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
+        if let Ok(species) = input.parse() {
+            vec![Self::Npc {
+                species: Some(species),
+            }]
+        } else if let Ok(location_type) = input.parse() {
+            vec![Self::Location { location_type }]
+        } else if "npc" == input {
+            vec![Self::Npc { species: None }]
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)> {
+        let mut suggestions = autocomplete_phrase(
             input,
             &mut ["npc", "building"]
                 .iter()
                 .chain(Species::get_words().iter())
                 .chain(BuildingType::get_words().iter()),
-        )
+        );
+
+        suggestions.sort();
+        suggestions.truncate(10);
+
+        suggestions
+            .iter()
+            .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), context)))
+            .map(|(s, c)| (s.clone(), c))
+            .collect()
     }
 }
 
@@ -57,70 +65,155 @@ mod test {
     use super::*;
 
     #[test]
-    fn from_str_test() {
-        let parsed_command = "building".parse();
-        assert!(
-            matches!(
-                parsed_command,
-                Ok(Command::Location {
-                    location_type: LocationType::Building(None)
-                }),
-            ),
-            "{:?}",
-            parsed_command,
+    fn summarize_test() {
+        assert_eq!(
+            "generate",
+            WorldCommand::Location {
+                location_type: LocationType::Building(None),
+            }
+            .summarize(),
         );
 
-        let parsed_command = "npc".parse();
-        assert!(
-            matches!(parsed_command, Ok(Command::Npc { species: None })),
-            "{:?}",
-            parsed_command,
+        assert_eq!("generate", WorldCommand::Npc { species: None }.summarize());
+    }
+
+    #[test]
+    fn parse_input_test() {
+        let context = Context::default();
+
+        assert_eq!(
+            vec![WorldCommand::Location {
+                location_type: LocationType::Building(None)
+            }],
+            WorldCommand::parse_input("building", &context),
         );
 
-        let parsed_command = "elf".parse();
-        assert!(
-            matches!(
-                parsed_command,
-                Ok(Command::Npc {
-                    species: Some(Species::Elf)
-                }),
-            ),
-            "{:?}",
-            parsed_command,
+        assert_eq!(
+            vec![WorldCommand::Npc { species: None }],
+            WorldCommand::parse_input("npc", &context),
         );
 
-        let parsed_command = "potato".parse::<Command>();
-        assert!(matches!(parsed_command, Err(())), "{:?}", parsed_command);
+        assert_eq!(
+            vec![WorldCommand::Npc {
+                species: Some(Species::Elf)
+            }],
+            WorldCommand::parse_input("elf", &context),
+        );
+
+        assert_eq!(
+            Vec::<WorldCommand>::new(),
+            WorldCommand::parse_input("potato", &context),
+        );
     }
 
     #[test]
     fn autocomplete_test() {
-        [
-            "building",
-            "npc",
+        vec![
+            (
+                "building",
+                WorldCommand::Location {
+                    location_type: LocationType::Building(None),
+                },
+            ),
+            ("npc", WorldCommand::Npc { species: None }),
             // Species
-            "dragonborn",
-            "dwarf",
-            "elf",
-            "gnome",
-            "half-elf",
-            "half-orc",
-            "halfling",
-            "human",
-            "tiefling",
-            "warforged",
+            (
+                "dragonborn",
+                WorldCommand::Npc {
+                    species: Some(Species::Dragonborn),
+                },
+            ),
+            (
+                "dwarf",
+                WorldCommand::Npc {
+                    species: Some(Species::Dwarf),
+                },
+            ),
+            (
+                "elf",
+                WorldCommand::Npc {
+                    species: Some(Species::Elf),
+                },
+            ),
+            (
+                "gnome",
+                WorldCommand::Npc {
+                    species: Some(Species::Gnome),
+                },
+            ),
+            (
+                "half-elf",
+                WorldCommand::Npc {
+                    species: Some(Species::HalfElf),
+                },
+            ),
+            (
+                "half-orc",
+                WorldCommand::Npc {
+                    species: Some(Species::HalfOrc),
+                },
+            ),
+            (
+                "halfling",
+                WorldCommand::Npc {
+                    species: Some(Species::Halfling),
+                },
+            ),
+            (
+                "human",
+                WorldCommand::Npc {
+                    species: Some(Species::Human),
+                },
+            ),
+            (
+                "tiefling",
+                WorldCommand::Npc {
+                    species: Some(Species::Tiefling),
+                },
+            ),
+            (
+                "warforged",
+                WorldCommand::Npc {
+                    species: Some(Species::Warforged),
+                },
+            ),
             // BuildingType
-            "inn",
-            "residence",
-            "shop",
-            "temple",
-            "warehouse",
+            (
+                "inn",
+                WorldCommand::Location {
+                    location_type: LocationType::Building(Some(BuildingType::Inn)),
+                },
+            ),
+            (
+                "residence",
+                WorldCommand::Location {
+                    location_type: LocationType::Building(Some(BuildingType::Residence)),
+                },
+            ),
+            (
+                "shop",
+                WorldCommand::Location {
+                    location_type: LocationType::Building(Some(BuildingType::Shop)),
+                },
+            ),
+            (
+                "temple",
+                WorldCommand::Location {
+                    location_type: LocationType::Building(Some(BuildingType::Temple)),
+                },
+            ),
+            (
+                "warehouse",
+                WorldCommand::Location {
+                    location_type: LocationType::Building(Some(BuildingType::Warehouse)),
+                },
+            ),
         ]
-        .iter()
-        .for_each(|word| {
+        .drain(..)
+        .for_each(|(word, command)| {
             assert_eq!(
-                vec![word.to_string()],
-                Command::autocomplete(word, &Context::default()),
+                vec![(word.to_string(), command)],
+                WorldCommand::autocomplete(word, &Context::default()),
             )
         });
     }

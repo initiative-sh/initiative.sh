@@ -1,13 +1,13 @@
-use crate::app::{Autocomplete, Context};
-use std::str::FromStr;
+use crate::app::{Context, Runnable};
+use rand::Rng;
 
-#[derive(Debug)]
-pub enum Command {
+#[derive(Clone, Debug, PartialEq)]
+pub enum StorageCommand {
     Load { query: String },
 }
 
-impl Command {
-    pub fn run(&self, context: &mut Context) -> String {
+impl Runnable for StorageCommand {
+    fn run(&self, context: &mut Context, _rng: &mut impl Rng) -> String {
         match self {
             Self::Load { query } => {
                 let lowercase_query = query.to_lowercase();
@@ -23,24 +23,24 @@ impl Command {
             }
         }
     }
-}
 
-impl FromStr for Command {
-    type Err = ();
-
-    fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        if raw.starts_with(char::is_uppercase) {
-            Ok(Self::Load {
-                query: raw.to_string(),
-            })
-        } else {
-            Err(())
+    fn summarize(&self) -> &str {
+        match self {
+            Self::Load { .. } => "load",
         }
     }
-}
 
-impl Autocomplete for Command {
-    fn autocomplete(input: &str, context: &Context) -> Vec<String> {
+    fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
+        if input.starts_with(char::is_uppercase) {
+            vec![Self::Load {
+                query: input.to_string(),
+            }]
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)> {
         if !input
             .chars()
             .next()
@@ -61,6 +61,10 @@ impl Autocomplete for Command {
             suggestions.truncate(10);
 
             suggestions
+                .iter()
+                .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), context)))
+                .map(|(s, c)| (s.clone(), c))
+                .collect()
         }
     }
 }
@@ -71,16 +75,31 @@ mod test {
     use crate::world::{Location, Npc};
 
     #[test]
-    fn from_str_test() {
-        let parsed_command = "Gandalf the Grey".parse();
-        if let Ok(Command::Load { query }) = parsed_command {
-            assert_eq!("Gandalf the Grey", query.as_str());
-        } else {
-            panic!("{:?}", parsed_command);
-        }
+    fn summarize_test() {
+        assert_eq!(
+            "load",
+            StorageCommand::Load {
+                query: String::new(),
+            }
+            .summarize(),
+        );
+    }
 
-        let parsed_command = "potato".parse::<Command>();
-        assert!(matches!(parsed_command, Err(())), "{:?}", parsed_command);
+    #[test]
+    fn parse_input_test() {
+        let context = Context::default();
+
+        assert_eq!(
+            vec![StorageCommand::Load {
+                query: "Gandalf the Grey".to_string()
+            }],
+            StorageCommand::parse_input("Gandalf the Grey", &context),
+        );
+
+        assert_eq!(
+            Vec::<StorageCommand>::new(),
+            StorageCommand::parse_input("potato", &context),
+        );
     }
 
     #[test]
@@ -120,11 +139,24 @@ mod test {
         );
 
         assert_eq!(
-            vec!["Potato & Potato, Esq.", "Potato Johnson"],
-            Command::autocomplete("P", &context),
+            vec![
+                (
+                    "Potato & Potato, Esq.".to_string(),
+                    StorageCommand::Load {
+                        query: "Potato & Potato, Esq.".to_string(),
+                    }
+                ),
+                (
+                    "Potato Johnson".to_string(),
+                    StorageCommand::Load {
+                        query: "Potato Johnson".to_string(),
+                    }
+                ),
+            ],
+            StorageCommand::autocomplete("P", &context),
         );
 
-        assert_eq!(Vec::<String>::new(), Command::autocomplete("p", &context));
-        assert_eq!(Vec::<String>::new(), Command::autocomplete("", &context));
+        assert!(StorageCommand::autocomplete("p", &context).is_empty());
+        assert!(StorageCommand::autocomplete("", &context).is_empty());
     }
 }

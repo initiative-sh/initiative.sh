@@ -1,8 +1,6 @@
-pub use autocomplete::{autocomplete_phrase, Autocomplete};
-pub use command::{AppCommand, Command};
+pub use command::{autocomplete_phrase, AppCommand, Command, Runnable};
 pub use context::Context;
 
-mod autocomplete;
 mod command;
 mod context;
 
@@ -23,20 +21,19 @@ impl App {
     }
 
     pub fn command(&mut self, input: &str) -> String {
-        if let Ok(command) = self
-            .context
-            .command_aliases
-            .get(input)
-            .map_or(input, |s| s.as_str())
-            .parse::<Command>()
-        {
+        if let Some(command) = self.context.command_aliases.get(input).cloned() {
+            command.run(&mut self.context, &mut self.rng)
+        } else if let Some(command) = Command::parse_input(&input, &self.context).first() {
             command.run(&mut self.context, &mut self.rng)
         } else {
             format!("Unknown command: \"{}\"", input)
         }
     }
 
-    pub fn autocomplete(&self, input: &str) -> Vec<String> {
+    pub fn autocomplete(&self, input: &str) -> Vec<(String, String)> {
         Command::autocomplete(input, &self.context)
+            .drain(..)
+            .map(|(s, c)| (s, c.summarize().to_string()))
+            .collect()
     }
 }

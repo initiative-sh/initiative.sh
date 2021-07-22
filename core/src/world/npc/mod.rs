@@ -14,6 +14,7 @@ mod view;
 
 use super::{Demographics, Field, Generate};
 use crate::app::Context;
+use crate::storage::StorageCommand;
 use rand::Rng;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -56,9 +57,13 @@ pub fn command(species: &Option<Species>, context: &mut Context, rng: &mut impl 
         .map(|i| {
             let alt = Npc::generate(rng, &demographics);
             output.push_str(&format!("\n{} {}", i, alt.display_summary()));
-            context
-                .command_aliases
-                .insert(format!("{}", i), alt.name.value().unwrap().to_owned());
+            context.command_aliases.insert(
+                i.to_string(),
+                StorageCommand::Load {
+                    query: alt.name.value().unwrap().to_owned(),
+                }
+                .into(),
+            );
             alt.into()
         })
         .collect();
