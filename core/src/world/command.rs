@@ -20,6 +20,12 @@ impl Runnable for WorldCommand {
         }
     }
 
+    fn summarize(&self) -> &str {
+        match self {
+            Self::Location { .. } | Self::Npc { .. } => "generate",
+        }
+    }
+
     fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
         if let Ok(species) = input.parse() {
             vec![Self::Npc {
@@ -57,6 +63,19 @@ impl Runnable for WorldCommand {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn summarize_test() {
+        assert_eq!(
+            "generate",
+            WorldCommand::Location {
+                location_type: LocationType::Building(None),
+            }
+            .summarize(),
+        );
+
+        assert_eq!("generate", WorldCommand::Npc { species: None }.summarize());
+    }
 
     #[test]
     fn parse_input_test() {

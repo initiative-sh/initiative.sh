@@ -4,6 +4,8 @@ use rand::Rng;
 pub trait Runnable: Sized {
     fn run(&self, context: &mut Context, rng: &mut impl Rng) -> String;
 
+    fn summarize(&self) -> &str;
+
     fn parse_input(input: &str, context: &Context) -> Vec<Self>;
 
     fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)>;

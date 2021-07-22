@@ -13,8 +13,8 @@ use rand::Rng;
 pub enum Command {
     App(AppCommand),
     // Context(ContextCommand),
-    World(WorldCommand),
     Storage(StorageCommand),
+    World(WorldCommand),
 }
 
 impl Runnable for Command {
@@ -23,6 +23,14 @@ impl Runnable for Command {
             Self::App(c) => c.run(context, rng),
             Self::Storage(c) => c.run(context, rng),
             Self::World(c) => c.run(context, rng),
+        }
+    }
+
+    fn summarize(&self) -> &str {
+        match self {
+            Self::App(c) => c.summarize(),
+            Self::Storage(c) => c.summarize(),
+            Self::World(c) => c.summarize(),
         }
     }
 
@@ -96,6 +104,24 @@ mod test {
     use crate::world::npc::Species;
 
     #[test]
+    fn summarize_test() {
+        assert_eq!("system", Command::App(AppCommand::Debug).summarize());
+
+        assert_eq!(
+            "load",
+            Command::Storage(StorageCommand::Load {
+                query: "Gandalf the Grey".to_string(),
+            })
+            .summarize(),
+        );
+
+        assert_eq!(
+            "generate",
+            Command::World(WorldCommand::Npc { species: None }).summarize(),
+        );
+    }
+
+    #[test]
     fn parse_input_test() {
         let context = Context::default();
 
@@ -153,5 +179,25 @@ mod test {
         }
 
         assert!(result_iter.next().is_none());
+    }
+
+    #[test]
+    fn into_command_test() {
+        assert_eq!(Command::App(AppCommand::Debug), AppCommand::Debug.into());
+
+        assert_eq!(
+            Command::Storage(StorageCommand::Load {
+                query: "Gandalf the Grey".to_string(),
+            }),
+            StorageCommand::Load {
+                query: "Gandalf the Grey".to_string(),
+            }
+            .into()
+        );
+
+        assert_eq!(
+            Command::World(WorldCommand::Npc { species: None }),
+            WorldCommand::Npc { species: None }.into(),
+        );
     }
 }

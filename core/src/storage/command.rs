@@ -24,6 +24,12 @@ impl Runnable for StorageCommand {
         }
     }
 
+    fn summarize(&self) -> &str {
+        match self {
+            Self::Load { .. } => "load",
+        }
+    }
+
     fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
         if input.starts_with(char::is_uppercase) {
             vec![Self::Load {
@@ -67,6 +73,17 @@ impl Runnable for StorageCommand {
 mod test {
     use super::*;
     use crate::world::{Location, Npc};
+
+    #[test]
+    fn summarize_test() {
+        assert_eq!(
+            "load",
+            StorageCommand::Load {
+                query: String::new(),
+            }
+            .summarize(),
+        );
+    }
 
     #[test]
     fn parse_input_test() {

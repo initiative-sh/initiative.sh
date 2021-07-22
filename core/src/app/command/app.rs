@@ -14,6 +14,12 @@ impl Runnable for AppCommand {
         }
     }
 
+    fn summarize(&self) -> &str {
+        match self {
+            Self::Debug => "system",
+        }
+    }
+
     fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
         input.parse().map(|c| vec![c]).unwrap_or_default()
     }
@@ -29,6 +35,11 @@ impl Runnable for AppCommand {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn summarize_test() {
+        assert_eq!("system", AppCommand::Debug.summarize());
+    }
 
     #[test]
     fn parse_input_test() {
