@@ -7,13 +7,25 @@ const output = document.getElementById("output");
 
 const autoCompleteJS = new autoComplete({
   data: {
-    src: async (query) => wasm.autocomplete(query),
+    src: async (query) => wasm.autocomplete(query).map(a => {
+      return {
+        suggestion: a[0],
+        description: a[1],
+      };
+    }),
+    keys: ["suggestion"],
   },
   resultsList: {
     class: "autocomplete-list",
   },
   resultItem: {
     class: "autocomplete-item",
+    element: (item, data) => {
+      item.innerHTML = `
+      <span class="autocomplete-item-primary">${data.match}</span>
+      <span class="autocomplete-item-description">${data.value.description}</span>
+      `;
+    },
     highlight: "autocomplete-item-highlight",
     selected: "autocomplete-item-selected",
   },
@@ -46,19 +58,15 @@ promptForm.addEventListener("submit", event => {
 });
 
 promptForm.addEventListener("navigate", event => {
-  prompt.value = event.detail.selection.value;
-  console.log(event);
+  prompt.value = event.detail.selection.value.suggestion;
 });
 
 promptForm.addEventListener("selection", event => {
-  runCommand(event.detail.selection.value);
+  runCommand(event.detail.selection.value.suggestion);
 });
 
 // Keep the prompt focused
-prompt.addEventListener("blur", event => {
-  console.log("blur");
-  setTimeout(() => prompt.focus(), 100);
-});
+prompt.addEventListener("blur", event => setTimeout(() => prompt.focus(), 100));
 
 window.addEventListener("click", event => prompt.focus());
 

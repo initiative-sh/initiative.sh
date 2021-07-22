@@ -62,6 +62,12 @@ li.autocomplete-item {
     padding: 0;
 }
 
+li.autocomplete-item .autocomplete-item-description {
+    color: var(--solarized-base00);
+    float: right;
+    margin-left: 1ch;
+}
+
 li.autocomplete-item mark.autocomplete-item-highlight {
     background: var(--solarized-base1);
 }
@@ -69,6 +75,10 @@ li.autocomplete-item mark.autocomplete-item-highlight {
 li.autocomplete-item.autocomplete-item-selected {
     background: var(--solarized-base03);
     color: var(--solarized-base3);
+}
+
+li.autocomplete-item .autocomplete-item-description {
+    color: var(--solarized-base0);
 }
 
 li.autocomplete-item.autocomplete-item-selected mark.autocomplete-item-highlight {

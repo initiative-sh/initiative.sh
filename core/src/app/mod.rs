@@ -30,10 +30,10 @@ impl App {
         }
     }
 
-    pub fn autocomplete(&self, input: &str) -> Vec<String> {
+    pub fn autocomplete(&self, input: &str) -> Vec<(String, String)> {
         Command::autocomplete(input, &self.context)
             .drain(..)
-            .map(|(s, _)| s)
+            .map(|(s, c)| (s, c.summarize().to_string()))
             .collect()
     }
 }
