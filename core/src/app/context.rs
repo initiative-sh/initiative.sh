@@ -1,3 +1,4 @@
+use super::Command;
 use crate::world;
 use std::collections::HashMap;
 
@@ -6,7 +7,7 @@ const RECENT_MAX_LEN: usize = 100;
 #[derive(Debug, Default)]
 pub struct Context {
     pub demographics: world::Demographics,
-    pub command_aliases: HashMap<String, String>,
+    pub command_aliases: HashMap<String, Command>,
 
     recent: Vec<world::Thing>,
 }

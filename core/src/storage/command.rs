@@ -1,7 +1,7 @@
 use crate::app::{Context, Runnable};
 use rand::Rng;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum StorageCommand {
     Load { query: String },
 }

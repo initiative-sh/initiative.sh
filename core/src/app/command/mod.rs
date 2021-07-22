@@ -9,7 +9,7 @@ use crate::storage::StorageCommand;
 use crate::world::WorldCommand;
 use rand::Rng;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Command {
     App(AppCommand),
     // Context(ContextCommand),

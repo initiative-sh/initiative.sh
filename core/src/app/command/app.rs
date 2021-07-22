@@ -2,7 +2,7 @@ use crate::app::{autocomplete_phrase, Context, Runnable};
 use initiative_macros::WordList;
 use rand::Rng;
 
-#[derive(Debug, PartialEq, WordList)]
+#[derive(Clone, Debug, PartialEq, WordList)]
 pub enum AppCommand {
     Debug,
 }

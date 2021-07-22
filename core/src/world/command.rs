@@ -5,7 +5,7 @@ use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
 use rand::Rng;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum WorldCommand {
     Location { location_type: LocationType },
     Npc { species: Option<Species> },
