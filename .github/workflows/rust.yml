@@ -17,6 +17,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: Run rustfmt
         run: find */src -name '*.rs' -exec rustfmt --check --verbose '{}' +
       - name: Run Clippy
