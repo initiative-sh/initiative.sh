@@ -17,6 +17,8 @@ static mut APP: Option<core::app::App> = None;
 
 #[no_mangle]
 pub extern "C" fn app() -> &'static mut core::app::App {
+    utils::set_panic_hook();
+
     unsafe {
         if APP.is_none() {
             APP = Some(core::app());

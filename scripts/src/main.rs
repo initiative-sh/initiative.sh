@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         {
                             json_objects
                                 .entry(infobox_type)
-                                .or_insert_with(|| JsonValue::new_object())
+                                .or_insert_with(JsonValue::new_object)
                                 .insert(title.as_str(), fields)
                                 .unwrap();
                         }
@@ -197,7 +197,7 @@ impl FromStr for InfoboxType {
             "state" | "State" => InfoboxType::State,
             "location" | "Location" => InfoboxType::Location,
             "building" | "Building" => InfoboxType::Building,
-            _ => Err(())?,
+            _ => return Err(()),
         })
     }
 }

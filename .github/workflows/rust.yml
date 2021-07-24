@@ -17,9 +17,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: Run rustfmt
         run: find */src -name '*.rs' -exec rustfmt --check --verbose '{}' +
       - name: Run Clippy
-        run: cargo clippy -- --deny warnings
+        run: cargo clippy --workspace -- --deny warnings
       - name: Run unit tests
         run: cargo test --workspace --verbose
