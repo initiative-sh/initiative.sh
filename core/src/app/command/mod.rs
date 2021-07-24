@@ -5,6 +5,7 @@ mod app;
 mod runnable;
 
 use super::Context;
+use crate::reference::ReferenceCommand;
 use crate::storage::StorageCommand;
 use crate::world::WorldCommand;
 use rand::Rng;
@@ -12,7 +13,7 @@ use rand::Rng;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
     App(AppCommand),
-    // Context(ContextCommand),
+    Reference(ReferenceCommand),
     Storage(StorageCommand),
     World(WorldCommand),
 }
@@ -21,6 +22,7 @@ impl Runnable for Command {
     fn run(&self, context: &mut Context, rng: &mut impl Rng) -> String {
         match self {
             Self::App(c) => c.run(context, rng),
+            Self::Reference(c) => c.run(context, rng),
             Self::Storage(c) => c.run(context, rng),
             Self::World(c) => c.run(context, rng),
         }
@@ -29,6 +31,7 @@ impl Runnable for Command {
     fn summarize(&self) -> &str {
         match self {
             Self::App(c) => c.summarize(),
+            Self::Reference(c) => c.summarize(),
             Self::Storage(c) => c.summarize(),
             Self::World(c) => c.summarize(),
         }
@@ -38,6 +41,11 @@ impl Runnable for Command {
         std::iter::empty()
             .chain(
                 AppCommand::parse_input(input, context)
+                    .drain(..)
+                    .map(|c| c.into()),
+            )
+            .chain(
+                ReferenceCommand::parse_input(input, context)
                     .drain(..)
                     .map(|c| c.into()),
             )
@@ -58,6 +66,11 @@ impl Runnable for Command {
         let mut suggestions: Vec<(String, Command)> = std::iter::empty()
             .chain(
                 AppCommand::autocomplete(input, context)
+                    .drain(..)
+                    .map(|(s, c)| (s, c.into())),
+            )
+            .chain(
+                ReferenceCommand::autocomplete(input, context)
                     .drain(..)
                     .map(|(s, c)| (s, c.into())),
             )
@@ -83,6 +96,12 @@ impl Runnable for Command {
 impl From<AppCommand> for Command {
     fn from(c: AppCommand) -> Command {
         Command::App(c)
+    }
+}
+
+impl From<ReferenceCommand> for Command {
+    fn from(c: ReferenceCommand) -> Command {
+        Command::Reference(c)
     }
 }
 
