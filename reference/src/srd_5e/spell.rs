@@ -77,9 +77,7 @@ impl fmt::Display for Spell {
             let mut component_iter = self.components.iter();
             if let Some(c) = component_iter.next() {
                 write!(f, "\nComponents: {}", c)?;
-                component_iter
-                    .map(|c| write!(f, ", {}", c))
-                    .collect::<Result<_, _>>()?;
+                component_iter.try_for_each(|c| write!(f, ", {}", c))?;
 
                 if let Some(m) = &self.material {
                     write!(f, " ({})", m.trim_end_matches('.').to_lowercase())?;
@@ -99,20 +97,18 @@ impl fmt::Display for Spell {
 
         self.desc
             .iter()
-            .map(|line| write!(f, "\n\n{}", line))
-            .collect::<Result<_, _>>()?;
+            .try_for_each(|line| write!(f, "\n\n{}", line))?;
 
         self.higher_level
             .iter()
             .enumerate()
-            .map(|(i, line)| {
+            .try_for_each(|(i, line)| {
                 if i == 0 {
                     write!(f, "\n\nAt higher levels: {}", line)
                 } else {
                     write!(f, "\n\n{}", line)
                 }
-            })
-            .collect::<Result<_, _>>()?;
+            })?;
 
         Ok(())
     }

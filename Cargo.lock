@@ -86,6 +86,7 @@ dependencies = [
 name = "initiative-macros"
 version = "0.1.0"
 dependencies = [
+ "initiative-reference",
  "quote",
  "syn",
 ]
