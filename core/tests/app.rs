@@ -22,8 +22,8 @@ fn autocomplete_proper_noun() {
     let mut app = app();
     let output = app.command("npc");
     let npc_name = output.lines().next().unwrap();
-    let query = String::from(output.chars().next().unwrap());
-    let autocomplete_results = app.autocomplete(query.as_str());
+    let query = output.split_whitespace().next().unwrap();
+    let autocomplete_results = app.autocomplete(query);
 
     assert!(
         autocomplete_results.contains(&(npc_name.to_string(), "load".to_string())),
