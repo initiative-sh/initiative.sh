@@ -4,6 +4,11 @@ use initiative_core as core;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
+pub fn motd() -> String {
+    app().motd().to_string()
+}
+
+#[wasm_bindgen]
 pub fn command(input: &str) -> String {
     app().command(input)
 }

@@ -20,6 +20,10 @@ impl App {
         }
     }
 
+    pub fn motd(&self) -> &'static str {
+        include_str!("../../../data/motd.md").trim_end()
+    }
+
     pub fn command(&mut self, input: &str) -> String {
         if let Some(command) = self.context.command_aliases.get(input).cloned() {
             command.run(&mut self.context, &mut self.rng)

@@ -29,6 +29,7 @@ body {
 #prompt {
     background: none;
     border: none;
+    color: inherit;
     height: 1.5rem;
     padding-bottom: 0;
     padding-left: 1ch;
