@@ -1,22 +1,35 @@
 use crate::app::{autocomplete_phrase, Context, Runnable};
-use initiative_macros::WordList;
+use initiative_macros::{changelog, WordList};
 use rand::Rng;
 
 #[derive(Clone, Debug, PartialEq, WordList)]
 pub enum AppCommand {
+    About,
+    Changelog,
     Debug,
+    Help,
 }
 
 impl Runnable for AppCommand {
     fn run(&self, context: &mut Context, _rng: &mut impl Rng) -> String {
         match self {
+            Self::About => include_str!("../../../../data/about.md")
+                .trim_end()
+                .to_string(),
             Self::Debug => format!("{:?}", context),
+            Self::Changelog => changelog!().to_string(),
+            Self::Help => include_str!("../../../../data/help.md")
+                .trim_end()
+                .to_string(),
         }
     }
 
     fn summarize(&self) -> &str {
         match self {
-            Self::Debug => "system",
+            Self::About => "more about initiative.sh",
+            Self::Changelog => "show latest updates",
+            Self::Debug => "",
+            Self::Help => "how to use initiative.sh",
         }
     }
 
@@ -25,10 +38,13 @@ impl Runnable for AppCommand {
     }
 
     fn autocomplete(input: &str, _context: &Context) -> Vec<(String, Self)> {
-        autocomplete_phrase(input, &mut Self::get_words().iter())
-            .drain(..)
-            .filter_map(|s| s.parse().ok().map(|c| (s, c)))
-            .collect()
+        autocomplete_phrase(
+            input,
+            &mut Self::get_words().iter().filter(|s| s != &&"debug"),
+        )
+        .drain(..)
+        .filter_map(|s| s.parse().ok().map(|c| (s, c)))
+        .collect()
     }
 }
 
@@ -38,7 +54,10 @@ mod test {
 
     #[test]
     fn summarize_test() {
-        assert_eq!("system", AppCommand::Debug.summarize());
+        assert_eq!("more about initiative.sh", AppCommand::About.summarize());
+        assert_eq!("show latest updates", AppCommand::Changelog.summarize());
+        assert_eq!("", AppCommand::Debug.summarize());
+        assert_eq!("how to use initiative.sh", AppCommand::Help.summarize());
     }
 
     #[test]
@@ -58,13 +77,23 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        vec![("debug", AppCommand::Debug)]
-            .drain(..)
-            .for_each(|(word, command)| {
-                assert_eq!(
-                    vec![(word.to_string(), command)],
-                    AppCommand::autocomplete(word, &Context::default()),
-                )
-            });
+        vec![
+            ("about", AppCommand::About),
+            ("changelog", AppCommand::Changelog),
+            ("help", AppCommand::Help),
+        ]
+        .drain(..)
+        .for_each(|(word, command)| {
+            assert_eq!(
+                vec![(word.to_string(), command)],
+                AppCommand::autocomplete(word, &Context::default()),
+            )
+        });
+
+        // Debug should be excluded from the autocomplete results.
+        assert_eq!(
+            Vec::<(String, AppCommand)>::new(),
+            AppCommand::autocomplete("debug", &Context::default()),
+        );
     }
 }

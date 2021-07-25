@@ -2,10 +2,7 @@ use initiative_core::app;
 
 #[test]
 fn results_are_random() {
-    assert_ne!(
-        format!("{}", app().command("building")),
-        format!("{}", app().command("building")),
-    );
+    assert_ne!(app().command("building"), app().command("building"));
 }
 
 #[test]
@@ -13,7 +10,7 @@ fn generated_content_is_limited_by_building_type() {
     ["inn", "residence", "shop", "temple", "warehouse"]
         .iter()
         .for_each(|building_type| {
-            let output = format!("{}", app().command(building_type));
+            let output = app().command(building_type);
             let building_type_capitalized: String = building_type
                 .char_indices()
                 .map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c })
@@ -31,7 +28,7 @@ fn generated_content_is_limited_by_building_type() {
 #[test]
 fn generated_content_is_persisted() {
     let mut app = app();
-    let generated_output = format!("{}", app.command("inn"));
+    let generated_output = app.command("inn");
 
     // The Roaring Spirit
     // Type: Inn
@@ -51,7 +48,7 @@ fn generated_content_is_persisted() {
 
     // Ensure that the primary suggestion matches the generated content.
     let name = generated_output.lines().next().unwrap();
-    let persisted_output = format!("{}", app.command(name));
+    let persisted_output = app.command(name);
     assert_eq!(Some(name), persisted_output.lines().next());
     assert_eq!(
         3,
@@ -74,7 +71,7 @@ fn generated_content_is_persisted() {
             .map(|s| {
                 if let Some(pos) = s.find(',') {
                     let name = &s[2..pos];
-                    assert_eq!(Some(name), format!("{}", app.command(name)).lines().next());
+                    assert_eq!(Some(name), app.command(name).lines().next());
                 } else {
                     panic!("Missing , in \"{}\"", s);
                 }

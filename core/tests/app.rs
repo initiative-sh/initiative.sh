@@ -1,16 +1,18 @@
 use initiative_core::app;
 
 #[test]
+fn about() {
+    let output = app().command("about");
+    assert!(output.contains("initiative.sh"), "{}", output);
+}
+
+#[test]
 fn autocomplete_command() {
     assert_eq!(
-        [
-            ("debug", "system"),
-            ("dragonborn", "generate"),
-            ("dwarf", "generate")
-        ]
-        .iter()
-        .map(|(a, b)| (a.to_string(), b.to_string()))
-        .collect::<Vec<_>>(),
+        [("dragonborn", "generate"), ("dwarf", "generate")]
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect::<Vec<_>>(),
         app().autocomplete("d"),
     );
 
@@ -38,12 +40,12 @@ fn autocomplete_proper_noun() {
 fn debug() {
     let mut app = app();
 
-    let empty_output = format!("{}", app.command("debug"));
+    let empty_output = app.command("debug");
     assert!(empty_output.starts_with("Context { "), "{}", empty_output);
 
     app.command("npc");
 
-    let populated_output = format!("{}", app.command("debug"));
+    let populated_output = app.command("debug");
     assert!(
         populated_output.len() > empty_output.len(),
         "Empty:\n{}\n\nPopulated:\n{}",
@@ -53,9 +55,15 @@ fn debug() {
 }
 
 #[test]
+fn help() {
+    let output = app().command("help");
+    assert!(output.contains("command"), "{}", output);
+}
+
+#[test]
 fn unknown() {
     assert_eq!(
         "Unknown command: \"blah blah\"",
-        format!("{}", app().command("blah blah")).as_str()
+        app().command("blah blah").as_str()
     );
 }

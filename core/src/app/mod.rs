@@ -4,6 +4,7 @@ pub use context::Context;
 mod command;
 mod context;
 
+use initiative_macros::motd;
 use rand::prelude::*;
 use rand::rngs::SmallRng;
 
@@ -18,6 +19,10 @@ impl App {
             context,
             rng: SmallRng::from_entropy(),
         }
+    }
+
+    pub fn motd(&self) -> &'static str {
+        motd!()
     }
 
     pub fn command(&mut self, input: &str) -> String {

@@ -12,11 +12,11 @@ impl Runnable for ReferenceCommand {
     fn run(&self, _context: &mut Context, _rng: &mut impl Rng) -> String {
         match self {
             Self::Spell(spell) => format!(
-                "{}\n\n{} is Open Game Content subject to the [Open Game License].",
+                "{}\n\n{} is Open Game Content subject to the `Open Game License`.",
                 spell,
                 spell.get_name(),
             ),
-            Self::OpenGameLicense => include_str!("../../../reference/data/ogl-1.0a.txt")
+            Self::OpenGameLicense => include_str!("../../../data/ogl-1.0a.txt")
                 .trim_end()
                 .to_string(),
         }

@@ -37,4 +37,26 @@ THE SOFTWARE.
     --solarized-blue:      #268bd2;
     --solarized-cyan:      #2aa198;
     --solarized-green:     #859900;
+
+    --solarized-scheme03: var(--solarized-base03);
+    --solarized-scheme02: var(--solarized-base02);
+    --solarized-scheme01: var(--solarized-base01);
+    --solarized-scheme00: var(--solarized-base00);
+    --solarized-scheme0: var(--solarized-base0);
+    --solarized-scheme1: var(--solarized-base1);
+    --solarized-scheme2: var(--solarized-base2);
+    --solarized-scheme3: var(--solarized-base3);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --solarized-scheme03: var(--solarized-base3);
+        --solarized-scheme02: var(--solarized-base2);
+        --solarized-scheme01: var(--solarized-base1);
+        --solarized-scheme00: var(--solarized-base0);
+        --solarized-scheme0: var(--solarized-base00);
+        --solarized-scheme1: var(--solarized-base01);
+        --solarized-scheme2: var(--solarized-base02);
+        --solarized-scheme3: var(--solarized-base03);
+    }
 }

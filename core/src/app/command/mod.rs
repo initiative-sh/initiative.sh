@@ -124,7 +124,15 @@ mod test {
 
     #[test]
     fn summarize_test() {
-        assert_eq!("system", Command::App(AppCommand::Debug).summarize());
+        assert_eq!(
+            "more about initiative.sh",
+            Command::App(AppCommand::About).summarize(),
+        );
+
+        assert_eq!(
+            "SRD license",
+            Command::Reference(ReferenceCommand::OpenGameLicense).summarize(),
+        );
 
         assert_eq!(
             "load",
@@ -145,8 +153,18 @@ mod test {
         let context = Context::default();
 
         assert_eq!(
-            vec![Command::App(AppCommand::Debug)],
-            Command::parse_input("debug", &context),
+            vec![Command::App(AppCommand::About)],
+            Command::parse_input("about", &context),
+        );
+
+        assert_eq!(
+            vec![
+                Command::Reference(ReferenceCommand::OpenGameLicense),
+                Command::Storage(StorageCommand::Load {
+                    query: "Open Game License".to_string()
+                }),
+            ],
+            Command::parse_input("Open Game License", &context),
         );
 
         assert_eq!(
@@ -166,12 +184,6 @@ mod test {
     fn autocomplete_test() {
         let results = Command::autocomplete("d", &Context::default());
         let mut result_iter = results.iter();
-
-        if let Some((command_string, Command::App(AppCommand::Debug))) = result_iter.next() {
-            assert_eq!("debug", command_string);
-        } else {
-            panic!("{:?}", results);
-        }
 
         if let Some((
             command_string,

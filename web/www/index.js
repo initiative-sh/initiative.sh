@@ -1,9 +1,14 @@
 import * as wasm from "initiative-web";
 import autoComplete from "@tarekraafat/autocomplete.js";
 
-const promptForm = document.getElementById("prompt-form");
-const prompt = document.getElementById("prompt");
-const output = document.getElementById("output");
+document.body.insertAdjacentHTML(
+  "beforeend",
+  "<form id=\"prompt-form\"><input type=\"text\" id=\"prompt\"></form>"
+);
+
+const promptFormElement = document.getElementById("prompt-form");
+const promptElement = document.getElementById("prompt");
+const outputElement = document.getElementById("output");
 
 const autoCompleteJS = new autoComplete({
   data: {
@@ -35,39 +40,49 @@ const autoCompleteJS = new autoComplete({
 });
 
 const runCommand = command => {
-  output.insertAdjacentHTML(
-    'beforeend',
-    "\n\n> " + command + "\n\n"
+  output("> " + command + "\n\n" + wasm.command(command));
+};
+
+const output = text => {
+  outputElement.insertAdjacentHTML(
+    "beforeend",
+    "\n\n" + text.replaceAll(
+      /`([^`]+)`/g,
+      (_, p1) => `<button tabindex="-1">${p1}</button>`
+    )
   );
 
-  output.insertAdjacentHTML(
-    'beforeend',
-    wasm.command(command)
-  );
-
-  prompt.value = "";
+  promptElement.value = "";
   autoCompleteJS.close();
   window.scrollBy(0, window.innerHeight);
-}
+};
 
-promptForm.addEventListener("submit", event => {
+promptFormElement.addEventListener("submit", event => {
   event.preventDefault();
-  if (prompt.value !== "") {
-    runCommand(prompt.value);
+  if (promptElement.value !== "") {
+    runCommand(promptElement.value);
   }
 });
 
-promptForm.addEventListener("navigate", event => {
-  prompt.value = event.detail.selection.value.suggestion;
+promptFormElement.addEventListener("navigate", event => {
+  promptElement.value = event.detail.selection.value.suggestion;
 });
 
-promptForm.addEventListener("selection", event => {
+promptFormElement.addEventListener("selection", event => {
   runCommand(event.detail.selection.value.suggestion);
 });
 
 // Keep the prompt focused
-prompt.addEventListener("blur", event => setTimeout(() => prompt.focus(), 100));
+promptElement.addEventListener("blur", event => setTimeout(() => promptElement.focus(), 100));
 
-window.addEventListener("click", event => prompt.focus());
+window.addEventListener("click", event => promptElement.focus());
 
-prompt.focus();
+outputElement.addEventListener("click", event => {
+  if (event.target.nodeName === "BUTTON") {
+    runCommand(event.target.innerText);
+  }
+});
+
+output(wasm.motd());
+
+promptElement.focus();

@@ -56,7 +56,7 @@ pub fn command(species: &Option<Species>, context: &mut Context, rng: &mut impl 
     let recent = (0..10)
         .map(|i| {
             let alt = Npc::generate(rng, &demographics);
-            output.push_str(&format!("\n{} {}", i, alt.display_summary()));
+            output.push_str(&format!("\n`{}` {}", i, alt.display_summary()));
             context.command_aliases.insert(
                 i.to_string(),
                 StorageCommand::Load {

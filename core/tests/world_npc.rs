@@ -2,10 +2,7 @@ use initiative_core::app;
 
 #[test]
 fn results_are_random() {
-    assert_ne!(
-        format!("{}", app().command("npc")),
-        format!("{}", app().command("npc")),
-    );
+    assert_ne!(app().command("npc"), app().command("npc"),);
 }
 
 #[test]
@@ -24,14 +21,14 @@ fn generated_content_is_limited_by_species() {
     ]
     .iter()
     .for_each(|species| {
-        let output = format!("{}", app().command(species));
+        let output = app().command(species);
         assert_eq!(11, output.matches(species).count(), "{}", output);
     });
 
     [("half elf", "half-elf"), ("half orc", "half-orc")]
         .iter()
         .for_each(|(input, species)| {
-            let output = format!("{}", app().command(input));
+            let output = app().command(input);
             assert_eq!(11, output.matches(species).count(), "{}", output);
         });
 }
@@ -39,7 +36,7 @@ fn generated_content_is_limited_by_species() {
 #[test]
 fn generated_content_is_persisted() {
     let mut app = app();
-    let generated_output = format!("{}", app.command("npc"));
+    let generated_output = app.command("npc");
 
     // Naal Tiltathana
     // Species: half-elf (Half-Elvish)
@@ -48,20 +45,20 @@ fn generated_content_is_persisted() {
     // Size: 5'10", 132 lbs (medium)
     //
     // Alternatives:
-    // 0 Amadi (elderly human, he/him)
-    // 1 Daiki (adult half-elf, he/him)
-    // 2 Rostislav (young adult human, he/him)
-    // 3 Gang (middle-aged human, he/him)
-    // 4 Laucian Caerdonel (middle-aged elf, he/him)
-    // 5 Philandros (middle-aged human, he/him)
-    // 6 Makai (adult half-elf, he/him)
-    // 7 Bapoto (elderly human, he/him)
-    // 8 Gebhuza (elderly half-elf, he/him)
-    // 9 Marguerite (middle-aged human, she/her)
+    // `0` Amadi (elderly human, he/him)
+    // `1` Daiki (adult half-elf, he/him)
+    // `2` Rostislav (young adult human, he/him)
+    // `3` Gang (middle-aged human, he/him)
+    // `4` Laucian Caerdonel (middle-aged elf, he/him)
+    // `5` Philandros (middle-aged human, he/him)
+    // `6` Makai (adult half-elf, he/him)
+    // `7` Bapoto (elderly human, he/him)
+    // `8` Gebhuza (elderly half-elf, he/him)
+    // `9` Marguerite (middle-aged human, she/her)
 
     // Ensure that the primary suggestion matches the generated content.
     let name = generated_output.lines().next().unwrap();
-    let persisted_output = format!("{}", app.command(name));
+    let persisted_output = app.command(name);
     assert_eq!(Some(name), persisted_output.lines().next());
     assert_eq!(
         5,
@@ -80,11 +77,11 @@ fn generated_content_is_persisted() {
         10,
         generated_output
             .lines()
-            .filter(|line| line.starts_with(char::is_numeric))
+            .filter(|line| line.starts_with('`'))
             .map(|s| {
                 if let Some(pos) = s.find('(') {
-                    let name = &s[2..(pos - 1)];
-                    assert_eq!(Some(name), format!("{}", app.command(name)).lines().next());
+                    let name = &s[4..(pos - 1)];
+                    assert_eq!(Some(name), app.command(name).lines().next());
                 } else {
                     panic!("Missing ( in \"{}\"", s);
                 }
@@ -108,13 +105,13 @@ fn numeric_aliases_exist_for_npcs() {
         10,
         generated_output
             .lines()
-            .filter(|line| line.starts_with(char::is_numeric))
+            .filter(|line| line.starts_with('`'))
             .map(|s| {
                 if let Some(pos) = s.find('(') {
-                    let digit = &s[0..1];
+                    let digit = &s[1..2];
                     let digit_output = app.command(digit);
 
-                    let name = &s[2..(pos - 1)];
+                    let name = &s[4..(pos - 1)];
                     let name_output = app.command(name);
 
                     assert_eq!(Some(name), digit_output.lines().next());

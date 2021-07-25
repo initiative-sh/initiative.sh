@@ -1,0 +1,24 @@
+name: Changelog
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-for-updates:
+    name: Verify updates
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Check for updates
+        run: |
+          [[ "$(git branch --show-current)" == "main" ]] || git diff --name-only origin/main | grep -xq data/changelog.md
