@@ -1,4 +1,7 @@
 * Enhancement: Keywords are now clickable, like this: `npc`.
+* New: Added commands `about`, `help`, and `changelog`.
+* New: Added "message of the day" and intro text.
+* Enhancement: Improved experience for users with JavaScript disabled.
 * New: SRD spells have been added. Try `Acid Arrow`.
 * Enhancement: Included at-a-glance summary of autocomplete suggestions.
 * New: An autocomplete popup is now available in the web UI.
