@@ -4,6 +4,7 @@ pub use context::Context;
 mod command;
 mod context;
 
+use initiative_macros::motd;
 use rand::prelude::*;
 use rand::rngs::SmallRng;
 
@@ -21,7 +22,7 @@ impl App {
     }
 
     pub fn motd(&self) -> &'static str {
-        include_str!("../../../data/motd.md").trim_end()
+        motd!()
     }
 
     pub fn command(&mut self, input: &str) -> String {
