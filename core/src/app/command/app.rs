@@ -7,6 +7,7 @@ pub enum AppCommand {
     About,
     Changelog,
     Debug,
+    Help,
 }
 
 impl Runnable for AppCommand {
@@ -17,6 +18,9 @@ impl Runnable for AppCommand {
                 .to_string(),
             Self::Debug => format!("{:?}", context),
             Self::Changelog => changelog!().to_string(),
+            Self::Help => include_str!("../../../../data/help.md")
+                .trim_end()
+                .to_string(),
         }
     }
 
@@ -25,6 +29,7 @@ impl Runnable for AppCommand {
             Self::About => "more about initiative.sh",
             Self::Changelog => "show latest updates",
             Self::Debug => "",
+            Self::Help => "how to use initiative.sh",
         }
     }
 
@@ -52,6 +57,7 @@ mod test {
         assert_eq!("more about initiative.sh", AppCommand::About.summarize());
         assert_eq!("show latest updates", AppCommand::Changelog.summarize());
         assert_eq!("", AppCommand::Debug.summarize());
+        assert_eq!("how to use initiative.sh", AppCommand::Help.summarize());
     }
 
     #[test]
@@ -74,6 +80,7 @@ mod test {
         vec![
             ("about", AppCommand::About),
             ("changelog", AppCommand::Changelog),
+            ("help", AppCommand::Help),
         ]
         .drain(..)
         .for_each(|(word, command)| {

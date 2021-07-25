@@ -55,6 +55,12 @@ fn debug() {
 }
 
 #[test]
+fn help() {
+    let output = app().command("help");
+    assert!(output.contains("command"), "{}", output);
+}
+
+#[test]
 fn unknown() {
     assert_eq!(
         "Unknown command: \"blah blah\"",
