@@ -4,6 +4,7 @@ use rand::Rng;
 
 #[derive(Clone, Debug, PartialEq, WordList)]
 pub enum AppCommand {
+    About,
     Changelog,
     Debug,
 }
@@ -11,6 +12,9 @@ pub enum AppCommand {
 impl Runnable for AppCommand {
     fn run(&self, context: &mut Context, _rng: &mut impl Rng) -> String {
         match self {
+            Self::About => include_str!("../../../../data/about.md")
+                .trim_end()
+                .to_string(),
             Self::Debug => format!("{:?}", context),
             Self::Changelog => changelog!().to_string(),
         }
@@ -18,6 +22,7 @@ impl Runnable for AppCommand {
 
     fn summarize(&self) -> &str {
         match self {
+            Self::About => "more about initiative.sh",
             Self::Changelog => "show latest updates",
             Self::Debug => "system",
         }
@@ -41,6 +46,7 @@ mod test {
 
     #[test]
     fn summarize_test() {
+        assert_eq!("more about initiative.sh", AppCommand::About.summarize());
         assert_eq!("show latest updates", AppCommand::Changelog.summarize());
         assert_eq!("system", AppCommand::Debug.summarize());
     }
@@ -63,6 +69,7 @@ mod test {
     #[test]
     fn autocomplete_test() {
         vec![
+            ("about", AppCommand::About),
             ("changelog", AppCommand::Changelog),
             ("debug", AppCommand::Debug),
         ]

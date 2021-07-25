@@ -1,6 +1,12 @@
 use initiative_core::app;
 
 #[test]
+fn about() {
+    let output = app().command("about");
+    assert!(output.contains("initiative.sh"), "{}", output);
+}
+
+#[test]
 fn autocomplete_command() {
     assert_eq!(
         [
