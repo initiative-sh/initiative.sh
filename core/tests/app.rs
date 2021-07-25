@@ -40,12 +40,12 @@ fn autocomplete_proper_noun() {
 fn debug() {
     let mut app = app();
 
-    let empty_output = format!("{}", app.command("debug"));
+    let empty_output = app.command("debug");
     assert!(empty_output.starts_with("Context { "), "{}", empty_output);
 
     app.command("npc");
 
-    let populated_output = format!("{}", app.command("debug"));
+    let populated_output = app.command("debug");
     assert!(
         populated_output.len() > empty_output.len(),
         "Empty:\n{}\n\nPopulated:\n{}",
@@ -64,6 +64,6 @@ fn help() {
 fn unknown() {
     assert_eq!(
         "Unknown command: \"blah blah\"",
-        format!("{}", app().command("blah blah")).as_str()
+        app().command("blah blah").as_str()
     );
 }

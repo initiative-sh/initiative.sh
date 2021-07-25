@@ -2,10 +2,7 @@ use initiative_core::app;
 
 #[test]
 fn results_are_random() {
-    assert_ne!(
-        format!("{}", app().command("npc")),
-        format!("{}", app().command("npc")),
-    );
+    assert_ne!(app().command("npc"), app().command("npc"),);
 }
 
 #[test]
@@ -24,14 +21,14 @@ fn generated_content_is_limited_by_species() {
     ]
     .iter()
     .for_each(|species| {
-        let output = format!("{}", app().command(species));
+        let output = app().command(species);
         assert_eq!(11, output.matches(species).count(), "{}", output);
     });
 
     [("half elf", "half-elf"), ("half orc", "half-orc")]
         .iter()
         .for_each(|(input, species)| {
-            let output = format!("{}", app().command(input));
+            let output = app().command(input);
             assert_eq!(11, output.matches(species).count(), "{}", output);
         });
 }
@@ -39,7 +36,7 @@ fn generated_content_is_limited_by_species() {
 #[test]
 fn generated_content_is_persisted() {
     let mut app = app();
-    let generated_output = format!("{}", app.command("npc"));
+    let generated_output = app.command("npc");
 
     // Naal Tiltathana
     // Species: half-elf (Half-Elvish)
@@ -61,7 +58,7 @@ fn generated_content_is_persisted() {
 
     // Ensure that the primary suggestion matches the generated content.
     let name = generated_output.lines().next().unwrap();
-    let persisted_output = format!("{}", app.command(name));
+    let persisted_output = app.command(name);
     assert_eq!(Some(name), persisted_output.lines().next());
     assert_eq!(
         5,
@@ -84,7 +81,7 @@ fn generated_content_is_persisted() {
             .map(|s| {
                 if let Some(pos) = s.find('(') {
                     let name = &s[4..(pos - 1)];
-                    assert_eq!(Some(name), format!("{}", app.command(name)).lines().next());
+                    assert_eq!(Some(name), app.command(name).lines().next());
                 } else {
                     panic!("Missing ( in \"{}\"", s);
                 }
