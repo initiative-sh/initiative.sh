@@ -46,7 +46,10 @@ const runCommand = command => {
 const output = text => {
   outputElement.insertAdjacentHTML(
     "beforeend",
-    "\n\n" + text
+    "\n\n" + text.replaceAll(
+      /`([^`]+)`/g,
+      (_, p1) => `<button tabindex="-1">${p1}</button>`
+    )
   );
 
   promptElement.value = "";
@@ -73,6 +76,12 @@ promptFormElement.addEventListener("selection", event => {
 promptElement.addEventListener("blur", event => setTimeout(() => promptElement.focus(), 100));
 
 window.addEventListener("click", event => promptElement.focus());
+
+outputElement.addEventListener("click", event => {
+  if (event.target.nodeName === "BUTTON") {
+    runCommand(event.target.innerText);
+  }
+});
 
 output(wasm.motd());
 

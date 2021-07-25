@@ -16,6 +16,15 @@ body {
     white-space: pre-wrap;
 }
 
+#output button {
+    background: inherit;
+    border: none;
+    color: var(--solarized-blue);
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+}
+
 #prompt-form {
     margin: 0.5rem 0 0;
     position: relative;
