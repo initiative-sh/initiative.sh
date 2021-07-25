@@ -9,14 +9,10 @@ fn about() {
 #[test]
 fn autocomplete_command() {
     assert_eq!(
-        [
-            ("debug", "system"),
-            ("dragonborn", "generate"),
-            ("dwarf", "generate")
-        ]
-        .iter()
-        .map(|(a, b)| (a.to_string(), b.to_string()))
-        .collect::<Vec<_>>(),
+        [("dragonborn", "generate"), ("dwarf", "generate")]
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect::<Vec<_>>(),
         app().autocomplete("d"),
     );
 

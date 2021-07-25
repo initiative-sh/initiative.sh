@@ -24,7 +24,7 @@ impl Runnable for AppCommand {
         match self {
             Self::About => "more about initiative.sh",
             Self::Changelog => "show latest updates",
-            Self::Debug => "system",
+            Self::Debug => "",
         }
     }
 
@@ -33,10 +33,13 @@ impl Runnable for AppCommand {
     }
 
     fn autocomplete(input: &str, _context: &Context) -> Vec<(String, Self)> {
-        autocomplete_phrase(input, &mut Self::get_words().iter())
-            .drain(..)
-            .filter_map(|s| s.parse().ok().map(|c| (s, c)))
-            .collect()
+        autocomplete_phrase(
+            input,
+            &mut Self::get_words().iter().filter(|s| s != &&"debug"),
+        )
+        .drain(..)
+        .filter_map(|s| s.parse().ok().map(|c| (s, c)))
+        .collect()
     }
 }
 
@@ -48,7 +51,7 @@ mod test {
     fn summarize_test() {
         assert_eq!("more about initiative.sh", AppCommand::About.summarize());
         assert_eq!("show latest updates", AppCommand::Changelog.summarize());
-        assert_eq!("system", AppCommand::Debug.summarize());
+        assert_eq!("", AppCommand::Debug.summarize());
     }
 
     #[test]
@@ -71,7 +74,6 @@ mod test {
         vec![
             ("about", AppCommand::About),
             ("changelog", AppCommand::Changelog),
-            ("debug", AppCommand::Debug),
         ]
         .drain(..)
         .for_each(|(word, command)| {
@@ -80,5 +82,11 @@ mod test {
                 AppCommand::autocomplete(word, &Context::default()),
             )
         });
+
+        // Debug should be excluded from the autocomplete results.
+        assert_eq!(
+            Vec::<(String, AppCommand)>::new(),
+            AppCommand::autocomplete("debug", &Context::default()),
+        );
     }
 }
