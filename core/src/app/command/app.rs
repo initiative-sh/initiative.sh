@@ -1,9 +1,10 @@
 use crate::app::{autocomplete_phrase, Context, Runnable};
-use initiative_macros::WordList;
+use initiative_macros::{changelog, WordList};
 use rand::Rng;
 
 #[derive(Clone, Debug, PartialEq, WordList)]
 pub enum AppCommand {
+    Changelog,
     Debug,
 }
 
@@ -11,11 +12,13 @@ impl Runnable for AppCommand {
     fn run(&self, context: &mut Context, _rng: &mut impl Rng) -> String {
         match self {
             Self::Debug => format!("{:?}", context),
+            Self::Changelog => changelog!().to_string(),
         }
     }
 
     fn summarize(&self) -> &str {
         match self {
+            Self::Changelog => "show latest updates",
             Self::Debug => "system",
         }
     }
@@ -38,6 +41,7 @@ mod test {
 
     #[test]
     fn summarize_test() {
+        assert_eq!("show latest updates", AppCommand::Changelog.summarize());
         assert_eq!("system", AppCommand::Debug.summarize());
     }
 
@@ -58,13 +62,16 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        vec![("debug", AppCommand::Debug)]
-            .drain(..)
-            .for_each(|(word, command)| {
-                assert_eq!(
-                    vec![(word.to_string(), command)],
-                    AppCommand::autocomplete(word, &Context::default()),
-                )
-            });
+        vec![
+            ("changelog", AppCommand::Changelog),
+            ("debug", AppCommand::Debug),
+        ]
+        .drain(..)
+        .for_each(|(word, command)| {
+            assert_eq!(
+                vec![(word.to_string(), command)],
+                AppCommand::autocomplete(word, &Context::default()),
+            )
+        });
     }
 }
