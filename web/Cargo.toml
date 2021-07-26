@@ -5,7 +5,7 @@ authors = ["Mikkel Paulson <git@email.mikkel.ca>"]
 edition = "2018"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["console_error_panic_hook"]
