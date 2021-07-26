@@ -1,7 +1,11 @@
 * {
     font-family: monospace;
     font-size: 100%;
-    line-height: 1.5rem;
+    line-height: 1.2rem;
+}
+
+:root {
+    font-size: 1rem;
 }
 
 body, html {
@@ -13,16 +17,51 @@ body, html {
 body {
     background: var(--solarized-scheme3);
     color: var(--solarized-scheme02);
-    font-size: 1.2rem;
+}
+
+#output p {
+    margin: 1.2rem 0 0;
+    padding: 0;
+}
+
+#output ul {
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 1.2rem;
+    padding-bottom: 0;
+    padding-left: 2ch;
+    padding-right: 0;
+    padding-top: 0;
+}
+
+#output ol {
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 1.2rem;
+    padding-bottom: 0;
+    padding-left: 4ch;
+    padding-right: 0;
+    padding-top: 0;
+}
+
+#output ul > li {
+    list-style: none;
+    margin: 0;
+    text-indent: -2ch;
+}
+
+#output ul > li::before {
+    content: "* ";
 }
 
 #output {
-    margin: 0.5rem;
+    margin: 0.5rem 0.5rem 0;
     padding: 0 0 1rem;
-    white-space: pre-wrap;
 }
 
-#output button {
+#output code {
     background: inherit;
     border: none;
     color: var(--solarized-blue);
@@ -32,7 +71,7 @@ body {
 }
 
 #prompt-form {
-    margin: 0.5rem;
+    margin: 0.2rem 0.5rem 0.5rem;
     position: relative;
     white-space: nowrap;
 }
@@ -45,7 +84,7 @@ body {
     background: none;
     border: none;
     color: inherit;
-    height: 1.5rem;
+    height: 1.2rem;
     margin-bottom: 0;
     margin-left: 1ch;
     margin-right: 0;
@@ -62,7 +101,7 @@ ul.autocomplete-list {
     background: var(--solarized-scheme2);
     bottom: 0;
     left: 0;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.2rem;
     margin-left: 1ch;
     margin-right: 0;
     margin-top: 0;
@@ -104,16 +143,20 @@ li.autocomplete-item.autocomplete-item-selected mark.autocomplete-item-highlight
 }
 
 .logo-tiny {
-    display: inline;
+    display: block;
+    white-space: pre;
 }
 .logo-small {
     display: none;
+    white-space: pre;
 }
 .logo-medium {
     display: none;
+    white-space: pre;
 }
 .logo-large {
     display: none;
+    white-space: pre;
 }
 
 @media (min-width: 30ch) {
@@ -121,7 +164,7 @@ li.autocomplete-item.autocomplete-item-selected mark.autocomplete-item-highlight
         display: none;
     }
     .logo-small {
-        display: inline;
+        display: block;
     }
 }
 
@@ -130,15 +173,15 @@ li.autocomplete-item.autocomplete-item-selected mark.autocomplete-item-highlight
         display: none;
     }
     .logo-medium {
-        display: inline;
+        display: block;
     }
 }
 
-@media (min-width: 100ch) {
+@media (min-width: 80ch) {
     .logo-medium {
         display: none;
     }
     .logo-large {
-        display: inline;
+        display: block;
     }
 }

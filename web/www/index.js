@@ -1,5 +1,6 @@
 import * as wasm from "initiative-web";
 import autoComplete from "@tarekraafat/autocomplete.js";
+import marked from "marked";
 
 document.body.insertAdjacentHTML(
   "beforeend",
@@ -40,16 +41,13 @@ const autoCompleteJS = new autoComplete({
 });
 
 const runCommand = command => {
-  output("> " + command + "\n\n" + wasm.command(command));
+  output("\\> " + command + "\n\n" + wasm.command(command));
 };
 
 const output = text => {
   outputElement.insertAdjacentHTML(
     "beforeend",
-    "\n\n" + text.replaceAll(
-      /`([^`]+)`/g,
-      (_, p1) => `<button tabindex="-1">${p1}</button>`
-    )
+    marked(text)
   );
 
   promptElement.value = "";
@@ -75,7 +73,7 @@ promptFormElement.addEventListener("selection", event => {
 window.addEventListener("keydown", event => promptElement.focus());
 
 outputElement.addEventListener("click", event => {
-  if (event.target.nodeName === "BUTTON") {
+  if (event.target.nodeName === "CODE") {
     runCommand(event.target.innerText);
   }
 });
