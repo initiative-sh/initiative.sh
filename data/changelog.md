@@ -1,3 +1,4 @@
+* Enhancement/bug: Improve mobile experience, including styling and bugfixes.
 * Enhancement: Keywords are now clickable, like this: `npc`.
 * New: Added commands `about`, `help`, and `changelog`.
 * New: Added "message of the day" and intro text.

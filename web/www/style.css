@@ -4,6 +4,12 @@
     line-height: 1.5rem;
 }
 
+body, html {
+    margin: 0;
+    overflow-x: hidden;
+    width: 100%;
+}
+
 body {
     background: var(--solarized-scheme3);
     color: var(--solarized-scheme02);
@@ -11,7 +17,7 @@ body {
 }
 
 #output {
-    margin: 0;
+    margin: 0.5rem;
     padding: 0 0 1rem;
     white-space: pre-wrap;
 }
@@ -26,7 +32,7 @@ body {
 }
 
 #prompt-form {
-    margin: 0.5rem 0 0;
+    margin: 0.5rem;
     position: relative;
     white-space: nowrap;
 }
@@ -40,11 +46,12 @@ body {
     border: none;
     color: inherit;
     height: 1.5rem;
-    padding-bottom: 0;
-    padding-left: 1ch;
-    padding-right: 0;
-    padding-top: 0;
-    width: calc(100% - 1ch);
+    margin-bottom: 0;
+    margin-left: 1ch;
+    margin-right: 0;
+    margin-top: 0;
+    padding: 0;
+    width: calc(100% - 2ch);
 }
 
 #prompt:focus {
@@ -94,4 +101,44 @@ li.autocomplete-item.autocomplete-item-selected .autocomplete-item-description {
 li.autocomplete-item.autocomplete-item-selected mark.autocomplete-item-highlight {
     background: var(--solarized-scheme02);
     color: var(--solarized-scheme2);
+}
+
+.logo-tiny {
+    display: inline;
+}
+.logo-small {
+    display: none;
+}
+.logo-medium {
+    display: none;
+}
+.logo-large {
+    display: none;
+}
+
+@media (min-width: 30ch) {
+    .logo-tiny {
+        display: none;
+    }
+    .logo-small {
+        display: inline;
+    }
+}
+
+@media (min-width: 50ch) {
+    .logo-small {
+        display: none;
+    }
+    .logo-medium {
+        display: inline;
+    }
+}
+
+@media (min-width: 100ch) {
+    .logo-medium {
+        display: none;
+    }
+    .logo-large {
+        display: inline;
+    }
 }

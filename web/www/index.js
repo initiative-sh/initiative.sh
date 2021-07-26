@@ -3,7 +3,7 @@ import autoComplete from "@tarekraafat/autocomplete.js";
 
 document.body.insertAdjacentHTML(
   "beforeend",
-  "<form id=\"prompt-form\"><input type=\"text\" id=\"prompt\"></form>"
+  "<form id=\"prompt-form\"><input type=\"text\" id=\"prompt\" autocomplete=\"off\" autocorrect=\"off\" autocapitalize=\"none\"></form>"
 );
 
 const promptFormElement = document.getElementById("prompt-form");
@@ -72,10 +72,7 @@ promptFormElement.addEventListener("selection", event => {
   runCommand(event.detail.selection.value.suggestion);
 });
 
-// Keep the prompt focused
-promptElement.addEventListener("blur", event => setTimeout(() => promptElement.focus(), 100));
-
-window.addEventListener("click", event => promptElement.focus());
+window.addEventListener("keydown", event => promptElement.focus());
 
 outputElement.addEventListener("click", event => {
   if (event.target.nodeName === "BUTTON") {
