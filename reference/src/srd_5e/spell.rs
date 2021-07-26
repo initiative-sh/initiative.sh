@@ -45,24 +45,24 @@ impl Spell {
 
 impl fmt::Display for Spell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.name())?;
+        write!(f, "# {}", self.name())?;
 
         match (self.level, self.school.get("name").unwrap()) {
-            (0, s) => write!(f, "\n{} cantrip", s)?,
-            (1, s) => write!(f, "\n1st-level {}", s.to_lowercase())?,
-            (2, s) => write!(f, "\n2nd-level {}", s.to_lowercase())?,
-            (3, s) => write!(f, "\n3rd-level {}", s.to_lowercase())?,
-            (l, s) => write!(f, "\n{}th-level {}", l, s.to_lowercase())?,
+            (0, s) => write!(f, "\n*{} cantrip", s)?,
+            (1, s) => write!(f, "\n*1st-level {}", s.to_lowercase())?,
+            (2, s) => write!(f, "\n*2nd-level {}", s.to_lowercase())?,
+            (3, s) => write!(f, "\n*3rd-level {}", s.to_lowercase())?,
+            (l, s) => write!(f, "\n*{}th-level {}", l, s.to_lowercase())?,
         }
 
         if self.ritual {
             write!(f, " (ritual)")?;
         }
 
-        write!(f, "\n\nCasting Time: {}", self.casting_time)?;
+        write!(f, "*\n\n**Casting Time:** {}", self.casting_time)?;
 
         {
-            write!(f, "\nRange: {}", self.range)?;
+            write!(f, "\\\n**Range:** {}", self.range)?;
             if let Some(aoe) = &self.area_of_effect {
                 if let (Some(aoe_type), Some(aoe_size)) = (
                     aoe.get("type").map(|v| v.as_str()).flatten(),
@@ -76,7 +76,7 @@ impl fmt::Display for Spell {
         {
             let mut component_iter = self.components.iter();
             if let Some(c) = component_iter.next() {
-                write!(f, "\nComponents: {}", c)?;
+                write!(f, "\\\n**Components:** {}", c)?;
                 component_iter.try_for_each(|c| write!(f, ", {}", c))?;
 
                 if let Some(m) = &self.material {
@@ -88,11 +88,11 @@ impl fmt::Display for Spell {
         if self.concentration {
             write!(
                 f,
-                "\nDuration: Concentration, {}",
+                "\\\n**Duration:** Concentration, {}",
                 self.duration.to_lowercase(),
             )?;
         } else {
-            write!(f, "\nDuration: {}", self.duration)?;
+            write!(f, "\\\n**Duration:** {}", self.duration)?;
         }
 
         self.desc
@@ -104,7 +104,7 @@ impl fmt::Display for Spell {
             .enumerate()
             .try_for_each(|(i, line)| {
                 if i == 0 {
-                    write!(f, "\n\nAt higher levels: {}", line)
+                    write!(f, "\n\n***At higher levels:*** {}", line)
                 } else {
                     write!(f, "\n\n{}", line)
                 }
