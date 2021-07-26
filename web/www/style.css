@@ -95,3 +95,43 @@ li.autocomplete-item.autocomplete-item-selected mark.autocomplete-item-highlight
     background: var(--solarized-scheme02);
     color: var(--solarized-scheme2);
 }
+
+.logo-tiny {
+    display: inline;
+}
+.logo-small {
+    display: none;
+}
+.logo-medium {
+    display: none;
+}
+.logo-large {
+    display: none;
+}
+
+@media (min-width: 30ch) {
+    .logo-tiny {
+        display: none;
+    }
+    .logo-small {
+        display: inline;
+    }
+}
+
+@media (min-width: 50ch) {
+    .logo-small {
+        display: none;
+    }
+    .logo-medium {
+        display: inline;
+    }
+}
+
+@media (min-width: 100ch) {
+    .logo-medium {
+        display: none;
+    }
+    .logo-large {
+        display: inline;
+    }
+}
