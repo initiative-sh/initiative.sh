@@ -72,10 +72,7 @@ promptFormElement.addEventListener("selection", event => {
   runCommand(event.detail.selection.value.suggestion);
 });
 
-// Keep the prompt focused
-promptElement.addEventListener("blur", event => setTimeout(() => promptElement.focus(), 100));
-
-window.addEventListener("click", event => promptElement.focus());
+window.addEventListener("keydown", event => promptElement.focus());
 
 outputElement.addEventListener("click", event => {
   if (event.target.nodeName === "BUTTON") {
