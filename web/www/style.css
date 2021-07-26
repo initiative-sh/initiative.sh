@@ -21,7 +21,18 @@ body {
 
 #output p {
     margin: 1.2rem 0 0;
-    padding: 0;
+}
+
+#output h1, #output h2, #output h3, #output h4, #output h5, #output h6 {
+    margin: 1.2rem 0 -1.2rem;
+    font-weight: normal;
+    font-style: normal;
+}
+
+#output h1 {
+    font-weight: bold;
+    color: var(--solarized-scheme3);
+    background: var(--solarized-scheme02);
 }
 
 #output ul {

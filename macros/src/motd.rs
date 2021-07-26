@@ -17,7 +17,12 @@ Latest `changelog` entry:
 
 {}",
         base_motd.trim_end(),
-        changelog.lines().next().unwrap(),
+        changelog
+            .lines()
+            .enumerate()
+            .take_while(|&(i, s)| i == 0 || !s.starts_with('*'))
+            .map(|(_, s)| s)
+            .collect::<String>()
     );
 
     Ok(quote! { #motd }.into())

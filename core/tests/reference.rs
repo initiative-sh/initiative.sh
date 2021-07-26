@@ -2,7 +2,7 @@ use initiative_core::app;
 
 #[test]
 fn open_game_license() {
-    assert_eq!(35, app().command("Open Game License").lines().count());
+    assert_eq!(111, app().command("Open Game License").lines().count());
 }
 
 #[test]

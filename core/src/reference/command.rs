@@ -16,7 +16,7 @@ impl Runnable for ReferenceCommand {
                 spell,
                 spell.get_name(),
             ),
-            Self::OpenGameLicense => include_str!("../../../data/ogl-1.0a.txt")
+            Self::OpenGameLicense => include_str!("../../../data/ogl-1.0a.md")
                 .trim_end()
                 .to_string(),
         }
