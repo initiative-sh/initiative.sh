@@ -3,7 +3,7 @@ import autoComplete from "@tarekraafat/autocomplete.js";
 
 document.body.insertAdjacentHTML(
   "beforeend",
-  "<form id=\"prompt-form\"><input type=\"text\" id=\"prompt\" autocorrect=\"off\" autocapitalize=\"none\"></form>"
+  "<form id=\"prompt-form\"><input type=\"text\" id=\"prompt\" autocomplete=\"off\" autocorrect=\"off\" autocapitalize=\"none\"></form>"
 );
 
 const promptFormElement = document.getElementById("prompt-form");
