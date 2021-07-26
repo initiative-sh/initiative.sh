@@ -51,7 +51,10 @@ pub fn command(location_type: &LocationType, context: &mut Context, rng: &mut im
     {
         let mut location = location.clone();
         location.regenerate(rng, &context.demographics);
-        output.push_str(&format!("{}\n\nAlternatives:", location.display_details()));
+        output.push_str(&format!(
+            "{}\n\n*Alternatives:* ",
+            location.display_details(),
+        ));
         context.push_recent(location.into());
     }
 
@@ -60,7 +63,7 @@ pub fn command(location_type: &LocationType, context: &mut Context, rng: &mut im
             .map(|i| {
                 let mut location = location.clone();
                 location.regenerate(rng, &context.demographics);
-                output.push_str(&format!("\n{} {}", i, location.display_summary()));
+                output.push_str(&format!("\\\n{} {}", i, location.display_summary()));
                 location.into()
             })
             .collect(),
