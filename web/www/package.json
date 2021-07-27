@@ -28,7 +28,8 @@
   "homepage": "https://github.com/rustwasm/create-wasm-app#readme",
   "dependencies": {
     "@tarekraafat/autocomplete.js": "^10.2.6",
-    "initiative-web": "file:../pkg"
+    "initiative-web": "file:../pkg",
+    "marked": "^2.1.3"
   },
   "devDependencies": {
     "copy-webpack-plugin": "^5.0.0",

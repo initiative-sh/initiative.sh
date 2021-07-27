@@ -9,6 +9,15 @@ pub enum Gender {
 }
 
 impl Gender {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Masculine => "masculine",
+            Self::Feminine => "feminine",
+            Self::Trans => "trans",
+            Self::Neuter => "neuter",
+        }
+    }
+
     pub fn pronouns(&self) -> &'static str {
         match self {
             Self::Masculine => "he/him",

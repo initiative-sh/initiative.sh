@@ -108,17 +108,23 @@ impl<'a> fmt::Display for DetailsView<'a> {
         location
             .name
             .value()
-            .map(|name| write!(f, "{}", name))
-            .transpose()?;
+            .map(|name| write!(f, "# {}", name))
+            .unwrap_or_else(|| {
+                if let Some(subtype) = location.subtype.value() {
+                    write!(f, "# Unnamed {}", subtype)
+                } else {
+                    write!(f, "# Unnamed building")
+                }
+            })?;
         location
             .subtype
             .value()
-            .map(|subtype| write!(f, "\nType: {}", subtype))
+            .map(|subtype| write!(f, "\n*{}*", subtype))
             .transpose()?;
         location
             .description
             .value()
-            .map(|description| write!(f, "\n{}", description))
+            .map(|description| write!(f, "\n\n{}", description))
             .transpose()?;
         Ok(())
     }
@@ -137,9 +143,11 @@ mod test_display_for_location_details_view {
         location.name = "Oaken Mermaid Inn".into();
         location.description = "I am Mordenkainen".into();
         assert_eq!(
-            "Oaken Mermaid Inn\n\
-            Type: Inn\n\
-            I am Mordenkainen",
+            "\
+# Oaken Mermaid Inn
+*Inn*
+
+I am Mordenkainen",
             format!("{}", location.display_details()),
         );
     }

@@ -31,13 +31,13 @@ fn acid_splash() {
     assert_eq!("AcidSplash", spell.token());
     assert_eq!(
         "\
-Acid Splash
-Conjuration cantrip
+# Acid Splash
+*Conjuration cantrip*
 
-Casting Time: 1 action
-Range: 60 feet
-Components: V, S
-Duration: Instantaneous
+**Casting Time:** 1 action\\
+**Range:** 60 feet\\
+**Components:** V, S\\
+**Duration:** Instantaneous
 
 You hurl a bubble of acid. Choose one creature within range, or choose two creatures within range that are within 5 feet of each other. A target must succeed on a dexterity saving throw or take 1d6 acid damage.
 
@@ -54,13 +54,13 @@ fn alarm() {
     assert_eq!("Alarm", spell.token());
     assert_eq!(
         "\
-Alarm
-1st-level abjuration (ritual)
+# Alarm
+*1st-level abjuration (ritual)*
 
-Casting Time: 1 minute
-Range: 30 feet (20' cube)
-Components: V, S, M (a tiny bell and a piece of fine silver wire)
-Duration: 8 hours
+**Casting Time:** 1 minute\\
+**Range:** 30 feet (20' cube)\\
+**Components:** V, S, M (a tiny bell and a piece of fine silver wire)\\
+**Duration:** 8 hours
 
 You set an alarm against unwanted intrusion. Choose a door, a window, or an area within range that is no larger than a 20-foot cube. Until the spell ends, an alarm alerts you whenever a Tiny or larger creature touches or enters the warded area. When you cast the spell, you can designate creatures that won't set off the alarm. You also choose whether the alarm is mental or audible.
 
@@ -82,17 +82,17 @@ fn blindness_deafness() {
     assert_eq!("BlindnessDeafness", spell.token());
     assert_eq!(
         "\
-Blindness/Deafness
-2nd-level necromancy
+# Blindness/Deafness
+*2nd-level necromancy*
 
-Casting Time: 1 action
-Range: 30 feet
-Components: V
-Duration: 1 minute
+**Casting Time:** 1 action\\
+**Range:** 30 feet\\
+**Components:** V\\
+**Duration:** 1 minute
 
 You can blind or deafen a foe. Choose one creature that you can see within range to make a constitution saving throw. If it fails, the target is either blinded or deafened (your choice) for the duration. At the end of each of its turns, the target can make a constitution saving throw. On a success, the spell ends.
 
-At higher levels: When you cast this spell using a spell slot of 3rd level or higher, you can target one additional creature for each slot level above 2nd.",
+***At higher levels:*** When you cast this spell using a spell slot of 3rd level or higher, you can target one additional creature for each slot level above 2nd.",
         format!("{}", spell).as_str(),
     );
 }
@@ -105,13 +105,13 @@ fn animate_dead() {
     assert_eq!("AnimateDead", spell.token());
     assert_eq!(
         "\
-Animate Dead
-3rd-level necromancy
+# Animate Dead
+*3rd-level necromancy*
 
-Casting Time: 1 minute
-Range: 10 feet
-Components: V, S, M (a drop of blood, a piece of flesh, and a pinch of bone dust)
-Duration: Instantaneous
+**Casting Time:** 1 minute\\
+**Range:** 10 feet\\
+**Components:** V, S, M (a drop of blood, a piece of flesh, and a pinch of bone dust)\\
+**Duration:** Instantaneous
 
 This spell creates an undead servant. Choose a pile of bones or a corpse of a Medium or Small humanoid within range. Your spell imbues the target with a foul mimicry of life, raising it as an undead creature. The target becomes a skeleton if you chose bones or a zombie if you chose a corpse (the DM has the creature's game statistics).
 
@@ -119,7 +119,7 @@ On each of your turns, you can use a bonus action to mentally command any creatu
 
 The creature is under your control for 24 hours, after which it stops obeying any command you've given it. To maintain control of the creature for another 24 hours, you must cast this spell on the creature again before the current 24-hour period ends. This use of the spell reasserts your control over up to four creatures you have animated with this spell, rather than animating a new one.
 
-At higher levels: When you cast this spell using a spell slot of 4th level or higher, you animate or reassert control over two additional undead creatures for each slot level above 3rd. Each of the creatures must come from a different corpse or pile of bones.",
+***At higher levels:*** When you cast this spell using a spell slot of 4th level or higher, you animate or reassert control over two additional undead creatures for each slot level above 3rd. Each of the creatures must come from a different corpse or pile of bones.",
         format!("{}", spell).as_str(),
     );
 }
@@ -135,13 +135,13 @@ fn dispel_evil_and_good() {
     assert_eq!("DispelEvilAndGood", spell.token());
     assert_eq!(
         "\
-Dispel Evil And Good
-5th-level abjuration
+# Dispel Evil And Good
+*5th-level abjuration*
 
-Casting Time: 1 action
-Range: Self
-Components: V, S, M (holy water or powdered silver and iron)
-Duration: Concentration, up to 1 minute
+**Casting Time:** 1 action\\
+**Range:** Self\\
+**Components:** V, S, M (holy water or powdered silver and iron)\\
+**Duration:** Concentration, up to 1 minute
 
 Shimmering energy surrounds and protects you from fey, undead, and creatures originating from beyond the Material Plane. For the duration, celestials, elementals, fey, fiends, and undead have disadvantage on attack rolls against you.
 

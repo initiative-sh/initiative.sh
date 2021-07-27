@@ -23,8 +23,8 @@ fn autocomplete_command() {
 fn autocomplete_proper_noun() {
     let mut app = app();
     let output = app.command("npc");
-    let npc_name = output.lines().next().unwrap();
-    let query = output.split_whitespace().next().unwrap();
+    let npc_name = output.lines().next().unwrap().trim_start_matches("# ");
+    let query = npc_name.split_whitespace().next().unwrap();
     let autocomplete_results = app.autocomplete(query);
 
     assert!(

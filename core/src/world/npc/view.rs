@@ -5,6 +5,24 @@ pub struct SummaryView<'a>(&'a Npc);
 
 pub struct DetailsView<'a>(&'a Npc);
 
+fn write_summary_details(npc: &Npc, f: &mut fmt::Formatter) -> fmt::Result {
+    if let Some(age) = npc.age.value() {
+        age.fmt_with_species(npc.species.value(), f)?;
+    } else if let Some(species) = npc.species.value() {
+        write!(f, "{}", species)?;
+    }
+
+    if let Some(gender) = npc.gender.value() {
+        if npc.age.is_some() || npc.species.is_some() {
+            write!(f, ", ")?;
+        }
+
+        write!(f, "{}", gender.pronouns())?;
+    }
+
+    Ok(())
+}
+
 impl<'a> SummaryView<'a> {
     pub fn new(npc: &'a Npc) -> Self {
         Self(npc)
@@ -30,19 +48,7 @@ impl<'a> fmt::Display for SummaryView<'a> {
             }
         }
 
-        if let Some(age) = npc.age.value() {
-            age.fmt_with_species(npc.species.value(), f)?;
-        } else if let Some(species) = npc.species.value() {
-            write!(f, "{}", species)?;
-        }
-
-        if let Some(gender) = npc.gender.value() {
-            if npc.age.is_some() || npc.species.is_some() {
-                write!(f, ", ")?;
-            }
-
-            write!(f, "{}", gender.pronouns())?;
-        }
+        write_summary_details(&npc, f)?;
 
         if npc.name.is_some() && has_details {
             write!(f, ")")?;
@@ -143,29 +149,33 @@ impl<'a> fmt::Display for DetailsView<'a> {
 
         npc.name
             .value()
-            .map(|name| write!(f, "{}", name))
-            .unwrap_or_else(|| write!(f, "Unnamed NPC"))?;
+            .map(|name| write!(f, "# {}", name))
+            .unwrap_or_else(|| write!(f, "# Unnamed NPC"))?;
+
+        write!(f, "\n*")?;
+        write_summary_details(&npc, f)?;
+        write!(f, "*")?;
 
         match (npc.species.value(), npc.ethnicity.value()) {
             (Some(species), Some(ethnicity)) if ethnicity != &species.default_ethnicity() => {
-                write!(f, "\nSpecies: {} ({})", species, ethnicity)?
+                write!(f, "\n\n**Species:** {} ({})", species, ethnicity)?
             }
-            (Some(species), _) => write!(f, "\nSpecies: {}", species)?,
-            (None, Some(ethnicity)) => write!(f, "\nEthnicity: {}", ethnicity)?,
-            (None, None) => {}
+            (Some(species), _) => write!(f, "\n\n**Species:** {}", species)?,
+            (None, Some(ethnicity)) => write!(f, "\n\n**Ethnicity:** {}", ethnicity)?,
+            (None, None) => write!(f, "\n\n**Species:** N/A")?,
         }
 
         npc.gender
             .value()
-            .map(|gender| write!(f, "\nGender: {}", gender))
+            .map(|gender| write!(f, "\\\n**Gender:** {}", gender.name()))
             .transpose()?;
         npc.age
             .value()
-            .map(|age| write!(f, "\nAge: {}", age))
+            .map(|age| write!(f, "\\\n**Age:** {} years", age.years()))
             .transpose()?;
         npc.size
             .value()
-            .map(|size| write!(f, "\nSize: {}", size))
+            .map(|size| write!(f, "\\\n**Size:** {}", size))
             .transpose()?;
 
         Ok(())
@@ -191,11 +201,14 @@ mod test_display_for_npc_details_view {
         });
 
         assert_eq!(
-            "Potato Johnson\n\
-            Species: human (Arabic)\n\
-            Gender: trans (they/them)\n\
-            Age: adult (30 years)\n\
-            Size: 5'11\", 140 lbs (medium)",
+            "\
+# Potato Johnson
+*adult human, they/them*
+
+**Species:** human (Arabic)\\
+**Gender:** trans\\
+**Age:** 30 years\\
+**Size:** 5'11\", 140 lbs (medium)",
             format!("{}", npc.display_details())
         );
     }
@@ -214,15 +227,15 @@ mod test_display_for_npc_details_view {
         };
 
         assert_eq!(
-            "Unnamed NPC\nSpecies: human",
+            "# Unnamed NPC\n*human*\n\n**Species:** human",
             format!("{}", npc(0b1).display_details())
         );
         assert_eq!(
-            "Unnamed NPC\nEthnicity: Arabic",
+            "# Unnamed NPC\n**\n\n**Ethnicity:** Arabic",
             format!("{}", npc(0b10).display_details())
         );
         assert_eq!(
-            "Unnamed NPC\nSpecies: human (Arabic)",
+            "# Unnamed NPC\n*human*\n\n**Species:** human (Arabic)",
             format!("{}", npc(0b11).display_details())
         );
     }
@@ -230,7 +243,7 @@ mod test_display_for_npc_details_view {
     #[test]
     fn fmt_test_empty() {
         assert_eq!(
-            "Unnamed NPC",
+            "# Unnamed NPC\n**\n\n**Species:** N/A",
             format!("{}", &Npc::default().display_details())
         );
     }

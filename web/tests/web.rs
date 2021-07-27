@@ -38,7 +38,7 @@ fn command() {
 #[wasm_bindgen_test]
 fn app_is_persistent() {
     let npc_output = app().command("npc");
-    let npc_name = npc_output.lines().next().unwrap();
+    let npc_name = npc_output.lines().next().unwrap().trim_start_matches("# ");
     let npc_details = app().command(npc_name);
 
     assert!(npc_details.lines().count() > 1, "{}", npc_details);
@@ -59,7 +59,7 @@ fn memory_exhaustion() {
         }
     };
 
-    let npc_name = npc_output.lines().next().unwrap();
+    let npc_name = npc_output.lines().next().unwrap().trim_start_matches("# ");
     let npc_details = app().command(npc_name);
     assert!(npc_details.lines().count() > 1, "{}", npc_details);
 
