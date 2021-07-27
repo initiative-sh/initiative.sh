@@ -1,3 +1,5 @@
+* **Enhancement:** Added content formatting to improve readability, while
+  remaining within the bounds of what is possible with an actual terminal.
 * **Enhancement/bug:** Improve mobile experience, including styling and
   bugfixes.
 * **Enhancement:** Keywords are now clickable, like this: `npc`.
