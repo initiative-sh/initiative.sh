@@ -5,8 +5,9 @@
     <meta name="description" content="initiative.sh is a storytelling aid for game masters. It's designed to be used at the table to support the creative process as your sessions evolve in real time.">
     <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, maximum-scale=1">
     <title>initiative.sh - D&D tools for game masters at the table</title>
-    <link rel="stylesheet" href="/solarized.css" type="text/css" media="screen" charset="utf-8">
-    <link rel="stylesheet" href="/style.css" type="text/css" media="screen" charset="utf-8">
+    <% for (var css in htmlWebpackPlugin.files.css) { %>
+    <link href="<%= htmlWebpackPlugin.files.css[css] %>" rel="stylesheet">
+    <% } %>
   </head>
   <body>
     <div id="output" role="log">

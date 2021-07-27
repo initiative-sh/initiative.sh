@@ -6,7 +6,7 @@ module.exports = {
   entry: "./src/index.js",
   output: {
     path: path.resolve(__dirname, "dist"),
-    filename: "index.js",
+    filename: "[name].[contenthash].js",
   },
   mode: "development",
   /*
@@ -18,14 +18,31 @@ module.exports = {
       },
     ],
   },
-  */
+    */
   plugins: [
     new HtmlWebpackPlugin({
       template: "src/index.html",
+      templateParameters: (compilation, files, tags, options) => {
+        compilation.getAssets()
+          .map(asset => asset.name)
+          .filter(name => name.endsWith(".css"))
+          .forEach(name => files.css.push(name));
+
+        return {
+          htmlWebpackPlugin: {
+            tags: tags,
+            files: files,
+            options: options,
+          },
+        };
+      },
     }),
     new CopyWebpackPlugin({
       patterns: [
-        { from: "public/*.css" },
+        {
+          from: path.resolve(__dirname, "public/*.css"),
+          to: path.resolve(__dirname, "dist/[name].[contenthash][ext]"),
+        },
       ],
     }),
   ],
