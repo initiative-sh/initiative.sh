@@ -16,11 +16,9 @@ use super::{Demographics, Field, Generate};
 use crate::app::Context;
 use crate::storage::StorageCommand;
 use rand::Rng;
-use std::ops::Deref;
 use std::rc::Rc;
 
-#[derive(Debug, Eq, PartialEq, Hash)]
-pub struct Uuid(uuid::Uuid);
+initiative_macros::uuid!();
 
 #[derive(Default, Debug)]
 pub struct Npc {
@@ -71,20 +69,6 @@ pub fn command(species: &Option<Species>, context: &mut Context, rng: &mut impl 
     context.batch_push_recent(recent);
 
     output
-}
-
-impl Deref for Uuid {
-    type Target = uuid::Uuid;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<uuid::Uuid> for Uuid {
-    fn from(uuid: uuid::Uuid) -> Self {
-        Self(uuid)
-    }
 }
 
 impl Npc {

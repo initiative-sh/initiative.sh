@@ -8,13 +8,11 @@ use super::{Demographics, Field, Generate};
 use crate::app::Context;
 use rand::Rng;
 use std::fmt;
-use std::ops::Deref;
 use std::rc::Rc;
 use std::str::FromStr;
 use view::{DetailsView, SummaryView};
 
-#[derive(Debug, Eq, PartialEq, Hash)]
-pub struct Uuid(uuid::Uuid);
+initiative_macros::uuid!();
 
 #[derive(Clone, Debug, Default)]
 pub struct Location {
@@ -70,32 +68,6 @@ pub fn command(location_type: &LocationType, context: &mut Context, rng: &mut im
     );
 
     output
-}
-
-impl Deref for Uuid {
-    type Target = uuid::Uuid;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<uuid::Uuid> for Uuid {
-    fn from(uuid: uuid::Uuid) -> Self {
-        Self(uuid)
-    }
-}
-
-#[cfg(test)]
-mod test_uuid {
-    use super::Uuid as LocationUuid;
-    use uuid::Uuid;
-
-    #[test]
-    fn into_deref_test() {
-        let uuid: LocationUuid = Uuid::nil().into();
-        assert!(uuid.is_nil());
-    }
 }
 
 impl Location {
