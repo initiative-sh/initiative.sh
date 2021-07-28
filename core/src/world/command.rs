@@ -171,12 +171,6 @@ mod test {
                     species: Some(Species::Tiefling),
                 },
             ),
-            (
-                "warforged",
-                WorldCommand::Npc {
-                    species: Some(Species::Warforged),
-                },
-            ),
             // BuildingType
             (
                 "inn",

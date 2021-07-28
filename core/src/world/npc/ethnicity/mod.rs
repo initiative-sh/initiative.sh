@@ -24,6 +24,8 @@ mod roman;
 mod slavic;
 mod spanish;
 mod tiefling;
+
+#[cfg(feature = "eberron")]
 mod warforged;
 
 use super::{Age, Gender, Npc, Species};
@@ -72,6 +74,8 @@ pub enum Ethnicity {
     Halfling,
     Human,
     Tiefling,
+
+    #[cfg(feature = "eberron")]
     Warforged,
 }
 
@@ -113,6 +117,8 @@ impl Ethnicity {
             Self::HalfOrcish => Species::HalfOrc,
             Self::Halfling => Species::Halfling,
             Self::Tiefling => Species::Tiefling,
+
+            #[cfg(feature = "eberron")]
             Self::Warforged => Species::Warforged,
         }
     }
@@ -133,7 +139,6 @@ mod test_ethnicity {
         assert_eq!(Species::Halfling, Ethnicity::Halfling.default_species());
         assert_eq!(Species::Human, Ethnicity::Arabic.default_species());
         assert_eq!(Species::Tiefling, Ethnicity::Tiefling.default_species());
-        assert_eq!(Species::Warforged, Ethnicity::Warforged.default_species());
     }
 }
 
@@ -180,6 +185,8 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
             Ethnicity::Roman => roman::Ethnicity::regenerate(rng, npc),
             Ethnicity::Slavic | Ethnicity::Damaran => slavic::Ethnicity::regenerate(rng, npc),
             Ethnicity::Spanish | Ethnicity::Turami => spanish::Ethnicity::regenerate(rng, npc),
+
+            #[cfg(feature = "eberron")]
             Ethnicity::Warforged => warforged::Ethnicity::regenerate(rng, npc),
         }
     }
@@ -223,6 +230,8 @@ impl fmt::Display for Ethnicity {
             Self::Tethyrian => write!(f, "Tethyrian"),
             Self::Tiefling => write!(f, "Tiefling"),
             Self::Turami => write!(f, "Turami"),
+
+            #[cfg(feature = "eberron")]
             Self::Warforged => write!(f, "warforged"),
         }
     }

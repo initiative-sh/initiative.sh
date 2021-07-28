@@ -7,6 +7,8 @@ mod half_orc;
 mod halfling;
 mod human;
 mod tiefling;
+
+#[cfg(feature = "eberron")]
 mod warforged;
 
 use super::{Age, Ethnicity, Gender, Npc, Size};
@@ -27,6 +29,8 @@ pub enum Species {
     Halfling,
     Human,
     Tiefling,
+
+    #[cfg(feature = "eberron")]
     Warforged,
 }
 
@@ -59,6 +63,8 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
             Species::Halfling => halfling::Species::regenerate(rng, npc),
             Species::Human => human::Species::regenerate(rng, npc),
             Species::Tiefling => tiefling::Species::regenerate(rng, npc),
+
+            #[cfg(feature = "eberron")]
             Species::Warforged => warforged::Species::regenerate(rng, npc),
         }
     }
@@ -172,6 +178,8 @@ impl Species {
             Self::Halfling => Ethnicity::Halfling,
             Self::Human => Ethnicity::Human,
             Self::Tiefling => Ethnicity::Tiefling,
+
+            #[cfg(feature = "eberron")]
             Self::Warforged => Ethnicity::Warforged,
         }
     }
@@ -195,7 +203,6 @@ mod test_species {
         assert_eq!(Ethnicity::Halfling, Species::Halfling.default_ethnicity());
         assert_eq!(Ethnicity::Human, Species::Human.default_ethnicity());
         assert_eq!(Ethnicity::Tiefling, Species::Tiefling.default_ethnicity());
-        assert_eq!(Ethnicity::Warforged, Species::Warforged.default_ethnicity());
     }
 }
 
@@ -224,6 +231,8 @@ impl fmt::Display for Species {
             Self::Halfling => write!(f, "halfling"),
             Self::Human => write!(f, "human"),
             Self::Tiefling => write!(f, "tiefling"),
+
+            #[cfg(feature = "eberron")]
             Self::Warforged => write!(f, "warforged"),
         }
     }
@@ -242,6 +251,5 @@ mod test_display_for_species {
         assert_eq!("halfling", format!("{}", Species::Halfling));
         assert_eq!("human", format!("{}", Species::Human));
         assert_eq!("tiefling", format!("{}", Species::Tiefling));
-        assert_eq!("warforged", format!("{}", Species::Warforged));
     }
 }

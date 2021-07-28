@@ -10,3 +10,6 @@ edition = "2018"
 termion = "1.5"
 
 initiative-core = { path = "../core" }
+
+[features]
+eberron = ["initiative-core/eberron"]

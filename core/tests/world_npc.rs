@@ -17,7 +17,6 @@ fn generated_content_is_limited_by_species() {
         "half-orc",
         "human",
         "tiefling",
-        "warforged",
     ]
     .iter()
     .for_each(|species| {

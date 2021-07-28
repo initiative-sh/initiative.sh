@@ -15,8 +15,8 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
         let mut words = Vec::new();
 
         data_enum.variants.iter().for_each(|variant| {
-            let word: String = variant
-                .ident
+            let ident = &variant.ident;
+            let word: String = ident
                 .to_string()
                 .chars()
                 .enumerate()
@@ -34,8 +34,8 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
                 .collect();
 
             words.push(quote! { #word, });
-            variants_to_words.push(quote! { #name::#variant => #word, });
-            words_to_variants.push(quote! { #word => Ok(#name::#variant),});
+            variants_to_words.push(quote! { #name::#ident => #word, });
+            words_to_variants.push(quote! { #word => Ok(#name::#ident),});
 
             if word.contains('-') {
                 let alt_word: String = word
@@ -44,7 +44,7 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
                     .collect();
 
                 words_to_variants.push(quote! {
-                    #alt_word => Ok(#name::#variant),
+                    #alt_word => Ok(#name::#ident),
                 });
             }
         });
