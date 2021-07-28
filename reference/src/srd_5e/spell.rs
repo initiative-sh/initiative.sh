@@ -34,6 +34,10 @@ pub struct Spell {
     concentration: bool,
 }
 
+pub struct SummaryView<'a>(&'a Spell);
+
+pub struct DetailsView<'a>(&'a Spell);
+
 impl Spell {
     pub fn name(&self) -> String {
         crate::capitalize(self.name.as_str())
@@ -42,29 +46,56 @@ impl Spell {
     pub fn token(&self) -> String {
         crate::to_camel_case(self.index.as_str())
     }
+
+    pub fn display_summary(&self) -> SummaryView {
+        SummaryView(self)
+    }
+
+    pub fn display_details(&self) -> DetailsView {
+        DetailsView(self)
+    }
+
+    fn get_level_school(&self) -> String {
+        match (self.level, self.school.get("name").unwrap().to_lowercase()) {
+            (0, s) => format!("{} cantrip", s),
+            (1, s) => format!("1st-level {}", s),
+            (2, s) => format!("2nd-level {}", s),
+            (3, s) => format!("3rd-level {}", s),
+            (l, s) => format!("{}th-level {}", l, s),
+        }
+    }
 }
 
-impl fmt::Display for Spell {
+impl<'a> fmt::Display for SummaryView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "# {}", self.name())?;
+        let spell = self.0;
+        write!(f, "`{}` ({})", spell.name(), spell.get_level_school())
+    }
+}
 
-        match (self.level, self.school.get("name").unwrap()) {
-            (0, s) => write!(f, "\n*{} cantrip", s)?,
-            (1, s) => write!(f, "\n*1st-level {}", s.to_lowercase())?,
-            (2, s) => write!(f, "\n*2nd-level {}", s.to_lowercase())?,
-            (3, s) => write!(f, "\n*3rd-level {}", s.to_lowercase())?,
-            (l, s) => write!(f, "\n*{}th-level {}", l, s.to_lowercase())?,
-        }
+impl<'a> fmt::Display for DetailsView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let spell = self.0;
 
-        if self.ritual {
+        write!(f, "# {}\n*{}", spell.name(), {
+            let level_school = spell.get_level_school();
+            let mut chars_iter = level_school.chars();
+            format_args!(
+                "{}{}",
+                chars_iter.next().unwrap().to_uppercase(),
+                chars_iter.collect::<String>(),
+            )
+        })?;
+
+        if spell.ritual {
             write!(f, " (ritual)")?;
         }
 
-        write!(f, "*\n\n**Casting Time:** {}", self.casting_time)?;
+        write!(f, "*\n\n**Casting Time:** {}", spell.casting_time)?;
 
         {
-            write!(f, "\\\n**Range:** {}", self.range)?;
-            if let Some(aoe) = &self.area_of_effect {
+            write!(f, "\\\n**Range:** {}", spell.range)?;
+            if let Some(aoe) = &spell.area_of_effect {
                 if let (Some(aoe_type), Some(aoe_size)) = (
                     aoe.get("type").map(|v| v.as_str()).flatten(),
                     aoe.get("size").map(|v| v.as_u64()).flatten(),
@@ -75,35 +106,35 @@ impl fmt::Display for Spell {
         }
 
         {
-            let mut component_iter = self.components.iter();
+            let mut component_iter = spell.components.iter();
             if let Some(c) = component_iter.next() {
                 write!(f, "\\\n**Components:** {}", c)?;
                 component_iter.try_for_each(|c| write!(f, ", {}", c))?;
 
-                if let Some(m) = &self.material {
+                if let Some(m) = &spell.material {
                     write!(f, " ({})", m.trim_end_matches('.').to_lowercase())?;
                 }
             }
         }
 
-        if self.concentration {
+        if spell.concentration {
             write!(
                 f,
                 "\\\n**Duration:** Concentration, {}",
-                self.duration.to_lowercase(),
+                spell.duration.to_lowercase(),
             )?;
         } else {
-            write!(f, "\\\n**Duration:** {}", self.duration)?;
+            write!(f, "\\\n**Duration:** {}", spell.duration)?;
         }
 
-        if !self.desc.is_empty() {
+        if !spell.desc.is_empty() {
             write!(f, "\n\n")?;
-            write_text_block(f, &self.desc[..])?;
+            write_text_block(f, &spell.desc[..])?;
         }
 
-        if !self.higher_level.is_empty() {
+        if !spell.higher_level.is_empty() {
             write!(f, "\n\n***At higher levels:*** ")?;
-            write_text_block(f, &self.higher_level[..])?;
+            write_text_block(f, &spell.higher_level[..])?;
         }
 
         Ok(())

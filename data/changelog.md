@@ -1,3 +1,4 @@
+* **Enhancement:** New command: `spells`.
 * **Bug:** Fixed rendering inline lists in spell descriptions.
 * **Bug:** Fixed capitalization of possessives: `Arcanist's Magic Aura` is no
   longer capitalized as "Arcanist'S".

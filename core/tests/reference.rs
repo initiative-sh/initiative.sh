@@ -23,3 +23,20 @@ You gain the ability to comprehend and verbally communicate with beasts for the 
         app().command("Speak With Animals"),
     );
 }
+
+#[test]
+fn spells() {
+    let output = app().command("spells");
+    assert_eq!(
+        "\
+# Spells
+* `Acid Arrow` (2nd-level evocation)
+* `Acid Splash` (conjuration cantrip)
+* `Aid` (2nd-level abjuration)
+* `Alarm` (1st-level abjuration)
+",
+        output.split_inclusive('\n').take(5).collect::<String>(),
+    );
+
+    assert_eq!(322, output.lines().count(), "{}", output);
+}
