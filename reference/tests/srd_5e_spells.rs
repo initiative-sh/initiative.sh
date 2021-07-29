@@ -18,6 +18,7 @@
 //! | Non-concentration | acid_splash |
 //! | Description: 1 line | blindness_deafness |
 //! | Description: 2+ lines | acid_splash |
+//! | Description: list | augury |
 //! | At higher levels: none | acid_splash |
 //! | At higher levels: 1 line | blindness_deafness |
 
@@ -154,6 +155,36 @@ As your action, you touch a creature you can reach that is charmed, frightened, 
 Dismissal.
 
 As your action, make a melee spell attack against a celestial, an elemental, a fey, a fiend, or an undead you can reach. On a hit, you attempt to drive the creature back to its home plane. The creature must succeed on a charisma saving throw or be sent back to its home plane (if it isn't there already). If they aren't on their home plane, undead are sent to the Shadowfell, and fey are sent to the Feywild.",
+        format!("{}", spell).as_str(),
+    );
+}
+
+#[test]
+fn augury() {
+    let spells = spells().unwrap();
+    let spell = spells.iter().find(|s| s.name() == "Augury").unwrap();
+
+    assert_eq!("Augury", spell.token());
+    assert_eq!(
+        "\
+# Augury
+*2nd-level divination (ritual)*
+
+**Casting Time:** 1 minute\\
+**Range:** Self\\
+**Components:** V, S, M (specially marked sticks, bones, or similar tokens worth at least 25gp)\\
+**Duration:** Instantaneous
+
+By casting gem-inlaid sticks, rolling dragon bones, laying out ornate cards, or employing some other divining tool, you receive an omen from an otherworldly entity about the results of a specific course of action that you plan to take within the next 30 minutes. The DM chooses from the following possible omens:
+
+- Weal, for good results
+- Woe, for bad results
+- Weal and woe, for both good and bad results
+- Nothing, for results that aren't especially good or bad
+
+The spell doesn't take into account any possible circumstances that might change the outcome, such as the casting of additional spells or the loss or gain of a companion.
+
+If you cast the spell two or more times before completing your next long rest, there is a cumulative 25 percent chance for each casting after the first that you get a random reading. The DM makes this roll in secret.",
         format!("{}", spell).as_str(),
     );
 }

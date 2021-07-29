@@ -1,3 +1,4 @@
+use super::write_text_block;
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -95,20 +96,15 @@ impl fmt::Display for Spell {
             write!(f, "\\\n**Duration:** {}", self.duration)?;
         }
 
-        self.desc
-            .iter()
-            .try_for_each(|line| write!(f, "\n\n{}", line))?;
+        if !self.desc.is_empty() {
+            write!(f, "\n\n")?;
+            write_text_block(f, &self.desc[..])?;
+        }
 
-        self.higher_level
-            .iter()
-            .enumerate()
-            .try_for_each(|(i, line)| {
-                if i == 0 {
-                    write!(f, "\n\n***At higher levels:*** {}", line)
-                } else {
-                    write!(f, "\n\n{}", line)
-                }
-            })?;
+        if !self.higher_level.is_empty() {
+            write!(f, "\n\n***At higher levels:*** ")?;
+            write_text_block(f, &self.higher_level[..])?;
+        }
 
         Ok(())
     }
