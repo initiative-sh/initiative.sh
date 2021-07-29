@@ -3,9 +3,18 @@ pub use std::fmt;
 
 mod spell;
 
+use serde::Deserialize;
+
 pub fn spells() -> Result<Vec<Spell>, String> {
     serde_json::from_str(include_str!("../../../data/srd_5e/src/5e-SRD-Spells.json"))
         .map_err(|e| format!("{}", e))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Reference {
+    //index: String,
+    name: String,
+    //url: String,
 }
 
 fn write_text_block(f: &mut fmt::Formatter, lines: &[String]) -> fmt::Result {

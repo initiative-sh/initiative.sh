@@ -1,7 +1,5 @@
-use super::write_text_block;
+use super::{write_text_block, Reference};
 use serde::Deserialize;
-use serde_json::Value as JsonValue;
-use std::collections::HashMap;
 use std::fmt;
 
 #[derive(Debug, Deserialize)]
@@ -11,12 +9,11 @@ pub struct Spell {
 
     level: u8,
 
-    #[serde(default)]
-    school: HashMap<String, String>,
+    school: Reference,
 
     casting_time: String,
     range: String,
-    area_of_effect: Option<HashMap<String, JsonValue>>,
+    area_of_effect: Option<AreaOfEffect>,
     components: Vec<char>,
     material: Option<String>,
     duration: String,
@@ -32,6 +29,13 @@ pub struct Spell {
 
     #[serde(default)]
     concentration: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AreaOfEffect {
+    #[serde(rename = "type")]
+    effect_type: String,
+    size: u16,
 }
 
 pub struct SummaryView<'a>(&'a Spell);
@@ -56,12 +60,12 @@ impl Spell {
     }
 
     fn get_level_school(&self) -> String {
-        match (self.level, self.school.get("name").unwrap().to_lowercase()) {
-            (0, s) => format!("{} cantrip", s),
-            (1, s) => format!("1st-level {}", s),
-            (2, s) => format!("2nd-level {}", s),
-            (3, s) => format!("3rd-level {}", s),
-            (l, s) => format!("{}th-level {}", l, s),
+        match (self.level, &self.school) {
+            (0, s) => format!("{} cantrip", s.name),
+            (1, s) => format!("1st-level {}", s.name.to_lowercase()),
+            (2, s) => format!("2nd-level {}", s.name.to_lowercase()),
+            (3, s) => format!("3rd-level {}", s.name.to_lowercase()),
+            (l, s) => format!("{}th-level {}", l, s.name.to_lowercase()),
         }
     }
 }
@@ -69,7 +73,12 @@ impl Spell {
 impl<'a> fmt::Display for SummaryView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let spell = self.0;
-        write!(f, "`{}` ({})", spell.name(), spell.get_level_school())
+        write!(
+            f,
+            "`{}` ({})",
+            spell.name(),
+            spell.get_level_school().to_lowercase(),
+        )
     }
 }
 
@@ -77,15 +86,7 @@ impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let spell = self.0;
 
-        write!(f, "# {}\n*{}", spell.name(), {
-            let level_school = spell.get_level_school();
-            let mut chars_iter = level_school.chars();
-            format_args!(
-                "{}{}",
-                chars_iter.next().unwrap().to_uppercase(),
-                chars_iter.collect::<String>(),
-            )
-        })?;
+        write!(f, "# {}\n*{}", spell.name(), spell.get_level_school())?;
 
         if spell.ritual {
             write!(f, " (ritual)")?;
@@ -96,12 +97,7 @@ impl<'a> fmt::Display for DetailsView<'a> {
         {
             write!(f, "\\\n**Range:** {}", spell.range)?;
             if let Some(aoe) = &spell.area_of_effect {
-                if let (Some(aoe_type), Some(aoe_size)) = (
-                    aoe.get("type").map(|v| v.as_str()).flatten(),
-                    aoe.get("size").map(|v| v.as_u64()).flatten(),
-                ) {
-                    write!(f, " ({}' {})", aoe_size, aoe_type)?;
-                }
+                write!(f, " ({})", aoe)?;
             }
         }
 
@@ -138,5 +134,11 @@ impl<'a> fmt::Display for DetailsView<'a> {
         }
 
         Ok(())
+    }
+}
+
+impl fmt::Display for AreaOfEffect {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}' {}", self.size, self.effect_type)
     }
 }
