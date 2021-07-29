@@ -1,4 +1,4 @@
-use super::{Item, Spell};
+use super::{Item, ItemCategory, Spell};
 use crate::app::{autocomplete_phrase, Context, Runnable};
 use rand::Rng;
 
@@ -7,6 +7,7 @@ pub enum ReferenceCommand {
     Spell(Spell),
     Spells,
     Item(Item),
+    ItemCategory(ItemCategory),
     OpenGameLicense,
 }
 
@@ -16,6 +17,7 @@ impl Runnable for ReferenceCommand {
             Self::Spell(spell) => (format!("{}", spell), spell.get_name()),
             Self::Spells => (Spell::get_list().to_string(), "This listing"),
             Self::Item(item) => (format!("{}", item), item.get_name()),
+            Self::ItemCategory(category) => (format!("{}", category), "This listing"),
             Self::OpenGameLicense => {
                 return include_str!("../../../data/ogl-1.0a.md")
                     .trim_end()
@@ -34,6 +36,7 @@ impl Runnable for ReferenceCommand {
             Self::Spell(_) => "SRD spell",
             Self::Spells => "SRD index",
             Self::Item(_) => "SRD item",
+            Self::ItemCategory(_) => "SRD item category",
             Self::OpenGameLicense => "SRD license",
         }
     }
@@ -49,6 +52,8 @@ impl Runnable for ReferenceCommand {
             vec![Self::Spell(spell)]
         } else if let Ok(item) = input.parse() {
             vec![Self::Item(item)]
+        } else if let Ok(category) = input.parse() {
+            vec![Self::ItemCategory(category)]
         } else {
             Vec::new()
         }
@@ -60,7 +65,8 @@ impl Runnable for ReferenceCommand {
             &mut ["Open Game License", "spells"]
                 .iter()
                 .chain(Spell::get_words().iter())
-                .chain(Item::get_words().iter()),
+                .chain(Item::get_words().iter())
+                .chain(ItemCategory::get_words().iter()),
         );
 
         suggestions.sort();

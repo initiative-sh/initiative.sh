@@ -29,6 +29,21 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                     )
                 })
                 .collect(),
+            "ItemCategory" => {
+                let items = srd_5e::equipment()?;
+
+                srd_5e::equipment_categories()?
+                    .iter()
+                    .map(|category| {
+                        (
+                            syn::parse_str(category.token().as_str()).unwrap(),
+                            category.name().to_lowercase(),
+                            category.alt_name(),
+                            format!("{}", category.display_table(&items)),
+                        )
+                    })
+                    .collect()
+            }
             _ => unimplemented!(),
         };
 
@@ -50,7 +65,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
         .iter()
         .map(|(variant, _, _, output)| quote! { #ident::#variant => #output, });
 
-    let mut list_output = "# Spells".to_string();
+    let mut list_output = format!("# {}s", ident);
     srd_5e::spells()?.iter().for_each(|spell| {
         list_output.push_str(format!("\n* {}", spell.display_summary()).as_str())
     });

@@ -37,7 +37,7 @@ fn leather_armor() {
     assert_eq!(
         "\
 # Leather Armor
-*Armor*
+*Armor (Light)*
 
 **Cost:** 10 gp\\
 **Armor Class (AC):** 11 + Dex modifier\\
@@ -59,7 +59,7 @@ fn chain_shirt() {
     assert_eq!(
         "\
 # Chain Shirt
-*Armor*
+*Armor (Medium)*
 
 **Cost:** 50 gp\\
 **Armor Class (AC):** 13 + Dex modifier (max 2)\\
@@ -81,7 +81,7 @@ fn splint_armor() {
     assert_eq!(
         "\
 # Splint Armor
-*Armor*
+*Armor (Heavy)*
 
 **Cost:** 200 gp\\
 **Armor Class (AC):** 17\\
@@ -100,10 +100,10 @@ fn shield() {
     assert_eq!(
         "\
 # Shield
-*Armor*
+*Armor (Shield)*
 
 **Cost:** 10 gp\\
-**Armor Class (AC):** 2\\
+**Armor Class (AC):** +2\\
 **Strength:** any\\
 **Stealth:** no impact\\
 **Weight:** 6 lbs",
@@ -119,7 +119,7 @@ fn trident() {
     assert_eq!(
         "\
 # Trident
-*Weapon*
+*Weapon (Martial)*
 
 **Cost:** 5 gp\\
 **Damage:** 1d6 slashing\\
@@ -140,7 +140,7 @@ fn light_crossbow() {
     assert_eq!(
         "\
 # Light Crossbow
-*Weapon*
+*Weapon (Simple)*
 
 **Cost:** 25 gp\\
 **Damage:** 1d8 piercing\\
@@ -158,7 +158,7 @@ fn mastiff() {
     assert_eq!(
         "\
 # Mastiff
-*Mounts and Vehicles*
+*Mounts and Vehicles (Mounts and Other Animals)*
 
 **Cost:** 25 gp\\
 **Speed:** 40 ft/round\\
@@ -178,7 +178,7 @@ fn potion_of_healing() {
     assert_eq!(
         "\
 # Potion Of Healing
-*Adventuring Gear*
+*Adventuring Gear (Standard Gear)*
 
 **Cost:** 50 gp\\
 **Weight:** 0.5 lbs

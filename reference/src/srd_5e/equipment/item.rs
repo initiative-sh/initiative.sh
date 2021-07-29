@@ -1,4 +1,5 @@
-use super::{write_text_block, Reference};
+use super::Column;
+use crate::srd_5e::{write_text_block, Reference};
 use serde::Deserialize;
 use std::fmt;
 
@@ -24,7 +25,13 @@ pub struct Equipment {
 
     #[serde(default)]
     desc: Vec<String>,
+
     equipment_category: Reference,
+    gear_category: Option<Reference>,
+    armor_category: Option<String>,
+    vehicle_category: Option<String>,
+    tool_category: Option<String>,
+    weapon_category: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -56,7 +63,11 @@ impl Equipment {
     pub fn name(&self) -> String {
         let mut name = if self.name.contains(", ") {
             if let Some((start, end)) = self.name.split_once(", ") {
-                format!("{} {}", end, start)
+                if let Some((end, end_paren)) = end.split_once(" (") {
+                    format!("{} {} ({}", end, start, end_paren)
+                } else {
+                    format!("{} {}", end, start)
+                }
             } else {
                 unreachable!();
             }
@@ -86,8 +97,8 @@ impl Equipment {
         crate::to_camel_case(self.index.as_str())
     }
 
-    pub fn display_table<'a>(&'a self, columns: &'a [Column]) -> TableView {
-        TableView {
+    pub fn display_table_row<'a>(&'a self, columns: &'a [Column]) -> TableRowView {
+        TableRowView {
             equipment: self,
             columns,
         }
@@ -96,29 +107,38 @@ impl Equipment {
     pub fn display_details(&self) -> DetailsView {
         DetailsView(self)
     }
+
+    pub fn get_category(&self) -> String {
+        if self.name == "Weapon" {
+            "Weapons".to_string()
+        } else {
+            self.name.clone()
+        }
+    }
+
+    pub fn get_subcategory(&self) -> Option<String> {
+        match self.equipment_category.index.as_str() {
+            "adventuring-gear" => self
+                .gear_category
+                .as_ref()
+                .map(|reference| reference.name.to_owned()),
+            "armor" => self.armor_category.clone(),
+            "mounts-and-vehicles" => self.vehicle_category.clone(),
+            "tools" => self.tool_category.clone(),
+            "weapon" => self.weapon_category.clone(),
+            _ => None,
+        }
+    }
 }
 
-pub struct TableView<'a> {
+pub struct TableRowView<'a> {
     equipment: &'a Equipment,
     columns: &'a [Column],
 }
 
 pub struct DetailsView<'a>(&'a Equipment);
 
-pub enum Column {
-    ArmorClass,
-    CarryingCapacity,
-    Cost,
-    Damage,
-    Name,
-    Properties,
-    Speed,
-    Stealth,
-    Strength,
-    Weight,
-}
-
-impl<'a> fmt::Display for TableView<'a> {
+impl<'a> fmt::Display for TableRowView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let equipment = &self.equipment;
 
@@ -128,35 +148,43 @@ impl<'a> fmt::Display for TableView<'a> {
 
         for column in self.columns {
             match column {
-                Column::ArmorClass => equipment
-                    .armor_class
-                    .as_ref()
-                    .map(|ac| write!(f, " {} |", ac)),
+                Column::ArmorClass => equipment.armor_class.as_ref().map(|ac| {
+                    if equipment
+                        .armor_category
+                        .as_ref()
+                        .map_or(false, |c| c == "Shield")
+                    {
+                        write!(f, " +{} |", ac)
+                    } else {
+                        write!(f, " {} |", ac)
+                    }
+                }),
                 Column::CarryingCapacity => {
                     equipment.capacity.as_ref().map(|c| write!(f, " {} |", c))
                 }
                 Column::Cost => Some(write!(f, " {} |", equipment.cost)),
                 Column::Damage => equipment.damage.as_ref().map(|d| write!(f, " {} |", d)),
-                Column::Name => Some(write!(f, " `{}` |", equipment.name())),
+                Column::Name => Some(write!(
+                    f,
+                    " `{}` |",
+                    equipment.alt_name().unwrap_or_else(|| equipment.name()),
+                )),
                 Column::Properties => None,
                 Column::Speed => equipment.speed.as_ref().map(|s| write!(f, " {} |", s)),
-                Column::Stealth => {
-                    if let Some(true) = equipment.stealth_disadvantage {
-                        Some(write!(f, " disadvantage |"))
+                Column::Stealth => equipment.stealth_disadvantage.map(|d| {
+                    if d {
+                        write!(f, " disadvantage |")
                     } else {
-                        None
+                        write!(f, " \u{2014} |")
                     }
-                }
-                Column::Strength => equipment
-                    .str_minimum
-                    .map(|min| {
-                        if min > 0 {
-                            Some(write!(f, " Str {} |", min))
-                        } else {
-                            None
-                        }
-                    })
-                    .flatten(),
+                }),
+                Column::Strength => equipment.str_minimum.map(|min| {
+                    if min > 0 {
+                        write!(f, " Str {} |", min)
+                    } else {
+                        write!(f, " \u{2014} |")
+                    }
+                }),
                 Column::Weight => equipment.weight.map(|w| write!(f, " {} lb. |", w)),
             }
             .unwrap_or_else(|| write!(f, " |"))?;
@@ -170,12 +198,17 @@ impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let equipment = self.0;
 
-        write!(
-            f,
-            "# {}\n*{}*\n",
-            equipment.name(),
-            equipment.equipment_category.name,
-        )?;
+        writeln!(f, "# {}", equipment.name())?;
+
+        if let Some(subcategory) = equipment.get_subcategory() {
+            writeln!(
+                f,
+                "*{} ({})*",
+                equipment.equipment_category.name, subcategory
+            )?;
+        } else {
+            writeln!(f, "*{}", equipment.equipment_category.name)?;
+        }
 
         write!(f, "\n**Cost:** {}", equipment.cost)?;
 
@@ -184,7 +217,15 @@ impl<'a> fmt::Display for DetailsView<'a> {
         }
 
         if let Some(ac) = &equipment.armor_class {
-            write!(f, "\\\n**Armor Class (AC):** {}", ac)?;
+            if equipment
+                .armor_category
+                .as_ref()
+                .map_or(false, |c| c == "Shield")
+            {
+                write!(f, "\\\n**Armor Class (AC):** +{}", ac)?;
+            } else {
+                write!(f, "\\\n**Armor Class (AC):** {}", ac)?;
+            }
         }
 
         if let Some(min) = equipment.str_minimum {

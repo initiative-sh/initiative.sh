@@ -1,4 +1,4 @@
-pub use equipment::Equipment;
+pub use equipment::{Equipment, EquipmentCategory};
 pub use spell::Spell;
 pub use std::fmt;
 
@@ -19,11 +19,24 @@ pub fn equipment() -> Result<Vec<Equipment>, String> {
     .map_err(|e| format!("{}", e))
 }
 
+pub fn equipment_categories() -> Result<Vec<EquipmentCategory>, String> {
+    serde_json::from_str(include_str!(
+        "../../../data/srd_5e/src/5e-SRD-Equipment-Categories.json",
+    ))
+    .map_err(|e| format!("{}", e))
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Reference {
     index: String,
     name: String,
-    //url: String,
+    url: String,
+}
+
+impl Reference {
+    pub fn token(&self) -> String {
+        crate::to_camel_case(self.index.as_str())
+    }
 }
 
 fn write_text_block(f: &mut fmt::Formatter, lines: &[String]) -> fmt::Result {
