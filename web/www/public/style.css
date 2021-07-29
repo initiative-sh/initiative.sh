@@ -29,6 +29,39 @@ body {
     font-style: normal;
 }
 
+#output table {
+    border-spacing: 0;
+    margin: 1.2rem 0 0;
+}
+
+#output table th {
+    text-align: left;
+    font-weight: bold;
+    padding-bottom: 0;
+    padding-left: 2ch;
+    padding-right: 0;
+    padding-top: 0;
+}
+
+#output table th[align=right] {
+    text-align: right;
+}
+
+#output table td {
+    padding-bottom: 0;
+    padding-left: 2ch;
+    padding-right: 0;
+    padding-top: 0;
+}
+
+#output table th:nth-child(1), #output table td:nth-child(1) {
+    padding: 0;
+}
+
+#output table tbody tr:nth-child(odd) {
+    background: var(--solarized-scheme2);
+}
+
 #output h1 {
     font-weight: bold;
     color: var(--solarized-scheme3);
