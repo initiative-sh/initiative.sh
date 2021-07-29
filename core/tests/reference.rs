@@ -40,3 +40,24 @@ fn spells() {
 
     assert_eq!(322, output.lines().count(), "{}", output);
 }
+
+#[test]
+fn item() {
+    let output = app().command("Light Crossbow");
+
+    assert_eq!(
+        "\
+# Light Crossbow
+*Weapon*
+
+**Cost:** 25 gp\\
+**Damage:** 1d8 piercing\\
+**Range:** 80/320\\
+**Weight:** 5 lbs
+
+*Light Crossbow is Open Game Content subject to the `Open Game License`.*",
+        output,
+    );
+
+    assert_eq!(output, app().command("Crossbow, Light"));
+}

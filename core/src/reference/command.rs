@@ -1,4 +1,4 @@
-use super::Spell;
+use super::{Item, Spell};
 use crate::app::{autocomplete_phrase, Context, Runnable};
 use rand::Rng;
 
@@ -6,6 +6,7 @@ use rand::Rng;
 pub enum ReferenceCommand {
     Spell(Spell),
     Spells,
+    Item(Item),
     OpenGameLicense,
 }
 
@@ -14,6 +15,7 @@ impl Runnable for ReferenceCommand {
         let (output, name) = match self {
             Self::Spell(spell) => (format!("{}", spell), spell.get_name()),
             Self::Spells => (Spell::get_list().to_string(), "This listing"),
+            Self::Item(item) => (format!("{}", item), item.get_name()),
             Self::OpenGameLicense => {
                 return include_str!("../../../data/ogl-1.0a.md")
                     .trim_end()
@@ -31,6 +33,7 @@ impl Runnable for ReferenceCommand {
         match self {
             Self::Spell(_) => "SRD spell",
             Self::Spells => "SRD index",
+            Self::Item(_) => "SRD item",
             Self::OpenGameLicense => "SRD license",
         }
     }
@@ -44,6 +47,8 @@ impl Runnable for ReferenceCommand {
 
         if let Ok(spell) = input.parse() {
             vec![Self::Spell(spell)]
+        } else if let Ok(item) = input.parse() {
+            vec![Self::Item(item)]
         } else {
             Vec::new()
         }
@@ -54,7 +59,8 @@ impl Runnable for ReferenceCommand {
             input,
             &mut ["Open Game License", "spells"]
                 .iter()
-                .chain(Spell::get_words().iter()),
+                .chain(Spell::get_words().iter())
+                .chain(Item::get_words().iter()),
         );
 
         suggestions.sort();

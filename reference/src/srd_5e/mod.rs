@@ -1,6 +1,8 @@
+pub use equipment::Equipment;
 pub use spell::Spell;
 pub use std::fmt;
 
+mod equipment;
 mod spell;
 
 use serde::Deserialize;
@@ -10,9 +12,16 @@ pub fn spells() -> Result<Vec<Spell>, String> {
         .map_err(|e| format!("{}", e))
 }
 
+pub fn equipment() -> Result<Vec<Equipment>, String> {
+    serde_json::from_str(include_str!(
+        "../../../data/srd_5e/src/5e-SRD-Equipment.json",
+    ))
+    .map_err(|e| format!("{}", e))
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Reference {
-    //index: String,
+    index: String,
     name: String,
     //url: String,
 }

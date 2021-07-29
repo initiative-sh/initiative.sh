@@ -1,26 +1,27 @@
-//! | Case | Tested by |
-//! | Token: 1 word | alarm |
-//! | Token: 2+ words | acid_splash |
-//! | Token: Non-alphanumeric symbols | blindness_deafness |
-//! | Level: cantrip | acid_splash |
-//! | Level: 1 | alarm |
-//! | Level: 2 | blindness_deafness |
-//! | Level: 3 | animate_dead |
-//! | Level: 4+ | dispel_evil_and_good |
-//! | Ritual | alarm |
-//! | Non-ritual | acid_splash |
-//! | AoE | alarm |
-//! | Non-AoE | acid_splash |
-//! | Components: 1 | blindness_deafness |
-//! | Components: 2+ | acid_splash |
-//! | Components: with materials | alarm |
-//! | Concentration | dispel_evil_and_good |
-//! | Non-concentration | acid_splash |
-//! | Description: 1 line | blindness_deafness |
-//! | Description: 2+ lines | acid_splash |
-//! | Description: list | augury |
-//! | At higher levels: none | acid_splash |
-//! | At higher levels: 1 line | blindness_deafness |
+//! | Case                            | Tested by            |
+//! |---------------------------------|----------------------|
+//! | Token: 1 word                   | alarm                |
+//! | Token: 2+ words                 | acid_splash          |
+//! | Token: Non-alphanumeric symbols | blindness_deafness   |
+//! | Level: cantrip                  | acid_splash          |
+//! | Level: 1                        | alarm                |
+//! | Level: 2                        | blindness_deafness   |
+//! | Level: 3                        | animate_dead         |
+//! | Level: 4+                       | dispel_evil_and_good |
+//! | Ritual                          | alarm                |
+//! | Non-ritual                      | acid_splash          |
+//! | AoE                             | alarm                |
+//! | Non-AoE                         | acid_splash          |
+//! | Components: 1                   | blindness_deafness   |
+//! | Components: 2+                  | acid_splash          |
+//! | Components: with materials      | alarm                |
+//! | Concentration                   | dispel_evil_and_good |
+//! | Non-concentration               | acid_splash          |
+//! | Description: 1 line             | blindness_deafness   |
+//! | Description: 2+ lines           | acid_splash          |
+//! | Description: list               | augury               |
+//! | At higher levels: none          | acid_splash          |
+//! | At higher levels: 1 line        | blindness_deafness   |
 
 use initiative_reference::srd_5e::spells;
 
