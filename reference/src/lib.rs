@@ -20,7 +20,7 @@ fn capitalize(input: &str) -> String {
             word_break = false;
         } else {
             result.push(c);
-            word_break = true;
+            word_break = c != '\'';
         }
     }
     result
@@ -35,6 +35,7 @@ mod test {
         assert_eq!("Potato", to_camel_case("potato"));
         assert_eq!("PotatoSpud", to_camel_case("potato/spud"));
         assert_eq!("FooBar", to_camel_case("foo  ~~~~  bar"));
+        assert_eq!("ArcanistsMagicAura", to_camel_case("arcanist's magic aura"));
         assert_eq!("", to_camel_case(""));
     }
 
@@ -43,6 +44,7 @@ mod test {
         assert_eq!("Potato", capitalize("potato"));
         assert_eq!("Potato/Spud", capitalize("potato/spud"));
         assert_eq!("Foo  ~~~~  Bar", capitalize("foo  ~~~~  bar"));
+        assert_eq!("Arcanist's Magic Aura", capitalize("arcanist's magic aura"));
         assert_eq!("", capitalize(""));
     }
 }

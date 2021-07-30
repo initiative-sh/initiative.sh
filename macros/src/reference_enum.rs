@@ -12,7 +12,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                 (
                     syn::parse_str(spell.token().as_str()).unwrap(),
                     spell.name(),
-                    format!("{}", spell),
+                    format!("{}", spell.display_details()),
                 )
             })
             .collect(),
@@ -33,6 +33,11 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
         .iter()
         .map(|(variant, _, output)| quote! { #ident::#variant => #output, });
 
+    let mut list_output = "# Spells".to_string();
+    srd_5e::spells()?.iter().for_each(|spell| {
+        list_output.push_str(format!("\n* {}", spell.display_summary()).as_str())
+    });
+
     let words = data.iter().map(|(_, name, _)| quote! { #name, });
 
     let result = quote! {
@@ -44,6 +49,10 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
         impl #ident {
             pub fn get_words() -> &'static [&'static str] {
                 &[#(#words)*]
+            }
+
+            pub fn get_list() -> &'static str {
+                #list_output
             }
 
             pub fn get_name(&self) -> &'static str {
