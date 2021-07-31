@@ -41,43 +41,43 @@ fn weapons() {
 
 | Name | Cost | Damage | Weight | Properties |
 |---|--:|---|--:|---|
-| `Battleaxe` | 10 gp | 1d8 slashing | 4 lb. | |
-| `Blowgun` | 10 gp | 1d1 piercing | 1 lb. | |
-| `Club` | 1 sp | 1d4 bludgeoning | 2 lb. | |
-| `Crossbow, Hand` | 75 gp | 1d6 piercing | 3 lb. | |
-| `Crossbow, Heavy` | 50 gp | 1d10 piercing | 18 lb. | |
-| `Crossbow, Light` | 25 gp | 1d8 piercing | 5 lb. | |
-| `Dagger` | 2 gp | 1d4 piercing | 1 lb. | |
-| `Dart` | 5 cp | 1d4 piercing | 0.25 lb. | |
-| `Flail` | 10 gp | 1d8 bludgeoning | 2 lb. | |
-| `Glaive` | 20 gp | 1d10 slashing | 6 lb. | |
-| `Greataxe` | 30 gp | 1d12 slashing | 7 lb. | |
-| `Greatclub` | 2 sp | 1d8 bludgeoning | 10 lb. | |
-| `Greatsword` | 50 gp | 2d6 slashing | 6 lb. | |
-| `Halberd` | 20 gp | 1d10 slashing | 6 lb. | |
-| `Handaxe` | 5 gp | 1d6 slashing | 2 lb. | |
-| `Javelin` | 5 sp | 1d6 piercing | 2 lb. | |
-| `Lance` | 10 gp | 1d12 piercing | 6 lb. | |
-| `Light Hammer` | 2 gp | 1d4 bludgeoning | 2 lb. | |
-| `Longbow` | 50 gp | 1d8 piercing | 2 lb. | |
-| `Longsword` | 15 gp | 1d8 slashing | 3 lb. | |
-| `Mace` | 5 gp | 1d6 bludgeoning | 4 lb. | |
-| `Maul` | 10 gp | 2d6 bludgeoning | 10 lb. | |
-| `Morningstar` | 15 gp | 1d8 piercing | 4 lb. | |
-| `Net` | 1 gp | | 3 lb. | |
-| `Pike` | 5 gp | 1d10 piercing | 18 lb. | |
-| `Quarterstaff` | 2 sp | 1d6 bludgeoning | 4 lb. | |
-| `Rapier` | 25 gp | 1d8 piercing | 2 lb. | |
-| `Scimitar` | 25 gp | 1d6 slashing | 3 lb. | |
-| `Shortbow` | 25 gp | 1d6 piercing | 2 lb. | |
-| `Shortsword` | 10 gp | 1d6 piercing | 2 lb. | |
-| `Sickle` | 1 gp | 1d4 slashing | 2 lb. | |
-| `Sling` | 1 sp | 1d4 bludgeoning | 0 lb. | |
-| `Spear` | 1 gp | 1d6 piercing | 3 lb. | |
-| `Trident` | 5 gp | 1d6 slashing | 4 lb. | |
-| `War Pick` | 5 gp | 1d8 piercing | 2 lb. | |
-| `Warhammer` | 15 gp | 1d8 bludgeoning | 2 lb. | |
-| `Whip` | 2 gp | 1d4 slashing | 3 lb. | |",
+| `Battleaxe` | 10 gp | 1d8 slashing | 4 lb. | Versatile (1d10) |
+| `Blowgun` | 10 gp | 1d1 piercing | 1 lb. | Ammunition (range 25/100), loading |
+| `Club` | 1 sp | 1d4 bludgeoning | 2 lb. | Light, monk |
+| `Crossbow, Hand` | 75 gp | 1d6 piercing | 3 lb. | Ammunition (range 30/120), light, loading |
+| `Crossbow, Heavy` | 50 gp | 1d10 piercing | 18 lb. | Ammunition (range 100/400), light, loading, two-handed |
+| `Crossbow, Light` | 25 gp | 1d8 piercing | 5 lb. | Ammunition (range 80/320), loading, two-handed |
+| `Dagger` | 2 gp | 1d4 piercing | 1 lb. | Finesse, light, monk, thrown (range 20/60) |
+| `Dart` | 5 cp | 1d4 piercing | 0.25 lb. | Finesse, thrown (range 20/60) |
+| `Flail` | 10 gp | 1d8 bludgeoning | 2 lb. | — |
+| `Glaive` | 20 gp | 1d10 slashing | 6 lb. | Heavy, reach, two-handed |
+| `Greataxe` | 30 gp | 1d12 slashing | 7 lb. | Heavy, two-handed |
+| `Greatclub` | 2 sp | 1d8 bludgeoning | 10 lb. | Two-Handed |
+| `Greatsword` | 50 gp | 2d6 slashing | 6 lb. | Heavy, two-handed |
+| `Halberd` | 20 gp | 1d10 slashing | 6 lb. | Heavy, reach, two-handed |
+| `Handaxe` | 5 gp | 1d6 slashing | 2 lb. | Light, monk, thrown (range 20/60) |
+| `Javelin` | 5 sp | 1d6 piercing | 2 lb. | Monk, thrown (range 30/120) |
+| `Lance` | 10 gp | 1d12 piercing | 6 lb. | Reach, special |
+| `Light Hammer` | 2 gp | 1d4 bludgeoning | 2 lb. | Light, monk, thrown (range 20/60) |
+| `Longbow` | 50 gp | 1d8 piercing | 2 lb. | Ammunition (range 150/600), heavy, two-handed |
+| `Longsword` | 15 gp | 1d8 slashing | 3 lb. | Versatile (1d10) |
+| `Mace` | 5 gp | 1d6 bludgeoning | 4 lb. | Monk |
+| `Maul` | 10 gp | 2d6 bludgeoning | 10 lb. | Heavy, two-handed |
+| `Morningstar` | 15 gp | 1d8 piercing | 4 lb. | — |
+| `Net` | 1 gp | — | 3 lb. | Special, thrown (range 5/15) |
+| `Pike` | 5 gp | 1d10 piercing | 18 lb. | Heavy, reach, two-handed |
+| `Quarterstaff` | 2 sp | 1d6 bludgeoning | 4 lb. | Monk, versatile (1d8) |
+| `Rapier` | 25 gp | 1d8 piercing | 2 lb. | Finesse |
+| `Scimitar` | 25 gp | 1d6 slashing | 3 lb. | Finesse, light |
+| `Shortbow` | 25 gp | 1d6 piercing | 2 lb. | Ammunition (range 80/320), two-handed |
+| `Shortsword` | 10 gp | 1d6 piercing | 2 lb. | Finesse, light, monk |
+| `Sickle` | 1 gp | 1d4 slashing | 2 lb. | Light, monk |
+| `Sling` | 1 sp | 1d4 bludgeoning | 0 lb. | Ammunition (range 30/120) |
+| `Spear` | 1 gp | 1d6 piercing | 3 lb. | Monk, thrown (range 20/60), versatile (1d8) |
+| `Trident` | 5 gp | 1d6 slashing | 4 lb. | Thrown (range 20/60), versatile (1d8) |
+| `War Pick` | 5 gp | 1d8 piercing | 2 lb. | — |
+| `Warhammer` | 15 gp | 1d8 bludgeoning | 2 lb. | Versatile (1d10) |
+| `Whip` | 2 gp | 1d4 slashing | 3 lb. | Finesse, reach |",
         format!("{}", category.display_table(&equipment[..])),
     );
 }
@@ -117,7 +117,7 @@ fn adventuring_gear() {
 | `Book` | 25 gp | 5 lb. |
 | `Bottle, Glass` | 2 gp | 2 lb. |
 | `Bucket` | 5 cp | 2 lb. |
-| `Burglar's Pack` | 16 gp | |
+| `Burglar's Pack` | 16 gp | — |
 | `Caltrops` | 5 cp | 2 lb. |
 | `Candle` | 1 cp | 0 lb. |
 | `Case, Crossbow Bolt` | 1 gp | 1 lb. |
@@ -135,12 +135,12 @@ fn adventuring_gear() {
 | `Crossbow Bolt` | 1 gp | 1.5 lb. |
 | `Crowbar` | 2 gp | 5 lb. |
 | `Crystal` | 10 gp | 1 lb. |
-| `Diplomat's Pack` | 39 gp | |
+| `Diplomat's Pack` | 39 gp | — |
 | `Disguise Kit` | 25 gp | 3 lb. |
-| `Dungeoneer's Pack` | 12 gp | |
+| `Dungeoneer's Pack` | 12 gp | — |
 | `Emblem` | 5 gp | 0 lb. |
-| `Entertainer's Pack` | 40 gp | |
-| `Explorer's Pack` | 10 gp | |
+| `Entertainer's Pack` | 40 gp | — |
+| `Explorer's Pack` | 10 gp | — |
 | `Fishing Tackle` | 1 gp | 4 lb. |
 | `Flask Or Tankard` | 2 cp | 1 lb. |
 | `Forgery Kit` | 15 gp | 5 lb. |
@@ -178,7 +178,7 @@ fn adventuring_gear() {
 | `Pot, Iron` | 2 gp | 10 lb. |
 | `Potion Of Healing` | 50 gp | 0.5 lb. |
 | `Pouch` | 5 sp | 1 lb. |
-| `Priest's Pack` | 19 gp | |
+| `Priest's Pack` | 19 gp | — |
 | `Quiver` | 1 gp | 1 lb. |
 | `Ram, Portable` | 4 gp | 35 lb. |
 | `Rations (1 Day)` | 5 sp | 2 lb. |
@@ -189,7 +189,7 @@ fn adventuring_gear() {
 | `Rope, Silk (50 Feet)` | 10 gp | 5 lb. |
 | `Sack` | 1 cp | 0.5 lb. |
 | `Scale, Merchant's` | 5 gp | 3 lb. |
-| `Scholar's Pack` | 40 gp | |
+| `Scholar's Pack` | 40 gp | — |
 | `Sealing Wax` | 5 sp | 0 lb. |
 | `Shovel` | 2 gp | 5 lb. |
 | `Signal Whistle` | 5 cp | 0 lb. |
@@ -280,23 +280,23 @@ fn mounts_and_vehicles() {
 
 | Name | Cost | Speed |
 |---|--:|--:|
-| `Animal Feed (1 Day)` | 5 cp | |
-| `Barding: Breastplate` | 1600 gp | |
-| `Barding: Chain Mail` | 300 gp | |
-| `Barding: Chain Shirt` | 200 gp | |
-| `Barding: Half Plate` | 3000 gp | |
-| `Barding: Hide` | 40 gp | |
-| `Barding: Leather` | 40 gp | |
-| `Barding: Padded` | 20 gp | |
-| `Barding: Plate` | 6000 gp | |
-| `Barding: Ring Mail` | 12 gp | |
-| `Barding: Scale Mail` | 200 gp | |
-| `Barding: Splint` | 800 gp | |
-| `Barding: Studded Leather` | 180 gp | |
-| `Bit And Bridle` | 2 gp | |
-| `Carriage` | 100 gp | |
-| `Cart` | 15 gp | |
-| `Chariot` | 250 gp | |
+| `Animal Feed (1 Day)` | 5 cp | — |
+| `Barding: Breastplate` | 1600 gp | — |
+| `Barding: Chain Mail` | 300 gp | — |
+| `Barding: Chain Shirt` | 200 gp | — |
+| `Barding: Half Plate` | 3000 gp | — |
+| `Barding: Hide` | 40 gp | — |
+| `Barding: Leather` | 40 gp | — |
+| `Barding: Padded` | 20 gp | — |
+| `Barding: Plate` | 6000 gp | — |
+| `Barding: Ring Mail` | 12 gp | — |
+| `Barding: Scale Mail` | 200 gp | — |
+| `Barding: Splint` | 800 gp | — |
+| `Barding: Studded Leather` | 180 gp | — |
+| `Bit And Bridle` | 2 gp | — |
+| `Carriage` | 100 gp | — |
+| `Cart` | 15 gp | — |
+| `Chariot` | 250 gp | — |
 | `Elephant` | 200 gp | 40 ft/round |
 | `Galley` | 30000 gp | 4 mph |
 | `Horse, Draft` | 50 gp | 40 ft/round |
@@ -307,15 +307,15 @@ fn mounts_and_vehicles() {
 | `Mule` | 8 gp | 40 ft/round |
 | `Pony` | 30 gp | 40 ft/round |
 | `Rowboat` | 50 gp | 1.5 mph |
-| `Saddle, Exotic` | 60 gp | |
-| `Saddle, Military` | 20 gp | |
-| `Saddle, Pack` | 5 gp | |
-| `Saddle, Riding` | 10 gp | |
-| `Saddlebags` | 4 gp | |
+| `Saddle, Exotic` | 60 gp | — |
+| `Saddle, Military` | 20 gp | — |
+| `Saddle, Pack` | 5 gp | — |
+| `Saddle, Riding` | 10 gp | — |
+| `Saddlebags` | 4 gp | — |
 | `Sailing Ship` | 10000 gp | 2 mph |
-| `Sled` | 20 gp | |
-| `Stabling (1 Day)` | 5 sp | |
-| `Wagon` | 35 gp | |
+| `Sled` | 20 gp | — |
+| `Stabling (1 Day)` | 5 sp | — |
+| `Wagon` | 35 gp | — |
 | `Warhorse` | 400 gp | 60 ft/round |
 | `Warship` | 25000 gp | 2.5 mph |",
         format!("{}", category.display_table(&equipment[..])),

@@ -129,6 +129,42 @@ impl Equipment {
             _ => None,
         }
     }
+
+    fn display_properties(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut properties: Vec<&Reference> = self.properties.iter().collect();
+        properties.sort_by(|a, b| a.name.cmp(&b.name));
+        let mut first = true;
+        for property in properties {
+            let name = if first {
+                first = false;
+                property.name.clone()
+            } else {
+                write!(f, ", ")?;
+                property.name.to_lowercase()
+            };
+
+            match (
+                property.index.as_str(),
+                &self.range,
+                &self.throw_range,
+                &self.two_handed_damage,
+            ) {
+                ("ammunition", Some(range), _, _) => {
+                    write!(f, "{} (range {})", name, range)?;
+                }
+                ("thrown", _, Some(throw_range), _) => {
+                    write!(f, "{} (range {})", name, throw_range)?;
+                }
+                ("versatile", _, _, Some(two_handed_damage)) => {
+                    write!(f, "{} ({})", name, two_handed_damage.damage_dice)?;
+                }
+                _ => {
+                    write!(f, "{}", name)?;
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 pub struct TableRowView<'a> {
@@ -169,25 +205,41 @@ impl<'a> fmt::Display for TableRowView<'a> {
                     " `{}` |",
                     equipment.alt_name().unwrap_or_else(|| equipment.name()),
                 )),
-                Column::Properties => None,
+                Column::Properties => {
+                    if !equipment.properties.is_empty() {
+                        Some(
+                            write!(f, " ")
+                                .and(equipment.display_properties(f))
+                                .and(write!(f, " |")),
+                        )
+                    } else {
+                        None
+                    }
+                }
                 Column::Speed => equipment.speed.as_ref().map(|s| write!(f, " {} |", s)),
-                Column::Stealth => equipment.stealth_disadvantage.map(|d| {
-                    if d {
-                        write!(f, " disadvantage |")
-                    } else {
-                        write!(f, " \u{2014} |")
-                    }
-                }),
-                Column::Strength => equipment.str_minimum.map(|min| {
-                    if min > 0 {
-                        write!(f, " Str {} |", min)
-                    } else {
-                        write!(f, " \u{2014} |")
-                    }
-                }),
+                Column::Stealth => equipment
+                    .stealth_disadvantage
+                    .map(|d| {
+                        if d {
+                            Some(write!(f, " disadvantage |"))
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten(),
+                Column::Strength => equipment
+                    .str_minimum
+                    .map(|min| {
+                        if min > 0 {
+                            Some(write!(f, " Str {} |", min))
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten(),
                 Column::Weight => equipment.weight.map(|w| write!(f, " {} lb. |", w)),
             }
-            .unwrap_or_else(|| write!(f, " |"))?;
+            .unwrap_or_else(|| write!(f, " \u{2014} |"))?;
         }
 
         Ok(())
@@ -236,12 +288,9 @@ impl<'a> fmt::Display for DetailsView<'a> {
             }
         }
 
-        if let Some(throw_range) = &equipment.throw_range {
-            write!(f, "\\\n**Range (thrown):** {}", throw_range)?;
-        } else if let Some(range) = &equipment.range {
-            if range.normal > 5 || range.long.is_some() {
-                write!(f, "\\\n**Range:** {}", range)?;
-            }
+        if !equipment.properties.is_empty() {
+            write!(f, "\\\n**Properties:** ")?;
+            equipment.display_properties(f)?;
         }
 
         if let Some(disadvantage) = equipment.stealth_disadvantage {
@@ -255,8 +304,6 @@ impl<'a> fmt::Display for DetailsView<'a> {
         if let Some(weight) = &equipment.weight {
             write!(f, "\\\n**Weight:** {} lbs", weight)?;
         }
-
-        // TODO: Properties
 
         if let Some(speed) = &equipment.speed {
             write!(f, "\\\n**Speed:** {}", speed)?;

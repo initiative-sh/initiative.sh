@@ -123,7 +123,7 @@ fn trident() {
 
 **Cost:** 5 gp\\
 **Damage:** 1d6 slashing\\
-**Range (thrown):** 20/60\\
+**Properties:** Thrown (range 20/60), versatile (1d8)\\
 **Weight:** 4 lbs",
         format!("{}", item.display_details()),
     );
@@ -144,7 +144,7 @@ fn light_crossbow() {
 
 **Cost:** 25 gp\\
 **Damage:** 1d8 piercing\\
-**Range:** 80/320\\
+**Properties:** Ammunition (range 80/320), loading, two-handed\\
 **Weight:** 5 lbs",
         format!("{}", item.display_details()),
     );
