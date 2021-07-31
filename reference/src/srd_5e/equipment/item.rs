@@ -236,26 +236,12 @@ impl<'a> fmt::Display for DetailsView<'a> {
             }
         }
 
-        if let Some(Range {
-            normal,
-            long: Some(long),
-        }) = equipment.range
-        {
-            if equipment
-                .throw_range
-                .as_ref()
-                .map_or(true, |throw| throw.long != Some(long))
-            {
-                write!(f, "\\\n**Range:** {}/{}", normal, long)?;
+        if let Some(throw_range) = &equipment.throw_range {
+            write!(f, "\\\n**Range (thrown):** {}", throw_range)?;
+        } else if let Some(range) = &equipment.range {
+            if range.normal > 5 || range.long.is_some() {
+                write!(f, "\\\n**Range:** {}", range)?;
             }
-        }
-
-        if let Some(Range {
-            normal,
-            long: Some(long),
-        }) = equipment.throw_range
-        {
-            write!(f, "\\\n**Range (thrown):** {}/{}", normal, long)?;
         }
 
         if let Some(disadvantage) = equipment.stealth_disadvantage {
@@ -311,6 +297,16 @@ impl fmt::Display for Damage {
             self.damage_dice,
             self.damage_type.name.to_lowercase()
         )
+    }
+}
+
+impl fmt::Display for Range {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let Some(long) = self.long {
+            write!(f, "{}/{}", self.normal, long)
+        } else {
+            write!(f, "{}", self.normal)
+        }
     }
 }
 
