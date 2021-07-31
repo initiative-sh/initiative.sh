@@ -26,6 +26,9 @@ pub struct Equipment {
     #[serde(default)]
     desc: Vec<String>,
 
+    #[serde(default)]
+    special: Vec<String>,
+
     equipment_category: Reference,
     gear_category: Option<Reference>,
     armor_category: Option<String>,
@@ -316,6 +319,11 @@ impl<'a> fmt::Display for DetailsView<'a> {
         if !equipment.desc.is_empty() {
             write!(f, "\n\n")?;
             write_text_block(f, &equipment.desc)?;
+        }
+
+        if !equipment.special.is_empty() {
+            write!(f, "\n\n")?;
+            write_text_block(f, &equipment.special)?;
         }
 
         Ok(())

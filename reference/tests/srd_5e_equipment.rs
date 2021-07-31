@@ -16,6 +16,7 @@
 //! | equipment_category               | leather_armor     |
 //! | name                             | leather_armor     |
 //! | range                            | light_crossbow    |
+//! | special                          | whip              |
 //! | speed                            | mastiff           |
 //! | stealth_disadvantage: false      | leather_armor     |
 //! | stealth_disadvantage: true       | splint_armor      |
@@ -184,6 +185,25 @@ fn potion_of_healing() {
 **Weight:** 0.5 lbs
 
 A character who drinks the magical red fluid in this vial regains 2d4 + 2 hit points. Drinking or administering a potion takes an action.",
+        format!("{}", item.display_details()),
+    );
+}
+
+#[test]
+fn lance() {
+    let equipment = equipment().unwrap();
+    let item = equipment.iter().find(|i| i.name() == "Lance").unwrap();
+
+    assert_eq!("\
+# Lance
+*Weapon (Martial Melee)*
+
+**Cost:** 10 gp\\
+**Damage:** 1d12 piercing\\
+**Properties:** Reach, special\\
+**Weight:** 6 lbs
+
+You have disadvantage when you use a lance to attack a target within 5 feet of you. Also, a lance requires two hands to wield when you aren't mounted.",
         format!("{}", item.display_details()),
     );
 }
