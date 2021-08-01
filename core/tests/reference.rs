@@ -48,7 +48,7 @@ fn item() {
     assert_eq!(
         "\
 # Light Crossbow
-*Weapon (Simple)*
+*Weapon (Simple Ranged)*
 
 **Cost:** 25 gp\\
 **Damage:** 1d8 piercing\\

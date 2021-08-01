@@ -31,7 +31,7 @@ pub struct Equipment {
     armor_category: Option<String>,
     vehicle_category: Option<String>,
     tool_category: Option<String>,
-    weapon_category: Option<String>,
+    category_range: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -125,7 +125,7 @@ impl Equipment {
             "armor" => self.armor_category.clone(),
             "mounts-and-vehicles" => self.vehicle_category.clone(),
             "tools" => self.tool_category.clone(),
-            "weapon" => self.weapon_category.clone(),
+            "weapon" => self.category_range.clone(),
             _ => None,
         }
     }

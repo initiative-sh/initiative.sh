@@ -119,7 +119,7 @@ fn trident() {
     assert_eq!(
         "\
 # Trident
-*Weapon (Martial)*
+*Weapon (Martial Melee)*
 
 **Cost:** 5 gp\\
 **Damage:** 1d6 slashing\\
@@ -140,7 +140,7 @@ fn light_crossbow() {
     assert_eq!(
         "\
 # Light Crossbow
-*Weapon (Simple)*
+*Weapon (Simple Ranged)*
 
 **Cost:** 25 gp\\
 **Damage:** 1d8 piercing\\
