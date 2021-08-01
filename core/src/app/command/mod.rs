@@ -120,6 +120,7 @@ impl From<WorldCommand> for Command {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::reference::ItemCategory;
     use crate::world::npc::Species;
 
     #[test]
@@ -193,6 +194,16 @@ mod test {
         )) = result_iter.next()
         {
             assert_eq!("dragonborn", command_string);
+        } else {
+            panic!("{:?}", results);
+        }
+
+        if let Some((
+            command_string,
+            Command::Reference(ReferenceCommand::ItemCategory(ItemCategory::DruidicFoci)),
+        )) = result_iter.next()
+        {
+            assert_eq!("druidic foci", command_string);
         } else {
             panic!("{:?}", results);
         }

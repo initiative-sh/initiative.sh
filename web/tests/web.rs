@@ -19,7 +19,9 @@ fn autocomplete() {
             ("half-elf", "generate"),
             ("half-orc", "generate"),
             ("halfling", "generate"),
+            ("heavy armor", "SRD item category"),
             ("help", "how to use initiative.sh"),
+            ("holy symbols", "SRD item category"),
             ("human", "generate"),
         ]
         .iter()

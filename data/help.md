@@ -13,6 +13,7 @@ number.
 Proper nouns will give you existing people, places, or reference items from the
 D&D 5e SRD. For instance:
 
-* spells (`Acid Arrow` to `Zone Of Truth`)
+* `spells` (`Acid Arrow` to `Zone Of Truth`)
+* `weapons`, `adventuring gear`, `tools`, etc. (`Abacus` to `Yew Wand`)
 * the name of any NPC you've previously generated
 * more to come

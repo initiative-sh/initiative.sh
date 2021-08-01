@@ -5,40 +5,75 @@ use quote::quote;
 pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     let ident = parse_args(input)?;
 
-    let data: Vec<(syn::Ident, String, String)> = match format!("{}", ident).as_str() {
+    let data: Vec<(syn::Ident, String, Vec<String>, String)> = match format!("{}", ident).as_str() {
         "Spell" => srd_5e::spells()?
             .iter()
             .map(|spell| {
                 (
                     syn::parse_str(spell.token().as_str()).unwrap(),
                     spell.name(),
+                    Vec::new(),
                     format!("{}", spell.display_details()),
                 )
             })
             .collect(),
+        "Item" => srd_5e::equipment()?
+            .iter()
+            .map(|equipment| {
+                (
+                    syn::parse_str(equipment.token().as_str()).unwrap(),
+                    equipment.name(),
+                    equipment.alt_name().into_iter().collect(),
+                    format!("{}", equipment.display_details()),
+                )
+            })
+            .collect(),
+        "ItemCategory" => {
+            let items = srd_5e::equipment()?;
+
+            srd_5e::equipment_categories()?
+                .iter()
+                .map(|category| {
+                    (
+                        syn::parse_str(category.token().as_str()).unwrap(),
+                        category.name().to_lowercase(),
+                        category.alt_names(),
+                        format!("{}", category.display_table(&items)),
+                    )
+                })
+                .collect()
+        }
         _ => unimplemented!(),
     };
 
-    let variants = data.iter().map(|(variant, _, _)| quote! { #variant, });
+    let variants = data.iter().map(|(variant, _, _, _)| quote! { #variant, });
 
-    let inputs_to_ok_variants = data
-        .iter()
-        .map(|(variant, name, _)| quote! { #name => Ok(#ident::#variant), });
+    let inputs_to_ok_variants = data.iter().flat_map(|(variant, name, alt_names, _)| {
+        std::iter::once(quote! { #name => Ok(#ident::#variant), }).chain(
+            alt_names
+                .iter()
+                .zip(std::iter::repeat(variant))
+                .map(|(alt_name, variant)| quote! { #alt_name => Ok(#ident::#variant), }),
+        )
+    });
 
     let variants_to_names = data
         .iter()
-        .map(|(variant, name, _)| quote! { #ident::#variant => #name, });
+        .map(|(variant, name, _, _)| quote! { #ident::#variant => #name, });
 
     let variants_to_outputs = data
         .iter()
-        .map(|(variant, _, output)| quote! { #ident::#variant => #output, });
+        .map(|(variant, _, _, output)| quote! { #ident::#variant => #output, });
 
-    let mut list_output = "# Spells".to_string();
+    let mut list_output = format!("# {}s", ident);
     srd_5e::spells()?.iter().for_each(|spell| {
         list_output.push_str(format!("\n* {}", spell.display_summary()).as_str())
     });
 
-    let words = data.iter().map(|(_, name, _)| quote! { #name, });
+    let words = data.iter().flat_map(|(_, name, alt_names, _)| {
+        std::iter::once(quote! { #name, })
+            .chain(alt_names.iter().map(|alt_name| quote! { #alt_name, }))
+    });
 
     let result = quote! {
         #[derive(Clone, Debug, PartialEq)]
