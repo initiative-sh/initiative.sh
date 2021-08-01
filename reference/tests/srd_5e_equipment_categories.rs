@@ -37,7 +37,7 @@ fn weapons() {
 
     assert_eq!(
         "\
-# Weapon
+# Weapons
 
 | Name | Cost | Damage | Weight | Properties |
 |---|--:|---|--:|---|
@@ -329,9 +329,7 @@ fn list_all_categories() {
         .drain(..)
         .map(|category| {
             let mut names = vec![category.name()];
-            if let Some(alt_name) = category.alt_name() {
-                names.push(alt_name);
-            }
+            names.append(&mut category.alt_names());
             (category.token(), names)
         })
         .collect();
@@ -347,7 +345,7 @@ fn list_all_categories() {
         vec![
             (
                 "AdventuringGear",
-                vec!["adventuring gear", "gear, adventuring"]
+                vec!["adventuring gear", "gear, adventuring"],
             ),
             ("Ammunition", vec!["ammunition"]),
             ("ArcaneFoci", vec!["arcane foci", "foci, arcane"]),
@@ -356,7 +354,7 @@ fn list_all_categories() {
             ("DruidicFoci", vec!["druidic foci", "foci, druidic"]),
             (
                 "EquipmentPacks",
-                vec!["equipment packs", "packs, equipment"]
+                vec!["equipment packs", "packs, equipment"],
             ),
             ("GamingSets", vec!["gaming sets", "sets, gaming"]),
             ("HeavyArmor", vec!["heavy armor", "armor, heavy"]),
@@ -374,22 +372,25 @@ fn list_all_categories() {
             ),
             (
                 "MartialWeapons",
-                vec!["martial weapons", "weapons, martial"]
+                vec!["martial weapons", "weapons, martial"],
             ),
             ("MediumArmor", vec!["medium armor", "armor, medium"]),
             ("MeleeWeapons", vec!["melee weapons", "weapons, melee"]),
-            ("MountsAndOtherAnimals", vec!["mounts and other animals"]),
+            (
+                "MountsAndOtherAnimals",
+                vec!["mounts and other animals", "animals"],
+            ),
             ("MountsAndVehicles", vec!["mounts and vehicles"]),
             (
                 "MusicalInstruments",
                 vec!["musical instruments", "instruments, musical"],
             ),
             ("OtherTools", vec!["other tools", "tools, other"]),
-            ("Potion", vec!["potion"]),
+            ("Potion", vec!["potions"]),
             ("RangedWeapons", vec!["ranged weapons", "weapons, ranged"]),
-            ("Ring", vec!["ring"]),
-            ("Rod", vec!["rod"]),
-            ("Scroll", vec!["scroll"]),
+            ("Ring", vec!["rings"]),
+            ("Rod", vec!["rods"]),
+            ("Scroll", vec!["scrolls"]),
             ("Shields", vec!["shields"]),
             (
                 "SimpleMeleeWeapons",
@@ -400,17 +401,22 @@ fn list_all_categories() {
                 vec!["simple ranged weapons", "weapons, simple ranged"],
             ),
             ("SimpleWeapons", vec!["simple weapons", "weapons, simple"]),
-            ("Staff", vec!["staff"]),
+            ("Staff", vec!["staves"]),
             ("StandardGear", vec!["standard gear", "gear, standard"]),
             (
                 "TackHarnessAndDrawnVehicles",
                 vec!["tack, harness, and drawn vehicles"],
             ),
             ("Tools", vec!["tools"]),
-            ("Wand", vec!["wand"]),
+            ("Wand", vec!["wands"]),
             (
                 "WaterborneVehicles",
-                vec!["waterborne vehicles", "vehicles, waterborne"],
+                vec![
+                    "waterborne vehicles",
+                    "vehicles, waterborne",
+                    "ships",
+                    "boats"
+                ],
             ),
             ("Weapon", vec!["weapons"]),
             ("WondrousItems", vec!["wondrous items", "items, wondrous"]),

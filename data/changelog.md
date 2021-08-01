@@ -1,5 +1,5 @@
 * **Enhancement:** Added equipment, all of the essentials like `Dagger` and
-  `Bagpipes`, as well as categories like `weapons` and `waterborne vehicles`.
+  `Bagpipes`, as well as categories like `weapons` and `ships`.
 * **Enhancement:** New command: `spells`.
 * **Bug:** Fixed rendering inline lists in spell descriptions.
 * **Bug:** Fixed capitalization of possessives: `Arcanist's Magic Aura` is no

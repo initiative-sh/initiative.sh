@@ -17,19 +17,29 @@ pub struct TableView<'a> {
 
 impl EquipmentCategory {
     pub fn name(&self) -> String {
-        if self.name == "Weapon" {
-            "weapons".to_string()
-        } else {
-            self.name.to_lowercase()
+        match self.name.as_str() {
+            "Potion" | "Ring" | "Rod" | "Scroll" | "Wand" | "Weapon" => {
+                let mut name = self.name.to_lowercase();
+                name.push('s');
+                name
+            }
+            "Staff" => "staves".to_string(),
+            name => name.to_lowercase(),
         }
     }
 
-    pub fn alt_name(&self) -> Option<String> {
-        if self.name.contains(' ') && !self.name.contains(" and ") {
-            let (start, end) = self.name.rsplit_once(' ').unwrap();
-            Some(format!("{}, {}", end, start).to_lowercase())
-        } else {
-            None
+    pub fn alt_names(&self) -> Vec<String> {
+        match self.index.as_str() {
+            "mounts-and-other-animals" => vec!["animals".to_string()],
+            "waterborne-vehicles" => ["vehicles, waterborne", "ships", "boats"]
+                .iter()
+                .map(|&s| String::from(s))
+                .collect(),
+            _ if self.name.contains(' ') && !self.name.contains(" and ") => {
+                let (start, end) = self.name.rsplit_once(' ').unwrap();
+                vec![format!("{}, {}", end, start).to_lowercase()]
+            }
+            _ => Vec::new(),
         }
     }
 
@@ -54,7 +64,7 @@ impl<'a> fmt::Display for TableView<'a> {
         write!(
             f,
             "# {}\n\n|",
-            crate::capitalize(self.category.name.as_str())
+            crate::capitalize(self.category.name().as_str())
         )?;
 
         let columns = if self.category.index.contains("armor") {
