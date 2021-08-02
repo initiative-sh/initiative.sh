@@ -10,7 +10,7 @@ edition = "2018"
 rand = { version = "0.8", default-features = false, features = ["std", "small_rng"] }
 rand_distr = { version = "0.4", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
-uuid = { version = "0.8", features = ["v4"] }
+uuid = { version = "0.8", features = ["v4", "serde"] }
 
 initiative-macros = { path = "../macros" }
 
