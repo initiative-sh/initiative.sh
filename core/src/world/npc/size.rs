@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum Size {
     Tiny { height: u16, weight: u16 },
     Small { height: u16, weight: u16 },
@@ -118,6 +120,18 @@ mod test {
     #[test]
     fn fmt_test() {
         assert_eq!("5'11\", 140 lbs (medium)", format!("{}", size()));
+    }
+
+    #[test]
+    fn serialize_deserialize_test() {
+        assert_eq!(
+            r#"{"type":"Medium","height":71,"weight":140}"#,
+            serde_json::to_string(&size()).unwrap(),
+        );
+
+        let value: Size =
+            serde_json::from_str(r#"{"type":"Medium","height":71,"weight":140}"#).unwrap();
+        assert_eq!(size(), value);
     }
 
     fn size() -> Size {
