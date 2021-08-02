@@ -15,10 +15,11 @@ use super::{Age, Ethnicity, Gender, Npc, Size};
 use initiative_macros::WordList;
 use rand::Rng;
 use rand_distr::{Distribution, Normal};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::RangeInclusive;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, WordList)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, WordList, Serialize, Deserialize)]
 pub enum Species {
     Dragonborn,
     Dwarf,
@@ -236,5 +237,13 @@ mod test {
         assert_eq!("halfling", format!("{}", Species::Halfling));
         assert_eq!("human", format!("{}", Species::Human));
         assert_eq!("tiefling", format!("{}", Species::Tiefling));
+    }
+
+    #[test]
+    fn serialize_deserialize_test() {
+        assert_eq!("\"Human\"", serde_json::to_string(&Species::Human).unwrap());
+
+        let value: Species = serde_json::from_str("\"Human\"").unwrap();
+        assert_eq!(Species::Human, value);
     }
 }
