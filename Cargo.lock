@@ -79,6 +79,8 @@ dependencies = [
  "initiative-macros",
  "rand",
  "rand_distr",
+ "serde",
+ "serde_json",
  "uuid",
 ]
 
