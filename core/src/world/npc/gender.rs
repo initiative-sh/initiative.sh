@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Gender {
     Masculine,
     Feminine,
@@ -57,5 +58,13 @@ mod test {
         assert_eq!("feminine (she/her)", format!("{}", Gender::Feminine));
         assert_eq!("trans (they/them)", format!("{}", Gender::Trans));
         assert_eq!("neuter (it)", format!("{}", Gender::Neuter));
+    }
+
+    #[test]
+    fn serialize_deserialize_test() {
+        assert_eq!("\"Trans\"", serde_json::to_string(&Gender::Trans).unwrap());
+
+        let value: Gender = serde_json::from_str("\"Trans\"").unwrap();
+        assert_eq!(Gender::Trans, value);
     }
 }
