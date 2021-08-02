@@ -56,8 +56,14 @@ impl Age {
     }
 }
 
+impl fmt::Display for Age {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} ({} years)", self.category(), self.years())
+    }
+}
+
 #[cfg(test)]
-mod test_age {
+mod test {
     use super::*;
 
     #[test]
@@ -128,28 +134,17 @@ mod test_age {
         assert_eq!("adult", format!("{}", TestWrapper(&Age::Adult(5), None)));
     }
 
+    #[test]
+    fn fmt_test() {
+        assert_eq!("infant (1 years)", format!("{}", Age::Infant(1)));
+        assert_eq!("adult (30 years)", format!("{}", Age::Adult(30)));
+    }
+
     struct TestWrapper<'a>(&'a Age, Option<&'a Species>);
 
     impl<'a> fmt::Display for TestWrapper<'a> {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             self.0.fmt_with_species(self.1, f)
         }
-    }
-}
-
-impl fmt::Display for Age {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} ({} years)", self.category(), self.years())
-    }
-}
-
-#[cfg(test)]
-mod test_display_for_age {
-    use super::*;
-
-    #[test]
-    fn fmt_test() {
-        assert_eq!("infant (1 years)", format!("{}", Age::Infant(1)));
-        assert_eq!("adult (30 years)", format!("{}", Age::Adult(30)));
     }
 }

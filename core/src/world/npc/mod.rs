@@ -61,7 +61,7 @@ impl Generate for Npc {
 }
 
 #[cfg(test)]
-mod test_generate_for_npc {
+mod test {
     use super::*;
     use rand::rngs::mock::StepRng;
 

@@ -80,29 +80,6 @@ impl Generate for Location {
     }
 }
 
-#[cfg(test)]
-mod test_generate_for_location {
-    use super::{Demographics, Generate, Location};
-    use rand::rngs::mock::StepRng;
-
-    #[test]
-    fn generate_test() {
-        let demographics = Demographics::default();
-
-        let mut rng = StepRng::new(0, u64::MAX / 21);
-        assert_ne!(
-            Location::generate(&mut rng, &demographics).subtype,
-            Location::generate(&mut rng, &demographics).subtype,
-        );
-
-        let mut rng = StepRng::new(0, 0);
-        assert_eq!(
-            Location::generate(&mut rng, &demographics).subtype,
-            Location::generate(&mut rng, &demographics).subtype,
-        );
-    }
-}
-
 impl Default for LocationType {
     fn default() -> Self {
         Self::Building(Default::default())
@@ -139,24 +116,30 @@ impl FromStr for LocationType {
 }
 
 #[cfg(test)]
-mod test_location_type {
-    use super::{BuildingType, Demographics, Generate, LocationType};
+mod test {
+    use super::{BuildingType, Demographics, Generate, Location, LocationType};
     use rand::rngs::mock::StepRng;
+
+    #[test]
+    fn generate_test() {
+        let demographics = Demographics::default();
+
+        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        assert_ne!(
+            Location::generate(&mut rng, &demographics).subtype,
+            Location::generate(&mut rng, &demographics).subtype,
+        );
+
+        let mut rng = StepRng::new(0, 0);
+        assert_eq!(
+            Location::generate(&mut rng, &demographics).subtype,
+            Location::generate(&mut rng, &demographics).subtype,
+        );
+    }
 
     #[test]
     fn default_test() {
         assert_eq!(LocationType::Building(None), LocationType::default());
-    }
-
-    #[test]
-    fn generate_test() {
-        let mut rng = StepRng::new(0, u64::MAX / 23);
-        let demographics = Demographics::default();
-
-        assert_ne!(
-            LocationType::generate(&mut rng, &demographics),
-            LocationType::generate(&mut rng, &demographics),
-        );
     }
 
     #[test]

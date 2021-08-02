@@ -28,19 +28,6 @@ impl Gender {
     }
 }
 
-#[cfg(test)]
-mod test_gender {
-    use super::*;
-
-    #[test]
-    fn pronouns_test() {
-        assert_eq!("he/him", Gender::Masculine.pronouns());
-        assert_eq!("she/her", Gender::Feminine.pronouns());
-        assert_eq!("they/them", Gender::Trans.pronouns());
-        assert_eq!("it", Gender::Neuter.pronouns());
-    }
-}
-
 impl fmt::Display for Gender {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -53,8 +40,16 @@ impl fmt::Display for Gender {
 }
 
 #[cfg(test)]
-mod test_display_for_gender {
+mod test {
     use super::*;
+
+    #[test]
+    fn pronouns_test() {
+        assert_eq!("he/him", Gender::Masculine.pronouns());
+        assert_eq!("she/her", Gender::Feminine.pronouns());
+        assert_eq!("they/them", Gender::Trans.pronouns());
+        assert_eq!("it", Gender::Neuter.pronouns());
+    }
 
     #[test]
     fn fmt_test() {

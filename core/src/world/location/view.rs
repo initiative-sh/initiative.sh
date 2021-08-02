@@ -44,15 +44,44 @@ impl<'a> fmt::Display for SummaryView<'a> {
     }
 }
 
+impl<'a> fmt::Display for DetailsView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let location = self.0;
+
+        location
+            .name
+            .value()
+            .map(|name| write!(f, "# {}", name))
+            .unwrap_or_else(|| {
+                if let Some(subtype) = location.subtype.value() {
+                    write!(f, "# Unnamed {}", subtype)
+                } else {
+                    write!(f, "# Unnamed building")
+                }
+            })?;
+        location
+            .subtype
+            .value()
+            .map(|subtype| write!(f, "\n*{}*", subtype))
+            .transpose()?;
+        location
+            .description
+            .value()
+            .map(|description| write!(f, "\n\n{}", description))
+            .transpose()?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
-mod test_display_for_location_summary_view {
+mod test {
     use super::Location;
 
     use crate::world::location::{BuildingType, LocationType};
     use crate::world::Field;
 
     #[test]
-    fn fmt_test() {
+    fn summary_view_test() {
         let mut location = Location::default();
         location.subtype = LocationType::from(BuildingType::Inn).into();
         location.name = "Oaken Mermaid Inn".into();
@@ -99,45 +128,9 @@ mod test_display_for_location_summary_view {
             format!("{}", location.display_summary()),
         );
     }
-}
-
-impl<'a> fmt::Display for DetailsView<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let location = self.0;
-
-        location
-            .name
-            .value()
-            .map(|name| write!(f, "# {}", name))
-            .unwrap_or_else(|| {
-                if let Some(subtype) = location.subtype.value() {
-                    write!(f, "# Unnamed {}", subtype)
-                } else {
-                    write!(f, "# Unnamed building")
-                }
-            })?;
-        location
-            .subtype
-            .value()
-            .map(|subtype| write!(f, "\n*{}*", subtype))
-            .transpose()?;
-        location
-            .description
-            .value()
-            .map(|description| write!(f, "\n\n{}", description))
-            .transpose()?;
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test_display_for_location_details_view {
-    use super::Location;
-
-    use crate::world::location::{BuildingType, LocationType};
 
     #[test]
-    fn fmt_test() {
+    fn details_view_test() {
         let mut location = Location::default();
         location.subtype = LocationType::from(BuildingType::Inn).into();
         location.name = "Oaken Mermaid Inn".into();

@@ -124,24 +124,6 @@ impl Ethnicity {
     }
 }
 
-#[cfg(test)]
-mod test_ethnicity {
-    use super::*;
-
-    #[test]
-    fn default_species_test() {
-        assert_eq!(Species::Dragonborn, Ethnicity::Dragonborn.default_species());
-        assert_eq!(Species::Dwarf, Ethnicity::Dwarvish.default_species());
-        assert_eq!(Species::Elf, Ethnicity::Elvish.default_species());
-        assert_eq!(Species::Gnome, Ethnicity::Gnomish.default_species());
-        assert_eq!(Species::HalfElf, Ethnicity::HalfElvish.default_species());
-        assert_eq!(Species::HalfOrc, Ethnicity::HalfOrcish.default_species());
-        assert_eq!(Species::Halfling, Ethnicity::Halfling.default_species());
-        assert_eq!(Species::Human, Ethnicity::Arabic.default_species());
-        assert_eq!(Species::Tiefling, Ethnicity::Tiefling.default_species());
-    }
-}
-
 trait Generate {
     fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
         if let (Some(gender), Some(age)) = (npc.gender.value(), npc.age.value()) {
@@ -234,5 +216,23 @@ impl fmt::Display for Ethnicity {
             #[cfg(feature = "eberron")]
             Self::Warforged => write!(f, "warforged"),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn default_species_test() {
+        assert_eq!(Species::Dragonborn, Ethnicity::Dragonborn.default_species());
+        assert_eq!(Species::Dwarf, Ethnicity::Dwarvish.default_species());
+        assert_eq!(Species::Elf, Ethnicity::Elvish.default_species());
+        assert_eq!(Species::Gnome, Ethnicity::Gnomish.default_species());
+        assert_eq!(Species::HalfElf, Ethnicity::HalfElvish.default_species());
+        assert_eq!(Species::HalfOrc, Ethnicity::HalfOrcish.default_species());
+        assert_eq!(Species::Halfling, Ethnicity::Halfling.default_species());
+        assert_eq!(Species::Human, Ethnicity::Arabic.default_species());
+        assert_eq!(Species::Tiefling, Ethnicity::Tiefling.default_species());
     }
 }
