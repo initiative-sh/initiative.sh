@@ -1,7 +1,9 @@
 use super::Species;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value")]
 pub enum Age {
     Infant(u16),
     Child(u16),
@@ -138,6 +140,17 @@ mod test {
     fn fmt_test() {
         assert_eq!("infant (1 years)", format!("{}", Age::Infant(1)));
         assert_eq!("adult (30 years)", format!("{}", Age::Adult(30)));
+    }
+
+    #[test]
+    fn serialize_deserialize_test() {
+        assert_eq!(
+            r#"{"type":"Adult","value":5}"#,
+            serde_json::to_string(&Age::Adult(5)).unwrap(),
+        );
+
+        let value: Age = serde_json::from_str(r#"{"type":"Adult","value":5}"#).unwrap();
+        assert_eq!(Age::Adult(5), value);
     }
 
     struct TestWrapper<'a>(&'a Age, Option<&'a Species>);
