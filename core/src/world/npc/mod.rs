@@ -16,10 +16,12 @@ mod view;
 
 use super::{Demographics, Field, Generate};
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 
 initiative_macros::uuid!();
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct Npc {
     pub uuid: Option<Uuid>,
     pub name: Field<String>,
@@ -74,5 +76,31 @@ mod test {
 
         assert!(npc.species.is_some());
         assert!(npc.name.is_some());
+    }
+
+    #[test]
+    fn serialize_deserialize_test() {
+        let npc = Npc {
+            uuid: Some(uuid::Uuid::nil().into()),
+            name: "Gandalf the Grey".into(),
+            gender: Gender::Neuter.into(),
+            age: Age::Geriatric(u16::MAX).into(),
+            size: Size::Medium {
+                height: 72,
+                weight: 200,
+            }
+            .into(),
+            species: Species::Human.into(),
+            ethnicity: Ethnicity::Human.into(),
+        };
+
+        assert_eq!(
+            r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"Neuter","age":{"type":"Geriatric","value":65535},"size":{"type":"Medium","height":72,"weight":200},"species":"Human","ethnicity":"Human"}"#,
+            serde_json::to_string(&npc).unwrap()
+        );
+
+        let value: Npc = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"Neuter","age":{"type":"Geriatric","value":65535},"size":{"type":"Medium","height":72,"weight":200},"species":"Human","ethnicity":"Human"}"#).unwrap();
+
+        assert_eq!(npc, value);
     }
 }
