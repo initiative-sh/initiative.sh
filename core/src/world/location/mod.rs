@@ -9,7 +9,6 @@ use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
 use rand::Rng;
 use std::fmt;
-use std::rc::Rc;
 use std::str::FromStr;
 use view::{DetailsView, SummaryView};
 
@@ -17,8 +16,8 @@ initiative_macros::uuid!();
 
 #[derive(Clone, Debug, Default)]
 pub struct Location {
-    pub uuid: Option<Rc<Uuid>>,
-    pub parent_uuid: Option<Rc<RegionUuid>>,
+    pub uuid: Option<Uuid>,
+    pub parent_uuid: Option<RegionUuid>,
     pub subtype: Field<LocationType>,
 
     pub name: Field<String>,

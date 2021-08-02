@@ -7,7 +7,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     }
 
     Ok(quote! {
-        #[derive(Debug, Eq, PartialEq, Hash)]
+        #[derive(Clone, Debug, Eq, PartialEq, Hash)]
         pub struct Uuid(uuid::Uuid);
 
         impl Uuid {

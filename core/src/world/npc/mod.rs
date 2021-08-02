@@ -16,13 +16,12 @@ mod view;
 
 use super::{Demographics, Field, Generate};
 use rand::Rng;
-use std::rc::Rc;
 
 initiative_macros::uuid!();
 
 #[derive(Default, Debug)]
 pub struct Npc {
-    pub uuid: Option<Rc<Uuid>>,
+    pub uuid: Option<Uuid>,
     pub name: Field<String>,
     pub gender: Field<Gender>,
     pub age: Field<Age>,

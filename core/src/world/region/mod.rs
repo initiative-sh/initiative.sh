@@ -1,12 +1,11 @@
 use super::{Demographics, Field};
-use std::rc::Rc;
 
 initiative_macros::uuid!();
 
 #[derive(Debug, Default)]
 pub struct Region {
-    pub uuid: Option<Rc<Uuid>>,
-    pub parent_uuid: Option<Rc<Uuid>>,
+    pub uuid: Option<Uuid>,
+    pub parent_uuid: Option<Uuid>,
     pub demographics: Demographics,
     pub subtype: RegionType,
 
