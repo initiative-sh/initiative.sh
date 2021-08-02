@@ -8,6 +8,7 @@ mod view;
 use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 use view::{DetailsView, SummaryView};
@@ -33,7 +34,8 @@ pub struct Location {
     // pub price: something
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "subtype")]
 pub enum LocationType {
     Building(Option<BuildingType>),
 }
@@ -163,5 +165,18 @@ mod test {
 
         let location_type: Result<LocationType, ()> = "npc".parse();
         assert_eq!(Err(()), location_type);
+    }
+
+    #[test]
+    fn location_type_serialize_deserialize_test() {
+        assert_eq!(
+            r#"{"type":"Building","subtype":null}"#,
+            serde_json::to_string(&LocationType::Building(None)).unwrap(),
+        );
+
+        assert_eq!(
+            r#"{"type":"Building","subtype":"Inn"}"#,
+            serde_json::to_string(&LocationType::Building(Some(BuildingType::Inn))).unwrap(),
+        );
     }
 }
