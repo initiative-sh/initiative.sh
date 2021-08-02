@@ -15,7 +15,8 @@ use view::{DetailsView, SummaryView};
 
 initiative_macros::uuid!();
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct Location {
     pub uuid: Option<Uuid>,
     pub parent_uuid: Option<RegionUuid>,
@@ -178,5 +179,26 @@ mod test {
             r#"{"type":"Building","subtype":"Inn"}"#,
             serde_json::to_string(&LocationType::Building(Some(BuildingType::Inn))).unwrap(),
         );
+    }
+
+    #[test]
+    fn location_serialize_deserialize_test() {
+        let location = Location {
+            uuid: Some(uuid::Uuid::nil().into()),
+            parent_uuid: Some(uuid::Uuid::nil().into()),
+            subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
+
+            name: "Oaken Mermaid Inn".into(),
+            description: "I am Mordenkainen".into(),
+        };
+
+        assert_eq!(
+            r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":{"type":"Building","subtype":"Inn"},"name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#,
+            serde_json::to_string(&location).unwrap()
+        );
+
+        let value: Location = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":{"type":"Building","subtype":"Inn"},"name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
+
+        assert_eq!(location, value);
     }
 }
