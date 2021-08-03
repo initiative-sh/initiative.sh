@@ -138,7 +138,7 @@ mod test {
         assert_eq!(
             "load",
             Command::Storage(StorageCommand::Load {
-                query: "Gandalf the Grey".to_string(),
+                name: "Gandalf the Grey".to_string(),
             })
             .summarize(),
         );
@@ -162,7 +162,7 @@ mod test {
             vec![
                 Command::Reference(ReferenceCommand::OpenGameLicense),
                 Command::Storage(StorageCommand::Load {
-                    query: "Open Game License".to_string()
+                    name: "Open Game License".to_string()
                 }),
             ],
             Command::parse_input("Open Game License", &app_meta),
@@ -170,7 +170,7 @@ mod test {
 
         assert_eq!(
             vec![Command::Storage(StorageCommand::Load {
-                query: "Gandalf the Grey".to_string(),
+                name: "Gandalf the Grey".to_string(),
             })],
             Command::parse_input("Gandalf the Grey", &app_meta),
         );
@@ -229,10 +229,10 @@ mod test {
 
         assert_eq!(
             Command::Storage(StorageCommand::Load {
-                query: "Gandalf the Grey".to_string(),
+                name: "Gandalf the Grey".to_string(),
             }),
             StorageCommand::Load {
-                query: "Gandalf the Grey".to_string(),
+                name: "Gandalf the Grey".to_string(),
             }
             .into()
         );

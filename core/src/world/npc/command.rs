@@ -23,7 +23,7 @@ pub fn command(species: &Option<Species>, app_meta: &mut AppMeta) -> String {
             app_meta.command_aliases.insert(
                 i.to_string(),
                 StorageCommand::Load {
-                    query: alt.name.value().unwrap().to_owned(),
+                    name: alt.name.value().unwrap().to_owned(),
                 }
                 .into(),
             );
