@@ -48,6 +48,22 @@ impl AppMeta {
         self.recent.push(thing);
     }
 
+    pub fn take_recent<F>(&mut self, f: F) -> Option<world::Thing>
+    where
+        F: Fn(&world::Thing) -> bool,
+    {
+        if let Some(index) =
+            self.recent
+                .iter()
+                .enumerate()
+                .find_map(|(i, t)| if f(t) { Some(i) } else { None })
+        {
+            Some(self.recent.remove(index))
+        } else {
+            None
+        }
+    }
+
     pub fn recent(&self) -> &[world::Thing] {
         self.recent.as_ref()
     }

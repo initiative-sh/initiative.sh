@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 initiative_macros::uuid!();
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct Region {
     pub uuid: Option<Uuid>,
@@ -18,7 +18,7 @@ pub struct Region {
     // pub inhabitants: Field<Vec<NpcUuid>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum RegionType {
     World,

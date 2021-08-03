@@ -3,6 +3,7 @@ use crate::app::{AppMeta, Runnable};
 #[derive(Clone, Debug, PartialEq)]
 pub enum StorageCommand {
     Load { name: String },
+    Save { name: String },
 }
 
 impl Runnable for StorageCommand {
@@ -20,12 +21,27 @@ impl Runnable for StorageCommand {
                     format!("No matches for \"{}\"", name)
                 }
             }
+            Self::Save { name } => {
+                let lowercase_name = name.to_lowercase();
+                if let Some(thing) = app_meta.take_recent(|t| {
+                    t.name()
+                        .value()
+                        .map_or(false, |s| s.to_lowercase() == lowercase_name)
+                }) {
+                    let result = format!("Saving NPC:\n\n{}", thing.display_details());
+                    app_meta.data_store.save(&thing);
+                    result
+                } else {
+                    format!("No matches for \"{}\"", name)
+                }
+            }
         }
     }
 
     fn summarize(&self) -> &str {
         match self {
             Self::Load { .. } => "load",
+            Self::Save { .. } => "save to journal",
         }
     }
 
@@ -33,6 +49,10 @@ impl Runnable for StorageCommand {
         if input.starts_with(char::is_uppercase) {
             vec![Self::Load {
                 name: input.to_string(),
+            }]
+        } else if let Some(name) = input.strip_prefix("save ") {
+            vec![Self::Save {
+                name: name.to_string(),
             }]
         } else {
             Vec::new()
@@ -83,6 +103,14 @@ mod test {
             }
             .summarize(),
         );
+
+        assert_eq!(
+            "save to journal",
+            StorageCommand::Save {
+                name: String::new(),
+            }
+            .summarize(),
+        );
     }
 
     #[test]
@@ -94,6 +122,13 @@ mod test {
                 name: "Gandalf the Grey".to_string()
             }],
             StorageCommand::parse_input("Gandalf the Grey", &app_meta),
+        );
+
+        assert_eq!(
+            vec![StorageCommand::Save {
+                name: "Gandalf the Grey".to_string()
+            }],
+            StorageCommand::parse_input("save Gandalf the Grey", &app_meta),
         );
 
         assert_eq!(

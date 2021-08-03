@@ -2,7 +2,7 @@ use super::{Field, Location, Npc, Region};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Thing {
     Location(Location),
