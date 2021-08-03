@@ -1,6 +1,5 @@
 use super::{Item, ItemCategory, Spell};
 use crate::app::{autocomplete_phrase, AppMeta, Runnable};
-use rand::Rng;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ReferenceCommand {
@@ -12,7 +11,7 @@ pub enum ReferenceCommand {
 }
 
 impl Runnable for ReferenceCommand {
-    fn run(&self, _app_meta: &mut AppMeta, _rng: &mut impl Rng) -> String {
+    fn run(&self, _app_meta: &mut AppMeta) -> String {
         let (output, name) = match self {
             Self::Spell(spell) => (format!("{}", spell), spell.get_name()),
             Self::Spells => (Spell::get_list().to_string(), "This listing"),

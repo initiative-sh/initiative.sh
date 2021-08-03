@@ -3,7 +3,6 @@ use super::npc;
 use crate::app::{autocomplete_phrase, AppMeta, Runnable};
 use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
-use rand::Rng;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum WorldCommand {
@@ -13,10 +12,10 @@ pub enum WorldCommand {
 }
 
 impl Runnable for WorldCommand {
-    fn run(&self, app_meta: &mut AppMeta, rng: &mut impl Rng) -> String {
+    fn run(&self, app_meta: &mut AppMeta) -> String {
         match self {
-            Self::Location { location_type } => location::command(location_type, app_meta, rng),
-            Self::Npc { species } => npc::command(species, app_meta, rng),
+            Self::Location { location_type } => location::command(location_type, app_meta),
+            Self::Npc { species } => npc::command(species, app_meta),
         }
     }
 

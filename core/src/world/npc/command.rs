@@ -2,9 +2,8 @@ use super::{Npc, Species};
 use crate::app::AppMeta;
 use crate::storage::StorageCommand;
 use crate::world::Generate;
-use rand::prelude::*;
 
-pub fn command(species: &Option<Species>, app_meta: &mut AppMeta, rng: &mut impl Rng) -> String {
+pub fn command(species: &Option<Species>, app_meta: &mut AppMeta) -> String {
     let demographics = if let Some(species) = species {
         app_meta.demographics.only_species(species)
     } else {
@@ -12,14 +11,14 @@ pub fn command(species: &Option<Species>, app_meta: &mut AppMeta, rng: &mut impl
     };
 
     let mut output = String::new();
-    let npc = Npc::generate(rng, &demographics);
+    let npc = Npc::generate(&mut app_meta.rng, &demographics);
 
     output.push_str(&format!("{}\n\n*Alternatives:* ", npc.display_details()));
     app_meta.push_recent(npc.into());
 
     let recent = (0..10)
         .map(|i| {
-            let alt = Npc::generate(rng, &demographics);
+            let alt = Npc::generate(&mut app_meta.rng, &demographics);
             output.push_str(&format!("\\\n`{}` {}", i, alt.display_summary()));
             app_meta.command_aliases.insert(
                 i.to_string(),
@@ -42,15 +41,16 @@ mod test {
     use super::*;
     use crate::app::AppMeta;
     use crate::world::Thing;
+    use rand::prelude::*;
     use std::collections::HashMap;
 
     #[test]
     fn any_species_test() {
         let mut app_meta = AppMeta::default();
-        let mut rng = SmallRng::seed_from_u64(0);
+        app_meta.rng = SmallRng::seed_from_u64(0);
         let mut results: HashMap<_, u8> = HashMap::new();
 
-        command(&None, &mut app_meta, &mut rng);
+        command(&None, &mut app_meta);
 
         app_meta.recent().iter().for_each(|thing| {
             if let Thing::Npc(npc) = thing {
@@ -73,9 +73,9 @@ mod test {
     #[test]
     fn specific_species_test() {
         let mut app_meta = AppMeta::default();
-        let mut rng = SmallRng::seed_from_u64(0);
+        app_meta.rng = SmallRng::seed_from_u64(0);
 
-        command(&Some(Species::Human), &mut app_meta, &mut rng);
+        command(&Some(Species::Human), &mut app_meta);
 
         assert_eq!(
             11,

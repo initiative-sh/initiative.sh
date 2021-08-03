@@ -8,7 +8,6 @@ use super::AppMeta;
 use crate::reference::ReferenceCommand;
 use crate::storage::StorageCommand;
 use crate::world::WorldCommand;
-use rand::Rng;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
@@ -19,12 +18,12 @@ pub enum Command {
 }
 
 impl Runnable for Command {
-    fn run(&self, app_meta: &mut AppMeta, rng: &mut impl Rng) -> String {
+    fn run(&self, app_meta: &mut AppMeta) -> String {
         match self {
-            Self::App(c) => c.run(app_meta, rng),
-            Self::Reference(c) => c.run(app_meta, rng),
-            Self::Storage(c) => c.run(app_meta, rng),
-            Self::World(c) => c.run(app_meta, rng),
+            Self::App(c) => c.run(app_meta),
+            Self::Reference(c) => c.run(app_meta),
+            Self::Storage(c) => c.run(app_meta),
+            Self::World(c) => c.run(app_meta),
         }
     }
 

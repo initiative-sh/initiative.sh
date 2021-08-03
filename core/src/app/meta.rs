@@ -1,13 +1,15 @@
 use super::Command;
 use crate::world;
+use rand::prelude::*;
 use std::collections::HashMap;
 
 const RECENT_MAX_LEN: usize = 100;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct AppMeta {
     pub demographics: world::Demographics,
     pub command_aliases: HashMap<String, Command>,
+    pub rng: SmallRng,
 
     recent: Vec<world::Thing>,
 }
@@ -36,6 +38,17 @@ impl AppMeta {
 
     pub fn recent(&self) -> &[world::Thing] {
         self.recent.as_ref()
+    }
+}
+
+impl Default for AppMeta {
+    fn default() -> Self {
+        Self {
+            command_aliases: HashMap::default(),
+            demographics: world::Demographics::default(),
+            recent: Vec::default(),
+            rng: SmallRng::from_entropy(),
+        }
     }
 }
 

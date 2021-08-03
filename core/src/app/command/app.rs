@@ -1,6 +1,5 @@
 use crate::app::{autocomplete_phrase, AppMeta, Runnable};
 use initiative_macros::{changelog, WordList};
-use rand::Rng;
 
 #[derive(Clone, Debug, PartialEq, WordList)]
 pub enum AppCommand {
@@ -11,7 +10,7 @@ pub enum AppCommand {
 }
 
 impl Runnable for AppCommand {
-    fn run(&self, app_meta: &mut AppMeta, _rng: &mut impl Rng) -> String {
+    fn run(&self, app_meta: &mut AppMeta) -> String {
         match self {
             Self::About => include_str!("../../../../data/about.md")
                 .trim_end()

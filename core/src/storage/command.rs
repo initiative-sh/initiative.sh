@@ -1,5 +1,4 @@
 use crate::app::{AppMeta, Runnable};
-use rand::Rng;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StorageCommand {
@@ -7,7 +6,7 @@ pub enum StorageCommand {
 }
 
 impl Runnable for StorageCommand {
-    fn run(&self, app_meta: &mut AppMeta, _rng: &mut impl Rng) -> String {
+    fn run(&self, app_meta: &mut AppMeta) -> String {
         match self {
             Self::Load { query } => {
                 let lowercase_query = query.to_lowercase();

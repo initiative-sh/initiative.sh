@@ -1,8 +1,7 @@
 use crate::app::AppMeta;
-use rand::Rng;
 
 pub trait Runnable: Sized {
-    fn run(&self, app_meta: &mut AppMeta, rng: &mut impl Rng) -> String;
+    fn run(&self, app_meta: &mut AppMeta) -> String;
 
     fn summarize(&self) -> &str;
 

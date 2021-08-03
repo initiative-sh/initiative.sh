@@ -6,12 +6,10 @@ mod meta;
 
 use crate::storage::DataStore;
 use initiative_macros::motd;
-use rand::prelude::*;
 
 pub struct App<DS: DataStore> {
     meta: AppMeta,
     _data_store: DS,
-    rng: SmallRng,
 }
 
 impl<DS: DataStore> App<DS> {
@@ -19,7 +17,6 @@ impl<DS: DataStore> App<DS> {
         App {
             meta,
             _data_store: data_store,
-            rng: SmallRng::from_entropy(),
         }
     }
 
@@ -29,9 +26,9 @@ impl<DS: DataStore> App<DS> {
 
     pub async fn command(&mut self, input: &str) -> String {
         if let Some(command) = self.meta.command_aliases.get(input).cloned() {
-            command.run(&mut self.meta, &mut self.rng)
+            command.run(&mut self.meta)
         } else if let Some(command) = Command::parse_input(input, &self.meta).first() {
-            command.run(&mut self.meta, &mut self.rng)
+            command.run(&mut self.meta)
         } else {
             format!("Unknown command: \"{}\"", input)
         }
