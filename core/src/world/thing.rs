@@ -1,6 +1,7 @@
 use super::{Field, Location, Npc, Region};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -20,6 +21,52 @@ impl Thing {
             Thing::Location(location) => &location.name,
             Thing::Npc(npc) => &npc.name,
             Thing::Region(region) => &region.name,
+        }
+    }
+
+    pub fn uuid(&self) -> Option<&Uuid> {
+        match self {
+            Thing::Location(location) => location.uuid.as_ref().map(|u| u.as_ref()),
+            Thing::Npc(npc) => npc.uuid.as_ref().map(|u| u.as_ref()),
+            Thing::Region(region) => region.uuid.as_ref().map(|u| u.as_ref()),
+        }
+    }
+
+    pub fn set_uuid(&mut self, uuid: Uuid) {
+        match self {
+            Thing::Location(location) => {
+                location.uuid.get_or_insert(uuid.into());
+            }
+            Thing::Npc(npc) => {
+                npc.uuid.get_or_insert(uuid.into());
+            }
+            Thing::Region(region) => {
+                region.uuid.get_or_insert(uuid.into());
+            }
+        }
+    }
+
+    pub fn location(&self) -> Option<&Location> {
+        if let Self::Location(location) = self {
+            Some(location)
+        } else {
+            None
+        }
+    }
+
+    pub fn npc(&self) -> Option<&Npc> {
+        if let Self::Npc(npc) = self {
+            Some(npc)
+        } else {
+            None
+        }
+    }
+
+    pub fn region(&self) -> Option<&Region> {
+        if let Self::Region(region) = self {
+            Some(region)
+        } else {
+            None
         }
     }
 
@@ -116,7 +163,7 @@ mod test {
 
     #[test]
     fn serialize_deserialize_test_location() {
-        let thing = Thing::Location(Location::default());
+        let thing = location();
         assert_eq!(
             r#"{"type":"Location","uuid":null,"parent_uuid":null,"subtype":null,"name":null,"description":null}"#,
             serde_json::to_string(&thing).unwrap(),
@@ -125,7 +172,7 @@ mod test {
 
     #[test]
     fn serialize_deserialize_test_npc() {
-        let thing = Thing::Npc(Npc::default());
+        let thing = npc();
         assert_eq!(
             r#"{"type":"Npc","uuid":null,"name":null,"gender":null,"age":null,"size":null,"species":null,"ethnicity":null}"#,
             serde_json::to_string(&thing).unwrap(),
@@ -146,5 +193,86 @@ mod test {
             r#"{"type":"Region","uuid":null,"parent_uuid":null,"demographics":{"groups":[["Human","Dwarvish",7]]},"subtype":"World","name":null}"#,
             serde_json::to_string(&thing).unwrap(),
         );
+    }
+
+    #[test]
+    fn location_npc_region_test() {
+        {
+            let thing = location();
+            assert!(matches!(thing.location(), Some(Location { .. })));
+            assert!(thing.npc().is_none());
+            assert!(thing.region().is_none());
+        }
+
+        {
+            let thing = npc();
+            assert!(thing.location().is_none());
+            assert!(matches!(thing.npc(), Some(Npc { .. })));
+            assert!(thing.region().is_none());
+        }
+
+        {
+            let thing = region();
+            assert!(thing.location().is_none());
+            assert!(thing.npc().is_none());
+            assert!(matches!(thing.region(), Some(Region { .. })));
+        }
+    }
+
+    #[test]
+    fn uuid_test_location() {
+        let mut thing = location();
+        assert_eq!(None, thing.uuid());
+
+        let uuid = Uuid::new_v4();
+        thing.set_uuid(uuid.clone());
+        assert_eq!(Some(&uuid), thing.uuid());
+
+        assert_eq!(
+            uuid.to_string(),
+            thing.location().unwrap().uuid.as_ref().unwrap().to_string(),
+        );
+    }
+
+    #[test]
+    fn uuid_test_npc() {
+        let mut thing = npc();
+        assert_eq!(None, thing.uuid());
+
+        let uuid = Uuid::new_v4();
+        thing.set_uuid(uuid.clone());
+        assert_eq!(Some(&uuid), thing.uuid());
+
+        assert_eq!(
+            uuid.to_string(),
+            thing.npc().unwrap().uuid.as_ref().unwrap().to_string(),
+        );
+    }
+
+    #[test]
+    fn uuid_test_region() {
+        let mut thing = region();
+        assert_eq!(None, thing.uuid());
+
+        let uuid = Uuid::new_v4();
+        thing.set_uuid(uuid.clone());
+        assert_eq!(Some(&uuid), thing.uuid());
+
+        assert_eq!(
+            uuid.to_string(),
+            thing.region().unwrap().uuid.as_ref().unwrap().to_string(),
+        );
+    }
+
+    fn location() -> Thing {
+        Thing::Location(Location::default())
+    }
+
+    fn npc() -> Thing {
+        Thing::Npc(Npc::default())
+    }
+
+    fn region() -> Thing {
+        Thing::Region(Region::default())
     }
 }
