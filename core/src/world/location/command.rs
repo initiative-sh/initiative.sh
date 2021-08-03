@@ -20,16 +20,16 @@ pub fn command(location_type: &LocationType, app_meta: &mut AppMeta, rng: &mut i
         app_meta.push_recent(location.into());
     }
 
-    app_meta.batch_push_recent(
-        (0..10)
-            .map(|i| {
-                let mut location = location.clone();
-                location.regenerate(rng, &app_meta.demographics);
-                output.push_str(&format!("\\\n{} {}", i, location.display_summary()));
-                location.into()
-            })
-            .collect(),
-    );
+    let recent = (0..10)
+        .map(|i| {
+            let mut location = location.clone();
+            location.regenerate(rng, &app_meta.demographics);
+            output.push_str(&format!("\\\n{} {}", i, location.display_summary()));
+            location.into()
+        })
+        .collect();
+
+    app_meta.batch_push_recent(recent);
 
     output
 }
