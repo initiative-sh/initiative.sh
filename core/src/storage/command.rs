@@ -1,3 +1,4 @@
+use super::repository;
 use crate::app::{AppMeta, Runnable};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -9,32 +10,11 @@ pub enum StorageCommand {
 impl Runnable for StorageCommand {
     fn run(&self, app_meta: &mut AppMeta) -> String {
         match self {
-            Self::Load { name } => {
-                let lowercase_name = name.to_lowercase();
-                if let Some(result) = app_meta.recent().iter().find(|t| {
-                    t.name()
-                        .value()
-                        .map_or(false, |s| s.to_lowercase() == lowercase_name)
-                }) {
-                    format!("{}", result.display_details())
-                } else {
-                    format!("No matches for \"{}\"", name)
-                }
-            }
-            Self::Save { name } => {
-                let lowercase_name = name.to_lowercase();
-                if let Some(thing) = app_meta.take_recent(|t| {
-                    t.name()
-                        .value()
-                        .map_or(false, |s| s.to_lowercase() == lowercase_name)
-                }) {
-                    let result = format!("Saving NPC:\n\n{}", thing.display_details());
-                    app_meta.data_store.save(&thing);
-                    result
-                } else {
-                    format!("No matches for \"{}\"", name)
-                }
-            }
+            Self::Load { name } => repository::load(app_meta, name).map_or_else(
+                || format!("No matches for \"{}\"", name),
+                |thing| format!("{}", thing.display_details()),
+            ),
+            Self::Save { name } => repository::save(app_meta, name).map_or_else(|e| e, |s| s),
         }
     }
 
