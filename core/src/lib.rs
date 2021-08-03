@@ -8,7 +8,7 @@ mod storage;
 mod world;
 
 pub fn app() -> app::App<NullDataStore> {
-    let context = app::Context::default();
+    let app_meta = app::AppMeta::default();
     let data_store = NullDataStore::default();
-    app::App::new(context, data_store)
+    app::App::new(app_meta, data_store)
 }

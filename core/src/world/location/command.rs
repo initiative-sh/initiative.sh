@@ -1,8 +1,8 @@
 use super::{Field, Generate, Location, LocationType};
-use crate::app::Context;
+use crate::app::AppMeta;
 use rand::Rng;
 
-pub fn command(location_type: &LocationType, context: &mut Context, rng: &mut impl Rng) -> String {
+pub fn command(location_type: &LocationType, app_meta: &mut AppMeta, rng: &mut impl Rng) -> String {
     let location = Location {
         subtype: Field::Locked(*location_type),
         ..Default::default()
@@ -12,19 +12,19 @@ pub fn command(location_type: &LocationType, context: &mut Context, rng: &mut im
 
     {
         let mut location = location.clone();
-        location.regenerate(rng, &context.demographics);
+        location.regenerate(rng, &app_meta.demographics);
         output.push_str(&format!(
             "{}\n\n*Alternatives:* ",
             location.display_details(),
         ));
-        context.push_recent(location.into());
+        app_meta.push_recent(location.into());
     }
 
-    context.batch_push_recent(
+    app_meta.batch_push_recent(
         (0..10)
             .map(|i| {
                 let mut location = location.clone();
-                location.regenerate(rng, &context.demographics);
+                location.regenerate(rng, &app_meta.demographics);
                 output.push_str(&format!("\\\n{} {}", i, location.display_summary()));
                 location.into()
             })
@@ -44,13 +44,13 @@ mod test {
 
     #[test]
     fn any_building_test() {
-        let mut context = Context::default();
+        let mut app_meta = AppMeta::default();
         let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
         let mut results: HashMap<_, u8> = HashMap::new();
 
-        command(&LocationType::Building(None), &mut context, &mut rng);
+        command(&LocationType::Building(None), &mut app_meta, &mut rng);
 
-        context.recent().iter().for_each(|thing| {
+        app_meta.recent().iter().for_each(|thing| {
             if let Thing::Location(location) = thing {
                 if let Some(location_type) = location.subtype.value() {
                     *results.entry(format!("{}", location_type)).or_default() += 1;
@@ -58,30 +58,30 @@ mod test {
             }
         });
 
-        assert!(results.len() > 1, "{:?}\n{:?}", context, results);
+        assert!(results.len() > 1, "{:?}\n{:?}", app_meta, results);
         assert_eq!(
             11,
             results.values().sum::<u8>(),
             "{:?}\n{:?}",
-            context,
+            app_meta,
             results,
         );
     }
 
     #[test]
     fn specific_building_test() {
-        let mut context = Context::default();
+        let mut app_meta = AppMeta::default();
         let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
 
         command(
             &LocationType::Building(Some(BuildingType::Inn)),
-            &mut context,
+            &mut app_meta,
             &mut rng,
         );
 
         assert_eq!(
             11,
-            context
+            app_meta
                 .recent()
                 .iter()
                 .map(|thing| {
@@ -90,15 +90,15 @@ mod test {
                             Some(&LocationType::Building(Some(BuildingType::Inn))),
                             location.subtype.value(),
                             "{:?}",
-                            context,
+                            app_meta,
                         );
                     } else {
-                        panic!("{:?}\n{:?}", thing, context);
+                        panic!("{:?}\n{:?}", thing, app_meta);
                     }
                 })
                 .count(),
             "{:?}",
-            context,
+            app_meta,
         );
     }
 }

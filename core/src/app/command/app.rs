@@ -1,4 +1,4 @@
-use crate::app::{autocomplete_phrase, Context, Runnable};
+use crate::app::{autocomplete_phrase, AppMeta, Runnable};
 use initiative_macros::{changelog, WordList};
 use rand::Rng;
 
@@ -11,12 +11,12 @@ pub enum AppCommand {
 }
 
 impl Runnable for AppCommand {
-    fn run(&self, context: &mut Context, _rng: &mut impl Rng) -> String {
+    fn run(&self, app_meta: &mut AppMeta, _rng: &mut impl Rng) -> String {
         match self {
             Self::About => include_str!("../../../../data/about.md")
                 .trim_end()
                 .to_string(),
-            Self::Debug => format!("{:?}", context),
+            Self::Debug => format!("{:?}", app_meta),
             Self::Changelog => changelog!().to_string(),
             Self::Help => include_str!("../../../../data/help.md")
                 .trim_end()
@@ -33,11 +33,11 @@ impl Runnable for AppCommand {
         }
     }
 
-    fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
+    fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
         input.parse().map(|c| vec![c]).unwrap_or_default()
     }
 
-    fn autocomplete(input: &str, _context: &Context) -> Vec<(String, Self)> {
+    fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, Self)> {
         autocomplete_phrase(
             input,
             &mut Self::get_words().iter().filter(|s| s != &&"debug"),
@@ -62,16 +62,16 @@ mod test {
 
     #[test]
     fn parse_input_test() {
-        let context = Context::default();
+        let app_meta = AppMeta::default();
 
         assert_eq!(
             vec![AppCommand::Debug],
-            AppCommand::parse_input("debug", &context),
+            AppCommand::parse_input("debug", &app_meta),
         );
 
         assert_eq!(
             Vec::<AppCommand>::new(),
-            AppCommand::parse_input("potato", &context),
+            AppCommand::parse_input("potato", &app_meta),
         );
     }
 
@@ -86,14 +86,14 @@ mod test {
         .for_each(|(word, command)| {
             assert_eq!(
                 vec![(word.to_string(), command)],
-                AppCommand::autocomplete(word, &Context::default()),
+                AppCommand::autocomplete(word, &AppMeta::default()),
             )
         });
 
         // Debug should be excluded from the autocomplete results.
         assert_eq!(
             Vec::<(String, AppCommand)>::new(),
-            AppCommand::autocomplete("debug", &Context::default()),
+            AppCommand::autocomplete("debug", &AppMeta::default()),
         );
     }
 }

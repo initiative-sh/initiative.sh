@@ -5,14 +5,14 @@ use std::collections::HashMap;
 const RECENT_MAX_LEN: usize = 100;
 
 #[derive(Debug, Default)]
-pub struct Context {
+pub struct AppMeta {
     pub demographics: world::Demographics,
     pub command_aliases: HashMap<String, Command>,
 
     recent: Vec<world::Thing>,
 }
 
-impl Context {
+impl AppMeta {
     pub fn batch_push_recent(&mut self, mut things: Vec<world::Thing>) {
         if things.len() > RECENT_MAX_LEN {
             things.drain(..(things.len() - RECENT_MAX_LEN));
@@ -45,18 +45,18 @@ mod test {
 
     #[test]
     fn push_recent_test() {
-        let mut context = Context::default();
+        let mut app_meta = AppMeta::default();
 
         (0..RECENT_MAX_LEN).for_each(|i| {
             let mut npc = world::Npc::default();
             npc.name.replace(format!("Thing {}", i));
-            context.push_recent(world::Thing::Npc(npc));
-            assert_eq!(i + 1, context.recent.len());
+            app_meta.push_recent(world::Thing::Npc(npc));
+            assert_eq!(i + 1, app_meta.recent.len());
         });
 
         assert_eq!(
             Some(&"Thing 0".to_string()),
-            context
+            app_meta
                 .recent
                 .first()
                 .map(|thing| thing.name().value())
@@ -65,12 +65,12 @@ mod test {
 
         let mut npc = world::Npc::default();
         npc.name.replace("The Cat in the Hat".to_string());
-        context.push_recent(world::Thing::Npc(npc));
-        assert_eq!(RECENT_MAX_LEN, context.recent.len());
+        app_meta.push_recent(world::Thing::Npc(npc));
+        assert_eq!(RECENT_MAX_LEN, app_meta.recent.len());
 
         assert_eq!(
             Some(&"Thing 1".to_string()),
-            context
+            app_meta
                 .recent
                 .first()
                 .map(|thing| thing.name().value())
@@ -79,7 +79,7 @@ mod test {
 
         assert_eq!(
             Some(&"The Cat in the Hat".to_string()),
-            context
+            app_meta
                 .recent
                 .last()
                 .map(|thing| thing.name().value())
@@ -89,12 +89,12 @@ mod test {
 
     #[test]
     fn batch_push_recent_test() {
-        let mut context = Context::default();
+        let mut app_meta = AppMeta::default();
 
-        context.batch_push_recent(Vec::new());
-        assert_eq!(0, context.recent.len());
+        app_meta.batch_push_recent(Vec::new());
+        assert_eq!(0, app_meta.recent.len());
 
-        context.batch_push_recent(
+        app_meta.batch_push_recent(
             (0..50)
                 .map(|i| {
                     let mut npc = world::Npc::default();
@@ -103,9 +103,9 @@ mod test {
                 })
                 .collect(),
         );
-        assert_eq!(50, context.recent.len());
+        assert_eq!(50, app_meta.recent.len());
 
-        context.batch_push_recent(
+        app_meta.batch_push_recent(
             (50..RECENT_MAX_LEN)
                 .map(|i| {
                     let mut npc = world::Npc::default();
@@ -114,11 +114,11 @@ mod test {
                 })
                 .collect(),
         );
-        assert_eq!(RECENT_MAX_LEN, context.recent.len());
+        assert_eq!(RECENT_MAX_LEN, app_meta.recent.len());
 
         assert_eq!(
             Some(&"Thing 0".to_string()),
-            context
+            app_meta
                 .recent
                 .first()
                 .map(|thing| thing.name().value())
@@ -127,14 +127,14 @@ mod test {
 
         assert_eq!(
             Some(&format!("Thing {}", RECENT_MAX_LEN - 1)),
-            context
+            app_meta
                 .recent
                 .last()
                 .map(|thing| thing.name().value())
                 .flatten()
         );
 
-        context.batch_push_recent(
+        app_meta.batch_push_recent(
             (0..50)
                 .map(|i| {
                     let mut npc = world::Npc::default();
@@ -143,18 +143,18 @@ mod test {
                 })
                 .collect(),
         );
-        assert_eq!(RECENT_MAX_LEN, context.recent.len());
+        assert_eq!(RECENT_MAX_LEN, app_meta.recent.len());
 
         assert_eq!(
             Some(&"Thing 50".to_string()),
-            context
+            app_meta
                 .recent
                 .first()
                 .map(|thing| thing.name().value())
                 .flatten()
         );
 
-        context.batch_push_recent(
+        app_meta.batch_push_recent(
             (0..(RECENT_MAX_LEN * 2))
                 .map(|i| {
                     let mut npc = world::Npc::default();
@@ -163,11 +163,11 @@ mod test {
                 })
                 .collect(),
         );
-        assert_eq!(RECENT_MAX_LEN, context.recent.len());
+        assert_eq!(RECENT_MAX_LEN, app_meta.recent.len());
 
         assert_eq!(
             Some(&format!("Oobleck {}", RECENT_MAX_LEN)),
-            context
+            app_meta
                 .recent
                 .first()
                 .map(|thing| thing.name().value())

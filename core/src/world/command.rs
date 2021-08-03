@@ -1,6 +1,6 @@
 use super::location;
 use super::npc;
-use crate::app::{autocomplete_phrase, Context, Runnable};
+use crate::app::{autocomplete_phrase, AppMeta, Runnable};
 use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
 use rand::Rng;
@@ -13,10 +13,10 @@ pub enum WorldCommand {
 }
 
 impl Runnable for WorldCommand {
-    fn run(&self, context: &mut Context, rng: &mut impl Rng) -> String {
+    fn run(&self, app_meta: &mut AppMeta, rng: &mut impl Rng) -> String {
         match self {
-            Self::Location { location_type } => location::command(location_type, context, rng),
-            Self::Npc { species } => npc::command(species, context, rng),
+            Self::Location { location_type } => location::command(location_type, app_meta, rng),
+            Self::Npc { species } => npc::command(species, app_meta, rng),
         }
     }
 
@@ -26,7 +26,7 @@ impl Runnable for WorldCommand {
         }
     }
 
-    fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
+    fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
         if let Ok(species) = input.parse() {
             vec![Self::Npc {
                 species: Some(species),
@@ -40,7 +40,7 @@ impl Runnable for WorldCommand {
         }
     }
 
-    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)> {
+    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, Self)> {
         let mut suggestions = autocomplete_phrase(
             input,
             &mut ["npc", "building"]
@@ -54,7 +54,7 @@ impl Runnable for WorldCommand {
 
         suggestions
             .iter()
-            .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), context)))
+            .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), app_meta)))
             .map(|(s, c)| (s.clone(), c))
             .collect()
     }
@@ -79,30 +79,30 @@ mod test {
 
     #[test]
     fn parse_input_test() {
-        let context = Context::default();
+        let app_meta = AppMeta::default();
 
         assert_eq!(
             vec![WorldCommand::Location {
                 location_type: LocationType::Building(None)
             }],
-            WorldCommand::parse_input("building", &context),
+            WorldCommand::parse_input("building", &app_meta),
         );
 
         assert_eq!(
             vec![WorldCommand::Npc { species: None }],
-            WorldCommand::parse_input("npc", &context),
+            WorldCommand::parse_input("npc", &app_meta),
         );
 
         assert_eq!(
             vec![WorldCommand::Npc {
                 species: Some(Species::Elf)
             }],
-            WorldCommand::parse_input("elf", &context),
+            WorldCommand::parse_input("elf", &app_meta),
         );
 
         assert_eq!(
             Vec::<WorldCommand>::new(),
-            WorldCommand::parse_input("potato", &context),
+            WorldCommand::parse_input("potato", &app_meta),
         );
     }
 
@@ -207,7 +207,7 @@ mod test {
         .for_each(|(word, command)| {
             assert_eq!(
                 vec![(word.to_string(), command)],
-                WorldCommand::autocomplete(word, &Context::default()),
+                WorldCommand::autocomplete(word, &AppMeta::default()),
             )
         });
     }

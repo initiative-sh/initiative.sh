@@ -1,4 +1,4 @@
-use crate::app::{Context, Runnable};
+use crate::app::{AppMeta, Runnable};
 use rand::Rng;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -7,11 +7,11 @@ pub enum StorageCommand {
 }
 
 impl Runnable for StorageCommand {
-    fn run(&self, context: &mut Context, _rng: &mut impl Rng) -> String {
+    fn run(&self, app_meta: &mut AppMeta, _rng: &mut impl Rng) -> String {
         match self {
             Self::Load { query } => {
                 let lowercase_query = query.to_lowercase();
-                if let Some(result) = context.recent().iter().find(|t| {
+                if let Some(result) = app_meta.recent().iter().find(|t| {
                     t.name()
                         .value()
                         .map_or(false, |s| s.to_lowercase() == lowercase_query)
@@ -30,7 +30,7 @@ impl Runnable for StorageCommand {
         }
     }
 
-    fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
+    fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
         if input.starts_with(char::is_uppercase) {
             vec![Self::Load {
                 query: input.to_string(),
@@ -40,7 +40,7 @@ impl Runnable for StorageCommand {
         }
     }
 
-    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)> {
+    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, Self)> {
         if !input
             .chars()
             .next()
@@ -49,7 +49,7 @@ impl Runnable for StorageCommand {
         {
             Vec::new()
         } else {
-            let mut suggestions: Vec<String> = context
+            let mut suggestions: Vec<String> = app_meta
                 .recent()
                 .iter()
                 .filter_map(|thing| thing.name().value())
@@ -62,7 +62,7 @@ impl Runnable for StorageCommand {
 
             suggestions
                 .iter()
-                .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), context)))
+                .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), app_meta)))
                 .map(|(s, c)| (s.clone(), c))
                 .collect()
         }
@@ -87,26 +87,26 @@ mod test {
 
     #[test]
     fn parse_input_test() {
-        let context = Context::default();
+        let app_meta = AppMeta::default();
 
         assert_eq!(
             vec![StorageCommand::Load {
                 query: "Gandalf the Grey".to_string()
             }],
-            StorageCommand::parse_input("Gandalf the Grey", &context),
+            StorageCommand::parse_input("Gandalf the Grey", &app_meta),
         );
 
         assert_eq!(
             Vec::<StorageCommand>::new(),
-            StorageCommand::parse_input("potato", &context),
+            StorageCommand::parse_input("potato", &app_meta),
         );
     }
 
     #[test]
     fn autocomplete_test() {
-        let mut context = Context::default();
+        let mut app_meta = AppMeta::default();
 
-        context.push_recent(
+        app_meta.push_recent(
             Npc {
                 name: "Potato Johnson".into(),
                 ..Default::default()
@@ -114,7 +114,7 @@ mod test {
             .into(),
         );
 
-        context.push_recent(
+        app_meta.push_recent(
             Npc {
                 name: "potato should be capitalized".into(),
                 ..Default::default()
@@ -122,7 +122,7 @@ mod test {
             .into(),
         );
 
-        context.push_recent(
+        app_meta.push_recent(
             Location {
                 name: "Potato & Potato, Esq.".into(),
                 ..Default::default()
@@ -130,7 +130,7 @@ mod test {
             .into(),
         );
 
-        context.push_recent(
+        app_meta.push_recent(
             Location {
                 name: "Spud Stop".into(),
                 ..Default::default()
@@ -153,10 +153,10 @@ mod test {
                     }
                 ),
             ],
-            StorageCommand::autocomplete("P", &context),
+            StorageCommand::autocomplete("P", &app_meta),
         );
 
-        assert!(StorageCommand::autocomplete("p", &context).is_empty());
-        assert!(StorageCommand::autocomplete("", &context).is_empty());
+        assert!(StorageCommand::autocomplete("p", &app_meta).is_empty());
+        assert!(StorageCommand::autocomplete("", &app_meta).is_empty());
     }
 }
