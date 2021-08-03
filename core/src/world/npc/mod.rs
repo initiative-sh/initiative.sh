@@ -42,7 +42,7 @@ pub struct Npc {
 
 pub fn command(species: &Option<Species>, context: &mut Context, rng: &mut impl Rng) -> String {
     let demographics = if let Some(species) = species {
-        context.demographics.only_species(&species)
+        context.demographics.only_species(species)
     } else {
         context.demographics.clone()
     };

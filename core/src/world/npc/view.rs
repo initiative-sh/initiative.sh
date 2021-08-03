@@ -48,7 +48,7 @@ impl<'a> fmt::Display for SummaryView<'a> {
             }
         }
 
-        write_summary_details(&npc, f)?;
+        write_summary_details(npc, f)?;
 
         if npc.name.is_some() && has_details {
             write!(f, ")")?;
@@ -153,7 +153,7 @@ impl<'a> fmt::Display for DetailsView<'a> {
             .unwrap_or_else(|| write!(f, "# Unnamed NPC"))?;
 
         write!(f, "\n*")?;
-        write_summary_details(&npc, f)?;
+        write_summary_details(npc, f)?;
         write!(f, "*")?;
 
         match (npc.species.value(), npc.ethnicity.value()) {
