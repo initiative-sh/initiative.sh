@@ -1,4 +1,5 @@
-use super::{Age, Gender, Generate, Rng, Size};
+use super::{Age, Gender, Generate, Size};
+use rand::prelude::*;
 
 pub struct Species;
 
@@ -92,7 +93,6 @@ impl Generate for Species {
 #[cfg(test)]
 mod test_generate_for_species {
     use super::*;
-    use rand::rngs::mock::StepRng;
     use std::collections::HashMap;
 
     #[test]
@@ -109,102 +109,117 @@ mod test_generate_for_species {
 
     #[test]
     fn gen_gender_test() {
-        let mut rng = StepRng::new(0, 0xDECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
         let mut genders: HashMap<String, u16> = HashMap::new();
 
-        for _ in 0..100 {
+        for _ in 0..500 {
             let gender = Species::gen_gender(&mut rng);
             *genders.entry(format!("{}", gender)).or_default() += 1;
         }
 
         assert_eq!(3, genders.len());
-        assert_eq!(Some(&2), genders.get("trans (they/them)"));
-        assert_eq!(Some(&50), genders.get("feminine (she/her)"));
-        assert_eq!(Some(&48), genders.get("masculine (he/him)"));
+        assert_eq!(Some(&3), genders.get("trans (they/them)"));
+        assert_eq!(Some(&233), genders.get("feminine (she/her)"));
+        assert_eq!(Some(&264), genders.get("masculine (he/him)"));
     }
 
     #[test]
     fn gen_age_test() {
-        let mut rng = StepRng::new(0, 0xDECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
 
-        assert_eq!(Age::Infant(0), Species::gen_age(&mut rng));
-        assert_eq!(Age::Elderly(69), Species::gen_age(&mut rng));
-        assert_eq!(Age::MiddleAged(59), Species::gen_age(&mut rng));
-        assert_eq!(Age::MiddleAged(48), Species::gen_age(&mut rng));
-        assert_eq!(Age::Adult(38), Species::gen_age(&mut rng));
-        assert_eq!(Age::YoungAdult(28), Species::gen_age(&mut rng));
-        assert_eq!(Age::Adolescent(17), Species::gen_age(&mut rng));
-        assert_eq!(Age::Child(7), Species::gen_age(&mut rng));
-        assert_eq!(Age::Geriatric(76), Species::gen_age(&mut rng));
+        assert_eq!(
+            [
+                Age::Adult(35),
+                Age::Adult(35),
+                Age::Geriatric(78),
+                Age::Adult(36),
+                Age::Geriatric(71),
+            ],
+            [
+                Species::gen_age(&mut rng),
+                Species::gen_age(&mut rng),
+                Species::gen_age(&mut rng),
+                Species::gen_age(&mut rng),
+                Species::gen_age(&mut rng),
+            ],
+        );
     }
 
     #[test]
     fn gen_size_male_test() {
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
-        let mut iter = (0u16..=20).map(move |y| {
-            let age = Species::age(y);
-            let size = Species::gen_size(&mut rng, &age, &Gender::Masculine);
-            (y, size.name(), size.height(), size.weight())
-        });
+        let mut rng = SmallRng::seed_from_u64(0);
 
         // (age, size, height, weight)
-        assert_eq!(Some((0, "tiny", 28, 20)), iter.next());
-        assert_eq!(Some((1, "tiny", 33, 25)), iter.next());
-        assert_eq!(Some((2, "small", 33, 20)), iter.next());
-        assert_eq!(Some((3, "small", 38, 37)), iter.next());
-        assert_eq!(Some((4, "small", 39, 33)), iter.next());
-        assert_eq!(Some((5, "small", 39, 27)), iter.next());
-        assert_eq!(Some((6, "small", 45, 49)), iter.next());
-        assert_eq!(Some((7, "small", 45, 41)), iter.next());
-        assert_eq!(Some((8, "small", 45, 52)), iter.next());
-        assert_eq!(Some((9, "small", 52, 60)), iter.next());
-        assert_eq!(Some((10, "medium", 51, 53)), iter.next());
-        assert_eq!(Some((11, "medium", 59, 94)), iter.next());
-        assert_eq!(Some((12, "medium", 58, 81)), iter.next());
-        assert_eq!(Some((13, "medium", 57, 106)), iter.next());
-        assert_eq!(Some((14, "medium", 65, 120)), iter.next());
-        assert_eq!(Some((15, "medium", 64, 100)), iter.next());
-        assert_eq!(Some((16, "medium", 71, 169)), iter.next());
-        assert_eq!(Some((17, "medium", 68, 137)), iter.next());
-        assert_eq!(Some((18, "medium", 66, 173)), iter.next());
-        assert_eq!(Some((19, "medium", 70, 164)), iter.next());
-        assert_eq!(Some((20, "medium", 68, 125)), iter.next());
-
-        assert_eq!(None, iter.next());
+        assert_eq!(
+            vec![
+                (0, "tiny", 24, 13),
+                (1, "tiny", 32, 24),
+                (2, "small", 35, 28),
+                (3, "small", 36, 30),
+                (4, "small", 41, 39),
+                (5, "small", 44, 38),
+                (6, "small", 42, 43),
+                (7, "small", 47, 44),
+                (8, "small", 50, 55),
+                (9, "small", 54, 56),
+                (10, "medium", 53, 79),
+                (11, "medium", 54, 82),
+                (12, "medium", 57, 73),
+                (13, "medium", 59, 83),
+                (14, "medium", 67, 120),
+                (15, "medium", 65, 130),
+                (16, "medium", 66, 124),
+                (17, "medium", 70, 125),
+                (18, "medium", 71, 127),
+                (19, "medium", 72, 197),
+                (20, "medium", 67, 122),
+            ],
+            (0u16..=20)
+                .map(move |y| {
+                    let age = Species::age(y);
+                    let size = Species::gen_size(&mut rng, &age, &Gender::Masculine);
+                    (y, size.name(), size.height(), size.weight())
+                })
+                .collect::<Vec<_>>(),
+        );
     }
 
     #[test]
     fn gen_size_female_test() {
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
-        let mut iter = (0u16..=20).map(move |y| {
-            let age = Species::age(y);
-            let size = Species::gen_size(&mut rng, &age, &Gender::Feminine);
-            (y, size.name(), size.height(), size.weight())
-        });
+        let mut rng = SmallRng::seed_from_u64(0);
 
         // (age, size, height, weight)
-        assert_eq!(Some((0, "tiny", 28, 20)), iter.next());
-        assert_eq!(Some((1, "tiny", 33, 25)), iter.next());
-        assert_eq!(Some((2, "small", 33, 20)), iter.next());
-        assert_eq!(Some((3, "small", 38, 37)), iter.next());
-        assert_eq!(Some((4, "small", 39, 33)), iter.next());
-        assert_eq!(Some((5, "small", 39, 27)), iter.next());
-        assert_eq!(Some((6, "small", 45, 49)), iter.next());
-        assert_eq!(Some((7, "small", 45, 41)), iter.next());
-        assert_eq!(Some((8, "small", 45, 52)), iter.next());
-        assert_eq!(Some((9, "small", 52, 60)), iter.next());
-        assert_eq!(Some((10, "medium", 52, 54)), iter.next());
-        assert_eq!(Some((11, "medium", 66, 121)), iter.next());
-        assert_eq!(Some((12, "medium", 60, 86)), iter.next());
-        assert_eq!(Some((13, "medium", 56, 104)), iter.next());
-        assert_eq!(Some((14, "medium", 64, 119)), iter.next());
-        assert_eq!(Some((15, "medium", 62, 93)), iter.next());
-        assert_eq!(Some((16, "medium", 66, 149)), iter.next());
-        assert_eq!(Some((17, "medium", 63, 118)), iter.next());
-        assert_eq!(Some((18, "medium", 61, 143)), iter.next());
-        assert_eq!(Some((19, "medium", 65, 136)), iter.next());
-        assert_eq!(Some((20, "medium", 63, 109)), iter.next());
-
-        assert_eq!(None, iter.next());
+        assert_eq!(
+            vec![
+                (0, "tiny", 24, 13),
+                (1, "tiny", 32, 24),
+                (2, "small", 35, 28),
+                (3, "small", 36, 30),
+                (4, "small", 41, 39),
+                (5, "small", 44, 38),
+                (6, "small", 42, 43),
+                (7, "small", 47, 44),
+                (8, "small", 50, 55),
+                (9, "small", 54, 56),
+                (10, "medium", 56, 91),
+                (11, "medium", 55, 87),
+                (12, "medium", 58, 75),
+                (13, "medium", 59, 82),
+                (14, "medium", 67, 119),
+                (15, "medium", 63, 122),
+                (16, "medium", 62, 108),
+                (17, "medium", 65, 108),
+                (18, "medium", 66, 111),
+                (19, "medium", 67, 160),
+                (20, "medium", 62, 107),
+            ],
+            (0u16..=20)
+                .map(move |y| {
+                    let age = Species::age(y);
+                    let size = Species::gen_size(&mut rng, &age, &Gender::Feminine);
+                    (y, size.name(), size.height(), size.weight())
+                })
+                .collect::<Vec<_>>(),
+        );
     }
 }

@@ -2,7 +2,7 @@ use super::{Npc, Species};
 use crate::app::AppMeta;
 use crate::storage::StorageCommand;
 use crate::world::Generate;
-use rand::Rng;
+use rand::prelude::*;
 
 pub fn command(species: &Option<Species>, app_meta: &mut AppMeta, rng: &mut impl Rng) -> String {
     let demographics = if let Some(species) = species {
@@ -42,13 +42,12 @@ mod test {
     use super::*;
     use crate::app::AppMeta;
     use crate::world::Thing;
-    use rand::rngs::mock::StepRng;
     use std::collections::HashMap;
 
     #[test]
     fn any_species_test() {
         let mut app_meta = AppMeta::default();
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
         let mut results: HashMap<_, u8> = HashMap::new();
 
         command(&None, &mut app_meta, &mut rng);
@@ -74,7 +73,7 @@ mod test {
     #[test]
     fn specific_species_test() {
         let mut app_meta = AppMeta::default();
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
 
         command(&Some(Species::Human), &mut app_meta, &mut rng);
 

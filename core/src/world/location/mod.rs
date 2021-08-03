@@ -7,7 +7,7 @@ mod view;
 
 use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
-use rand::Rng;
+use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
@@ -120,23 +120,23 @@ impl FromStr for LocationType {
 
 #[cfg(test)]
 mod test {
-    use super::{BuildingType, Demographics, Generate, Location, LocationType};
-    use rand::rngs::mock::StepRng;
+    use super::*;
 
     #[test]
     fn generate_test() {
         let demographics = Demographics::default();
 
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
         assert_ne!(
             Location::generate(&mut rng, &demographics).subtype,
             Location::generate(&mut rng, &demographics).subtype,
         );
 
-        let mut rng = StepRng::new(0, 0);
+        let mut rng1 = SmallRng::seed_from_u64(0);
+        let mut rng2 = SmallRng::seed_from_u64(0);
         assert_eq!(
-            Location::generate(&mut rng, &demographics).subtype,
-            Location::generate(&mut rng, &demographics).subtype,
+            Location::generate(&mut rng1, &demographics).subtype,
+            Location::generate(&mut rng2, &demographics).subtype,
         );
     }
 
@@ -159,7 +159,7 @@ mod test {
     fn try_from_noun_test() {
         assert_eq!(
             Ok(LocationType::Building(Some(BuildingType::Inn))),
-            "inn".parse()
+            "inn".parse(),
         );
 
         assert_eq!(Ok(LocationType::Building(None)), "building".parse());
@@ -194,7 +194,7 @@ mod test {
 
         assert_eq!(
             r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":{"type":"Building","subtype":"Inn"},"name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#,
-            serde_json::to_string(&location).unwrap()
+            serde_json::to_string(&location).unwrap(),
         );
 
         let value: Location = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":{"type":"Building","subtype":"Inn"},"name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();

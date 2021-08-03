@@ -1,5 +1,6 @@
 use super::human::Species as Human;
-use super::{Age, Gender, Generate, Rng, Size};
+use super::{Age, Gender, Generate, Size};
+use rand::prelude::*;
 
 pub struct Species;
 
@@ -29,11 +30,10 @@ impl Generate for Species {
 #[cfg(test)]
 mod test_generate_for_species {
     use super::*;
-    use rand::rngs::mock::StepRng;
 
     #[test]
     fn gen_gender_test() {
-        let (mut rng1, mut rng2) = (StepRng::new(0, 0xDECAFBAD), StepRng::new(0, 0xDECAFBAD));
+        let (mut rng1, mut rng2) = (SmallRng::seed_from_u64(0), SmallRng::seed_from_u64(0));
 
         for _ in 0..10 {
             assert_eq!(Species::gen_gender(&mut rng1), Human::gen_gender(&mut rng2));
@@ -42,34 +42,34 @@ mod test_generate_for_species {
 
     #[test]
     fn gen_age_test() {
-        let mut rng = StepRng::new(0, 0xDECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
 
         assert_eq!(
             [
-                Age::Infant(0),
-                Age::Elderly(174),
-                Age::Elderly(148),
-                Age::MiddleAged(122),
-                Age::MiddleAged(96)
+                Age::MiddleAged(89),
+                Age::MiddleAged(88),
+                Age::Geriatric(196),
+                Age::MiddleAged(92),
+                Age::Geriatric(180),
             ],
             [
                 Species::gen_age(&mut rng),
                 Species::gen_age(&mut rng),
                 Species::gen_age(&mut rng),
                 Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng)
-            ]
+                Species::gen_age(&mut rng),
+            ],
         );
     }
 
     #[test]
     fn gen_size_test() {
-        let (mut rng1, mut rng2) = (StepRng::new(0, 0xDECAFBAD), StepRng::new(0, 0xDECAFBAD));
+        let (mut rng1, mut rng2) = (SmallRng::seed_from_u64(0), SmallRng::seed_from_u64(0));
 
         for _ in 0..10 {
             assert_eq!(
                 Species::gen_size(&mut rng1, &Age::Adult(0), &Gender::Trans),
-                Human::gen_size(&mut rng2, &Age::Adult(0), &Gender::Trans)
+                Human::gen_size(&mut rng2, &Age::Adult(0), &Gender::Trans),
             );
         }
     }

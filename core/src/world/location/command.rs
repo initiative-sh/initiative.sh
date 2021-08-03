@@ -1,6 +1,6 @@
 use super::{Field, Generate, Location, LocationType};
 use crate::app::AppMeta;
-use rand::Rng;
+use rand::prelude::*;
 
 pub fn command(location_type: &LocationType, app_meta: &mut AppMeta, rng: &mut impl Rng) -> String {
     let location = Location {
@@ -39,13 +39,12 @@ mod test {
     use super::*;
     use crate::world::location::BuildingType;
     use crate::world::Thing;
-    use rand::rngs::mock::StepRng;
     use std::collections::HashMap;
 
     #[test]
     fn any_building_test() {
         let mut app_meta = AppMeta::default();
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
         let mut results: HashMap<_, u8> = HashMap::new();
 
         command(&LocationType::Building(None), &mut app_meta, &mut rng);
@@ -71,7 +70,7 @@ mod test {
     #[test]
     fn specific_building_test() {
         let mut app_meta = AppMeta::default();
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
 
         command(
             &LocationType::Building(Some(BuildingType::Inn)),

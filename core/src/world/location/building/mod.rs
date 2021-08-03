@@ -12,7 +12,7 @@ mod warehouse;
 
 use super::{Demographics, Generate, LocationType};
 use initiative_macros::WordList;
-use rand::Rng;
+use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -66,24 +66,27 @@ impl From<BuildingType> for LocationType {
 mod test {
     use super::*;
     use crate::world::{Demographics, Field, Location};
-    use rand::rngs::mock::StepRng;
 
     #[test]
     fn generate_test() {
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
         let demographics = Demographics::default();
 
         assert_eq!(
-            vec![
-                BuildingType::Residence,
+            [
                 BuildingType::Shop,
-                BuildingType::Inn,
                 BuildingType::Residence,
                 BuildingType::Residence,
+                BuildingType::Warehouse,
+                BuildingType::Shop,
             ],
-            (0..5)
-                .map(|_| { BuildingType::generate(&mut rng, &demographics) })
-                .collect::<Vec<_>>(),
+            [
+                BuildingType::generate(&mut rng, &demographics),
+                BuildingType::generate(&mut rng, &demographics),
+                BuildingType::generate(&mut rng, &demographics),
+                BuildingType::generate(&mut rng, &demographics),
+                BuildingType::generate(&mut rng, &demographics),
+            ],
         );
     }
 
@@ -108,8 +111,8 @@ mod test {
     fn generate_inn_test() {
         generate_test_builder(
             generate_inn,
-            Field::from("The Silver Eel").unlocked(),
-            Field::from("Quiet, low-key bar").unlocked(),
+            Field::from("The Gleaming Demon").unlocked(),
+            Field::from("Thieves' guild hangout").unlocked(),
         );
     }
 
@@ -118,7 +121,7 @@ mod test {
         generate_test_builder(
             generate_residence,
             Field::default(),
-            Field::from("Abandoned squat").unlocked(),
+            Field::from("Lavish, guarded mansion").unlocked(),
         );
     }
 
@@ -127,7 +130,7 @@ mod test {
         generate_test_builder(
             generate_shop,
             Field::default(),
-            Field::from("Pawnshop").unlocked(),
+            Field::from("Scribe").unlocked(),
         );
     }
 
@@ -136,7 +139,7 @@ mod test {
         generate_test_builder(
             generate_temple,
             Field::default(),
-            Field::from("Temple to a good or neutral deity").unlocked(),
+            Field::from("Hidden shrine to a fiend or an evil deity").unlocked(),
         );
     }
 
@@ -145,17 +148,17 @@ mod test {
         generate_test_builder(
             generate_warehouse,
             Field::default(),
-            Field::from("Empty or abandoned").unlocked(),
+            Field::from("Secret smuggler's den").unlocked(),
         );
     }
 
-    fn generate_test_builder<F: Fn(&mut Location, &mut StepRng, &Demographics)>(
+    fn generate_test_builder<F: Fn(&mut Location, &mut SmallRng, &Demographics)>(
         f: F,
         assert_name: Field<String>,
         assert_description: Field<String>,
     ) {
         let mut location = Location::default();
-        let mut rng = StepRng::new(0, 0);
+        let mut rng = SmallRng::seed_from_u64(0);
         let demographics = Demographics::default();
 
         let name = "Previous name";
