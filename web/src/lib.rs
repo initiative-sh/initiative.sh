@@ -1,5 +1,7 @@
+mod data_store;
 mod utils;
 
+use data_store::DataStore;
 use initiative_core as core;
 use wasm_bindgen::prelude::*;
 
@@ -34,7 +36,7 @@ pub extern "C" fn app() -> &'static mut core::app::App {
 
     unsafe {
         if APP.is_none() {
-            let data_store = core::NullDataStore::default();
+            let data_store = DataStore::default();
             APP = Some(core::app(data_store));
         }
 
