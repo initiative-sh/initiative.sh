@@ -71,6 +71,7 @@ impl Runnable for StorageCommand {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::storage::NullDataStore;
     use crate::world::{Location, Npc};
 
     #[test]
@@ -86,7 +87,7 @@ mod test {
 
     #[test]
     fn parse_input_test() {
-        let app_meta = AppMeta::default();
+        let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
             vec![StorageCommand::Load {
@@ -103,7 +104,7 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        let mut app_meta = AppMeta::default();
+        let mut app_meta = AppMeta::new(NullDataStore::default());
 
         app_meta.push_recent(
             Npc {

@@ -120,6 +120,7 @@ impl From<WorldCommand> for Command {
 mod test {
     use super::*;
     use crate::reference::ItemCategory;
+    use crate::storage::NullDataStore;
     use crate::world::npc::Species;
 
     #[test]
@@ -150,7 +151,7 @@ mod test {
 
     #[test]
     fn parse_input_test() {
-        let app_meta = AppMeta::default();
+        let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
             vec![Command::App(AppCommand::About)],
@@ -182,7 +183,7 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        let results = Command::autocomplete("d", &AppMeta::default());
+        let results = Command::autocomplete("d", &AppMeta::new(NullDataStore::default()));
         let mut result_iter = results.iter();
 
         if let Some((

@@ -36,6 +36,7 @@ pub fn command(location_type: &LocationType, app_meta: &mut AppMeta) -> String {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::storage::NullDataStore;
     use crate::world::location::BuildingType;
     use crate::world::Thing;
     use rand::prelude::*;
@@ -43,7 +44,7 @@ mod test {
 
     #[test]
     fn any_building_test() {
-        let mut app_meta = AppMeta::default();
+        let mut app_meta = AppMeta::new(NullDataStore::default());
         app_meta.rng = SmallRng::seed_from_u64(0);
         let mut results: HashMap<_, u8> = HashMap::new();
 
@@ -69,7 +70,7 @@ mod test {
 
     #[test]
     fn specific_building_test() {
-        let mut app_meta = AppMeta::default();
+        let mut app_meta = AppMeta::new(NullDataStore::default());
         app_meta.rng = SmallRng::seed_from_u64(0);
 
         command(

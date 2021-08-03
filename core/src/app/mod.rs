@@ -4,20 +4,15 @@ pub use meta::AppMeta;
 mod command;
 mod meta;
 
-use crate::storage::DataStore;
 use initiative_macros::motd;
 
-pub struct App<DS: DataStore> {
+pub struct App {
     meta: AppMeta,
-    _data_store: DS,
 }
 
-impl<DS: DataStore> App<DS> {
-    pub fn new(meta: AppMeta, data_store: DS) -> App<DS> {
-        App {
-            meta,
-            _data_store: data_store,
-        }
+impl App {
+    pub fn new(meta: AppMeta) -> App {
+        App { meta }
     }
 
     pub fn motd(&self) -> &'static str {

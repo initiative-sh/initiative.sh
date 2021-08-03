@@ -50,6 +50,7 @@ impl Runnable for AppCommand {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::storage::NullDataStore;
 
     #[test]
     fn summarize_test() {
@@ -61,7 +62,7 @@ mod test {
 
     #[test]
     fn parse_input_test() {
-        let app_meta = AppMeta::default();
+        let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
             vec![AppCommand::Debug],
@@ -76,6 +77,8 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
+        let app_meta = AppMeta::new(NullDataStore::default());
+
         vec![
             ("about", AppCommand::About),
             ("changelog", AppCommand::Changelog),
@@ -85,14 +88,14 @@ mod test {
         .for_each(|(word, command)| {
             assert_eq!(
                 vec![(word.to_string(), command)],
-                AppCommand::autocomplete(word, &AppMeta::default()),
+                AppCommand::autocomplete(word, &app_meta),
             )
         });
 
         // Debug should be excluded from the autocomplete results.
         assert_eq!(
             Vec::<(String, AppCommand)>::new(),
-            AppCommand::autocomplete("debug", &AppMeta::default()),
+            AppCommand::autocomplete("debug", &app_meta),
         );
     }
 }

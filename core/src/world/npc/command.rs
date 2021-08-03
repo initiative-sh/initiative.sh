@@ -40,13 +40,14 @@ pub fn command(species: &Option<Species>, app_meta: &mut AppMeta) -> String {
 mod test {
     use super::*;
     use crate::app::AppMeta;
+    use crate::storage::NullDataStore;
     use crate::world::Thing;
     use rand::prelude::*;
     use std::collections::HashMap;
 
     #[test]
     fn any_species_test() {
-        let mut app_meta = AppMeta::default();
+        let mut app_meta = AppMeta::new(NullDataStore::default());
         app_meta.rng = SmallRng::seed_from_u64(0);
         let mut results: HashMap<_, u8> = HashMap::new();
 
@@ -72,7 +73,7 @@ mod test {
 
     #[test]
     fn specific_species_test() {
-        let mut app_meta = AppMeta::default();
+        let mut app_meta = AppMeta::new(NullDataStore::default());
         app_meta.rng = SmallRng::seed_from_u64(0);
 
         command(&Some(Species::Human), &mut app_meta);

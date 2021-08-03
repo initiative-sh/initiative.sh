@@ -62,6 +62,7 @@ impl Runnable for WorldCommand {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::storage::NullDataStore;
 
     #[test]
     fn summarize_test() {
@@ -78,7 +79,7 @@ mod test {
 
     #[test]
     fn parse_input_test() {
-        let app_meta = AppMeta::default();
+        let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
             vec![WorldCommand::Location {
@@ -107,6 +108,8 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
+        let app_meta = AppMeta::new(NullDataStore::default());
+
         vec![
             (
                 "building",
@@ -206,7 +209,7 @@ mod test {
         .for_each(|(word, command)| {
             assert_eq!(
                 vec![(word.to_string(), command)],
-                WorldCommand::autocomplete(word, &AppMeta::default()),
+                WorldCommand::autocomplete(word, &app_meta),
             )
         });
     }

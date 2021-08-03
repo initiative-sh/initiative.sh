@@ -1,6 +1,6 @@
 mod wrap;
 
-use initiative_core::{App, NullDataStore};
+use initiative_core::App;
 use std::fmt;
 use std::io;
 use std::io::prelude::*;
@@ -26,7 +26,7 @@ struct Input {
     search_query: Option<String>,
 }
 
-pub async fn run(mut app: App<NullDataStore>) -> io::Result<()> {
+pub async fn run(mut app: App) -> io::Result<()> {
     let mut screen = termion::screen::AlternateScreen::from(io::stdout())
         .into_raw_mode()
         .unwrap();

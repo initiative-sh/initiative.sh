@@ -7,8 +7,7 @@ mod reference;
 mod storage;
 mod world;
 
-pub fn app() -> app::App<NullDataStore> {
-    let app_meta = app::AppMeta::default();
-    let data_store = NullDataStore::default();
-    app::App::new(app_meta, data_store)
+pub fn app() -> app::App {
+    let app_meta = app::AppMeta::new(NullDataStore::default());
+    app::App::new(app_meta)
 }

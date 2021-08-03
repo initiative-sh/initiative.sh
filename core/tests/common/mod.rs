@@ -1,11 +1,11 @@
-use initiative_core::{app, App, NullDataStore};
+use initiative_core::{app, App};
 use tokio_test::block_on;
 
 pub fn sync_app() -> SyncApp {
     SyncApp(app())
 }
 
-pub struct SyncApp(App<NullDataStore>);
+pub struct SyncApp(App);
 
 #[allow(dead_code)]
 impl SyncApp {

@@ -1,20 +1,32 @@
 use super::Command;
+use crate::storage::DataStore;
 use crate::world;
 use rand::prelude::*;
 use std::collections::HashMap;
+use std::fmt;
 
 const RECENT_MAX_LEN: usize = 100;
 
-#[derive(Debug)]
 pub struct AppMeta {
     pub demographics: world::Demographics,
     pub command_aliases: HashMap<String, Command>,
     pub rng: SmallRng,
+    pub data_store: Box<dyn DataStore>,
 
     recent: Vec<world::Thing>,
 }
 
 impl AppMeta {
+    pub fn new(data_store: impl DataStore + 'static) -> Self {
+        Self {
+            command_aliases: HashMap::default(),
+            data_store: Box::new(data_store),
+            demographics: world::Demographics::default(),
+            recent: Vec::default(),
+            rng: SmallRng::from_entropy(),
+        }
+    }
+
     pub fn batch_push_recent(&mut self, mut things: Vec<world::Thing>) {
         if things.len() > RECENT_MAX_LEN {
             things.drain(..(things.len() - RECENT_MAX_LEN));
@@ -41,24 +53,25 @@ impl AppMeta {
     }
 }
 
-impl Default for AppMeta {
-    fn default() -> Self {
-        Self {
-            command_aliases: HashMap::default(),
-            demographics: world::Demographics::default(),
-            recent: Vec::default(),
-            rng: SmallRng::from_entropy(),
-        }
+impl fmt::Debug for AppMeta {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "AppMeta {{ demographics: {:?}, command_aliases: {:?}, recent: {:?} }}",
+            self.demographics, self.command_aliases, self.recent,
+        )
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::storage::NullDataStore;
+    use crate::world::Demographics;
 
     #[test]
     fn push_recent_test() {
-        let mut app_meta = AppMeta::default();
+        let mut app_meta = AppMeta::new(NullDataStore::default());
 
         (0..RECENT_MAX_LEN).for_each(|i| {
             let mut npc = world::Npc::default();
@@ -102,7 +115,7 @@ mod test {
 
     #[test]
     fn batch_push_recent_test() {
-        let mut app_meta = AppMeta::default();
+        let mut app_meta = AppMeta::new(NullDataStore::default());
 
         app_meta.batch_push_recent(Vec::new());
         assert_eq!(0, app_meta.recent.len());
@@ -185,6 +198,17 @@ mod test {
                 .first()
                 .map(|thing| thing.name().value())
                 .flatten()
+        );
+    }
+
+    #[test]
+    fn debug_test() {
+        let mut app_meta = AppMeta::new(NullDataStore::default());
+        app_meta.demographics = Demographics::new(HashMap::new().into());
+
+        assert_eq!(
+            "AppMeta { demographics: Demographics { groups: GroupMapWrapper({}) }, command_aliases: {}, recent: [] }",
+            format!("{:?}", app_meta),
         );
     }
 }
