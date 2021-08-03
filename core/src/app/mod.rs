@@ -4,19 +4,21 @@ pub use context::Context;
 mod command;
 mod context;
 
+use crate::storage::DataStore;
 use initiative_macros::motd;
 use rand::prelude::*;
-use rand::rngs::SmallRng;
 
-pub struct App {
+pub struct App<DS: DataStore> {
     context: Context,
+    _data_store: DS,
     rng: SmallRng,
 }
 
-impl App {
-    pub fn new(context: Context) -> App {
+impl<DS: DataStore> App<DS> {
+    pub fn new(context: Context, data_store: DS) -> App<DS> {
         App {
             context,
+            _data_store: data_store,
             rng: SmallRng::from_entropy(),
         }
     }

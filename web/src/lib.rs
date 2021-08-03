@@ -26,10 +26,10 @@ pub async fn autocomplete(input: JsValue) -> JsValue {
     }
 }
 
-static mut APP: Option<core::app::App> = None;
+static mut APP: Option<core::app::App<core::NullDataStore>> = None;
 
 #[no_mangle]
-pub extern "C" fn app() -> &'static mut core::app::App {
+pub extern "C" fn app() -> &'static mut core::app::App<core::NullDataStore> {
     utils::set_panic_hook();
 
     unsafe {

@@ -1,7 +1,7 @@
-use super::App;
+use initiative_core::{App, NullDataStore};
 use std::io;
 
-pub async fn run(mut app: App) -> io::Result<()> {
+pub async fn run(mut app: App<NullDataStore>) -> io::Result<()> {
     let mut buffer = String::new();
     let stdin = io::stdin();
 

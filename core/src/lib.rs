@@ -1,10 +1,14 @@
 pub mod app;
 
+pub use app::App;
+pub use storage::{DataStore, NullDataStore};
+
 mod reference;
 mod storage;
 mod world;
 
-pub fn app() -> app::App {
+pub fn app() -> app::App<NullDataStore> {
     let context = app::Context::default();
-    app::App::new(context)
+    let data_store = NullDataStore::default();
+    app::App::new(context, data_store)
 }
