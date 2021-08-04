@@ -92,6 +92,44 @@ fn gen_height_weight(
     (height as u16, weight as u16)
 }
 
+impl Species {
+    pub fn default_ethnicity(&self) -> Ethnicity {
+        match self {
+            Self::Dragonborn => Ethnicity::Dragonborn,
+            Self::Dwarf => Ethnicity::Dwarvish,
+            Self::Elf => Ethnicity::Elvish,
+            Self::Gnome => Ethnicity::Gnomish,
+            Self::HalfElf => Ethnicity::Human,
+            Self::HalfOrc => Ethnicity::HalfOrcish,
+            Self::Halfling => Ethnicity::Halfling,
+            Self::Human => Ethnicity::Human,
+            Self::Tiefling => Ethnicity::Tiefling,
+
+            #[cfg(feature = "eberron")]
+            Self::Warforged => Ethnicity::Warforged,
+        }
+    }
+}
+
+impl fmt::Display for Species {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Dragonborn => write!(f, "dragonborn"),
+            Self::Dwarf => write!(f, "dwarf"),
+            Self::Elf => write!(f, "elf"),
+            Self::Gnome => write!(f, "gnome"),
+            Self::HalfElf => write!(f, "half-elf"),
+            Self::HalfOrc => write!(f, "half-orc"),
+            Self::Halfling => write!(f, "halfling"),
+            Self::Human => write!(f, "human"),
+            Self::Tiefling => write!(f, "tiefling"),
+
+            #[cfg(feature = "eberron")]
+            Self::Warforged => write!(f, "warforged"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -164,30 +202,6 @@ mod test {
                 .collect::<Vec<(u16, u16)>>(),
         );
     }
-}
-
-impl Species {
-    pub fn default_ethnicity(&self) -> Ethnicity {
-        match self {
-            Self::Dragonborn => Ethnicity::Dragonborn,
-            Self::Dwarf => Ethnicity::Dwarvish,
-            Self::Elf => Ethnicity::Elvish,
-            Self::Gnome => Ethnicity::Gnomish,
-            Self::HalfElf => Ethnicity::Human,
-            Self::HalfOrc => Ethnicity::HalfOrcish,
-            Self::Halfling => Ethnicity::Halfling,
-            Self::Human => Ethnicity::Human,
-            Self::Tiefling => Ethnicity::Tiefling,
-
-            #[cfg(feature = "eberron")]
-            Self::Warforged => Ethnicity::Warforged,
-        }
-    }
-}
-
-#[cfg(test)]
-mod test_species {
-    use super::*;
 
     #[test]
     fn default_ethnicity_test() {
@@ -204,11 +218,6 @@ mod test_species {
         assert_eq!(Ethnicity::Human, Species::Human.default_ethnicity());
         assert_eq!(Ethnicity::Tiefling, Species::Tiefling.default_ethnicity());
     }
-}
-
-#[cfg(test)]
-mod test_try_from_noun_for_species {
-    use super::*;
 
     #[test]
     fn try_from_test() {
@@ -217,30 +226,6 @@ mod test_try_from_noun_for_species {
         assert_eq!(Ok(Species::HalfElf), "half-elf".parse());
         assert_eq!(Err(()), "potato".parse::<Species>());
     }
-}
-
-impl fmt::Display for Species {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Dragonborn => write!(f, "dragonborn"),
-            Self::Dwarf => write!(f, "dwarf"),
-            Self::Elf => write!(f, "elf"),
-            Self::Gnome => write!(f, "gnome"),
-            Self::HalfElf => write!(f, "half-elf"),
-            Self::HalfOrc => write!(f, "half-orc"),
-            Self::Halfling => write!(f, "halfling"),
-            Self::Human => write!(f, "human"),
-            Self::Tiefling => write!(f, "tiefling"),
-
-            #[cfg(feature = "eberron")]
-            Self::Warforged => write!(f, "warforged"),
-        }
-    }
-}
-
-#[cfg(test)]
-mod test_display_for_species {
-    use super::*;
 
     #[test]
     fn fmt_test() {

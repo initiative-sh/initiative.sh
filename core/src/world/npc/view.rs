@@ -48,7 +48,7 @@ impl<'a> fmt::Display for SummaryView<'a> {
             }
         }
 
-        write_summary_details(&npc, f)?;
+        write_summary_details(npc, f)?;
 
         if npc.name.is_some() && has_details {
             write!(f, ")")?;
@@ -58,14 +58,53 @@ impl<'a> fmt::Display for SummaryView<'a> {
     }
 }
 
+impl<'a> fmt::Display for DetailsView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let npc = self.0;
+
+        npc.name
+            .value()
+            .map(|name| write!(f, "# {}", name))
+            .unwrap_or_else(|| write!(f, "# Unnamed NPC"))?;
+
+        write!(f, "\n*")?;
+        write_summary_details(npc, f)?;
+        write!(f, "*")?;
+
+        match (npc.species.value(), npc.ethnicity.value()) {
+            (Some(species), Some(ethnicity)) if ethnicity != &species.default_ethnicity() => {
+                write!(f, "\n\n**Species:** {} ({})", species, ethnicity)?
+            }
+            (Some(species), _) => write!(f, "\n\n**Species:** {}", species)?,
+            (None, Some(ethnicity)) => write!(f, "\n\n**Ethnicity:** {}", ethnicity)?,
+            (None, None) => write!(f, "\n\n**Species:** N/A")?,
+        }
+
+        npc.gender
+            .value()
+            .map(|gender| write!(f, "\\\n**Gender:** {}", gender.name()))
+            .transpose()?;
+        npc.age
+            .value()
+            .map(|age| write!(f, "\\\n**Age:** {} years", age.years()))
+            .transpose()?;
+        npc.size
+            .value()
+            .map(|size| write!(f, "\\\n**Size:** {}", size))
+            .transpose()?;
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
-mod test_display_for_npc_summary_view {
+mod test_display_for_npc_details_view {
     use super::*;
-    use crate::world::npc::{Age, Gender, Species};
+    use crate::world::npc::{Age, Ethnicity, Gender, Size, Species};
     use crate::world::Field;
 
     #[test]
-    fn fmt_test() {
+    fn summary_view_test() {
         assert_eq!("", format!("{}", gen_npc(0b0000).display_summary()));
         assert_eq!(
             "Potato Johnson",
@@ -123,72 +162,8 @@ mod test_display_for_npc_summary_view {
         );
     }
 
-    fn gen_npc(bitmask: u8) -> Npc {
-        let mut npc = Npc::default();
-
-        if bitmask & 0b1 > 0 {
-            npc.name = Field::new_generated("Potato Johnson".to_string());
-        }
-        if bitmask & 0b10 > 0 {
-            npc.age = Field::new_generated(Age::Adult(40));
-        }
-        if bitmask & 0b100 > 0 {
-            npc.species = Field::new_generated(Species::Human);
-        }
-        if bitmask & 0b1000 > 0 {
-            npc.gender = Field::new_generated(Gender::Trans);
-        }
-
-        npc
-    }
-}
-
-impl<'a> fmt::Display for DetailsView<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let npc = self.0;
-
-        npc.name
-            .value()
-            .map(|name| write!(f, "# {}", name))
-            .unwrap_or_else(|| write!(f, "# Unnamed NPC"))?;
-
-        write!(f, "\n*")?;
-        write_summary_details(&npc, f)?;
-        write!(f, "*")?;
-
-        match (npc.species.value(), npc.ethnicity.value()) {
-            (Some(species), Some(ethnicity)) if ethnicity != &species.default_ethnicity() => {
-                write!(f, "\n\n**Species:** {} ({})", species, ethnicity)?
-            }
-            (Some(species), _) => write!(f, "\n\n**Species:** {}", species)?,
-            (None, Some(ethnicity)) => write!(f, "\n\n**Ethnicity:** {}", ethnicity)?,
-            (None, None) => write!(f, "\n\n**Species:** N/A")?,
-        }
-
-        npc.gender
-            .value()
-            .map(|gender| write!(f, "\\\n**Gender:** {}", gender.name()))
-            .transpose()?;
-        npc.age
-            .value()
-            .map(|age| write!(f, "\\\n**Age:** {} years", age.years()))
-            .transpose()?;
-        npc.size
-            .value()
-            .map(|size| write!(f, "\\\n**Size:** {}", size))
-            .transpose()?;
-
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test_display_for_npc_details_view {
-    use super::*;
-    use crate::world::npc::{Age, Ethnicity, Gender, Size, Species};
-
     #[test]
-    fn fmt_test_filled() {
+    fn details_view_test_filled() {
         let mut npc = Npc::default();
         npc.name.replace("Potato Johnson".to_string());
         npc.species.replace(Species::Human);
@@ -214,7 +189,7 @@ mod test_display_for_npc_details_view {
     }
 
     #[test]
-    fn fmt_test_species_ethnicity() {
+    fn details_view_test_species_ethnicity() {
         let npc = |b: u8| {
             let mut npc = Npc::default();
             if b & 0b1 != 0 {
@@ -241,10 +216,29 @@ mod test_display_for_npc_details_view {
     }
 
     #[test]
-    fn fmt_test_empty() {
+    fn details_view_test_empty() {
         assert_eq!(
             "# Unnamed NPC\n**\n\n**Species:** N/A",
             format!("{}", &Npc::default().display_details())
         );
+    }
+
+    fn gen_npc(bitmask: u8) -> Npc {
+        let mut npc = Npc::default();
+
+        if bitmask & 0b1 > 0 {
+            npc.name = Field::new_generated("Potato Johnson".to_string());
+        }
+        if bitmask & 0b10 > 0 {
+            npc.age = Field::new_generated(Age::Adult(40));
+        }
+        if bitmask & 0b100 > 0 {
+            npc.species = Field::new_generated(Species::Human);
+        }
+        if bitmask & 0b1000 > 0 {
+            npc.gender = Field::new_generated(Gender::Trans);
+        }
+
+        npc
     }
 }

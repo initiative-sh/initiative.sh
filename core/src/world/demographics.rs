@@ -113,8 +113,23 @@ impl Demographics {
     }
 }
 
+impl Default for Demographics {
+    fn default() -> Self {
+        let mut groups = HashMap::new();
+        groups.insert((Species::Human, Ethnicity::Human), 1_020_000);
+        groups.insert((Species::HalfElf, Ethnicity::HalfElvish), 320_000);
+        groups.insert((Species::Elf, Ethnicity::Elvish), 220_000);
+        groups.insert((Species::Gnome, Ethnicity::Gnomish), 220_000);
+        groups.insert((Species::Halfling, Ethnicity::Halfling), 100_000);
+        // groups.insert(Species::Shifter, 60_000);
+        // groups.insert(Species::Changeling, 40_000);
+
+        Self { groups }
+    }
+}
+
 #[cfg(test)]
-mod test_demographics {
+mod test {
     use super::*;
     use rand::rngs::mock::StepRng;
 
@@ -345,20 +360,5 @@ mod test_demographics {
         groups.insert((Species::Human, Ethnicity::Celtic), 20);
         groups.insert((Species::Gnome, Ethnicity::Celtic), 50);
         Demographics { groups }
-    }
-}
-
-impl Default for Demographics {
-    fn default() -> Self {
-        let mut groups = HashMap::new();
-        groups.insert((Species::Human, Ethnicity::Human), 1_020_000);
-        groups.insert((Species::HalfElf, Ethnicity::HalfElvish), 320_000);
-        groups.insert((Species::Elf, Ethnicity::Elvish), 220_000);
-        groups.insert((Species::Gnome, Ethnicity::Gnomish), 220_000);
-        groups.insert((Species::Halfling, Ethnicity::Halfling), 100_000);
-        // groups.insert(Species::Shifter, 60_000);
-        // groups.insert(Species::Changeling, 40_000);
-
-        Self { groups }
     }
 }

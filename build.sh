@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euxo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/web"
 
 if ! command -v rustup; then
   wget https://sh.rustup.rs -O rustup.sh

@@ -69,7 +69,7 @@ impl<'a> fmt::Display for DetailsView<'a> {
 }
 
 #[cfg(test)]
-mod test_thing {
+mod test {
     use super::*;
 
     #[test]

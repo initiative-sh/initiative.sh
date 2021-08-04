@@ -17,23 +17,6 @@ impl Species {
     }
 }
 
-#[cfg(test)]
-mod test_species {
-    use super::{Age, Species};
-
-    #[test]
-    fn age_test() {
-        assert_eq!(Age::Infant(0), Species::age(0));
-        assert_eq!(Age::Child(2), Species::age(2));
-        assert_eq!(Age::Adolescent(10), Species::age(10));
-        assert_eq!(Age::YoungAdult(20), Species::age(20));
-        assert_eq!(Age::Adult(30), Species::age(30));
-        assert_eq!(Age::MiddleAged(40), Species::age(40));
-        assert_eq!(Age::Elderly(60), Species::age(60));
-        assert_eq!(Age::Geriatric(70), Species::age(70));
-    }
-}
-
 impl Generate for Species {
     fn gen_gender(rng: &mut impl Rng) -> Gender {
         match rng.gen_range(1..=101) {
@@ -111,6 +94,18 @@ mod test_generate_for_species {
     use super::*;
     use rand::rngs::mock::StepRng;
     use std::collections::HashMap;
+
+    #[test]
+    fn age_test() {
+        assert_eq!(Age::Infant(0), Species::age(0));
+        assert_eq!(Age::Child(2), Species::age(2));
+        assert_eq!(Age::Adolescent(10), Species::age(10));
+        assert_eq!(Age::YoungAdult(20), Species::age(20));
+        assert_eq!(Age::Adult(30), Species::age(30));
+        assert_eq!(Age::MiddleAged(40), Species::age(40));
+        assert_eq!(Age::Elderly(60), Species::age(60));
+        assert_eq!(Age::Geriatric(70), Species::age(70));
+    }
 
     #[test]
     fn gen_gender_test() {

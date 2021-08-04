@@ -41,8 +41,22 @@ impl Size {
     }
 }
 
+impl fmt::Display for Size {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let (height_ft, height_in) = self.height_ft_in();
+        write!(
+            f,
+            "{}'{}\", {} lbs ({})",
+            height_ft,
+            height_in,
+            self.weight(),
+            self.name(),
+        )
+    }
+}
+
 #[cfg(test)]
-mod test_size {
+mod test {
     use super::*;
 
     #[test]
@@ -101,43 +115,15 @@ mod test_size {
         );
     }
 
+    #[test]
+    fn fmt_test() {
+        assert_eq!("5'11\", 140 lbs (medium)", format!("{}", size()));
+    }
+
     fn size() -> Size {
         Size::Medium {
             height: 71,
             weight: 140,
         }
-    }
-}
-
-impl fmt::Display for Size {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let (height_ft, height_in) = self.height_ft_in();
-        write!(
-            f,
-            "{}'{}\", {} lbs ({})",
-            height_ft,
-            height_in,
-            self.weight(),
-            self.name(),
-        )
-    }
-}
-
-#[cfg(test)]
-mod test_display_for_size {
-    use super::*;
-
-    #[test]
-    fn fmt_test() {
-        assert_eq!(
-            "5'11\", 140 lbs (medium)",
-            format!(
-                "{}",
-                Size::Medium {
-                    height: 71,
-                    weight: 140
-                },
-            ),
-        );
     }
 }
