@@ -25,7 +25,7 @@ impl App {
         motd!()
     }
 
-    pub fn command(&mut self, input: &str) -> String {
+    pub async fn command(&mut self, input: &str) -> String {
         if let Some(command) = self.context.command_aliases.get(input).cloned() {
             command.run(&mut self.context, &mut self.rng)
         } else if let Some(command) = Command::parse_input(input, &self.context).first() {

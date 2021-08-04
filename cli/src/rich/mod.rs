@@ -90,7 +90,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
 
         print!("{}", termion::clear::All);
 
-        let output = app.command(&command);
+        let output = app.command(&command).await;
         wrap(&output, termion::terminal_size().unwrap().0 as usize - 4)
             .lines()
             .enumerate()

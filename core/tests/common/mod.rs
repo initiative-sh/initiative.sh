@@ -2,10 +2,23 @@ use initiative_core::app;
 use initiative_core::app::App;
 use tokio_test::block_on;
 
-pub fn autocomplete(app: &App, input: &str) -> Vec<(String, String)> {
-    block_on(app.autocomplete(input))
+pub fn sync_app() -> SyncApp {
+    SyncApp(app())
 }
 
-pub fn app_autocomplete(input: &str) -> Vec<(String, String)> {
-    autocomplete(&app(), input)
+pub struct SyncApp(App);
+
+#[allow(dead_code)]
+impl SyncApp {
+    pub fn motd(&self) -> &'static str {
+        self.0.motd()
+    }
+
+    pub fn command(&mut self, input: &str) -> String {
+        block_on(self.0.command(input))
+    }
+
+    pub fn autocomplete(&self, input: &str) -> Vec<(String, String)> {
+        block_on(self.0.autocomplete(input))
+    }
 }

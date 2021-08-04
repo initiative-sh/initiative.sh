@@ -1,8 +1,10 @@
-use initiative_core::app;
+mod common;
+
+use common::sync_app;
 
 #[test]
 fn open_game_license() {
-    assert_eq!(111, app().command("Open Game License").lines().count());
+    assert_eq!(111, sync_app().command("Open Game License").lines().count());
 }
 
 #[test]
@@ -20,13 +22,13 @@ fn spell() {
 You gain the ability to comprehend and verbally communicate with beasts for the duration. The knowledge and awareness of many beasts is limited by their intelligence, but at a minimum, beasts can give you information about nearby locations and monsters, including whatever they can perceive or have perceived within the past day. You might be able to persuade a beast to perform a small favor for you, at the DM's discretion.
 
 *Speak With Animals is Open Game Content subject to the `Open Game License`.*",
-        app().command("Speak With Animals"),
+        sync_app().command("Speak With Animals"),
     );
 }
 
 #[test]
 fn spells() {
-    let output = app().command("spells");
+    let output = sync_app().command("spells");
     assert_eq!(
         "\
 # Spells
@@ -43,7 +45,7 @@ fn spells() {
 
 #[test]
 fn item() {
-    let output = app().command("Light Crossbow");
+    let output = sync_app().command("Light Crossbow");
 
     assert_eq!(
         "\
@@ -59,12 +61,12 @@ fn item() {
         output,
     );
 
-    assert_eq!(output, app().command("Crossbow, Light"));
+    assert_eq!(output, sync_app().command("Crossbow, Light"));
 }
 
 #[test]
 fn weapons() {
-    let output = app().command("melee weapons");
+    let output = sync_app().command("melee weapons");
 
     assert_eq!(
         "\
@@ -105,5 +107,5 @@ fn weapons() {
         output,
     );
 
-    assert_eq!(output, app().command("weapons, melee"));
+    assert_eq!(output, sync_app().command("weapons, melee"));
 }

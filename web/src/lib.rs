@@ -9,8 +9,12 @@ pub fn motd() -> String {
 }
 
 #[wasm_bindgen]
-pub fn command(input: &str) -> String {
-    app().command(input)
+pub async fn command(input: JsValue) -> JsValue {
+    if let Some(input) = input.as_string() {
+        app().command(&input).await.into()
+    } else {
+        JsValue::undefined()
+    }
 }
 
 #[wasm_bindgen]
