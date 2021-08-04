@@ -1,8 +1,10 @@
-use initiative_core::app;
+mod common;
+
+use common::sync_app;
 
 #[test]
 fn about() {
-    let output = app().command("about");
+    let output = sync_app().command("about");
     assert!(output.contains("initiative.sh"), "{}", output);
 }
 
@@ -17,15 +19,18 @@ fn autocomplete_command() {
         .iter()
         .map(|(a, b)| (a.to_string(), b.to_string()))
         .collect::<Vec<_>>(),
-        app().autocomplete("d"),
+        sync_app().autocomplete("d"),
     );
 
-    assert_eq!(Vec::<(String, String)>::new(), app().autocomplete("potato"))
+    assert_eq!(
+        Vec::<(String, String)>::new(),
+        sync_app().autocomplete("potato")
+    )
 }
 
 #[test]
 fn autocomplete_proper_noun() {
-    let mut app = app();
+    let mut app = sync_app();
     let output = app.command("npc");
     let npc_name = output.lines().next().unwrap().trim_start_matches("# ");
     let query = npc_name.split_whitespace().next().unwrap();
@@ -42,7 +47,7 @@ fn autocomplete_proper_noun() {
 
 #[test]
 fn debug() {
-    let mut app = app();
+    let mut app = sync_app();
 
     let empty_output = app.command("debug");
     assert!(empty_output.starts_with("Context { "), "{}", empty_output);
@@ -60,14 +65,22 @@ fn debug() {
 
 #[test]
 fn help() {
-    let output = app().command("help");
+    let output = sync_app().command("help");
     assert!(output.contains("command"), "{}", output);
+}
+
+#[test]
+fn motd() {
+    let output = sync_app().motd();
+    assert!(output.contains("initiative.sh"), "{}", output);
+    assert!(output.contains("changelog"), "{}", output);
+    assert!(output.contains("\n* "), "{}", output);
 }
 
 #[test]
 fn unknown() {
     assert_eq!(
         "Unknown command: \"blah blah\"",
-        app().command("blah blah").as_str()
+        sync_app().command("blah blah").as_str()
     );
 }

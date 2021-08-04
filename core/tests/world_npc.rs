@@ -1,8 +1,10 @@
-use initiative_core::app;
+mod common;
+
+use common::sync_app;
 
 #[test]
 fn results_are_random() {
-    assert_ne!(app().command("npc"), app().command("npc"),);
+    assert_ne!(sync_app().command("npc"), sync_app().command("npc"));
 }
 
 #[test]
@@ -20,21 +22,21 @@ fn generated_content_is_limited_by_species() {
     ]
     .iter()
     .for_each(|species| {
-        let output = app().command(species);
+        let output = sync_app().command(species);
         assert_eq!(12, output.matches(species).count(), "{}", output);
     });
 
     [("half elf", "half-elf"), ("half orc", "half-orc")]
         .iter()
         .for_each(|(input, species)| {
-            let output = app().command(input);
+            let output = sync_app().command(input);
             assert_eq!(12, output.matches(species).count(), "{}", output);
         });
 }
 
 #[test]
 fn generated_content_is_persisted() {
-    let mut app = app();
+    let mut app = sync_app();
     let generated_output = app.command("npc");
 
     // # Sybil
@@ -105,7 +107,7 @@ fn generated_content_is_persisted() {
 
 #[test]
 fn numeric_aliases_exist_for_npcs() {
-    let mut app = app();
+    let mut app = sync_app();
 
     // Generate a data set to potentially interfere with the one being tested.
     app.command("npc");

@@ -12,8 +12,8 @@ fn motd() {
 }
 
 #[wasm_bindgen_test]
-fn autocomplete() {
-    let suggestions = app().autocomplete("h");
+async fn autocomplete() {
+    let suggestions = app().autocomplete("h").await;
     assert_eq!(
         [
             ("half-elf", "generate"),
@@ -32,26 +32,26 @@ fn autocomplete() {
 }
 
 #[wasm_bindgen_test]
-fn command() {
-    let output = app().command("about");
+async fn command() {
+    let output = app().command("about").await;
     assert!(output.contains("initiative.sh"), "{}", output);
 }
 
 #[wasm_bindgen_test]
-fn app_is_persistent() {
-    let npc_output = app().command("npc");
+async fn app_is_persistent() {
+    let npc_output = app().command("npc").await;
     let npc_name = npc_output.lines().next().unwrap().trim_start_matches("# ");
-    let npc_details = app().command(npc_name);
+    let npc_details = app().command(npc_name).await;
 
     assert!(npc_details.lines().count() > 1, "{}", npc_details);
 
-    assert_eq!(npc_details, app().command(npc_name));
+    assert_eq!(npc_details, app().command(npc_name).await);
 }
 
 #[wasm_bindgen_test]
-fn memory_exhaustion() {
+async fn memory_exhaustion() {
     let npc_output = loop {
-        let output = app().command("npc");
+        let output = app().command("npc").await;
         if output
             .lines()
             .next()
@@ -62,15 +62,15 @@ fn memory_exhaustion() {
     };
 
     let npc_name = npc_output.lines().next().unwrap().trim_start_matches("# ");
-    let npc_details = app().command(npc_name);
+    let npc_details = app().command(npc_name).await;
     assert!(npc_details.lines().count() > 1, "{}", npc_details);
 
     // Expect to keep at least 88 NPCs in memory before evicting.
     for i in 0..8 {
-        app().command("npc");
+        app().command("npc").await;
         assert_eq!(
             npc_details,
-            app().command(npc_name),
+            app().command(npc_name).await,
             "Failed on iteration {}",
             i,
         );

@@ -26,7 +26,7 @@ struct Input {
     search_query: Option<String>,
 }
 
-pub fn run(mut app: App) -> io::Result<()> {
+pub async fn run(mut app: App) -> io::Result<()> {
     let mut screen = termion::screen::AlternateScreen::from(io::stdout())
         .into_raw_mode()
         .unwrap();
@@ -90,7 +90,7 @@ pub fn run(mut app: App) -> io::Result<()> {
 
         print!("{}", termion::clear::All);
 
-        let output = app.command(&command);
+        let output = app.command(&command).await;
         wrap(&output, termion::terminal_size().unwrap().0 as usize - 4)
             .lines()
             .enumerate()

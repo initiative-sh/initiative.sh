@@ -13,7 +13,7 @@ const outputElement = document.getElementById("output");
 
 const autoCompleteJS = new autoComplete({
   data: {
-    src: async (query) => wasm.autocomplete(query).map(a => {
+    src: async (query) => (await wasm.autocomplete(query)).map(a => {
       return {
         suggestion: a[0],
         description: a[1],
@@ -40,11 +40,11 @@ const autoCompleteJS = new autoComplete({
   wrapper: false,
 });
 
-const runCommand = command => {
-  output("\\> " + command + "\n\n" + wasm.command(command));
+const runCommand = async (command) => {
+  output("\\> " + command + "\n\n" + await wasm.command(command));
 };
 
-const output = text => {
+const output = (text) => {
   outputElement.insertAdjacentHTML(
     "beforeend",
     marked(text)
@@ -55,26 +55,26 @@ const output = text => {
   window.scrollBy(0, window.innerHeight);
 };
 
-promptFormElement.addEventListener("submit", event => {
+promptFormElement.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (promptElement.value !== "") {
-    runCommand(promptElement.value);
+    await runCommand(promptElement.value);
   }
 });
 
-promptFormElement.addEventListener("navigate", event => {
+promptFormElement.addEventListener("navigate", (event) => {
   promptElement.value = event.detail.selection.value.suggestion;
 });
 
-promptFormElement.addEventListener("selection", event => {
-  runCommand(event.detail.selection.value.suggestion);
+promptFormElement.addEventListener("selection", async (event) => {
+  await runCommand(event.detail.selection.value.suggestion);
 });
 
-window.addEventListener("keydown", event => promptElement.focus());
+window.addEventListener("keydown", (event) => promptElement.focus());
 
-outputElement.addEventListener("click", event => {
+outputElement.addEventListener("click", async (event) => {
   if (event.target.nodeName === "CODE") {
-    runCommand(event.target.innerText);
+    await runCommand(event.target.innerText);
   }
 });
 
