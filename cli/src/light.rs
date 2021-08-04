@@ -1,7 +1,7 @@
 use super::App;
 use std::io;
 
-pub fn run(mut app: App) -> io::Result<()> {
+pub async fn run(mut app: App) -> io::Result<()> {
     let mut buffer = String::new();
     let stdin = io::stdin();
 

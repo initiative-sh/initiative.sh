@@ -4,10 +4,10 @@ mod rich;
 use initiative_core::app::App;
 use std::io;
 
-pub fn run(app: App) -> io::Result<()> {
+pub async fn run(app: App) -> io::Result<()> {
     if termion::is_tty(&io::stdin()) {
-        rich::run(app)
+        rich::run(app).await
     } else {
-        light::run(app)
+        light::run(app).await
     }
 }
