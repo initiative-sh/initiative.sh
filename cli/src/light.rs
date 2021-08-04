@@ -1,4 +1,4 @@
-use super::App;
+use initiative_core::App;
 use std::io;
 
 pub async fn run(mut app: App) -> io::Result<()> {

@@ -1,4 +1,5 @@
-use super::{Age, Gender, Generate, Rng, Size};
+use super::{Age, Gender, Generate, Size};
+use rand::prelude::*;
 
 pub struct Species;
 
@@ -37,50 +38,49 @@ impl Generate for Species {
 #[cfg(test)]
 mod test_generate_for_species {
     use super::*;
-    use rand::rngs::mock::StepRng;
     use std::collections::HashMap;
 
     #[test]
     fn gen_gender_test() {
-        let mut rng = StepRng::new(0, 0xDECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
         let mut genders: HashMap<String, u16> = HashMap::new();
 
-        for _ in 0..100 {
+        for _ in 0..500 {
             let gender = Species::gen_gender(&mut rng);
             *genders.entry(format!("{}", gender)).or_default() += 1;
         }
 
         assert_eq!(3, genders.len());
-        assert_eq!(Some(&50), genders.get("feminine (she/her)"));
-        assert_eq!(Some(&48), genders.get("masculine (he/him)"));
-        assert_eq!(Some(&2), genders.get("trans (they/them)"));
+        assert_eq!(Some(&3), genders.get("trans (they/them)"));
+        assert_eq!(Some(&233), genders.get("feminine (she/her)"));
+        assert_eq!(Some(&264), genders.get("masculine (he/him)"));
     }
 
     #[test]
     fn gen_age_test() {
-        let mut rng = StepRng::new(0, 0xDECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
 
         assert_eq!(
             [
-                Age::Infant(0),
-                Age::Geriatric(157),
-                Age::Elderly(134),
-                Age::Elderly(110),
-                Age::MiddleAged(87)
+                Age::MiddleAged(80),
+                Age::MiddleAged(79),
+                Age::Geriatric(177),
+                Age::MiddleAged(83),
+                Age::Geriatric(162),
             ],
             [
                 Species::gen_age(&mut rng),
                 Species::gen_age(&mut rng),
                 Species::gen_age(&mut rng),
                 Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng)
-            ]
+                Species::gen_age(&mut rng),
+            ],
         );
     }
 
     #[test]
     fn gen_size_test() {
-        let mut rng = StepRng::new(0, 0xDECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
         let age = Age::Adult(0);
         let t = Gender::Trans;
 
@@ -88,18 +88,18 @@ mod test_generate_for_species {
 
         assert_eq!(
             [
+                size(36, 40),
+                size(38, 44),
+                size(40, 48),
                 size(37, 42),
                 size(38, 44),
-                size(36, 40),
-                size(34, 36),
-                size(40, 48)
             ],
             [
                 Species::gen_size(&mut rng, &age, &t),
                 Species::gen_size(&mut rng, &age, &t),
                 Species::gen_size(&mut rng, &age, &t),
                 Species::gen_size(&mut rng, &age, &t),
-                Species::gen_size(&mut rng, &age, &t)
+                Species::gen_size(&mut rng, &age, &t),
             ]
         );
     }

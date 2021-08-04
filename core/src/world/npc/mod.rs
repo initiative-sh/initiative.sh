@@ -65,11 +65,11 @@ impl Generate for Npc {
 #[cfg(test)]
 mod test {
     use super::*;
-    use rand::rngs::mock::StepRng;
+    use rand::prelude::*;
 
     #[test]
     fn regenerate_test() {
-        let mut rng = StepRng::new(0, 0xDEADBEEF);
+        let mut rng = SmallRng::seed_from_u64(0);
         let demographics = Demographics::default();
 
         let npc = Npc::generate(&mut rng, &demographics);

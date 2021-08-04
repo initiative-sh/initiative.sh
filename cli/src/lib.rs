@@ -1,7 +1,7 @@
 mod light;
 mod rich;
 
-use initiative_core::app::App;
+use initiative_core::App;
 use std::io;
 
 pub async fn run(app: App) -> io::Result<()> {

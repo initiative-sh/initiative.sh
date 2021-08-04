@@ -50,7 +50,7 @@ fn debug() {
     let mut app = sync_app();
 
     let empty_output = app.command("debug");
-    assert!(empty_output.starts_with("Context { "), "{}", empty_output);
+    assert!(empty_output.starts_with("AppMeta { "), "{}", empty_output);
 
     app.command("npc");
 

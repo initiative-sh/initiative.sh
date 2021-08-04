@@ -1,6 +1,6 @@
 mod wrap;
 
-use super::App;
+use initiative_core::App;
 use std::fmt;
 use std::io;
 use std::io::prelude::*;

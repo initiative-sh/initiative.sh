@@ -18,11 +18,10 @@ mod test_generate_for_ethnicity {
     use super::*;
     use crate::world::npc::ethnicity::{regenerate, Ethnicity};
     use crate::world::Npc;
-    use rand::rngs::mock::StepRng;
 
     #[test]
     fn gen_name_test() {
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
         let adult = Age::Adult(0);
         let m = Gender::Masculine;
         let f = Gender::Feminine;
@@ -30,15 +29,15 @@ mod test_generate_for_ethnicity {
 
         assert_eq!(
             [
-                "Thia Mystralath",
-                "Gar Arnuanna",
-                "Horatia",
-                "Eiravel Amastacia",
-                "Laki",
-                "Drusilia Aloro",
-                "Indu",
-                "Vanuath Suithrasas",
-                "Huitzilihuitl"
+                "Lue Xiloscient",
+                "Jane",
+                "Vall Eathalena",
+                "Rolen Qualanthri",
+                "Horwedja",
+                "Zarya",
+                "Theirastra Horineth",
+                "Talib",
+                "Efferil Ostoroth",
             ],
             [
                 gen_name(&mut rng, &Age::Infant(0), &m),
@@ -50,7 +49,7 @@ mod test_generate_for_ethnicity {
                 gen_name(&mut rng, &adult, &f),
                 gen_name(&mut rng, &adult, &t),
                 gen_name(&mut rng, &adult, &t),
-            ]
+            ],
         );
     }
 

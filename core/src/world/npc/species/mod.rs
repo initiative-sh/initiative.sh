@@ -13,7 +13,7 @@ mod warforged;
 
 use super::{Age, Ethnicity, Gender, Npc, Size};
 use initiative_macros::WordList;
-use rand::Rng;
+use rand::prelude::*;
 use rand_distr::{Distribution, Normal};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -135,13 +135,12 @@ impl fmt::Display for Species {
 mod test {
     use super::*;
     use crate::world::Field;
-    use rand::rngs::mock::StepRng;
 
     #[test]
     fn regenerate_test_default() {
         let mut npc = Npc::default();
         npc.species = Field::new_generated(Species::Human);
-        let mut rng = StepRng::new(0, 0xDEADBEEF);
+        let mut rng = SmallRng::seed_from_u64(0);
 
         regenerate(&mut rng, &mut npc);
 
@@ -161,7 +160,7 @@ mod test {
             weight: u16::MAX,
         });
 
-        let mut rng = StepRng::new(0, 0xDEADBEEF);
+        let mut rng = SmallRng::seed_from_u64(0);
 
         regenerate(&mut rng, &mut npc);
 
@@ -172,13 +171,13 @@ mod test {
                 height: u16::MAX,
                 weight: u16::MAX
             }),
-            npc.size.value()
+            npc.size.value(),
         );
     }
 
     #[test]
     fn gen_height_weight_test() {
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
 
         assert_eq!(
             (72, 147),
@@ -187,16 +186,16 @@ mod test {
 
         assert_eq!(
             vec![
-                (65, 123),
-                (62, 105),
-                (69, 185),
-                (66, 142),
-                (65, 124),
-                (63, 86),
-                (67, 160),
-                (67, 141),
-                (65, 112),
-                (64, 101),
+                (71, 153),
+                (69, 180),
+                (66, 133),
+                (65, 146),
+                (64, 154),
+                (67, 115),
+                (68, 125),
+                (65, 119),
+                (67, 162),
+                (66, 118),
             ],
             (0..10)
                 .map(|_| gen_height_weight(&mut rng, 64.0..=68.0, 18.5..=25.0))
@@ -208,7 +207,7 @@ mod test {
     fn default_ethnicity_test() {
         assert_eq!(
             Ethnicity::Dragonborn,
-            Species::Dragonborn.default_ethnicity()
+            Species::Dragonborn.default_ethnicity(),
         );
         assert_eq!(Ethnicity::Dwarvish, Species::Dwarf.default_ethnicity());
         assert_eq!(Ethnicity::Elvish, Species::Elf.default_ethnicity());

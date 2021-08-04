@@ -173,7 +173,6 @@ impl From<GroupMapWrapper> for GroupMapSerialized {
 #[cfg(test)]
 mod test {
     use super::*;
-    use rand::rngs::mock::StepRng;
 
     #[test]
     fn shift_species_test_existing() {
@@ -383,7 +382,7 @@ mod test {
         groups.insert((Species::Gnome, Ethnicity::Celtic), 50);
         let demographics = Demographics::new(groups);
 
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
         let mut counts: HashMap<(Species, Ethnicity), u8> = HashMap::with_capacity(2);
 
         for i in 0..10 {

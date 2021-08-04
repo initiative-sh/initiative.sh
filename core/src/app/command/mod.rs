@@ -4,11 +4,10 @@ pub use runnable::{autocomplete_phrase, Runnable};
 mod app;
 mod runnable;
 
-use super::Context;
+use super::AppMeta;
 use crate::reference::ReferenceCommand;
 use crate::storage::StorageCommand;
 use crate::world::WorldCommand;
-use rand::Rng;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
@@ -19,12 +18,12 @@ pub enum Command {
 }
 
 impl Runnable for Command {
-    fn run(&self, context: &mut Context, rng: &mut impl Rng) -> String {
+    fn run(&self, app_meta: &mut AppMeta) -> String {
         match self {
-            Self::App(c) => c.run(context, rng),
-            Self::Reference(c) => c.run(context, rng),
-            Self::Storage(c) => c.run(context, rng),
-            Self::World(c) => c.run(context, rng),
+            Self::App(c) => c.run(app_meta),
+            Self::Reference(c) => c.run(app_meta),
+            Self::Storage(c) => c.run(app_meta),
+            Self::World(c) => c.run(app_meta),
         }
     }
 
@@ -37,50 +36,50 @@ impl Runnable for Command {
         }
     }
 
-    fn parse_input(input: &str, context: &Context) -> Vec<Self> {
+    fn parse_input(input: &str, app_meta: &AppMeta) -> Vec<Self> {
         std::iter::empty()
             .chain(
-                AppCommand::parse_input(input, context)
+                AppCommand::parse_input(input, app_meta)
                     .drain(..)
                     .map(|c| c.into()),
             )
             .chain(
-                ReferenceCommand::parse_input(input, context)
+                ReferenceCommand::parse_input(input, app_meta)
                     .drain(..)
                     .map(|c| c.into()),
             )
             .chain(
-                StorageCommand::parse_input(input, context)
+                StorageCommand::parse_input(input, app_meta)
                     .drain(..)
                     .map(|c| c.into()),
             )
             .chain(
-                WorldCommand::parse_input(input, context)
+                WorldCommand::parse_input(input, app_meta)
                     .drain(..)
                     .map(|c| c.into()),
             )
             .collect()
     }
 
-    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)> {
+    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, Self)> {
         let mut suggestions: Vec<(String, Command)> = std::iter::empty()
             .chain(
-                AppCommand::autocomplete(input, context)
+                AppCommand::autocomplete(input, app_meta)
                     .drain(..)
                     .map(|(s, c)| (s, c.into())),
             )
             .chain(
-                ReferenceCommand::autocomplete(input, context)
+                ReferenceCommand::autocomplete(input, app_meta)
                     .drain(..)
                     .map(|(s, c)| (s, c.into())),
             )
             .chain(
-                StorageCommand::autocomplete(input, context)
+                StorageCommand::autocomplete(input, app_meta)
                     .drain(..)
                     .map(|(s, c)| (s, c.into())),
             )
             .chain(
-                WorldCommand::autocomplete(input, context)
+                WorldCommand::autocomplete(input, app_meta)
                     .drain(..)
                     .map(|(s, c)| (s, c.into())),
             )
@@ -121,6 +120,7 @@ impl From<WorldCommand> for Command {
 mod test {
     use super::*;
     use crate::reference::ItemCategory;
+    use crate::storage::NullDataStore;
     use crate::world::npc::Species;
 
     #[test]
@@ -151,11 +151,11 @@ mod test {
 
     #[test]
     fn parse_input_test() {
-        let context = Context::default();
+        let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
             vec![Command::App(AppCommand::About)],
-            Command::parse_input("about", &context),
+            Command::parse_input("about", &app_meta),
         );
 
         assert_eq!(
@@ -165,25 +165,25 @@ mod test {
                     query: "Open Game License".to_string()
                 }),
             ],
-            Command::parse_input("Open Game License", &context),
+            Command::parse_input("Open Game License", &app_meta),
         );
 
         assert_eq!(
             vec![Command::Storage(StorageCommand::Load {
                 query: "Gandalf the Grey".to_string(),
             })],
-            Command::parse_input("Gandalf the Grey", &context),
+            Command::parse_input("Gandalf the Grey", &app_meta),
         );
 
         assert_eq!(
             vec![Command::World(WorldCommand::Npc { species: None })],
-            Command::parse_input("npc", &context),
+            Command::parse_input("npc", &app_meta),
         );
     }
 
     #[test]
     fn autocomplete_test() {
-        let results = Command::autocomplete("d", &Context::default());
+        let results = Command::autocomplete("d", &AppMeta::new(NullDataStore::default()));
         let mut result_iter = results.iter();
 
         if let Some((

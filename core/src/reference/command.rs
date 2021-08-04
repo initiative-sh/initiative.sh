@@ -1,6 +1,5 @@
 use super::{Item, ItemCategory, Spell};
-use crate::app::{autocomplete_phrase, Context, Runnable};
-use rand::Rng;
+use crate::app::{autocomplete_phrase, AppMeta, Runnable};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ReferenceCommand {
@@ -12,7 +11,7 @@ pub enum ReferenceCommand {
 }
 
 impl Runnable for ReferenceCommand {
-    fn run(&self, _context: &mut Context, _rng: &mut impl Rng) -> String {
+    fn run(&self, _app_meta: &mut AppMeta) -> String {
         let (output, name) = match self {
             Self::Spell(spell) => (format!("{}", spell), spell.get_name()),
             Self::Spells => (Spell::get_list().to_string(), "This listing"),
@@ -41,7 +40,7 @@ impl Runnable for ReferenceCommand {
         }
     }
 
-    fn parse_input(input: &str, _context: &Context) -> Vec<Self> {
+    fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
         match input {
             "Open Game License" => return vec![Self::OpenGameLicense],
             "spells" => return vec![Self::Spells],
@@ -59,7 +58,7 @@ impl Runnable for ReferenceCommand {
         }
     }
 
-    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)> {
+    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, Self)> {
         let mut suggestions = autocomplete_phrase(
             input,
             &mut ["Open Game License", "spells"]
@@ -74,7 +73,7 @@ impl Runnable for ReferenceCommand {
 
         suggestions
             .iter()
-            .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), context)))
+            .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), app_meta)))
             .map(|(s, c)| (s.clone(), c))
             .collect()
     }

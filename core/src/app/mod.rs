@@ -1,24 +1,18 @@
 pub use command::{autocomplete_phrase, AppCommand, Command, Runnable};
-pub use context::Context;
+pub use meta::AppMeta;
 
 mod command;
-mod context;
+mod meta;
 
 use initiative_macros::motd;
-use rand::prelude::*;
-use rand::rngs::SmallRng;
 
 pub struct App {
-    context: Context,
-    rng: SmallRng,
+    meta: AppMeta,
 }
 
 impl App {
-    pub fn new(context: Context) -> App {
-        App {
-            context,
-            rng: SmallRng::from_entropy(),
-        }
+    pub fn new(meta: AppMeta) -> App {
+        App { meta }
     }
 
     pub fn motd(&self) -> &'static str {
@@ -26,17 +20,17 @@ impl App {
     }
 
     pub async fn command(&mut self, input: &str) -> String {
-        if let Some(command) = self.context.command_aliases.get(input).cloned() {
-            command.run(&mut self.context, &mut self.rng)
-        } else if let Some(command) = Command::parse_input(input, &self.context).first() {
-            command.run(&mut self.context, &mut self.rng)
+        if let Some(command) = self.meta.command_aliases.get(input).cloned() {
+            command.run(&mut self.meta)
+        } else if let Some(command) = Command::parse_input(input, &self.meta).first() {
+            command.run(&mut self.meta)
         } else {
             format!("Unknown command: \"{}\"", input)
         }
     }
 
     pub async fn autocomplete(&self, input: &str) -> Vec<(String, String)> {
-        Command::autocomplete(input, &self.context)
+        Command::autocomplete(input, &self.meta)
             .drain(..)
             .map(|(s, c)| (s, c.summarize().to_string()))
             .collect()

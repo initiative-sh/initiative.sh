@@ -1,14 +1,13 @@
-use crate::app::Context;
-use rand::Rng;
+use crate::app::AppMeta;
 
 pub trait Runnable: Sized {
-    fn run(&self, context: &mut Context, rng: &mut impl Rng) -> String;
+    fn run(&self, app_meta: &mut AppMeta) -> String;
 
     fn summarize(&self) -> &str;
 
-    fn parse_input(input: &str, context: &Context) -> Vec<Self>;
+    fn parse_input(input: &str, app_meta: &AppMeta) -> Vec<Self>;
 
-    fn autocomplete(input: &str, context: &Context) -> Vec<(String, Self)>;
+    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, Self)>;
 }
 
 pub fn autocomplete_phrase(

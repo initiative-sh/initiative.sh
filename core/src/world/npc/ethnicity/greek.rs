@@ -56,11 +56,10 @@ mod test_generate_for_ethnicity {
     use super::*;
     use crate::world::npc::ethnicity::{regenerate, Ethnicity};
     use crate::world::Npc;
-    use rand::rngs::mock::StepRng;
 
     #[test]
     fn gen_name_test() {
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut rng = SmallRng::seed_from_u64(0);
         let age = Age::Adult(0);
         let m = Gender::Masculine;
         let f = Gender::Feminine;
@@ -68,12 +67,12 @@ mod test_generate_for_ethnicity {
 
         assert_eq!(
             [
-                "Adonis",
-                "Philandros",
-                "Karme",
-                "Eunomia",
-                "Aineias",
-                "Melpomene"
+                "Heros",
+                "Hippolytos",
+                "Polymnia",
+                "Kalypso",
+                "Glaukos",
+                "Dione",
             ],
             [
                 gen_name(&mut rng, &age, &m),
@@ -82,7 +81,7 @@ mod test_generate_for_ethnicity {
                 gen_name(&mut rng, &age, &f),
                 gen_name(&mut rng, &age, &t),
                 gen_name(&mut rng, &age, &t),
-            ]
+            ],
         );
     }
 

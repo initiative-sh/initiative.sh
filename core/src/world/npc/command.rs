@@ -1,27 +1,26 @@
 use super::{Npc, Species};
-use crate::app::Context;
+use crate::app::AppMeta;
 use crate::storage::StorageCommand;
 use crate::world::Generate;
-use rand::Rng;
 
-pub fn command(species: &Option<Species>, context: &mut Context, rng: &mut impl Rng) -> String {
+pub fn command(species: &Option<Species>, app_meta: &mut AppMeta) -> String {
     let demographics = if let Some(species) = species {
-        context.demographics.only_species(species)
+        app_meta.demographics.only_species(species)
     } else {
-        context.demographics.clone()
+        app_meta.demographics.clone()
     };
 
     let mut output = String::new();
-    let npc = Npc::generate(rng, &demographics);
+    let npc = Npc::generate(&mut app_meta.rng, &demographics);
 
     output.push_str(&format!("{}\n\n*Alternatives:* ", npc.display_details()));
-    context.push_recent(npc.into());
+    app_meta.push_recent(npc.into());
 
     let recent = (0..10)
         .map(|i| {
-            let alt = Npc::generate(rng, &demographics);
+            let alt = Npc::generate(&mut app_meta.rng, &demographics);
             output.push_str(&format!("\\\n`{}` {}", i, alt.display_summary()));
-            context.command_aliases.insert(
+            app_meta.command_aliases.insert(
                 i.to_string(),
                 StorageCommand::Load {
                     query: alt.name.value().unwrap().to_owned(),
@@ -32,7 +31,7 @@ pub fn command(species: &Option<Species>, context: &mut Context, rng: &mut impl 
         })
         .collect();
 
-    context.batch_push_recent(recent);
+    app_meta.batch_push_recent(recent);
 
     output
 }
@@ -40,20 +39,21 @@ pub fn command(species: &Option<Species>, context: &mut Context, rng: &mut impl 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::app::Context;
+    use crate::app::AppMeta;
+    use crate::storage::NullDataStore;
     use crate::world::Thing;
-    use rand::rngs::mock::StepRng;
+    use rand::prelude::*;
     use std::collections::HashMap;
 
     #[test]
     fn any_species_test() {
-        let mut context = Context::default();
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut app_meta = AppMeta::new(NullDataStore::default());
+        app_meta.rng = SmallRng::seed_from_u64(0);
         let mut results: HashMap<_, u8> = HashMap::new();
 
-        command(&None, &mut context, &mut rng);
+        command(&None, &mut app_meta);
 
-        context.recent().iter().for_each(|thing| {
+        app_meta.recent().iter().for_each(|thing| {
             if let Thing::Npc(npc) = thing {
                 if let Some(species) = npc.species.value() {
                     *results.entry(species).or_default() += 1;
@@ -61,38 +61,38 @@ mod test {
             }
         });
 
-        assert!(results.len() > 1, "{:?}\n{:?}", context, results);
+        assert!(results.len() > 1, "{:?}\n{:?}", app_meta, results);
         assert_eq!(
             11,
             results.values().sum::<u8>(),
             "{:?}\n{:?}",
-            context,
+            app_meta,
             results,
         );
     }
 
     #[test]
     fn specific_species_test() {
-        let mut context = Context::default();
-        let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
+        let mut app_meta = AppMeta::new(NullDataStore::default());
+        app_meta.rng = SmallRng::seed_from_u64(0);
 
-        command(&Some(Species::Human), &mut context, &mut rng);
+        command(&Some(Species::Human), &mut app_meta);
 
         assert_eq!(
             11,
-            context
+            app_meta
                 .recent()
                 .iter()
                 .map(|thing| {
                     if let Thing::Npc(npc) = thing {
-                        assert_eq!(Some(&Species::Human), npc.species.value(), "{:?}", context);
+                        assert_eq!(Some(&Species::Human), npc.species.value(), "{:?}", app_meta);
                     } else {
-                        panic!("{:?}\n{:?}", thing, context);
+                        panic!("{:?}\n{:?}", thing, app_meta);
                     }
                 })
                 .count(),
             "{:?}",
-            context,
+            app_meta,
         );
     }
 }
