@@ -1,15 +1,29 @@
 use super::npc::{Ethnicity, Species};
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::iter;
 
-#[derive(Clone, Debug)]
+type GroupMap = HashMap<(Species, Ethnicity), u64>;
+type GroupMapSerialized = Vec<(Species, Ethnicity, u64)>;
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Demographics {
-    groups: HashMap<(Species, Ethnicity), u64>,
+    groups: GroupMapWrapper,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(from = "GroupMapSerialized", into = "GroupMapSerialized")]
+struct GroupMapWrapper(GroupMap);
+
 impl Demographics {
+    pub fn new(groups: GroupMap) -> Self {
+        Self {
+            groups: GroupMapWrapper(groups),
+        }
+    }
+
     pub fn shift_species(&self, species: &Species, amount: f64) -> Self {
         self.shift_by(
             |s, _| s == species,
@@ -52,11 +66,11 @@ impl Demographics {
     }
 
     pub fn gen_species_ethnicity(&self, rng: &mut impl Rng) -> (Species, Ethnicity) {
-        if self.groups.is_empty() {
+        if self.groups().is_empty() {
             (Species::Human, Species::Human.default_ethnicity())
         } else {
             let (groups, weights): (Vec<(Species, Ethnicity)>, Vec<u64>) =
-                self.groups.iter().unzip();
+                self.groups().iter().unzip();
             let dist = WeightedIndex::new(&weights).unwrap();
             groups[dist.sample(rng)]
         }
@@ -72,15 +86,15 @@ impl Demographics {
             panic!("Invalid input: {}", amount);
         }
 
-        let population: u64 = self.groups.values().sum();
+        let population: u64 = self.groups().values().sum();
         let species_population: u64 = self
-            .groups
+            .groups()
             .iter()
             .filter_map(|((s, e), n)| if f(s, e) { Some(n) } else { None })
             .sum();
 
-        let groups: HashMap<(Species, Ethnicity), u64> = if species_population > 0 {
-            self.groups
+        let groups: GroupMap = if species_population > 0 {
+            self.groups()
                 .iter()
                 .map(|((s, e), &v)| {
                     (
@@ -98,7 +112,7 @@ impl Demographics {
                 .filter(|(_, v)| *v > 0)
                 .collect()
         } else {
-            self.groups
+            self.groups()
                 .iter()
                 .map(|(&k, &v)| (k, (v as f64 * (1. - amount)).round() as u64))
                 .chain(iter::once((
@@ -109,7 +123,11 @@ impl Demographics {
                 .collect()
         };
 
-        Self { groups }
+        Self::new(groups)
+    }
+
+    fn groups(&self) -> &GroupMap {
+        &self.groups.0
     }
 }
 
@@ -124,7 +142,31 @@ impl Default for Demographics {
         // groups.insert(Species::Shifter, 60_000);
         // groups.insert(Species::Changeling, 40_000);
 
-        Self { groups }
+        Self::new(groups)
+    }
+}
+
+impl From<GroupMap> for GroupMapWrapper {
+    fn from(value: GroupMap) -> Self {
+        Self(value)
+    }
+}
+
+impl From<GroupMapWrapper> for GroupMap {
+    fn from(value: GroupMapWrapper) -> Self {
+        value.0
+    }
+}
+
+impl From<GroupMapSerialized> for GroupMapWrapper {
+    fn from(mut value: GroupMapSerialized) -> Self {
+        Self(value.drain(..).map(|(a, b, c)| ((a, b), c)).collect())
+    }
+}
+
+impl From<GroupMapWrapper> for GroupMapSerialized {
+    fn from(mut value: GroupMapWrapper) -> Self {
+        value.0.drain().map(|((a, b), c)| (a, b, c)).collect()
     }
 }
 
@@ -137,11 +179,11 @@ mod test {
     fn shift_species_test_existing() {
         let demographics = demographics().shift_species(&Species::Human, 0.3);
 
-        assert_eq!(3, demographics.groups.len());
+        assert_eq!(3, demographics.groups().len());
         assert_eq!(
             Some(&39),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Human, Ethnicity::Arabic)),
             "{:?}",
             demographics
@@ -149,13 +191,13 @@ mod test {
         assert_eq!(
             Some(&26),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Human, Ethnicity::Celtic))
         );
         assert_eq!(
             Some(&35),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Gnome, Ethnicity::Celtic))
         );
     }
@@ -164,11 +206,11 @@ mod test {
     fn shift_ethnicity_test_existing() {
         let demographics = demographics().shift_ethnicity(&Ethnicity::Celtic, 0.3);
 
-        assert_eq!(3, demographics.groups.len());
+        assert_eq!(3, demographics.groups().len());
         assert_eq!(
             Some(&21),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Human, Ethnicity::Arabic)),
             "{:?}",
             demographics
@@ -176,13 +218,13 @@ mod test {
         assert_eq!(
             Some(&23),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Human, Ethnicity::Celtic))
         );
         assert_eq!(
             Some(&56),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Gnome, Ethnicity::Celtic))
         );
     }
@@ -192,11 +234,11 @@ mod test {
         let demographics =
             demographics().shift_species_ethnicity(&Species::Gnome, &Ethnicity::Celtic, 0.3);
 
-        assert_eq!(3, demographics.groups.len());
+        assert_eq!(3, demographics.groups().len());
         assert_eq!(
             Some(&21),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Human, Ethnicity::Arabic)),
             "{:?}",
             demographics
@@ -204,13 +246,13 @@ mod test {
         assert_eq!(
             Some(&14),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Human, Ethnicity::Celtic))
         );
         assert_eq!(
             Some(&65),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Gnome, Ethnicity::Celtic))
         );
     }
@@ -219,19 +261,19 @@ mod test {
     fn shift_species_test_new() {
         let mut groups = HashMap::with_capacity(1);
         groups.insert((Species::Human, Ethnicity::Arabic), 100);
-        let demographics = Demographics { groups }.shift_species(&Species::Gnome, 0.4);
+        let demographics = Demographics::new(groups).shift_species(&Species::Gnome, 0.4);
 
-        assert_eq!(2, demographics.groups.len());
+        assert_eq!(2, demographics.groups().len());
         assert_eq!(
             Some(&60),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Human, Ethnicity::Arabic))
         );
         assert_eq!(
             Some(&40),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Gnome, Ethnicity::Gnomish))
         );
     }
@@ -240,19 +282,19 @@ mod test {
     fn shift_ethnicity_test_new() {
         let mut groups = HashMap::with_capacity(1);
         groups.insert((Species::Human, Ethnicity::Arabic), 100);
-        let demographics = Demographics { groups }.shift_ethnicity(&Ethnicity::Gnomish, 0.4);
+        let demographics = Demographics::new(groups).shift_ethnicity(&Ethnicity::Gnomish, 0.4);
 
-        assert_eq!(2, demographics.groups.len());
+        assert_eq!(2, demographics.groups().len());
         assert_eq!(
             Some(&60),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Human, Ethnicity::Arabic))
         );
         assert_eq!(
             Some(&40),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Gnome, Ethnicity::Gnomish))
         );
     }
@@ -261,23 +303,23 @@ mod test {
     fn shift_species_ethnicity_test_new() {
         let mut groups = HashMap::with_capacity(1);
         groups.insert((Species::Human, Ethnicity::Arabic), 100);
-        let demographics = Demographics { groups }.shift_species_ethnicity(
+        let demographics = Demographics::new(groups).shift_species_ethnicity(
             &Species::Gnome,
             &Ethnicity::Celtic,
             0.4,
         );
 
-        assert_eq!(2, demographics.groups.len());
+        assert_eq!(2, demographics.groups().len());
         assert_eq!(
             Some(&60),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Human, Ethnicity::Arabic))
         );
         assert_eq!(
             Some(&40),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Gnome, Ethnicity::Celtic))
         );
     }
@@ -286,17 +328,17 @@ mod test {
     fn only_species_test() {
         let demographics = demographics().only_species(&Species::Human);
 
-        assert_eq!(2, demographics.groups.len());
+        assert_eq!(2, demographics.groups().len());
         assert_eq!(
             Some(&60),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Human, Ethnicity::Arabic))
         );
         assert_eq!(
             Some(&40),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Human, Ethnicity::Celtic))
         );
     }
@@ -305,17 +347,17 @@ mod test {
     fn only_ethnicity_test() {
         let demographics = demographics().only_ethnicity(&Ethnicity::Celtic);
 
-        assert_eq!(2, demographics.groups.len());
+        assert_eq!(2, demographics.groups().len());
         assert_eq!(
             Some(&29),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Human, Ethnicity::Celtic))
         );
         assert_eq!(
             Some(&71),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Gnome, Ethnicity::Celtic))
         );
     }
@@ -325,11 +367,11 @@ mod test {
         let demographics =
             demographics().only_species_ethnicity(&Species::Gnome, &Ethnicity::Celtic);
 
-        assert_eq!(1, demographics.groups.len());
+        assert_eq!(1, demographics.groups().len());
         assert_eq!(
             Some(&100),
             demographics
-                .groups
+                .groups()
                 .get(&(Species::Gnome, Ethnicity::Celtic))
         );
     }
@@ -339,7 +381,7 @@ mod test {
         let mut groups = HashMap::new();
         groups.insert((Species::Human, Ethnicity::Arabic), 50);
         groups.insert((Species::Gnome, Ethnicity::Celtic), 50);
-        let demographics = Demographics { groups };
+        let demographics = Demographics::new(groups);
 
         let mut rng = StepRng::new(0, 0xDEADBEEF_DECAFBAD);
         let mut counts: HashMap<(Species, Ethnicity), u8> = HashMap::with_capacity(2);
@@ -354,11 +396,28 @@ mod test {
         assert_eq!(Some(&5), counts.get(&(Species::Gnome, Ethnicity::Celtic)));
     }
 
+    #[test]
+    fn demographics_serialize_deserialize_test() {
+        let demographics = demographics();
+
+        let value: Demographics = serde_json::from_str(
+            r#"{"groups":[["Gnome","Celtic",50],["Human","Celtic",20],["Human","Arabic",30]]}"#,
+        )
+        .unwrap();
+        assert_eq!(demographics, value);
+
+        // Ordering is not guaranteed in hash maps, so we have to fudge it with a round-trip.
+        assert_eq!(
+            demographics,
+            serde_json::from_str(serde_json::to_string(&demographics).unwrap().as_str()).unwrap(),
+        );
+    }
+
     fn demographics() -> Demographics {
         let mut groups = HashMap::with_capacity(3);
         groups.insert((Species::Human, Ethnicity::Arabic), 30);
         groups.insert((Species::Human, Ethnicity::Celtic), 20);
         groups.insert((Species::Gnome, Ethnicity::Celtic), 50);
-        Demographics { groups }
+        Demographics::new(groups)
     }
 }

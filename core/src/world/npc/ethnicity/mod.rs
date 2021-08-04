@@ -30,9 +30,10 @@ mod warforged;
 
 use super::{Age, Gender, Npc, Species};
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Ethnicity {
     // Humans - Faerun
     Calishite,
@@ -234,5 +235,13 @@ mod test {
         assert_eq!(Species::Halfling, Ethnicity::Halfling.default_species());
         assert_eq!(Species::Human, Ethnicity::Arabic.default_species());
         assert_eq!(Species::Tiefling, Ethnicity::Tiefling.default_species());
+    }
+
+    #[test]
+    fn serialize_deserialize_test() {
+        assert_eq!("\"Shou\"", serde_json::to_string(&Ethnicity::Shou).unwrap());
+
+        let value: Ethnicity = serde_json::from_str("\"Shou\"").unwrap();
+        assert_eq!(Ethnicity::Shou, value);
     }
 }

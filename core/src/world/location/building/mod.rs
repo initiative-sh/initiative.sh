@@ -13,9 +13,10 @@ mod warehouse;
 use super::{Demographics, Generate, LocationType};
 use initiative_macros::WordList;
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, PartialEq, WordList)]
+#[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
 pub enum BuildingType {
     Inn,
     Residence,
@@ -175,5 +176,16 @@ mod test {
 
         assert_eq!(assert_name, location.name);
         assert_eq!(assert_description, location.description);
+    }
+
+    #[test]
+    fn serialize_deserialize_test() {
+        assert_eq!(
+            "\"Inn\"",
+            serde_json::to_string(&BuildingType::Inn).unwrap(),
+        );
+
+        let value: BuildingType = serde_json::from_str("\"Inn\"").unwrap();
+        assert_eq!(BuildingType::Inn, value);
     }
 }

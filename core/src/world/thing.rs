@@ -1,7 +1,9 @@
 use super::{Field, Location, Npc, Region};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum Thing {
     Location(Location),
     Npc(Npc),
@@ -71,6 +73,9 @@ impl<'a> fmt::Display for DetailsView<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::world::npc::{Ethnicity, Species};
+    use crate::world::Demographics;
+    use std::collections::HashMap;
 
     #[test]
     fn name_test() {
@@ -107,5 +112,39 @@ mod test {
         assert!(matches!(Location::default().into(), Thing::Location(_)));
         assert!(matches!(Npc::default().into(), Thing::Npc(_)));
         assert!(matches!(Region::default().into(), Thing::Region(_)));
+    }
+
+    #[test]
+    fn serialize_deserialize_test_location() {
+        let thing = Thing::Location(Location::default());
+        assert_eq!(
+            r#"{"type":"Location","uuid":null,"parent_uuid":null,"subtype":null,"name":null,"description":null}"#,
+            serde_json::to_string(&thing).unwrap(),
+        );
+    }
+
+    #[test]
+    fn serialize_deserialize_test_npc() {
+        let thing = Thing::Npc(Npc::default());
+        assert_eq!(
+            r#"{"type":"Npc","uuid":null,"name":null,"gender":null,"age":null,"size":null,"species":null,"ethnicity":null}"#,
+            serde_json::to_string(&thing).unwrap(),
+        );
+    }
+
+    #[test]
+    fn serialize_deserialize_test_region() {
+        let mut demographic_groups: HashMap<(Species, Ethnicity), u64> = HashMap::new();
+        demographic_groups.insert((Species::Human, Ethnicity::Dwarvish), 7);
+        let region = Region {
+            demographics: Demographics::new(demographic_groups),
+            ..Default::default()
+        };
+        let thing = Thing::Region(region);
+
+        assert_eq!(
+            r#"{"type":"Region","uuid":null,"parent_uuid":null,"demographics":{"groups":[["Human","Dwarvish",7]]},"subtype":"World","name":null}"#,
+            serde_json::to_string(&thing).unwrap(),
+        );
     }
 }
