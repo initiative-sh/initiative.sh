@@ -12,8 +12,8 @@ fn motd() {
 }
 
 #[wasm_bindgen_test]
-fn autocomplete() {
-    let suggestions = app().autocomplete("h");
+async fn autocomplete() {
+    let suggestions = app().autocomplete("h").await;
     assert_eq!(
         [
             ("half-elf", "generate"),

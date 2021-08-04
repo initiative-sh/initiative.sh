@@ -1,3 +1,6 @@
+mod common;
+
+use common::*;
 use initiative_core::app;
 
 #[test]
@@ -17,10 +20,10 @@ fn autocomplete_command() {
         .iter()
         .map(|(a, b)| (a.to_string(), b.to_string()))
         .collect::<Vec<_>>(),
-        app().autocomplete("d"),
+        app_autocomplete("d"),
     );
 
-    assert_eq!(Vec::<(String, String)>::new(), app().autocomplete("potato"))
+    assert_eq!(Vec::<(String, String)>::new(), app_autocomplete("potato"))
 }
 
 #[test]
@@ -29,7 +32,7 @@ fn autocomplete_proper_noun() {
     let output = app.command("npc");
     let npc_name = output.lines().next().unwrap().trim_start_matches("# ");
     let query = npc_name.split_whitespace().next().unwrap();
-    let autocomplete_results = app.autocomplete(query);
+    let autocomplete_results = autocomplete(&app, query);
 
     assert!(
         autocomplete_results.contains(&(npc_name.to_string(), "load".to_string())),

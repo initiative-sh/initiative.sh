@@ -13,7 +13,7 @@ const outputElement = document.getElementById("output");
 
 const autoCompleteJS = new autoComplete({
   data: {
-    src: async (query) => wasm.autocomplete(query).map(a => {
+    src: async (query) => (await wasm.autocomplete(query)).map(a => {
       return {
         suggestion: a[0],
         description: a[1],

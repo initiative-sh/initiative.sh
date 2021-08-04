@@ -14,8 +14,12 @@ pub fn command(input: &str) -> String {
 }
 
 #[wasm_bindgen]
-pub fn autocomplete(input: &str) -> JsValue {
-    JsValue::from_serde(&app().autocomplete(input)).unwrap()
+pub async fn autocomplete(input: JsValue) -> JsValue {
+    if let Some(input) = input.as_string() {
+        JsValue::from_serde(&app().autocomplete(&input).await).unwrap()
+    } else {
+        JsValue::undefined()
+    }
 }
 
 static mut APP: Option<core::app::App> = None;
