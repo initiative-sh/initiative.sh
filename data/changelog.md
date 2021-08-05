@@ -1,3 +1,5 @@
+* **Bug:** Fixed the page not scrolling predictably. Scrolling behaviour should
+  also respect browsers configured to prefer reduced motion.
 * **Enhancement:** Added equipment, all of the essentials like `Dagger` and
   `Bagpipes`, as well as categories like `weapons` and `ships`.
 * **Enhancement:** New command: `spells`.
