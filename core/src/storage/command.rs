@@ -1,5 +1,6 @@
 use super::repository;
 use crate::app::{AppMeta, Runnable};
+use async_trait::async_trait;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StorageCommand {
@@ -7,14 +8,17 @@ pub enum StorageCommand {
     Save { name: String },
 }
 
+#[async_trait(?Send)]
 impl Runnable for StorageCommand {
-    fn run(&self, app_meta: &mut AppMeta) -> String {
+    async fn run(&self, app_meta: &mut AppMeta) -> String {
         match self {
             Self::Load { name } => repository::load(app_meta, name).map_or_else(
                 || format!("No matches for \"{}\"", name),
                 |thing| format!("{}", thing.display_details()),
             ),
-            Self::Save { name } => repository::save(app_meta, name).map_or_else(|e| e, |s| s),
+            Self::Save { name } => repository::save(app_meta, name)
+                .await
+                .map_or_else(|e| e, |s| s),
         }
     }
 

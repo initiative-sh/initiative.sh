@@ -1,7 +1,9 @@
 use crate::app::AppMeta;
+use async_trait::async_trait;
 
+#[async_trait(?Send)]
 pub trait Runnable: Sized {
-    fn run(&self, app_meta: &mut AppMeta) -> String;
+    async fn run(&self, app_meta: &mut AppMeta) -> String;
 
     fn summarize(&self) -> &str;
 

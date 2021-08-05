@@ -2,7 +2,7 @@ use crate::app::AppMeta;
 use crate::world::Thing;
 use uuid::Uuid;
 
-pub fn save(app_meta: &mut AppMeta, name: &str) -> Result<String, String> {
+pub async fn save(app_meta: &mut AppMeta, name: &str) -> Result<String, String> {
     let lowercase_name = name.to_lowercase();
     if let Some(mut thing) = app_meta.take_recent(|t| {
         t.name()
@@ -11,7 +11,7 @@ pub fn save(app_meta: &mut AppMeta, name: &str) -> Result<String, String> {
     }) {
         thing.set_uuid(Uuid::new_v4());
         let result = format!("Saving {}", thing.display_summary());
-        app_meta.data_store.save(&thing);
+        app_meta.data_store.save(&thing).await;
         Ok(result)
     } else {
         Err(format!("No matches for \"{}\"", name))

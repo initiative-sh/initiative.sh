@@ -1,4 +1,5 @@
 use crate::app::{autocomplete_phrase, AppMeta, Runnable};
+use async_trait::async_trait;
 use initiative_macros::{changelog, WordList};
 
 #[derive(Clone, Debug, PartialEq, WordList)]
@@ -9,8 +10,9 @@ pub enum AppCommand {
     Help,
 }
 
+#[async_trait(?Send)]
 impl Runnable for AppCommand {
-    fn run(&self, app_meta: &mut AppMeta) -> String {
+    async fn run(&self, app_meta: &mut AppMeta) -> String {
         match self {
             Self::About => include_str!("../../../../data/about.md")
                 .trim_end()

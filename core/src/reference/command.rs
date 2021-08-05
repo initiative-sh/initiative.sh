@@ -1,5 +1,6 @@
 use super::{Item, ItemCategory, Spell};
 use crate::app::{autocomplete_phrase, AppMeta, Runnable};
+use async_trait::async_trait;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ReferenceCommand {
@@ -10,8 +11,9 @@ pub enum ReferenceCommand {
     OpenGameLicense,
 }
 
+#[async_trait(?Send)]
 impl Runnable for ReferenceCommand {
-    fn run(&self, _app_meta: &mut AppMeta) -> String {
+    async fn run(&self, _app_meta: &mut AppMeta) -> String {
         let (output, name) = match self {
             Self::Spell(spell) => (format!("{}", spell), spell.get_name()),
             Self::Spells => (Spell::get_list().to_string(), "This listing"),

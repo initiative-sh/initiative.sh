@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use initiative_core::{app, App, DataStore, NullDataStore, Thing};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -35,8 +36,9 @@ impl SyncApp {
     }
 }
 
+#[async_trait(?Send)]
 impl DataStore for MemoryDataStore {
-    fn save(&mut self, thing: &Thing) {
+    async fn save(&mut self, thing: &Thing) {
         let mut things = self.things.borrow_mut();
         things.push(thing.clone());
     }

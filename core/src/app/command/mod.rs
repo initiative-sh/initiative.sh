@@ -8,6 +8,7 @@ use super::AppMeta;
 use crate::reference::ReferenceCommand;
 use crate::storage::StorageCommand;
 use crate::world::WorldCommand;
+use async_trait::async_trait;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
@@ -17,13 +18,14 @@ pub enum Command {
     World(WorldCommand),
 }
 
+#[async_trait(?Send)]
 impl Runnable for Command {
-    fn run(&self, app_meta: &mut AppMeta) -> String {
+    async fn run(&self, app_meta: &mut AppMeta) -> String {
         match self {
-            Self::App(c) => c.run(app_meta),
-            Self::Reference(c) => c.run(app_meta),
-            Self::Storage(c) => c.run(app_meta),
-            Self::World(c) => c.run(app_meta),
+            Self::App(c) => c.run(app_meta).await,
+            Self::Reference(c) => c.run(app_meta).await,
+            Self::Storage(c) => c.run(app_meta).await,
+            Self::World(c) => c.run(app_meta).await,
         }
     }
 

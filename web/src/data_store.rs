@@ -1,12 +1,14 @@
+use async_trait::async_trait;
 use initiative_core::Thing;
 use wasm_bindgen::prelude::*;
 
 #[derive(Default)]
 pub struct DataStore;
 
+#[async_trait(?Send)]
 impl initiative_core::DataStore for DataStore {
-    fn save(&mut self, thing: &Thing) {
-        save(JsValue::from_serde(thing).unwrap());
+    async fn save(&mut self, thing: &Thing) {
+        save(JsValue::from_serde(thing).unwrap()).await;
     }
 
     fn get_all(&self) -> Vec<Thing> {
@@ -16,7 +18,7 @@ impl initiative_core::DataStore for DataStore {
 
 #[wasm_bindgen(module = "/www/src/database.js")]
 extern "C" {
-    fn save(thing: JsValue);
+    async fn save(thing: JsValue);
 
     fn get_all() -> JsValue;
 }
