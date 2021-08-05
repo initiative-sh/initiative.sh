@@ -11,6 +11,11 @@ const promptFormElement = document.getElementById("prompt-form");
 const promptElement = document.getElementById("prompt");
 const outputElement = document.getElementById("output");
 
+const reducedMotion = (() => {
+  const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  return mediaQuery && mediaQuery.matches;
+})();
+
 const autoCompleteJS = new autoComplete({
   data: {
     src: async (query) => (await wasm.autocomplete(query)).map(a => {
@@ -52,7 +57,11 @@ const output = (text) => {
 
   promptElement.value = "";
   autoCompleteJS.close();
-  window.scrollBy(0, window.innerHeight);
+  window.scroll({
+    left: 0,
+    top: document.body.clientHeight,
+    behavior: reducedMotion ? "auto" : "smooth",
+  });
 };
 
 promptFormElement.addEventListener("submit", async (event) => {
