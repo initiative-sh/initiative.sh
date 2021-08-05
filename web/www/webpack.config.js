@@ -40,6 +40,10 @@ module.exports = {
     new CopyWebpackPlugin({
       patterns: [
         {
+          from: path.resolve(__dirname, "node_modules/source-code-pro"),
+          to: path.resolve(__dirname, "dist/source-code-pro"),
+        },
+        {
           from: path.resolve(__dirname, "public/*.css"),
           to: path.resolve(__dirname, "dist/[name].[contenthash][ext]"),
         },

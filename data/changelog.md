@@ -1,3 +1,6 @@
+* **Enhancement:** Adopted Source Code Pro for the interface font. Most
+  importantly, the common font ensures that the blocks in the logo are always
+  the same width.
 * **Bug:** Fixed the page not scrolling predictably. Scrolling behaviour should
   also respect browsers configured to prefer reduced motion.
 * **Enhancement:** Added equipment, all of the essentials like `Dagger` and
