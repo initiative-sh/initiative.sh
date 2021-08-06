@@ -8,10 +8,10 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     let changelog = include_str!("../../data/changelog.md");
     let token_tree: TokenTree = Literal::string(
         changelog
-            .split_inclusive('\n')
+            .split_inclusive("\n*")
             .take(10)
             .collect::<String>()
-            .trim_end(),
+            .trim_end_matches(&['\n', '*'][..]),
     )
     .into();
 

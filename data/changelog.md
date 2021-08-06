@@ -1,3 +1,5 @@
+* **Bug:** Fixed `changelog` output being truncated and not always displaying 10
+  entries as intended.
 * **Enhancement:** Adopted Source Code Pro for the interface font. Most
   importantly, the common font ensures that the blocks in the logo are always
   the same width.
