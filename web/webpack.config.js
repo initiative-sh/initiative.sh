@@ -3,7 +3,7 @@ const CopyWebpackPlugin = require("copy-webpack-plugin");
 const path = require("path");
 
 module.exports = {
-  entry: "./src/index.js",
+  entry: "./js/index.js",
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "[name].[contenthash].js",
@@ -21,7 +21,7 @@ module.exports = {
     */
   plugins: [
     new HtmlWebpackPlugin({
-      template: "src/index.html",
+      template: "js/index.html",
       templateParameters: (compilation, files, tags, options) => {
         compilation.getAssets()
           .map(asset => asset.name)
@@ -44,7 +44,7 @@ module.exports = {
           to: path.resolve(__dirname, "dist/source-code-pro"),
         },
         {
-          from: path.resolve(__dirname, "public/*.css"),
+          from: path.resolve(__dirname, "static/*.css"),
           to: path.resolve(__dirname, "dist/[name].[contenthash][ext]"),
         },
       ],
@@ -54,6 +54,6 @@ module.exports = {
     asyncWebAssembly: true,
   },
   devServer: {
-    contentBase: path.join(__dirname, "public"),
+    contentBase: path.join(__dirname, "static"),
   },
 };

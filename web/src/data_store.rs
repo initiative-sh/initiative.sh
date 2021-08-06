@@ -16,7 +16,7 @@ impl initiative_core::DataStore for DataStore {
     }
 }
 
-#[wasm_bindgen(module = "/www/src/database.js")]
+#[wasm_bindgen(module = "/js/database.js")]
 extern "C" {
     async fn save(thing: JsValue);
 

@@ -17,6 +17,5 @@ if ! command -v wasm-pack; then
 fi
 
 wasm-pack build --release
-cd www || exit
 npm install
 npm run build
