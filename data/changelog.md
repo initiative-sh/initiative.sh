@@ -1,3 +1,5 @@
+* **Bug:** Fix fallback font for browsers that don't support or haven't yet
+  loaded the default Source Code Pro font.
 * **Bug:** Fixed `changelog` output being truncated and not always displaying 10
   entries as intended.
 * **Enhancement:** Adopted Source Code Pro for the interface font. Most
