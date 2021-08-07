@@ -52,19 +52,13 @@ impl Runnable for StorageCommand {
         {
             Vec::new()
         } else {
-            let mut suggestions: Vec<String> = app_meta
-                .recent()
-                .iter()
+            app_meta
+                .cache
+                .values()
+                .chain(app_meta.recent().iter())
                 .filter_map(|thing| thing.name().value())
-                .filter(|word| word.starts_with(input))
-                .cloned()
-                .collect();
-
-            suggestions.sort();
-            suggestions.truncate(10);
-
-            suggestions
-                .iter()
+                .filter(|name| name.starts_with(input))
+                .take(10)
                 .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), app_meta)))
                 .map(|(s, c)| (s.clone(), c))
                 .collect()
@@ -160,15 +154,15 @@ mod test {
         assert_eq!(
             vec![
                 (
-                    "Potato & Potato, Esq.".to_string(),
-                    StorageCommand::Load {
-                        name: "Potato & Potato, Esq.".to_string(),
-                    }
-                ),
-                (
                     "Potato Johnson".to_string(),
                     StorageCommand::Load {
                         name: "Potato Johnson".to_string(),
+                    }
+                ),
+                (
+                    "Potato & Potato, Esq.".to_string(),
+                    StorageCommand::Load {
+                        name: "Potato & Potato, Esq.".to_string(),
                     }
                 ),
             ],
