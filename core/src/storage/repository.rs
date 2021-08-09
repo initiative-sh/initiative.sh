@@ -31,3 +31,17 @@ pub fn load<'a>(app_meta: &'a AppMeta, name: &str) -> Option<&'a Thing> {
                 .map_or(false, |s| s.to_lowercase() == lowercase_name)
         })
 }
+
+pub async fn init_cache(app_meta: &mut AppMeta) {
+    let mut things = app_meta.data_store.get_all().await;
+    app_meta.cache = things
+        .drain(..)
+        .filter_map(|thing| {
+            if let Some(&uuid) = thing.uuid() {
+                Some((uuid, thing))
+            } else {
+                None
+            }
+        })
+        .collect();
+}

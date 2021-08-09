@@ -6,8 +6,8 @@ use initiative_core as core;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub fn motd() -> String {
-    app().motd().to_string()
+pub async fn init() -> String {
+    app().init().await.to_string()
 }
 
 #[wasm_bindgen]

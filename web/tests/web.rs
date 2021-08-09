@@ -6,8 +6,8 @@ use wasm_bindgen_test::*;
 wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
-fn motd() {
-    let motd = app().motd();
+fn init() {
+    let motd = app().init();
     assert!(motd.lines().count() > 1, "{}", motd);
 }
 

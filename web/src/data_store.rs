@@ -11,8 +11,8 @@ impl initiative_core::DataStore for DataStore {
         save(JsValue::from_serde(thing).unwrap()).await;
     }
 
-    fn get_all(&self) -> Vec<Thing> {
-        todo!();
+    async fn get_all(&self) -> Vec<Thing> {
+        get_all().await.into_serde().unwrap()
     }
 }
 
@@ -20,5 +20,5 @@ impl initiative_core::DataStore for DataStore {
 extern "C" {
     async fn save(thing: JsValue);
 
-    fn get_all() -> JsValue;
+    async fn get_all() -> JsValue;
 }

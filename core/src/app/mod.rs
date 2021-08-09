@@ -4,6 +4,7 @@ pub use meta::AppMeta;
 mod command;
 mod meta;
 
+use crate::storage::repository;
 use initiative_macros::motd;
 
 pub struct App {
@@ -15,7 +16,8 @@ impl App {
         App { meta }
     }
 
-    pub fn motd(&self) -> &'static str {
+    pub async fn init(&mut self) -> &'static str {
+        repository::init_cache(&mut self.meta).await;
         motd!()
     }
 

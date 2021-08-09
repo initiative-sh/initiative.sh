@@ -10,6 +10,6 @@ const save = async (thing) => {
   await dexie.things.put(thing);
 }
 
-const get_all = () => console.log(uuid);
+const get_all = async () => await dexie.things.toArray();
 
 export { save, get_all };

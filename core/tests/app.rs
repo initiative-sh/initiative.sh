@@ -70,8 +70,8 @@ fn help() {
 }
 
 #[test]
-fn motd() {
-    let output = sync_app().motd();
+fn init() {
+    let output = sync_app().init();
     assert!(output.contains("initiative.sh"), "{}", output);
     assert!(output.contains("changelog"), "{}", output);
     assert!(output.contains("\n* "), "{}", output);

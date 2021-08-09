@@ -23,8 +23,8 @@ pub struct MemoryDataStore {
 
 #[allow(dead_code)]
 impl SyncApp {
-    pub fn motd(&self) -> &'static str {
-        self.0.motd()
+    pub fn init(&mut self) -> &'static str {
+        block_on(self.0.init())
     }
 
     pub fn command(&mut self, input: &str) -> String {
@@ -43,7 +43,7 @@ impl DataStore for MemoryDataStore {
         things.push(thing.clone());
     }
 
-    fn get_all(&self) -> Vec<Thing> {
+    async fn get_all(&self) -> Vec<Thing> {
         self.things.borrow().to_vec()
     }
 }
