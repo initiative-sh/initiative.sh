@@ -4,14 +4,16 @@ use crate::world;
 use rand::prelude::*;
 use std::collections::HashMap;
 use std::fmt;
+use uuid::Uuid;
 
 const RECENT_MAX_LEN: usize = 100;
 
 pub struct AppMeta {
-    pub demographics: world::Demographics,
+    pub cache: HashMap<Uuid, world::Thing>,
     pub command_aliases: HashMap<String, Command>,
-    pub rng: SmallRng,
     pub data_store: Box<dyn DataStore>,
+    pub demographics: world::Demographics,
+    pub rng: SmallRng,
 
     recent: Vec<world::Thing>,
 }
@@ -19,6 +21,7 @@ pub struct AppMeta {
 impl AppMeta {
     pub fn new(data_store: impl DataStore + 'static) -> Self {
         Self {
+            cache: HashMap::default(),
             command_aliases: HashMap::default(),
             data_store: Box::new(data_store),
             demographics: world::Demographics::default(),
@@ -48,6 +51,22 @@ impl AppMeta {
         self.recent.push(thing);
     }
 
+    pub fn take_recent<F>(&mut self, f: F) -> Option<world::Thing>
+    where
+        F: Fn(&world::Thing) -> bool,
+    {
+        if let Some(index) =
+            self.recent
+                .iter()
+                .enumerate()
+                .find_map(|(i, t)| if f(t) { Some(i) } else { None })
+        {
+            Some(self.recent.remove(index))
+        } else {
+            None
+        }
+    }
+
     pub fn recent(&self) -> &[world::Thing] {
         self.recent.as_ref()
     }
@@ -57,8 +76,8 @@ impl fmt::Debug for AppMeta {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "AppMeta {{ demographics: {:?}, command_aliases: {:?}, recent: {:?} }}",
-            self.demographics, self.command_aliases, self.recent,
+            "AppMeta {{ cache: {:?}, command_aliases: {:?}, demographics: {:?}, recent: {:?} }}",
+            self.cache, self.demographics, self.command_aliases, self.recent,
         )
     }
 }
@@ -207,7 +226,7 @@ mod test {
         app_meta.demographics = Demographics::new(HashMap::new().into());
 
         assert_eq!(
-            "AppMeta { demographics: Demographics { groups: GroupMapWrapper({}) }, command_aliases: {}, recent: [] }",
+            "AppMeta { cache: {}, command_aliases: Demographics { groups: GroupMapWrapper({}) }, demographics: {}, recent: [] }",
             format!("{:?}", app_meta),
         );
     }

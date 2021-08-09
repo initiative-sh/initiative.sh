@@ -15,6 +15,10 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
             pub fn new() -> Self {
                 Self(uuid::Uuid::new_v4())
             }
+
+            pub fn as_ref(&self) -> &uuid::Uuid {
+                &self.0
+            }
         }
 
         impl std::fmt::Display for Uuid {

@@ -87,6 +87,8 @@ outputElement.addEventListener("click", async (event) => {
   }
 });
 
-output(wasm.motd());
+wasm.init()
+  .then((motd) => output(motd))
+  .catch((err) => console.log(err));
 
 promptElement.focus();

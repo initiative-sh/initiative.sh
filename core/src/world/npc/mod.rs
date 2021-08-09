@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 initiative_macros::uuid!();
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct Npc {
     pub uuid: Option<Uuid>,

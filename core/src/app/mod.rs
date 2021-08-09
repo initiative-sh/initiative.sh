@@ -4,6 +4,7 @@ pub use meta::AppMeta;
 mod command;
 mod meta;
 
+use crate::storage::repository;
 use initiative_macros::motd;
 
 pub struct App {
@@ -15,15 +16,16 @@ impl App {
         App { meta }
     }
 
-    pub fn motd(&self) -> &'static str {
+    pub async fn init(&mut self) -> &'static str {
+        repository::init_cache(&mut self.meta).await;
         motd!()
     }
 
     pub async fn command(&mut self, input: &str) -> String {
         if let Some(command) = self.meta.command_aliases.get(input).cloned() {
-            command.run(&mut self.meta)
+            command.run(&mut self.meta).await
         } else if let Some(command) = Command::parse_input(input, &self.meta).first() {
-            command.run(&mut self.meta)
+            command.run(&mut self.meta).await
         } else {
             format!("Unknown command: \"{}\"", input)
         }

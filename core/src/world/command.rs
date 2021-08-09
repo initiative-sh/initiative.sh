@@ -3,6 +3,7 @@ use super::npc;
 use crate::app::{autocomplete_phrase, AppMeta, Runnable};
 use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
+use async_trait::async_trait;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum WorldCommand {
@@ -11,8 +12,9 @@ pub enum WorldCommand {
     //Region(RawCommand),
 }
 
+#[async_trait(?Send)]
 impl Runnable for WorldCommand {
-    fn run(&self, app_meta: &mut AppMeta) -> String {
+    async fn run(&self, app_meta: &mut AppMeta) -> String {
         match self {
             Self::Location { location_type } => location::command(location_type, app_meta),
             Self::Npc { species } => npc::command(species, app_meta),

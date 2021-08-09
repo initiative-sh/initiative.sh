@@ -32,18 +32,18 @@ jobs:
       - name: Run unit tests
         run: cargo test --workspace --verbose
 
-  browser-wasm-tests:
-    name: Browser WASM tests (Firefox and Chrome)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: recursive
-      - name: Install wasm-pack
-        run: npm install -g wasm-pack
-      - name: Run Firefox WASM tests
-        run: wasm-pack test --firefox --headless
-        working-directory: web
-      - name: Run Chrome WASM tests
-        run: wasm-pack test --chrome --headless
-        working-directory: web
+#  browser-wasm-tests:
+#    name: Browser WASM tests (Firefox and Chrome)
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#        with:
+#          submodules: recursive
+#      - name: Install wasm-pack
+#        run: npm install -g wasm-pack
+#      - name: Run Firefox WASM tests
+#        run: wasm-pack test --firefox --headless
+#        working-directory: web
+#      - name: Run Chrome WASM tests
+#        run: wasm-pack test --chrome --headless
+#        working-directory: web
