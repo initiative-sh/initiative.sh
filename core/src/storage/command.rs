@@ -58,11 +58,18 @@ impl Runnable for StorageCommand {
                 .cache
                 .values()
                 .chain(app_meta.recent().iter())
-                .filter_map(|thing| thing.name().value())
-                .filter(|name| name.starts_with(input))
+                .filter(|thing| {
+                    thing
+                        .name()
+                        .value()
+                        .map_or(false, |name| name.starts_with(input))
+                })
                 .take(10)
-                .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), app_meta)))
-                .map(|(s, c)| (s.clone(), c.summarize().to_string()))
+                .flat_map(|thing| {
+                    std::iter::repeat(thing)
+                        .zip(Self::parse_input(thing.name().value().unwrap(), app_meta))
+                })
+                .map(|(s, c)| (s.name().to_string(), c.summarize().to_string()))
                 .collect()
         }
     }

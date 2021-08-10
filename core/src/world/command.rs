@@ -15,7 +15,17 @@ pub enum WorldCommand {
 impl WorldCommand {
     fn summarize(&self) -> &str {
         match self {
-            Self::Location { .. } | Self::Npc { .. } => "generate",
+            Self::Npc { species } => {
+                if species.is_some() {
+                    "generate NPC species"
+                } else {
+                    "generate NPC"
+                }
+            }
+            Self::Location { location_type } => match location_type {
+                LocationType::Building(None) => "generate building",
+                LocationType::Building(Some(_)) => "generate building type",
+            },
         }
     }
 }
@@ -71,14 +81,33 @@ mod test {
     #[test]
     fn summarize_test() {
         assert_eq!(
-            "generate",
+            "generate building",
             WorldCommand::Location {
                 location_type: LocationType::Building(None),
             }
             .summarize(),
         );
 
-        assert_eq!("generate", WorldCommand::Npc { species: None }.summarize());
+        assert_eq!(
+            "generate building type",
+            WorldCommand::Location {
+                location_type: LocationType::Building(Some(BuildingType::Inn)),
+            }
+            .summarize(),
+        );
+
+        assert_eq!(
+            "generate NPC",
+            WorldCommand::Npc { species: None }.summarize(),
+        );
+
+        assert_eq!(
+            "generate NPC species",
+            WorldCommand::Npc {
+                species: Some(Species::Human)
+            }
+            .summarize(),
+        );
     }
 
     #[test]
@@ -115,24 +144,24 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         vec![
-            ("building", "generate"),
-            ("npc", "generate"),
+            ("building", "generate building"),
+            ("npc", "generate NPC"),
             // Species
-            ("dragonborn", "generate"),
-            ("dwarf", "generate"),
-            ("elf", "generate"),
-            ("gnome", "generate"),
-            ("half-elf", "generate"),
-            ("half-orc", "generate"),
-            ("halfling", "generate"),
-            ("human", "generate"),
-            ("tiefling", "generate"),
+            ("dragonborn", "generate NPC species"),
+            ("dwarf", "generate NPC species"),
+            ("elf", "generate NPC species"),
+            ("gnome", "generate NPC species"),
+            ("half-elf", "generate NPC species"),
+            ("half-orc", "generate NPC species"),
+            ("halfling", "generate NPC species"),
+            ("human", "generate NPC species"),
+            ("tiefling", "generate NPC species"),
             // BuildingType
-            ("inn", "generate"),
-            ("residence", "generate"),
-            ("shop", "generate"),
-            ("temple", "generate"),
-            ("warehouse", "generate"),
+            ("inn", "generate building type"),
+            ("residence", "generate building type"),
+            ("shop", "generate building type"),
+            ("temple", "generate building type"),
+            ("warehouse", "generate building type"),
         ]
         .drain(..)
         .for_each(|(word, summary)| {

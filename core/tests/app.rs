@@ -12,9 +12,9 @@ fn about() {
 fn autocomplete_command() {
     assert_eq!(
         [
-            ("dragonborn", "generate"),
+            ("dragonborn", "generate NPC species"),
             ("druidic foci", "SRD item category"),
-            ("dwarf", "generate"),
+            ("dwarf", "generate NPC species"),
         ]
         .iter()
         .map(|(a, b)| (a.to_string(), b.to_string()))
