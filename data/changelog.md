@@ -1,3 +1,6 @@
+* **Enhancement:** Temporary commands (those that are only valid in the current
+  context) now have a ~dashed underline~, distinguishing them from permanent
+  commands (that are always valid) like `help`.
 * **Enhancement:** Autocomplete suggestions now provide more detail about the
   command being suggested.
 * **New:** You can now save generated content with eg. `save Potato Johnson`.

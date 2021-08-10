@@ -114,6 +114,10 @@ body {
     text-decoration: underline;
 }
 
+#output code.temp-link {
+    text-decoration-style: dashed;
+}
+
 #prompt-form {
     margin: 0.2rem 0.5rem 0.5rem;
     position: relative;

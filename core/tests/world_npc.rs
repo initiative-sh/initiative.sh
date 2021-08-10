@@ -48,16 +48,16 @@ fn generated_content_is_persisted() {
     // **Size:** 5'7", 112 lbs (medium)
     //
     // *Alternatives:* \
-    // `0` Mokosh (middle-aged half-elf, she/her)\
-    // `1` Jaya (middle-aged human, she/her)\
-    // `2` Harsha (half-elf infant, he/him)\
-    // `3` Lucan Amakiir (elderly half-elf, he/him)\
-    // `4` Germana (middle-aged human, she/her)\
-    // `5` Akachi (geriatric human, she/her)\
-    // `6` Callie Bigheart (middle-aged halfling, she/her)\
-    // `7` Pratima (young adult human, she/her)\
-    // `8` Laelia (human infant, she/her)\
-    // `9` Pierre (adult human, he/him)
+    // ~0~ `Mokosh` (middle-aged half-elf, she/her)\
+    // ~1~ `Jaya` (middle-aged human, she/her)\
+    // ~2~ `Harsha` (half-elf infant, he/him)\
+    // ~3~ `Lucan Amakiir` (elderly half-elf, he/him)\
+    // ~4~ `Germana` (middle-aged human, she/her)\
+    // ~5~ `Akachi` (geriatric human, she/her)\
+    // ~6~ `Callie Bigheart` (middle-aged halfling, she/her)\
+    // ~7~ `Pratima` (young adult human, she/her)\
+    // ~8~ `Laelia` (human infant, she/her)\
+    // ~9~ `Pierre` (adult human, he/him)
 
     // Ensure that the primary suggestion matches the generated content.
     let name = generated_output
@@ -87,10 +87,10 @@ fn generated_content_is_persisted() {
         10,
         generated_output
             .lines()
-            .filter(|line| line.starts_with('`'))
+            .filter(|line| line.starts_with('~'))
             .map(|s| {
                 if let Some(pos) = s.find('(') {
-                    let name = &s[4..(pos - 1)];
+                    let name = &s[5..(pos - 2)];
                     assert_eq!(
                         Some(format!("# {}", name).as_str()),
                         app.command(name).lines().next(),
@@ -118,13 +118,13 @@ fn numeric_aliases_exist_for_npcs() {
         10,
         generated_output
             .lines()
-            .filter(|line| line.starts_with('`'))
+            .filter(|line| line.starts_with('~'))
             .map(|s| {
                 if let Some(pos) = s.find('(') {
                     let digit = &s[1..2];
                     let digit_output = app.command(digit);
 
-                    let name = &s[4..(pos - 1)];
+                    let name = &s[5..(pos - 2)];
                     let name_output = app.command(name);
 
                     assert_eq!(

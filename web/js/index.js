@@ -16,6 +16,12 @@ const reducedMotion = (() => {
   return mediaQuery && mediaQuery.matches;
 })();
 
+marked.use({
+  renderer: {
+    del: (text) => `<code class="temp-link">${text}</code>`,
+  },
+});
+
 const autoCompleteJS = new autoComplete({
   data: {
     src: async (query) => (await wasm.autocomplete(query)).map(a => {

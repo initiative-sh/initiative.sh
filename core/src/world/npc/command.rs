@@ -19,7 +19,7 @@ pub fn command(species: &Option<Species>, app_meta: &mut AppMeta) -> String {
     let recent = (0..10)
         .map(|i| {
             let alt = Npc::generate(&mut app_meta.rng, &demographics);
-            output.push_str(&format!("\\\n`{}` {}", i, alt.display_summary()));
+            output.push_str(&format!("\\\n~{}~ {}", i, alt.display_summary()));
             app_meta.command_aliases.insert(
                 i.to_string(),
                 StorageCommand::Load {
