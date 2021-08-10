@@ -29,15 +29,6 @@ impl Runnable for Command {
         }
     }
 
-    fn summarize(&self) -> &str {
-        match self {
-            Self::App(c) => c.summarize(),
-            Self::Reference(c) => c.summarize(),
-            Self::Storage(c) => c.summarize(),
-            Self::World(c) => c.summarize(),
-        }
-    }
-
     fn parse_input(input: &str, app_meta: &AppMeta) -> Vec<Self> {
         std::iter::empty()
             .chain(
@@ -106,32 +97,6 @@ impl From<WorldCommand> for Command {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
-
-    #[test]
-    fn summarize_test() {
-        assert_eq!(
-            "about initiative.sh",
-            Command::App(AppCommand::About).summarize(),
-        );
-
-        assert_eq!(
-            "SRD license",
-            Command::Reference(ReferenceCommand::OpenGameLicense).summarize(),
-        );
-
-        assert_eq!(
-            "load",
-            Command::Storage(StorageCommand::Load {
-                name: "Gandalf the Grey".to_string(),
-            })
-            .summarize(),
-        );
-
-        assert_eq!(
-            "generate",
-            Command::World(WorldCommand::Npc { species: None }).summarize(),
-        );
-    }
 
     #[test]
     fn parse_input_test() {

@@ -12,18 +12,20 @@ pub enum WorldCommand {
     //Region(RawCommand),
 }
 
+impl WorldCommand {
+    fn summarize(&self) -> &str {
+        match self {
+            Self::Location { .. } | Self::Npc { .. } => "generate",
+        }
+    }
+}
+
 #[async_trait(?Send)]
 impl Runnable for WorldCommand {
     async fn run(&self, app_meta: &mut AppMeta) -> String {
         match self {
             Self::Location { location_type } => location::command(location_type, app_meta),
             Self::Npc { species } => npc::command(species, app_meta),
-        }
-    }
-
-    fn summarize(&self) -> &str {
-        match self {
-            Self::Location { .. } | Self::Npc { .. } => "generate",
         }
     }
 

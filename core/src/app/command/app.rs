@@ -10,6 +10,17 @@ pub enum AppCommand {
     Help,
 }
 
+impl AppCommand {
+    fn summarize(&self) -> &str {
+        match self {
+            Self::About => "about initiative.sh",
+            Self::Changelog => "show latest updates",
+            Self::Debug => "",
+            Self::Help => "how to use initiative.sh",
+        }
+    }
+}
+
 #[async_trait(?Send)]
 impl Runnable for AppCommand {
     async fn run(&self, app_meta: &mut AppMeta) -> String {
@@ -22,15 +33,6 @@ impl Runnable for AppCommand {
             Self::Help => include_str!("../../../../data/help.md")
                 .trim_end()
                 .to_string(),
-        }
-    }
-
-    fn summarize(&self) -> &str {
-        match self {
-            Self::About => "about initiative.sh",
-            Self::Changelog => "show latest updates",
-            Self::Debug => "",
-            Self::Help => "how to use initiative.sh",
         }
     }
 

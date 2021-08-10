@@ -11,6 +11,18 @@ pub enum ReferenceCommand {
     OpenGameLicense,
 }
 
+impl ReferenceCommand {
+    fn summarize(&self) -> &str {
+        match self {
+            Self::Spell(_) => "SRD spell",
+            Self::Spells => "SRD index",
+            Self::Item(_) => "SRD item",
+            Self::ItemCategory(_) => "SRD item category",
+            Self::OpenGameLicense => "SRD license",
+        }
+    }
+}
+
 #[async_trait(?Send)]
 impl Runnable for ReferenceCommand {
     async fn run(&self, _app_meta: &mut AppMeta) -> String {
@@ -30,16 +42,6 @@ impl Runnable for ReferenceCommand {
             "{}\n\n*{} is Open Game Content subject to the `Open Game License`.*",
             output, name
         )
-    }
-
-    fn summarize(&self) -> &str {
-        match self {
-            Self::Spell(_) => "SRD spell",
-            Self::Spells => "SRD index",
-            Self::Item(_) => "SRD item",
-            Self::ItemCategory(_) => "SRD item category",
-            Self::OpenGameLicense => "SRD license",
-        }
     }
 
     fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {

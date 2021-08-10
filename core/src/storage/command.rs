@@ -8,6 +8,15 @@ pub enum StorageCommand {
     Save { name: String },
 }
 
+impl StorageCommand {
+    fn summarize(&self) -> &str {
+        match self {
+            Self::Load { .. } => "load",
+            Self::Save { .. } => "save to journal",
+        }
+    }
+}
+
 #[async_trait(?Send)]
 impl Runnable for StorageCommand {
     async fn run(&self, app_meta: &mut AppMeta) -> String {
@@ -19,13 +28,6 @@ impl Runnable for StorageCommand {
             Self::Save { name } => repository::save(app_meta, name)
                 .await
                 .map_or_else(|e| e, |s| s),
-        }
-    }
-
-    fn summarize(&self) -> &str {
-        match self {
-            Self::Load { .. } => "load",
-            Self::Save { .. } => "save to journal",
         }
     }
 
