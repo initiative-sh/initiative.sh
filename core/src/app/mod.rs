@@ -33,8 +33,5 @@ impl App {
 
     pub async fn autocomplete(&self, input: &str) -> Vec<(String, String)> {
         Command::autocomplete(input, &self.meta)
-            .drain(..)
-            .map(|(s, c)| (s, c.summarize().to_string()))
-            .collect()
     }
 }

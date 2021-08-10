@@ -63,28 +63,12 @@ impl Runnable for Command {
             .collect()
     }
 
-    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, Self)> {
-        let mut suggestions: Vec<(String, Command)> = std::iter::empty()
-            .chain(
-                AppCommand::autocomplete(input, app_meta)
-                    .drain(..)
-                    .map(|(s, c)| (s, c.into())),
-            )
-            .chain(
-                ReferenceCommand::autocomplete(input, app_meta)
-                    .drain(..)
-                    .map(|(s, c)| (s, c.into())),
-            )
-            .chain(
-                StorageCommand::autocomplete(input, app_meta)
-                    .drain(..)
-                    .map(|(s, c)| (s, c.into())),
-            )
-            .chain(
-                WorldCommand::autocomplete(input, app_meta)
-                    .drain(..)
-                    .map(|(s, c)| (s, c.into())),
-            )
+    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
+        let mut suggestions: Vec<(String, String)> = std::iter::empty()
+            .chain(AppCommand::autocomplete(input, app_meta).drain(..))
+            .chain(ReferenceCommand::autocomplete(input, app_meta).drain(..))
+            .chain(StorageCommand::autocomplete(input, app_meta).drain(..))
+            .chain(WorldCommand::autocomplete(input, app_meta).drain(..))
             .collect();
 
         suggestions.sort_by(|(a, _), (b, _)| a.cmp(b));
@@ -121,14 +105,12 @@ impl From<WorldCommand> for Command {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::reference::ItemCategory;
     use crate::storage::NullDataStore;
-    use crate::world::npc::Species;
 
     #[test]
     fn summarize_test() {
         assert_eq!(
-            "more about initiative.sh",
+            "about initiative.sh",
             Command::App(AppCommand::About).summarize(),
         );
 
@@ -185,44 +167,17 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        let results = Command::autocomplete("d", &AppMeta::new(NullDataStore::default()));
-        let mut result_iter = results.iter();
-
-        if let Some((
-            command_string,
-            Command::World(WorldCommand::Npc {
-                species: Some(Species::Dragonborn),
-            }),
-        )) = result_iter.next()
-        {
-            assert_eq!("dragonborn", command_string);
-        } else {
-            panic!("{:?}", results);
-        }
-
-        if let Some((
-            command_string,
-            Command::Reference(ReferenceCommand::ItemCategory(ItemCategory::DruidicFoci)),
-        )) = result_iter.next()
-        {
-            assert_eq!("druidic foci", command_string);
-        } else {
-            panic!("{:?}", results);
-        }
-
-        if let Some((
-            command_string,
-            Command::World(WorldCommand::Npc {
-                species: Some(Species::Dwarf),
-            }),
-        )) = result_iter.next()
-        {
-            assert_eq!("dwarf", command_string);
-        } else {
-            panic!("{:?}", results);
-        }
-
-        assert!(result_iter.next().is_none());
+        assert_eq!(
+            [
+                ("dragonborn", "generate"),
+                ("druidic foci", "SRD item category"),
+                ("dwarf", "generate"),
+            ]
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect::<Vec<_>>(),
+            Command::autocomplete("d", &AppMeta::new(NullDataStore::default())),
+        );
     }
 
     #[test]

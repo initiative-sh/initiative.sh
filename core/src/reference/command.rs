@@ -60,7 +60,7 @@ impl Runnable for ReferenceCommand {
         }
     }
 
-    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, Self)> {
+    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         let mut suggestions = autocomplete_phrase(
             input,
             &mut ["Open Game License", "spells"]
@@ -76,7 +76,7 @@ impl Runnable for ReferenceCommand {
         suggestions
             .iter()
             .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), app_meta)))
-            .map(|(s, c)| (s.clone(), c))
+            .map(|(s, c)| (s.clone(), c.summarize().to_string()))
             .collect()
     }
 }

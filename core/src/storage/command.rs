@@ -43,7 +43,7 @@ impl Runnable for StorageCommand {
         }
     }
 
-    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, Self)> {
+    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         if !input
             .chars()
             .next()
@@ -60,7 +60,7 @@ impl Runnable for StorageCommand {
                 .filter(|name| name.starts_with(input))
                 .take(10)
                 .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), app_meta)))
-                .map(|(s, c)| (s.clone(), c))
+                .map(|(s, c)| (s.clone(), c.summarize().to_string()))
                 .collect()
         }
     }
@@ -152,20 +152,13 @@ mod test {
         );
 
         assert_eq!(
-            vec![
-                (
-                    "Potato Johnson".to_string(),
-                    StorageCommand::Load {
-                        name: "Potato Johnson".to_string(),
-                    }
-                ),
-                (
-                    "Potato & Potato, Esq.".to_string(),
-                    StorageCommand::Load {
-                        name: "Potato & Potato, Esq.".to_string(),
-                    }
-                ),
-            ],
+            [
+                ("Potato Johnson", "load"),
+                ("Potato & Potato, Esq.", "load"),
+            ]
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect::<Vec<_>>(),
             StorageCommand::autocomplete("P", &app_meta),
         );
 

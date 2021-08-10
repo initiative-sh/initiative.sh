@@ -41,7 +41,7 @@ impl Runnable for WorldCommand {
         }
     }
 
-    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, Self)> {
+    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         let mut suggestions = autocomplete_phrase(
             input,
             &mut ["npc", "building"]
@@ -56,7 +56,7 @@ impl Runnable for WorldCommand {
         suggestions
             .iter()
             .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), app_meta)))
-            .map(|(s, c)| (s.clone(), c))
+            .map(|(s, c)| (s.clone(), c.summarize().to_string()))
             .collect()
     }
 }
@@ -113,104 +113,29 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         vec![
-            (
-                "building",
-                WorldCommand::Location {
-                    location_type: LocationType::Building(None),
-                },
-            ),
-            ("npc", WorldCommand::Npc { species: None }),
+            ("building", "generate"),
+            ("npc", "generate"),
             // Species
-            (
-                "dragonborn",
-                WorldCommand::Npc {
-                    species: Some(Species::Dragonborn),
-                },
-            ),
-            (
-                "dwarf",
-                WorldCommand::Npc {
-                    species: Some(Species::Dwarf),
-                },
-            ),
-            (
-                "elf",
-                WorldCommand::Npc {
-                    species: Some(Species::Elf),
-                },
-            ),
-            (
-                "gnome",
-                WorldCommand::Npc {
-                    species: Some(Species::Gnome),
-                },
-            ),
-            (
-                "half-elf",
-                WorldCommand::Npc {
-                    species: Some(Species::HalfElf),
-                },
-            ),
-            (
-                "half-orc",
-                WorldCommand::Npc {
-                    species: Some(Species::HalfOrc),
-                },
-            ),
-            (
-                "halfling",
-                WorldCommand::Npc {
-                    species: Some(Species::Halfling),
-                },
-            ),
-            (
-                "human",
-                WorldCommand::Npc {
-                    species: Some(Species::Human),
-                },
-            ),
-            (
-                "tiefling",
-                WorldCommand::Npc {
-                    species: Some(Species::Tiefling),
-                },
-            ),
+            ("dragonborn", "generate"),
+            ("dwarf", "generate"),
+            ("elf", "generate"),
+            ("gnome", "generate"),
+            ("half-elf", "generate"),
+            ("half-orc", "generate"),
+            ("halfling", "generate"),
+            ("human", "generate"),
+            ("tiefling", "generate"),
             // BuildingType
-            (
-                "inn",
-                WorldCommand::Location {
-                    location_type: LocationType::Building(Some(BuildingType::Inn)),
-                },
-            ),
-            (
-                "residence",
-                WorldCommand::Location {
-                    location_type: LocationType::Building(Some(BuildingType::Residence)),
-                },
-            ),
-            (
-                "shop",
-                WorldCommand::Location {
-                    location_type: LocationType::Building(Some(BuildingType::Shop)),
-                },
-            ),
-            (
-                "temple",
-                WorldCommand::Location {
-                    location_type: LocationType::Building(Some(BuildingType::Temple)),
-                },
-            ),
-            (
-                "warehouse",
-                WorldCommand::Location {
-                    location_type: LocationType::Building(Some(BuildingType::Warehouse)),
-                },
-            ),
+            ("inn", "generate"),
+            ("residence", "generate"),
+            ("shop", "generate"),
+            ("temple", "generate"),
+            ("warehouse", "generate"),
         ]
         .drain(..)
-        .for_each(|(word, command)| {
+        .for_each(|(word, summary)| {
             assert_eq!(
-                vec![(word.to_string(), command)],
+                vec![(word.to_string(), summary.to_string())],
                 WorldCommand::autocomplete(word, &app_meta),
             )
         });
