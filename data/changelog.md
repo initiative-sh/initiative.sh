@@ -3,9 +3,9 @@
   commands (that are always valid) like `help`.
 * **Enhancement:** Autocomplete suggestions now provide more detail about the
   command being suggested.
-* **New:** You can now save generated content with eg. `save Potato Johnson`.
-  Saved content will be available on future page loads. A lot of work remains to
-  refine the usability of this feature.
+* **New:** You can now save generated content with `save [name]`. Saved content
+  will be available on future page loads. A lot of work remains to refine the
+  usability of this feature.
 * **Bug:** Fix fallback font for browsers that don't support or haven't yet
   loaded the default Source Code Pro font.
 * **Bug:** Fixed `changelog` output being truncated and not always displaying 10

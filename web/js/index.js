@@ -52,7 +52,17 @@ const autoCompleteJS = new autoComplete({
 });
 
 const runCommand = async (command) => {
-  output("\\> " + command + "\n\n" + await wasm.command(command));
+  const match = /\[[^\]]+\]/.exec(command);
+  if (match) {
+    promptElement.value = command;
+    promptElement.focus();
+    promptElement.setSelectionRange(
+      match.index,
+      match.index + match[0].length,
+    );
+  } else {
+    output("\\> " + command + "\n\n" + await wasm.command(command));
+  }
 };
 
 const output = (text) => {
