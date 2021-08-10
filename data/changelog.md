@@ -1,3 +1,5 @@
+* **Enhancement:** Autocomplete suggestions now provide more detail about the
+  command being suggested.
 * **New:** You can now save generated content with eg. `save Potato Johnson`.
   Saved content will be available on future page loads. A lot of work remains to
   refine the usability of this feature.

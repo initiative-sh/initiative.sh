@@ -37,7 +37,7 @@ fn autocomplete_proper_noun() {
     let autocomplete_results = app.autocomplete(query);
 
     assert!(
-        autocomplete_results.contains(&(npc_name.to_string(), "load".to_string())),
+        autocomplete_results.contains(&(npc_name.to_string(), "load generated NPC".to_string())),
         "Generator output:\n{}\n\nQuery: {}\nResults: {:?}",
         output,
         query,

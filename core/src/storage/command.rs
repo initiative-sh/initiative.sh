@@ -1,5 +1,6 @@
 use super::repository;
 use crate::app::{AppMeta, Runnable};
+use crate::world::Thing;
 use async_trait::async_trait;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -9,10 +10,22 @@ pub enum StorageCommand {
 }
 
 impl StorageCommand {
-    fn summarize(&self) -> &str {
+    fn summarize(&self, thing: &Thing) -> String {
+        let thing_type = match thing {
+            Thing::Location(_) => "location",
+            Thing::Npc(_) => "NPC",
+            Thing::Region(_) => "region",
+        };
+
         match self {
-            Self::Load { .. } => "load",
-            Self::Save { .. } => "save to journal",
+            Self::Load { .. } => {
+                if thing.uuid().is_some() {
+                    format!("load saved {}", thing_type)
+                } else {
+                    format!("load generated {}", thing_type)
+                }
+            }
+            Self::Save { .. } => format!("save {} to journal", thing_type),
         }
     }
 }
@@ -69,7 +82,7 @@ impl Runnable for StorageCommand {
                     std::iter::repeat(thing)
                         .zip(Self::parse_input(thing.name().value().unwrap(), app_meta))
                 })
-                .map(|(s, c)| (s.name().to_string(), c.summarize().to_string()))
+                .map(|(thing, command)| (thing.name().to_string(), command.summarize(thing)))
                 .collect()
         }
     }
@@ -79,25 +92,100 @@ impl Runnable for StorageCommand {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
-    use crate::world::{Location, Npc};
+    use crate::world::{Location, Npc, Thing};
+    use uuid::Uuid;
 
     #[test]
     fn summarize_test() {
-        assert_eq!(
-            "load",
-            StorageCommand::Load {
-                name: String::new(),
-            }
-            .summarize(),
-        );
+        {
+            let mut location = Thing::Location(Default::default());
 
-        assert_eq!(
-            "save to journal",
-            StorageCommand::Save {
-                name: String::new(),
-            }
-            .summarize(),
-        );
+            assert_eq!(
+                "load generated location",
+                StorageCommand::Load {
+                    name: String::new(),
+                }
+                .summarize(&location),
+            );
+
+            location.set_uuid(Uuid::new_v4());
+
+            assert_eq!(
+                "load saved location",
+                StorageCommand::Load {
+                    name: String::new(),
+                }
+                .summarize(&location),
+            );
+
+            assert_eq!(
+                "save location to journal",
+                StorageCommand::Save {
+                    name: String::new(),
+                }
+                .summarize(&location),
+            );
+        }
+
+        {
+            let mut npc = Thing::Npc(Default::default());
+
+            assert_eq!(
+                "load generated NPC",
+                StorageCommand::Load {
+                    name: String::new(),
+                }
+                .summarize(&npc),
+            );
+
+            npc.set_uuid(Uuid::new_v4());
+
+            assert_eq!(
+                "load saved NPC",
+                StorageCommand::Load {
+                    name: String::new(),
+                }
+                .summarize(&npc),
+            );
+
+            assert_eq!(
+                "save NPC to journal",
+                StorageCommand::Save {
+                    name: String::new(),
+                }
+                .summarize(&npc),
+            );
+        }
+
+        {
+            let mut region = Thing::Region(Default::default());
+
+            assert_eq!(
+                "load generated region",
+                StorageCommand::Load {
+                    name: String::new(),
+                }
+                .summarize(&region),
+            );
+
+            region.set_uuid(Uuid::new_v4());
+
+            assert_eq!(
+                "load saved region",
+                StorageCommand::Load {
+                    name: String::new(),
+                }
+                .summarize(&region),
+            );
+
+            assert_eq!(
+                "save region to journal",
+                StorageCommand::Save {
+                    name: String::new(),
+                }
+                .summarize(&region),
+            );
+        }
     }
 
     #[test]
@@ -147,6 +235,7 @@ mod test {
         app_meta.push_recent(
             Location {
                 name: "Potato & Potato, Esq.".into(),
+                uuid: Some(Uuid::new_v4().into()),
                 ..Default::default()
             }
             .into(),
@@ -162,8 +251,8 @@ mod test {
 
         assert_eq!(
             [
-                ("Potato Johnson", "load"),
-                ("Potato & Potato, Esq.", "load"),
+                ("Potato Johnson", "load generated NPC"),
+                ("Potato & Potato, Esq.", "load saved location"),
             ]
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
