@@ -1,3 +1,5 @@
+* **Enhancement:** When viewing an NPC that has not yet been saved to your
+  journal, a note will appear reminding you to save.
 * **Enhancement:** Temporary commands (those that are only valid in the current
   context) now have a ~dashed underline~, distinguishing them from permanent
   commands (that are always valid) like `help`.

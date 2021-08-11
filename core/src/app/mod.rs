@@ -25,6 +25,7 @@ impl App {
         if let Some(command) = self.meta.command_aliases.get(input).cloned() {
             command.run(&mut self.meta).await
         } else if let Some(command) = Command::parse_input(input, &self.meta).first() {
+            self.meta.command_aliases.clear();
             command.run(&mut self.meta).await
         } else {
             format!("Unknown command: \"{}\"", input)

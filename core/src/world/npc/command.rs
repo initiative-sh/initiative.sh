@@ -1,4 +1,4 @@
-use super::{Npc, Species};
+use super::{Gender, Npc, Species};
 use crate::app::AppMeta;
 use crate::storage::StorageCommand;
 use crate::world::Generate;
@@ -13,7 +13,28 @@ pub fn command(species: &Option<Species>, app_meta: &mut AppMeta) -> String {
     let mut output = String::new();
     let npc = Npc::generate(&mut app_meta.rng, &demographics);
 
-    output.push_str(&format!("{}\n\n*Alternatives:* ", npc.display_details()));
+    output.push_str(&format!(
+        "\
+{}
+
+_{} has not yet been saved. Use ~save~ to save {} to your journal._
+
+*Alternatives:* ",
+        npc.display_details(),
+        npc.name,
+        npc.gender.value().unwrap_or(&Gender::Trans).them(),
+    ));
+
+    if let Some(name) = npc.name.value() {
+        app_meta.command_aliases.insert(
+            "save".to_string(),
+            StorageCommand::Save {
+                name: name.to_string(),
+            }
+            .into(),
+        );
+    }
+
     app_meta.push_recent(npc.into());
 
     let recent = (0..10)

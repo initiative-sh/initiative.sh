@@ -64,11 +64,25 @@ fn generated_content_is_persisted() {
         persisted_output.lines().next(),
     );
     assert_eq!(
-        4,
+        6,
         generated_output
             .lines()
             .zip(persisted_output.lines())
-            .map(|(generated, persisted)| assert_eq!(generated, persisted))
+            .enumerate()
+            .map(|(i, (generated, persisted))| {
+                if i == 5 {
+                    assert_eq!("*Alternatives:* \\", generated);
+                    assert_eq!(
+                        format!(
+                            "_{} has not yet been saved. Use ~save~ to save it to your journal._",
+                            name,
+                        ),
+                        persisted,
+                    );
+                } else {
+                    assert_eq!(generated, persisted)
+                }
+            })
             .count(),
         "Generated:\n{}\n\nPersisted:\n{}",
         generated_output,

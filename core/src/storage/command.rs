@@ -34,10 +34,36 @@ impl StorageCommand {
 impl Runnable for StorageCommand {
     async fn run(&self, app_meta: &mut AppMeta) -> String {
         match self {
-            Self::Load { name } => repository::load(app_meta, name).map_or_else(
-                || format!("No matches for \"{}\"", name),
-                |thing| format!("{}", thing.display_details()),
-            ),
+            Self::Load { name } => {
+                let thing = repository::load(app_meta, name);
+                let mut save_command = None;
+                let output = if let Some(thing) = thing {
+                    if thing.uuid().is_some() {
+                        format!("{}", thing.display_details())
+                    } else {
+                        save_command = Some(StorageCommand::Save {
+                            name: name.to_string(),
+                        });
+
+                        format!(
+                            "{}\n\n_{} has not yet been saved. Use ~save~ to save {} to your journal._",
+                            thing.display_details(),
+                            thing.name(),
+                            thing.gender().them(),
+                        )
+                    }
+                } else {
+                    format!("No matches for \"{}\"", name)
+                };
+
+                if let Some(save_command) = save_command {
+                    app_meta
+                        .command_aliases
+                        .insert("save".to_string(), save_command.into());
+                }
+
+                output
+            }
             Self::Save { name } => repository::save(app_meta, name)
                 .await
                 .map_or_else(|e| e, |s| s),
