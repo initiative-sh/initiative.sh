@@ -114,6 +114,10 @@ body {
     text-decoration: underline;
 }
 
+#output code.temp-link {
+    text-decoration-style: dashed;
+}
+
 #prompt-form {
     margin: 0.2rem 0.5rem 0.5rem;
     position: relative;
@@ -165,7 +169,7 @@ li.autocomplete-item {
 li.autocomplete-item .autocomplete-item-description {
     color: var(--solarized-scheme00);
     float: right;
-    margin-left: 1ch;
+    margin-left: 2ch;
 }
 
 li.autocomplete-item mark.autocomplete-item-highlight {

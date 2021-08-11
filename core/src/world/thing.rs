@@ -1,3 +1,4 @@
+use super::npc::Gender;
 use super::{Field, Location, Npc, Region};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -43,6 +44,14 @@ impl Thing {
             Thing::Region(region) => {
                 region.uuid.get_or_insert(uuid.into());
             }
+        }
+    }
+
+    pub fn gender(&self) -> Gender {
+        if let Self::Npc(npc) = self {
+            npc.gender()
+        } else {
+            Gender::Neuter
         }
     }
 
@@ -262,6 +271,20 @@ mod test {
             uuid.to_string(),
             thing.region().unwrap().uuid.as_ref().unwrap().to_string(),
         );
+    }
+
+    #[test]
+    fn gender_test() {
+        assert_eq!(Gender::Neuter, location().gender());
+        assert_eq!(Gender::Neuter, region().gender());
+        assert_eq!(Gender::Trans, npc().gender());
+
+        let npc = Thing::Npc(Npc {
+            gender: Gender::Feminine.into(),
+            ..Default::default()
+        });
+
+        assert_eq!(Gender::Feminine, npc.gender());
     }
 
     fn location() -> Thing {

@@ -47,6 +47,10 @@ impl Npc {
     pub fn display_details(&self) -> DetailsView {
         DetailsView::new(self)
     }
+
+    pub fn gender(&self) -> Gender {
+        self.gender.value().copied().unwrap_or(Gender::Trans)
+    }
 }
 
 impl Generate for Npc {
@@ -76,6 +80,15 @@ mod test {
 
         assert!(npc.species.is_some());
         assert!(npc.name.is_some());
+    }
+
+    #[test]
+    fn gender_test() {
+        let mut npc = Npc::default();
+        assert_eq!(Gender::Trans, npc.gender());
+
+        npc.gender.replace(Gender::Feminine);
+        assert_eq!(Gender::Feminine, npc.gender());
     }
 
     #[test]

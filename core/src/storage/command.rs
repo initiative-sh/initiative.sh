@@ -1,5 +1,6 @@
 use super::repository;
 use crate::app::{AppMeta, Runnable};
+use crate::world::Thing;
 use async_trait::async_trait;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -8,24 +9,64 @@ pub enum StorageCommand {
     Save { name: String },
 }
 
+impl StorageCommand {
+    fn summarize(&self, thing: &Thing) -> String {
+        let thing_type = match thing {
+            Thing::Location(_) => "location",
+            Thing::Npc(_) => "NPC",
+            Thing::Region(_) => "region",
+        };
+
+        match self {
+            Self::Load { .. } => {
+                if thing.uuid().is_some() {
+                    format!("load saved {}", thing_type)
+                } else {
+                    format!("load generated {}", thing_type)
+                }
+            }
+            Self::Save { .. } => format!("save {} to journal", thing_type),
+        }
+    }
+}
+
 #[async_trait(?Send)]
 impl Runnable for StorageCommand {
     async fn run(&self, app_meta: &mut AppMeta) -> String {
         match self {
-            Self::Load { name } => repository::load(app_meta, name).map_or_else(
-                || format!("No matches for \"{}\"", name),
-                |thing| format!("{}", thing.display_details()),
-            ),
+            Self::Load { name } => {
+                let thing = repository::load(app_meta, name);
+                let mut save_command = None;
+                let output = if let Some(thing) = thing {
+                    if thing.uuid().is_some() {
+                        format!("{}", thing.display_details())
+                    } else {
+                        save_command = Some(StorageCommand::Save {
+                            name: name.to_string(),
+                        });
+
+                        format!(
+                            "{}\n\n_{} has not yet been saved. Use ~save~ to save {} to your journal._",
+                            thing.display_details(),
+                            thing.name(),
+                            thing.gender().them(),
+                        )
+                    }
+                } else {
+                    format!("No matches for \"{}\"", name)
+                };
+
+                if let Some(save_command) = save_command {
+                    app_meta
+                        .command_aliases
+                        .insert("save".to_string(), save_command.into());
+                }
+
+                output
+            }
             Self::Save { name } => repository::save(app_meta, name)
                 .await
                 .map_or_else(|e| e, |s| s),
-        }
-    }
-
-    fn summarize(&self) -> &str {
-        match self {
-            Self::Load { .. } => "load",
-            Self::Save { .. } => "save to journal",
         }
     }
 
@@ -43,7 +84,7 @@ impl Runnable for StorageCommand {
         }
     }
 
-    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, Self)> {
+    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         if !input
             .chars()
             .next()
@@ -56,11 +97,18 @@ impl Runnable for StorageCommand {
                 .cache
                 .values()
                 .chain(app_meta.recent().iter())
-                .filter_map(|thing| thing.name().value())
-                .filter(|name| name.starts_with(input))
+                .filter(|thing| {
+                    thing
+                        .name()
+                        .value()
+                        .map_or(false, |name| name.starts_with(input))
+                })
                 .take(10)
-                .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), app_meta)))
-                .map(|(s, c)| (s.clone(), c))
+                .flat_map(|thing| {
+                    std::iter::repeat(thing)
+                        .zip(Self::parse_input(thing.name().value().unwrap(), app_meta))
+                })
+                .map(|(thing, command)| (thing.name().to_string(), command.summarize(thing)))
                 .collect()
         }
     }
@@ -70,25 +118,100 @@ impl Runnable for StorageCommand {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
-    use crate::world::{Location, Npc};
+    use crate::world::{Location, Npc, Thing};
+    use uuid::Uuid;
 
     #[test]
     fn summarize_test() {
-        assert_eq!(
-            "load",
-            StorageCommand::Load {
-                name: String::new(),
-            }
-            .summarize(),
-        );
+        {
+            let mut location = Thing::Location(Default::default());
 
-        assert_eq!(
-            "save to journal",
-            StorageCommand::Save {
-                name: String::new(),
-            }
-            .summarize(),
-        );
+            assert_eq!(
+                "load generated location",
+                StorageCommand::Load {
+                    name: String::new(),
+                }
+                .summarize(&location),
+            );
+
+            location.set_uuid(Uuid::new_v4());
+
+            assert_eq!(
+                "load saved location",
+                StorageCommand::Load {
+                    name: String::new(),
+                }
+                .summarize(&location),
+            );
+
+            assert_eq!(
+                "save location to journal",
+                StorageCommand::Save {
+                    name: String::new(),
+                }
+                .summarize(&location),
+            );
+        }
+
+        {
+            let mut npc = Thing::Npc(Default::default());
+
+            assert_eq!(
+                "load generated NPC",
+                StorageCommand::Load {
+                    name: String::new(),
+                }
+                .summarize(&npc),
+            );
+
+            npc.set_uuid(Uuid::new_v4());
+
+            assert_eq!(
+                "load saved NPC",
+                StorageCommand::Load {
+                    name: String::new(),
+                }
+                .summarize(&npc),
+            );
+
+            assert_eq!(
+                "save NPC to journal",
+                StorageCommand::Save {
+                    name: String::new(),
+                }
+                .summarize(&npc),
+            );
+        }
+
+        {
+            let mut region = Thing::Region(Default::default());
+
+            assert_eq!(
+                "load generated region",
+                StorageCommand::Load {
+                    name: String::new(),
+                }
+                .summarize(&region),
+            );
+
+            region.set_uuid(Uuid::new_v4());
+
+            assert_eq!(
+                "load saved region",
+                StorageCommand::Load {
+                    name: String::new(),
+                }
+                .summarize(&region),
+            );
+
+            assert_eq!(
+                "save region to journal",
+                StorageCommand::Save {
+                    name: String::new(),
+                }
+                .summarize(&region),
+            );
+        }
     }
 
     #[test]
@@ -138,6 +261,7 @@ mod test {
         app_meta.push_recent(
             Location {
                 name: "Potato & Potato, Esq.".into(),
+                uuid: Some(Uuid::new_v4().into()),
                 ..Default::default()
             }
             .into(),
@@ -152,20 +276,13 @@ mod test {
         );
 
         assert_eq!(
-            vec![
-                (
-                    "Potato Johnson".to_string(),
-                    StorageCommand::Load {
-                        name: "Potato Johnson".to_string(),
-                    }
-                ),
-                (
-                    "Potato & Potato, Esq.".to_string(),
-                    StorageCommand::Load {
-                        name: "Potato & Potato, Esq.".to_string(),
-                    }
-                ),
-            ],
+            [
+                ("Potato Johnson", "load generated NPC"),
+                ("Potato & Potato, Esq.", "load saved location"),
+            ]
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect::<Vec<_>>(),
             StorageCommand::autocomplete("P", &app_meta),
         );
 

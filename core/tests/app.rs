@@ -12,9 +12,9 @@ fn about() {
 fn autocomplete_command() {
     assert_eq!(
         [
-            ("dragonborn", "generate"),
+            ("dragonborn", "generate NPC species"),
             ("druidic foci", "SRD item category"),
-            ("dwarf", "generate"),
+            ("dwarf", "generate NPC species"),
         ]
         .iter()
         .map(|(a, b)| (a.to_string(), b.to_string()))
@@ -37,7 +37,7 @@ fn autocomplete_proper_noun() {
     let autocomplete_results = app.autocomplete(query);
 
     assert!(
-        autocomplete_results.contains(&(npc_name.to_string(), "load".to_string())),
+        autocomplete_results.contains(&(npc_name.to_string(), "load generated NPC".to_string())),
         "Generator output:\n{}\n\nQuery: {}\nResults: {:?}",
         output,
         query,

@@ -16,6 +16,12 @@ const reducedMotion = (() => {
   return mediaQuery && mediaQuery.matches;
 })();
 
+marked.use({
+  renderer: {
+    del: (text) => `<code class="temp-link">${text}</code>`,
+  },
+});
+
 const autoCompleteJS = new autoComplete({
   data: {
     src: async (query) => (await wasm.autocomplete(query)).map(a => {
@@ -46,7 +52,17 @@ const autoCompleteJS = new autoComplete({
 });
 
 const runCommand = async (command) => {
-  output("\\> " + command + "\n\n" + await wasm.command(command));
+  const match = /\[[^\]]+\]/.exec(command);
+  if (match) {
+    promptElement.value = command;
+    promptElement.focus();
+    promptElement.setSelectionRange(
+      match.index,
+      match.index + match[0].length,
+    );
+  } else {
+    output("\\> " + command + "\n\n" + await wasm.command(command));
+  }
 };
 
 const output = (text) => {

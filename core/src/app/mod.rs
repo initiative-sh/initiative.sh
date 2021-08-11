@@ -25,6 +25,7 @@ impl App {
         if let Some(command) = self.meta.command_aliases.get(input).cloned() {
             command.run(&mut self.meta).await
         } else if let Some(command) = Command::parse_input(input, &self.meta).first() {
+            self.meta.command_aliases.clear();
             command.run(&mut self.meta).await
         } else {
             format!("Unknown command: \"{}\"", input)
@@ -33,8 +34,5 @@ impl App {
 
     pub async fn autocomplete(&self, input: &str) -> Vec<(String, String)> {
         Command::autocomplete(input, &self.meta)
-            .drain(..)
-            .map(|(s, c)| (s, c.summarize().to_string()))
-            .collect()
     }
 }

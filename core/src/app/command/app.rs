@@ -10,6 +10,17 @@ pub enum AppCommand {
     Help,
 }
 
+impl AppCommand {
+    fn summarize(&self) -> &str {
+        match self {
+            Self::About => "about initiative.sh",
+            Self::Changelog => "show latest updates",
+            Self::Debug => "",
+            Self::Help => "how to use initiative.sh",
+        }
+    }
+}
+
 #[async_trait(?Send)]
 impl Runnable for AppCommand {
     async fn run(&self, app_meta: &mut AppMeta) -> String {
@@ -25,26 +36,21 @@ impl Runnable for AppCommand {
         }
     }
 
-    fn summarize(&self) -> &str {
-        match self {
-            Self::About => "more about initiative.sh",
-            Self::Changelog => "show latest updates",
-            Self::Debug => "",
-            Self::Help => "how to use initiative.sh",
-        }
-    }
-
     fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
         input.parse().map(|c| vec![c]).unwrap_or_default()
     }
 
-    fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, Self)> {
+    fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
         autocomplete_phrase(
             input,
             &mut Self::get_words().iter().filter(|s| s != &&"debug"),
         )
         .drain(..)
-        .filter_map(|s| s.parse().ok().map(|c| (s, c)))
+        .filter_map(|s| {
+            s.parse::<Self>()
+                .ok()
+                .map(|c| (s, c.summarize().to_string()))
+        })
         .collect()
     }
 }
@@ -56,7 +62,7 @@ mod test {
 
     #[test]
     fn summarize_test() {
-        assert_eq!("more about initiative.sh", AppCommand::About.summarize());
+        assert_eq!("about initiative.sh", AppCommand::About.summarize());
         assert_eq!("show latest updates", AppCommand::Changelog.summarize());
         assert_eq!("", AppCommand::Debug.summarize());
         assert_eq!("how to use initiative.sh", AppCommand::Help.summarize());
@@ -81,22 +87,22 @@ mod test {
     fn autocomplete_test() {
         let app_meta = AppMeta::new(NullDataStore::default());
 
-        vec![
-            ("about", AppCommand::About),
-            ("changelog", AppCommand::Changelog),
-            ("help", AppCommand::Help),
+        [
+            ("about", "about initiative.sh"),
+            ("changelog", "show latest updates"),
+            ("help", "how to use initiative.sh"),
         ]
-        .drain(..)
-        .for_each(|(word, command)| {
+        .iter()
+        .for_each(|(word, summary)| {
             assert_eq!(
-                vec![(word.to_string(), command)],
+                vec![(word.to_string(), summary.to_string())],
                 AppCommand::autocomplete(word, &app_meta),
             )
         });
 
         // Debug should be excluded from the autocomplete results.
         assert_eq!(
-            Vec::<(String, AppCommand)>::new(),
+            Vec::<(String, String)>::new(),
             AppCommand::autocomplete("debug", &app_meta),
         );
     }

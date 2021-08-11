@@ -48,6 +48,28 @@ fn npc_can_be_loaded_from_storage() {
         app.command(&npc_name)
     };
 
-    assert!(npc_output_from_temp.lines().count() > 1);
-    assert_eq!(npc_output_from_temp, npc_output_from_data_store);
+    assert!(
+        npc_output_from_temp.lines().count() > 1,
+        "{}",
+        npc_output_from_temp,
+    );
+    assert!(
+        npc_output_from_data_store.lines().count() > 1,
+        "{}",
+        npc_output_from_data_store,
+    );
+    assert!(
+        npc_output_from_temp.starts_with(&npc_output_from_data_store),
+        "{}\n\n{}",
+        npc_output_from_temp,
+        npc_output_from_data_store,
+    );
+    assert!(
+        npc_output_from_temp.contains(&format!(
+            "{} has not yet been saved. Use ~save~ to save ",
+            npc_name,
+        )) && npc_output_from_temp.contains(" to your journal._"),
+        "{}",
+        npc_output_from_temp,
+    );
 }

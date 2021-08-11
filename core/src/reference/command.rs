@@ -11,6 +11,18 @@ pub enum ReferenceCommand {
     OpenGameLicense,
 }
 
+impl ReferenceCommand {
+    fn summarize(&self) -> &str {
+        match self {
+            Self::Spell(_) => "SRD spell",
+            Self::Spells => "SRD index",
+            Self::Item(_) => "SRD item",
+            Self::ItemCategory(_) => "SRD item category",
+            Self::OpenGameLicense => "SRD license",
+        }
+    }
+}
+
 #[async_trait(?Send)]
 impl Runnable for ReferenceCommand {
     async fn run(&self, _app_meta: &mut AppMeta) -> String {
@@ -32,16 +44,6 @@ impl Runnable for ReferenceCommand {
         )
     }
 
-    fn summarize(&self) -> &str {
-        match self {
-            Self::Spell(_) => "SRD spell",
-            Self::Spells => "SRD index",
-            Self::Item(_) => "SRD item",
-            Self::ItemCategory(_) => "SRD item category",
-            Self::OpenGameLicense => "SRD license",
-        }
-    }
-
     fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
         match input {
             "Open Game License" => return vec![Self::OpenGameLicense],
@@ -60,7 +62,7 @@ impl Runnable for ReferenceCommand {
         }
     }
 
-    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, Self)> {
+    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         let mut suggestions = autocomplete_phrase(
             input,
             &mut ["Open Game License", "spells"]
@@ -76,7 +78,7 @@ impl Runnable for ReferenceCommand {
         suggestions
             .iter()
             .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), app_meta)))
-            .map(|(s, c)| (s.clone(), c))
+            .map(|(s, c)| (s.clone(), c.summarize().to_string()))
             .collect()
     }
 }

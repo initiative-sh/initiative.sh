@@ -42,9 +42,9 @@ impl<'a> fmt::Display for SummaryView<'a> {
 
         if let Some(name) = npc.name.value() {
             if has_details {
-                write!(f, "{} (", name)?;
+                write!(f, "`{}` (", name)?;
             } else {
-                write!(f, "{}", name)?;
+                write!(f, "`{}`", name)?;
             }
         }
 
@@ -107,17 +107,17 @@ mod test_display_for_npc_details_view {
     fn summary_view_test() {
         assert_eq!("", format!("{}", gen_npc(0b0000).display_summary()));
         assert_eq!(
-            "Potato Johnson",
+            "`Potato Johnson`",
             format!("{}", gen_npc(0b0001).display_summary()),
         );
         assert_eq!("adult", format!("{}", gen_npc(0b0010).display_summary()));
         assert_eq!(
-            "Potato Johnson (adult)",
+            "`Potato Johnson` (adult)",
             format!("{}", gen_npc(0b0011).display_summary()),
         );
         assert_eq!("human", format!("{}", gen_npc(0b0100).display_summary()));
         assert_eq!(
-            "Potato Johnson (human)",
+            "`Potato Johnson` (human)",
             format!("{}", gen_npc(0b0101).display_summary()),
         );
         assert_eq!(
@@ -125,7 +125,7 @@ mod test_display_for_npc_details_view {
             format!("{}", gen_npc(0b0110).display_summary()),
         );
         assert_eq!(
-            "Potato Johnson (adult human)",
+            "`Potato Johnson` (adult human)",
             format!("{}", gen_npc(0b0111).display_summary()),
         );
         assert_eq!(
@@ -133,7 +133,7 @@ mod test_display_for_npc_details_view {
             format!("{}", gen_npc(0b1000).display_summary()),
         );
         assert_eq!(
-            "Potato Johnson (they/them)",
+            "`Potato Johnson` (they/them)",
             format!("{}", gen_npc(0b1001).display_summary()),
         );
         assert_eq!(
@@ -141,7 +141,7 @@ mod test_display_for_npc_details_view {
             format!("{}", gen_npc(0b1010).display_summary()),
         );
         assert_eq!(
-            "Potato Johnson (adult, they/them)",
+            "`Potato Johnson` (adult, they/them)",
             format!("{}", gen_npc(0b1011).display_summary()),
         );
         assert_eq!(
@@ -149,7 +149,7 @@ mod test_display_for_npc_details_view {
             format!("{}", gen_npc(0b1100).display_summary()),
         );
         assert_eq!(
-            "Potato Johnson (human, they/them)",
+            "`Potato Johnson` (human, they/them)",
             format!("{}", gen_npc(0b1101).display_summary()),
         );
         assert_eq!(
@@ -157,7 +157,7 @@ mod test_display_for_npc_details_view {
             format!("{}", gen_npc(0b1110).display_summary()),
         );
         assert_eq!(
-            "Potato Johnson (adult human, they/them)",
+            "`Potato Johnson` (adult human, they/them)",
             format!("{}", gen_npc(0b1111).display_summary()),
         );
     }
