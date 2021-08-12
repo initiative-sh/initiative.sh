@@ -3,6 +3,8 @@ use std::fmt;
 
 pub struct SummaryView<'a>(&'a Npc);
 
+pub struct DescriptionView<'a>(&'a Npc);
+
 pub struct DetailsView<'a>(&'a Npc);
 
 fn write_summary_details(npc: &Npc, f: &mut fmt::Formatter) -> fmt::Result {
@@ -24,6 +26,12 @@ fn write_summary_details(npc: &Npc, f: &mut fmt::Formatter) -> fmt::Result {
 }
 
 impl<'a> SummaryView<'a> {
+    pub fn new(npc: &'a Npc) -> Self {
+        Self(npc)
+    }
+}
+
+impl<'a> DescriptionView<'a> {
     pub fn new(npc: &'a Npc) -> Self {
         Self(npc)
     }
@@ -55,6 +63,12 @@ impl<'a> fmt::Display for SummaryView<'a> {
         }
 
         Ok(())
+    }
+}
+
+impl<'a> fmt::Display for DescriptionView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write_summary_details(self.0, f)
     }
 }
 

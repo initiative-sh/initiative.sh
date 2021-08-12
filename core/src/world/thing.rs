@@ -14,6 +14,8 @@ pub enum Thing {
 
 pub struct SummaryView<'a>(&'a Thing);
 
+pub struct DescriptionView<'a>(&'a Thing);
+
 pub struct DetailsView<'a>(&'a Thing);
 
 impl Thing {
@@ -83,6 +85,10 @@ impl Thing {
         SummaryView(self)
     }
 
+    pub fn display_description(&self) -> DescriptionView {
+        DescriptionView(self)
+    }
+
     pub fn display_details(&self) -> DetailsView {
         DetailsView(self)
     }
@@ -111,7 +117,17 @@ impl<'a> fmt::Display for SummaryView<'a> {
         match self.0 {
             Thing::Location(l) => write!(f, "{}", l.display_summary()),
             Thing::Npc(n) => write!(f, "{}", n.display_summary()),
-            Thing::Region(_) => unimplemented!(),
+            Thing::Region(r) => write!(f, "{}", r.name),
+        }
+    }
+}
+
+impl<'a> fmt::Display for DescriptionView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.0 {
+            Thing::Location(l) => write!(f, "{}", l.display_description()),
+            Thing::Npc(n) => write!(f, "{}", n.display_description()),
+            Thing::Region(_) => write!(f, "region"),
         }
     }
 }
@@ -121,7 +137,7 @@ impl<'a> fmt::Display for DetailsView<'a> {
         match self.0 {
             Thing::Location(l) => write!(f, "{}", l.display_details()),
             Thing::Npc(n) => write!(f, "{}", n.display_details()),
-            Thing::Region(_) => unimplemented!(),
+            Thing::Region(r) => write!(f, "{}", r.name),
         }
     }
 }

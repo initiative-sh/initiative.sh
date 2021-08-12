@@ -16,13 +16,9 @@ fn generated_content_is_limited_by_building_type() {
         .iter()
         .for_each(|building_type| {
             let output = sync_app().command(building_type);
-            let building_type_capitalized: String = building_type
-                .char_indices()
-                .map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c })
-                .collect();
 
             assert!(
-                output.matches(building_type_capitalized.as_str()).count() >= 11,
+                output.matches(building_type).count() >= 11,
                 "Input: {}\n\nOutput:\n{}",
                 building_type,
                 output,
@@ -36,21 +32,21 @@ fn generated_content_is_persisted() {
     let generated_output = app.command("inn");
 
     // # The Roaring Spirit
-    // *Inn*
+    // *inn*
     //
     // Gathering place for a secret society
     //
     // *Alternatives:*\
-    // 0 The Lonely Rose, an Inn\
-    // 1 The Roaring Star, an Inn\
-    // 2 The Howling Spirit, an Inn\
-    // 3 The Lonely Dolphin, an Inn\
-    // 4 The Prancing Lamb, an Inn\
-    // 5 The Leering Star, an Inn\
-    // 6 The Staggering Pegasus, an Inn\
-    // 7 The Prancing Horde, an Inn\
-    // 8 The Black Star, an Inn\
-    // 9 The Prancing Pegasus, an Inn
+    // 0 The Lonely Rose, an inn\
+    // 1 The Roaring Star, an inn\
+    // 2 The Howling Spirit, an inn\
+    // 3 The Lonely Dolphin, an inn\
+    // 4 The Prancing Lamb, an inn\
+    // 5 The Leering Star, an inn\
+    // 6 The Staggering Pegasus, an inn\
+    // 7 The Prancing Horde, an inn\
+    // 8 The Black Star, an inn\
+    // 9 The Prancing Pegasus, an inn
 
     // Ensure that the primary suggestion matches the generated content.
     let name = generated_output

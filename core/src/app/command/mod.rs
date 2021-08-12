@@ -1,6 +1,8 @@
+pub use alias::CommandAlias;
 pub use app::AppCommand;
 pub use runnable::{autocomplete_phrase, Runnable};
 
+mod alias;
 mod app;
 mod runnable;
 
@@ -12,6 +14,7 @@ use async_trait::async_trait;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
+    Alias(CommandAlias),
     App(AppCommand),
     Reference(ReferenceCommand),
     Storage(StorageCommand),
@@ -21,7 +24,12 @@ pub enum Command {
 #[async_trait(?Send)]
 impl Runnable for Command {
     async fn run(&self, app_meta: &mut AppMeta) -> String {
+        if !matches!(self, Self::Alias(_)) {
+            app_meta.command_aliases.clear();
+        }
+
         match self {
+            Self::Alias(c) => c.run(app_meta).await,
             Self::App(c) => c.run(app_meta).await,
             Self::Reference(c) => c.run(app_meta).await,
             Self::Storage(c) => c.run(app_meta).await,
@@ -31,6 +39,11 @@ impl Runnable for Command {
 
     fn parse_input(input: &str, app_meta: &AppMeta) -> Vec<Self> {
         std::iter::empty()
+            .chain(
+                CommandAlias::parse_input(input, app_meta)
+                    .drain(..)
+                    .map(|c| c.into()),
+            )
             .chain(
                 AppCommand::parse_input(input, app_meta)
                     .drain(..)
@@ -56,6 +69,7 @@ impl Runnable for Command {
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         let mut suggestions: Vec<(String, String)> = std::iter::empty()
+            .chain(CommandAlias::autocomplete(input, app_meta).drain(..))
             .chain(AppCommand::autocomplete(input, app_meta).drain(..))
             .chain(ReferenceCommand::autocomplete(input, app_meta).drain(..))
             .chain(StorageCommand::autocomplete(input, app_meta).drain(..))
@@ -72,6 +86,12 @@ impl Runnable for Command {
 impl From<AppCommand> for Command {
     fn from(c: AppCommand) -> Command {
         Command::App(c)
+    }
+}
+
+impl From<CommandAlias> for Command {
+    fn from(c: CommandAlias) -> Command {
+        Command::Alias(c)
     }
 }
 
