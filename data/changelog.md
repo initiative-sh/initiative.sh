@@ -1,3 +1,5 @@
+* **Enhancement:** Autocomplete suggestions when loading a thing will include
+  a brief summary of that thing, eg. "adult human, they/them".
 * **Enhancement:** Attempting to save a thing that has already been saved will
   give a distinct error from saving a thing that doesn't exist.
 * **Enhancement:** Autocomplete now properly suggests save and load commands.

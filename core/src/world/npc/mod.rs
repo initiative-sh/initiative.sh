@@ -4,7 +4,7 @@ pub use ethnicity::Ethnicity;
 pub use gender::Gender;
 pub use size::Size;
 pub use species::Species;
-pub use view::{DetailsView, SummaryView};
+pub use view::{DescriptionView, DetailsView, SummaryView};
 
 mod age;
 mod command;
@@ -42,6 +42,10 @@ pub struct Npc {
 impl Npc {
     pub fn display_summary(&self) -> SummaryView {
         SummaryView::new(self)
+    }
+
+    pub fn display_description(&self) -> DescriptionView {
+        DescriptionView::new(self)
     }
 
     pub fn display_details(&self) -> DetailsView {

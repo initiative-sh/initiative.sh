@@ -12,21 +12,24 @@ pub enum StorageCommand {
 impl StorageCommand {
     fn summarize(&self, thing: Option<&Thing>) -> String {
         if let Some(thing) = thing {
-            let thing_type = match thing {
-                Thing::Location(_) => "location",
-                Thing::Npc(_) => "NPC",
-                Thing::Region(_) => "region",
-            };
-
             match self {
                 Self::Load { .. } => {
                     if thing.uuid().is_some() {
-                        format!("load saved {}", thing_type)
+                        format!("{}", thing.display_description())
                     } else {
-                        format!("load generated {}", thing_type)
+                        format!("{} (unsaved)", thing.display_description())
                     }
                 }
-                Self::Save { .. } => format!("save {} to journal", thing_type),
+                Self::Save { .. } => {
+                    format!(
+                        "save {} to journal",
+                        match thing {
+                            Thing::Location(_) => "location",
+                            Thing::Npc(_) => "NPC",
+                            Thing::Region(_) => "region",
+                        }
+                    )
+                }
             }
         } else {
             match self {
@@ -180,16 +183,22 @@ impl Runnable for StorageCommand {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
-    use crate::world::{Location, Npc, Thing};
+    use crate::world::location::{BuildingType, Location, LocationType};
+    use crate::world::npc::{Age, Gender, Npc, Species};
+    use crate::world::Thing;
     use uuid::Uuid;
 
     #[test]
     fn summarize_test() {
         {
-            let mut location = Thing::Location(Default::default());
+            let mut location = Location {
+                subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
+                ..Default::default()
+            }
+            .into();
 
             assert_eq!(
-                "load generated location",
+                "Inn (unsaved)",
                 StorageCommand::Load {
                     name: String::new(),
                 }
@@ -199,7 +208,7 @@ mod test {
             location.set_uuid(Uuid::new_v4());
 
             assert_eq!(
-                "load saved location",
+                "Inn",
                 StorageCommand::Load {
                     name: String::new(),
                 }
@@ -216,10 +225,14 @@ mod test {
         }
 
         {
-            let mut npc = Thing::Npc(Default::default());
+            let mut npc = Npc {
+                species: Species::Gnome.into(),
+                ..Default::default()
+            }
+            .into();
 
             assert_eq!(
-                "load generated NPC",
+                "gnome (unsaved)",
                 StorageCommand::Load {
                     name: String::new(),
                 }
@@ -229,7 +242,7 @@ mod test {
             npc.set_uuid(Uuid::new_v4());
 
             assert_eq!(
-                "load saved NPC",
+                "gnome",
                 StorageCommand::Load {
                     name: String::new(),
                 }
@@ -249,7 +262,7 @@ mod test {
             let mut region = Thing::Region(Default::default());
 
             assert_eq!(
-                "load generated region",
+                "region (unsaved)",
                 StorageCommand::Load {
                     name: String::new(),
                 }
@@ -259,7 +272,7 @@ mod test {
             region.set_uuid(Uuid::new_v4());
 
             assert_eq!(
-                "load saved region",
+                "region",
                 StorageCommand::Load {
                     name: String::new(),
                 }
@@ -325,6 +338,9 @@ mod test {
         app_meta.push_recent(
             Npc {
                 name: "Potato Johnson".into(),
+                species: Species::Elf.into(),
+                gender: Gender::Trans.into(),
+                age: Age::Adult(0).into(),
                 ..Default::default()
             }
             .into(),
@@ -345,6 +361,7 @@ mod test {
                 Location {
                     name: "Potato & Potato, Esq.".into(),
                     uuid: Some(uuid.into()),
+                    subtype: LocationType::Building(Some(BuildingType::Shop)).into(),
                     ..Default::default()
                 }
                 .into(),
@@ -361,8 +378,8 @@ mod test {
 
         assert_eq!(
             [
-                ("Potato & Potato, Esq.", "load saved location"),
-                ("Potato Johnson", "load generated NPC"),
+                ("Potato & Potato, Esq.", "Shop"),
+                ("Potato Johnson", "adult elf, they/them (unsaved)"),
             ]
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
@@ -384,8 +401,8 @@ mod test {
 
         assert_eq!(
             [
-                ("load Potato & Potato, Esq.", "load saved location"),
-                ("load Potato Johnson", "load generated NPC"),
+                ("load Potato & Potato, Esq.", "Shop"),
+                ("load Potato Johnson", "adult elf, they/them (unsaved)"),
             ]
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))

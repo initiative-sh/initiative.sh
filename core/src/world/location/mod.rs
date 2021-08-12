@@ -11,7 +11,7 @@ use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
-use view::{DetailsView, SummaryView};
+use view::{DescriptionView, DetailsView, SummaryView};
 
 initiative_macros::uuid!();
 
@@ -44,6 +44,10 @@ pub enum LocationType {
 impl Location {
     pub fn display_summary(&self) -> SummaryView {
         SummaryView::new(self)
+    }
+
+    pub fn display_description(&self) -> DescriptionView {
+        DescriptionView::new(self)
     }
 
     pub fn display_details(&self) -> DetailsView {

@@ -3,9 +3,17 @@ use std::fmt;
 
 pub struct SummaryView<'a>(&'a Location);
 
+pub struct DescriptionView<'a>(&'a Location);
+
 pub struct DetailsView<'a>(&'a Location);
 
 impl<'a> SummaryView<'a> {
+    pub fn new(location: &'a Location) -> Self {
+        Self(location)
+    }
+}
+
+impl<'a> DescriptionView<'a> {
     pub fn new(location: &'a Location) -> Self {
         Self(location)
     }
@@ -41,6 +49,12 @@ impl<'a> fmt::Display for SummaryView<'a> {
             (false, false, true) => write!(f, "{}", location.description),
             (false, false, false) => Ok(()),
         }
+    }
+}
+
+impl<'a> fmt::Display for DescriptionView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0.subtype)
     }
 }
 
