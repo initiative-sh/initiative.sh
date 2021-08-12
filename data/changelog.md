@@ -1,3 +1,4 @@
+* **Enhancement:** Autocomplete now properly suggests save and load commands.
 * **Enhancement:** When viewing an NPC that has not yet been saved to your
   journal, a note will appear reminding you to save.
 * **Enhancement:** Temporary commands (those that are only valid in the current

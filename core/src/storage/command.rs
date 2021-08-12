@@ -10,22 +10,30 @@ pub enum StorageCommand {
 }
 
 impl StorageCommand {
-    fn summarize(&self, thing: &Thing) -> String {
-        let thing_type = match thing {
-            Thing::Location(_) => "location",
-            Thing::Npc(_) => "NPC",
-            Thing::Region(_) => "region",
-        };
+    fn summarize(&self, thing: Option<&Thing>) -> String {
+        if let Some(thing) = thing {
+            let thing_type = match thing {
+                Thing::Location(_) => "location",
+                Thing::Npc(_) => "NPC",
+                Thing::Region(_) => "region",
+            };
 
-        match self {
-            Self::Load { .. } => {
-                if thing.uuid().is_some() {
-                    format!("load saved {}", thing_type)
-                } else {
-                    format!("load generated {}", thing_type)
+            match self {
+                Self::Load { .. } => {
+                    if thing.uuid().is_some() {
+                        format!("load saved {}", thing_type)
+                    } else {
+                        format!("load generated {}", thing_type)
+                    }
                 }
+                Self::Save { .. } => format!("save {} to journal", thing_type),
             }
-            Self::Save { .. } => format!("save {} to journal", thing_type),
+        } else {
+            match self {
+                Self::Load { .. } => "load an entry",
+                Self::Save { .. } => "save an entry to journal",
+            }
+            .to_string()
         }
     }
 }
@@ -79,38 +87,89 @@ impl Runnable for StorageCommand {
             vec![Self::Save {
                 name: name.to_string(),
             }]
+        } else if let Some(name) = input.strip_prefix("load ") {
+            vec![Self::Load {
+                name: name.to_string(),
+            }]
         } else {
             Vec::new()
         }
     }
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
+        if input.is_empty() {
+            return Vec::new();
+        }
+
+        let mut input_parts = ("", input);
+        let mut result = Vec::new();
+
         if !input
             .chars()
             .next()
             .map(char::is_uppercase)
             .unwrap_or_default()
         {
-            Vec::new()
-        } else {
+            ["save", "load"]
+                .iter()
+                .filter(|s| s.starts_with(input))
+                .filter_map(|s| {
+                    let suggestion = format!("{} [name]", s);
+                    Self::parse_input(&suggestion, app_meta)
+                        .drain(..)
+                        .next()
+                        .map(|command| (suggestion, command))
+                })
+                .for_each(|(s, command)| result.push((s, command.summarize(None))));
+
+            if let Some(parts) = ["save ", "load "]
+                .iter()
+                .find_map(|prefix| input.strip_prefix(prefix).map(|name| (*prefix, name)))
+            {
+                input_parts = parts;
+            }
+        }
+
+        {
+            let (input_prefix, input_name) = input_parts;
+
             app_meta
                 .cache
                 .values()
                 .chain(app_meta.recent().iter())
-                .filter(|thing| {
+                .filter_map(|thing| {
                     thing
                         .name()
                         .value()
-                        .map_or(false, |name| name.starts_with(input))
+                        .map(|name| {
+                            if name.starts_with(input_name) {
+                                if input_prefix == "save " && thing.uuid().is_some() {
+                                    None
+                                } else {
+                                    Some((input_prefix, thing))
+                                }
+                            } else if name.starts_with(input) {
+                                Some(("", thing))
+                            } else {
+                                None
+                            }
+                        })
+                        .flatten()
+                })
+                .filter_map(|(prefix, thing)| {
+                    let suggestion = format!("{}{}", prefix, thing.name());
+                    Self::parse_input(&suggestion, app_meta)
+                        .drain(..)
+                        .next()
+                        .map(|command| (suggestion, thing, command))
                 })
                 .take(10)
-                .flat_map(|thing| {
-                    std::iter::repeat(thing)
-                        .zip(Self::parse_input(thing.name().value().unwrap(), app_meta))
-                })
-                .map(|(thing, command)| (thing.name().to_string(), command.summarize(thing)))
-                .collect()
+                .for_each(|(suggestion, thing, command)| {
+                    result.push((suggestion, command.summarize(Some(thing))))
+                });
         }
+
+        result
     }
 }
 
@@ -131,7 +190,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(&location),
+                .summarize(Some(&location)),
             );
 
             location.set_uuid(Uuid::new_v4());
@@ -141,7 +200,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(&location),
+                .summarize(Some(&location)),
             );
 
             assert_eq!(
@@ -149,7 +208,7 @@ mod test {
                 StorageCommand::Save {
                     name: String::new(),
                 }
-                .summarize(&location),
+                .summarize(Some(&location)),
             );
         }
 
@@ -161,7 +220,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(&npc),
+                .summarize(Some(&npc)),
             );
 
             npc.set_uuid(Uuid::new_v4());
@@ -171,7 +230,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(&npc),
+                .summarize(Some(&npc)),
             );
 
             assert_eq!(
@@ -179,7 +238,7 @@ mod test {
                 StorageCommand::Save {
                     name: String::new(),
                 }
-                .summarize(&npc),
+                .summarize(Some(&npc)),
             );
         }
 
@@ -191,7 +250,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(&region),
+                .summarize(Some(&region)),
             );
 
             region.set_uuid(Uuid::new_v4());
@@ -201,7 +260,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(&region),
+                .summarize(Some(&region)),
             );
 
             assert_eq!(
@@ -209,7 +268,25 @@ mod test {
                 StorageCommand::Save {
                     name: String::new(),
                 }
-                .summarize(&region),
+                .summarize(Some(&region)),
+            );
+        }
+
+        {
+            assert_eq!(
+                "load an entry",
+                StorageCommand::Load {
+                    name: String::new(),
+                }
+                .summarize(None),
+            );
+
+            assert_eq!(
+                "save an entry to journal",
+                StorageCommand::Save {
+                    name: String::new(),
+                }
+                .summarize(None),
             );
         }
     }
@@ -258,14 +335,18 @@ mod test {
             .into(),
         );
 
-        app_meta.push_recent(
-            Location {
-                name: "Potato & Potato, Esq.".into(),
-                uuid: Some(Uuid::new_v4().into()),
-                ..Default::default()
-            }
-            .into(),
-        );
+        {
+            let uuid = Uuid::new_v4();
+            app_meta.cache.insert(
+                uuid,
+                Location {
+                    name: "Potato & Potato, Esq.".into(),
+                    uuid: Some(uuid.into()),
+                    ..Default::default()
+                }
+                .into(),
+            );
+        }
 
         app_meta.push_recent(
             Location {
@@ -277,13 +358,52 @@ mod test {
 
         assert_eq!(
             [
-                ("Potato Johnson", "load generated NPC"),
                 ("Potato & Potato, Esq.", "load saved location"),
+                ("Potato Johnson", "load generated NPC"),
             ]
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
             .collect::<Vec<_>>(),
             StorageCommand::autocomplete("P", &app_meta),
+        );
+
+        assert_eq!(
+            [
+                ("save Potato Johnson", "save NPC to journal"),
+                ("save potato should be capitalized", "save NPC to journal"),
+                ("save Spud Stop", "save location to journal"),
+            ]
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect::<Vec<_>>(),
+            StorageCommand::autocomplete("save ", &app_meta),
+        );
+
+        assert_eq!(
+            [
+                ("load Potato & Potato, Esq.", "load saved location"),
+                ("load Potato Johnson", "load generated NPC"),
+            ]
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect::<Vec<_>>(),
+            StorageCommand::autocomplete("load P", &app_meta),
+        );
+
+        assert_eq!(
+            [("load [name]", "load an entry")]
+                .iter()
+                .map(|(a, b)| (a.to_string(), b.to_string()))
+                .collect::<Vec<_>>(),
+            StorageCommand::autocomplete("load", &app_meta),
+        );
+
+        assert_eq!(
+            [("save [name]", "save an entry to journal")]
+                .iter()
+                .map(|(a, b)| (a.to_string(), b.to_string()))
+                .collect::<Vec<_>>(),
+            StorageCommand::autocomplete("s", &app_meta),
         );
 
         assert!(StorageCommand::autocomplete("p", &app_meta).is_empty());
