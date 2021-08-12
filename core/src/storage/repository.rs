@@ -14,6 +14,12 @@ pub async fn save(app_meta: &mut AppMeta, name: &str) -> Result<String, String> 
         app_meta.data_store.save(&thing).await;
         app_meta.cache.insert(*thing.uuid().unwrap(), thing);
         Ok(result)
+    } else if app_meta.cache.values().any(|t| {
+        t.name()
+            .value()
+            .map_or(false, |s| s.to_lowercase() == lowercase_name)
+    }) {
+        Err(format!("`{}` has already been saved to your journal", name))
     } else {
         Err(format!("No matches for \"{}\"", name))
     }
