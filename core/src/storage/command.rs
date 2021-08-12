@@ -70,9 +70,7 @@ impl Runnable for StorageCommand {
                 };
 
                 if let Some(save_command) = save_command {
-                    app_meta
-                        .command_aliases
-                        .insert("save".to_string(), save_command);
+                    app_meta.command_aliases.insert(save_command);
                 }
 
                 output

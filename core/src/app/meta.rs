@@ -2,7 +2,7 @@ use super::CommandAlias;
 use crate::storage::DataStore;
 use crate::world;
 use rand::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use uuid::Uuid;
 
@@ -10,7 +10,7 @@ const RECENT_MAX_LEN: usize = 100;
 
 pub struct AppMeta {
     pub cache: HashMap<Uuid, world::Thing>,
-    pub command_aliases: HashMap<String, CommandAlias>,
+    pub command_aliases: HashSet<CommandAlias>,
     pub data_store: Box<dyn DataStore>,
     pub demographics: world::Demographics,
     pub rng: SmallRng,
@@ -22,7 +22,7 @@ impl AppMeta {
     pub fn new(data_store: impl DataStore + 'static) -> Self {
         Self {
             cache: HashMap::default(),
-            command_aliases: HashMap::default(),
+            command_aliases: HashSet::default(),
             data_store: Box::new(data_store),
             demographics: world::Demographics::default(),
             recent: Vec::default(),
