@@ -1,6 +1,7 @@
 use super::{Command, Runnable};
 use crate::app::AppMeta;
 use async_trait::async_trait;
+use std::mem;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CommandAlias {
@@ -22,7 +23,19 @@ impl CommandAlias {
 #[async_trait(?Send)]
 impl Runnable for CommandAlias {
     async fn run(&self, app_meta: &mut AppMeta) -> String {
-        self.command.run(app_meta).await
+        let mut temp_aliases = mem::take(&mut app_meta.command_aliases);
+
+        let result = self.command.run(app_meta).await;
+
+        if app_meta.command_aliases.is_empty() {
+            app_meta.command_aliases = temp_aliases;
+        } else {
+            temp_aliases.drain().for_each(|(alias, command)| {
+                app_meta.command_aliases.entry(alias).or_insert(command);
+            });
+        }
+
+        result
     }
 
     fn parse_input(input: &str, app_meta: &AppMeta) -> Vec<Self> {

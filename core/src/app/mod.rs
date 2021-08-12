@@ -22,10 +22,7 @@ impl App {
     }
 
     pub async fn command(&mut self, input: &str) -> String {
-        if let Some(command) = self.meta.command_aliases.get(input).cloned() {
-            command.run(&mut self.meta).await
-        } else if let Some(command) = Command::parse_input(input, &self.meta).first() {
-            self.meta.command_aliases.clear();
+        if let Some(command) = Command::parse_input(input, &self.meta).first() {
             command.run(&mut self.meta).await
         } else {
             format!("Unknown command: \"{}\"", input)

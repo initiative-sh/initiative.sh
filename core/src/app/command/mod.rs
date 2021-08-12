@@ -24,6 +24,10 @@ pub enum Command {
 #[async_trait(?Send)]
 impl Runnable for Command {
     async fn run(&self, app_meta: &mut AppMeta) -> String {
+        if !matches!(self, Self::Alias(_)) {
+            app_meta.command_aliases.clear();
+        }
+
         match self {
             Self::Alias(c) => c.run(app_meta).await,
             Self::App(c) => c.run(app_meta).await,
@@ -35,6 +39,11 @@ impl Runnable for Command {
 
     fn parse_input(input: &str, app_meta: &AppMeta) -> Vec<Self> {
         std::iter::empty()
+            .chain(
+                CommandAlias::parse_input(input, app_meta)
+                    .drain(..)
+                    .map(|c| c.into()),
+            )
             .chain(
                 AppCommand::parse_input(input, app_meta)
                     .drain(..)
