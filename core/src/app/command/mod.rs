@@ -80,6 +80,12 @@ impl From<AppCommand> for Command {
     }
 }
 
+impl From<CommandAlias> for Command {
+    fn from(c: CommandAlias) -> Command {
+        Command::Alias(c)
+    }
+}
+
 impl From<ReferenceCommand> for Command {
     fn from(c: ReferenceCommand) -> Command {
         Command::Reference(c)

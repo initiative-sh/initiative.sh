@@ -1,5 +1,5 @@
 use super::repository;
-use crate::app::{AppMeta, Runnable};
+use crate::app::{AppMeta, CommandAlias, Runnable};
 use crate::world::Thing;
 use async_trait::async_trait;
 
@@ -49,9 +49,14 @@ impl Runnable for StorageCommand {
                     if thing.uuid().is_some() {
                         format!("{}", thing.display_details())
                     } else {
-                        save_command = Some(StorageCommand::Save {
-                            name: name.to_string(),
-                        });
+                        save_command = Some(CommandAlias::new(
+                            "save".to_string(),
+                            format!("save {}", name),
+                            StorageCommand::Save {
+                                name: name.to_string(),
+                            }
+                            .into(),
+                        ));
 
                         format!(
                             "{}\n\n_{} has not yet been saved. Use ~save~ to save {} to your journal._",
@@ -67,7 +72,7 @@ impl Runnable for StorageCommand {
                 if let Some(save_command) = save_command {
                     app_meta
                         .command_aliases
-                        .insert("save".to_string(), save_command.into());
+                        .insert("save".to_string(), save_command);
                 }
 
                 output

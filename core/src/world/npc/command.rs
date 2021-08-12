@@ -1,5 +1,5 @@
 use super::{Gender, Npc, Species};
-use crate::app::AppMeta;
+use crate::app::{AppMeta, CommandAlias};
 use crate::storage::StorageCommand;
 use crate::world::Generate;
 
@@ -28,10 +28,14 @@ _{} has not yet been saved. Use ~save~ to save {} to your journal._
     if let Some(name) = npc.name.value() {
         app_meta.command_aliases.insert(
             "save".to_string(),
-            StorageCommand::Save {
-                name: name.to_string(),
-            }
-            .into(),
+            CommandAlias::new(
+                "save".to_string(),
+                format!("save {}", npc.name),
+                StorageCommand::Save {
+                    name: name.to_string(),
+                }
+                .into(),
+            ),
         );
     }
 
@@ -43,10 +47,14 @@ _{} has not yet been saved. Use ~save~ to save {} to your journal._
             output.push_str(&format!("\\\n~{}~ {}", i, alt.display_summary()));
             app_meta.command_aliases.insert(
                 i.to_string(),
-                StorageCommand::Load {
-                    name: alt.name.value().unwrap().to_owned(),
-                }
-                .into(),
+                CommandAlias::new(
+                    i.to_string(),
+                    format!("load {}", alt.name),
+                    StorageCommand::Load {
+                        name: alt.name.value().unwrap().to_owned(),
+                    }
+                    .into(),
+                ),
             );
             alt.into()
         })

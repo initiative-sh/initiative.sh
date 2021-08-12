@@ -30,7 +30,7 @@ impl Runnable for CommandAlias {
             .command_aliases
             .get(input)
             .iter()
-            .map(|&c| Self::new(input.to_string(), "command alias".to_string(), c.clone()))
+            .map(|&c| c.clone())
             .collect()
     }
 

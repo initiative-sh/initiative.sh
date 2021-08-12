@@ -1,4 +1,4 @@
-use super::Command;
+use super::CommandAlias;
 use crate::storage::DataStore;
 use crate::world;
 use rand::prelude::*;
@@ -10,7 +10,7 @@ const RECENT_MAX_LEN: usize = 100;
 
 pub struct AppMeta {
     pub cache: HashMap<Uuid, world::Thing>,
-    pub command_aliases: HashMap<String, Command>,
+    pub command_aliases: HashMap<String, CommandAlias>,
     pub data_store: Box<dyn DataStore>,
     pub demographics: world::Demographics,
     pub rng: SmallRng,
@@ -77,7 +77,7 @@ impl fmt::Debug for AppMeta {
         write!(
             f,
             "AppMeta {{ cache: {:?}, command_aliases: {:?}, demographics: {:?}, recent: {:?} }}",
-            self.cache, self.demographics, self.command_aliases, self.recent,
+            self.cache, self.command_aliases, self.demographics, self.recent,
         )
     }
 }
@@ -226,7 +226,7 @@ mod test {
         app_meta.demographics = Demographics::new(HashMap::new().into());
 
         assert_eq!(
-            "AppMeta { cache: {}, command_aliases: Demographics { groups: GroupMapWrapper({}) }, demographics: {}, recent: [] }",
+            "AppMeta { cache: {}, command_aliases: {}, demographics: Demographics { groups: GroupMapWrapper({}) }, recent: [] }",
             format!("{:?}", app_meta),
         );
     }
