@@ -1,6 +1,8 @@
+pub use alias::CommandAlias;
 pub use app::AppCommand;
 pub use runnable::{autocomplete_phrase, Runnable};
 
+mod alias;
 mod app;
 mod runnable;
 
@@ -12,6 +14,7 @@ use async_trait::async_trait;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
+    Alias(CommandAlias),
     App(AppCommand),
     Reference(ReferenceCommand),
     Storage(StorageCommand),
@@ -22,6 +25,7 @@ pub enum Command {
 impl Runnable for Command {
     async fn run(&self, app_meta: &mut AppMeta) -> String {
         match self {
+            Self::Alias(c) => c.run(app_meta).await,
             Self::App(c) => c.run(app_meta).await,
             Self::Reference(c) => c.run(app_meta).await,
             Self::Storage(c) => c.run(app_meta).await,
@@ -56,6 +60,7 @@ impl Runnable for Command {
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         let mut suggestions: Vec<(String, String)> = std::iter::empty()
+            .chain(CommandAlias::autocomplete(input, app_meta).drain(..))
             .chain(AppCommand::autocomplete(input, app_meta).drain(..))
             .chain(ReferenceCommand::autocomplete(input, app_meta).drain(..))
             .chain(StorageCommand::autocomplete(input, app_meta).drain(..))
