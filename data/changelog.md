@@ -1,3 +1,5 @@
+* **Enhancement:** Rewrite inn name generator to provide a greater variety of
+  results.
 * **New:** New command `journal` lists everything you've saved to your journal.
 * **Enhancement:** Autocomplete suggestions when loading a thing will include
   a brief summary of that thing, eg. "adult human, they/them".

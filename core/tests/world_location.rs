@@ -34,7 +34,7 @@ fn generated_content_is_persisted() {
     // # The Roaring Spirit
     // *inn*
     //
-    // Gathering place for a secret society
+    // _The Roaring Spirit has not yet been saved. Use ~save~ to save it to your journal._
     //
     // *Alternatives:*\
     // 0 The Lonely Rose, an inn\
@@ -60,13 +60,13 @@ fn generated_content_is_persisted() {
         persisted_output.lines().next(),
     );
     assert_eq!(
-        6,
+        4,
         generated_output
             .lines()
             .zip(persisted_output.lines())
             .enumerate()
             .map(|(i, (generated, persisted))| {
-                if i == 5 {
+                if i == 3 {
                     assert_eq!("*Alternatives:* \\", generated);
                     assert_eq!(
                         format!(
