@@ -198,7 +198,7 @@ mod test {
             .into();
 
             assert_eq!(
-                "Inn (unsaved)",
+                "inn (unsaved)",
                 StorageCommand::Load {
                     name: String::new(),
                 }
@@ -208,7 +208,7 @@ mod test {
             location.set_uuid(Uuid::new_v4());
 
             assert_eq!(
-                "Inn",
+                "inn",
                 StorageCommand::Load {
                     name: String::new(),
                 }
@@ -378,7 +378,7 @@ mod test {
 
         assert_eq!(
             [
-                ("Potato & Potato, Esq.", "Shop"),
+                ("Potato & Potato, Esq.", "shop"),
                 ("Potato Johnson", "adult elf, they/them (unsaved)"),
             ]
             .iter()
@@ -401,7 +401,7 @@ mod test {
 
         assert_eq!(
             [
-                ("load Potato & Potato, Esq.", "Shop"),
+                ("load Potato & Potato, Esq.", "shop"),
                 ("load Potato Johnson", "adult elf, they/them (unsaved)"),
             ]
             .iter()

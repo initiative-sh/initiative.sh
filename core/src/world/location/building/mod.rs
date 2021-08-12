@@ -47,11 +47,11 @@ impl Generate for BuildingType {
 impl fmt::Display for BuildingType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            BuildingType::Inn => write!(f, "Inn"),
-            BuildingType::Residence => write!(f, "Residence"),
-            BuildingType::Shop => write!(f, "Shop"),
-            BuildingType::Temple => write!(f, "Temple"),
-            BuildingType::Warehouse => write!(f, "Warehouse"),
+            BuildingType::Inn => write!(f, "inn"),
+            BuildingType::Residence => write!(f, "residence"),
+            BuildingType::Shop => write!(f, "shop"),
+            BuildingType::Temple => write!(f, "temple"),
+            BuildingType::Warehouse => write!(f, "warehouse"),
         }
     }
 }
@@ -92,11 +92,11 @@ mod test {
 
     #[test]
     fn fmt_test() {
-        assert_eq!("Inn", format!("{}", BuildingType::Inn).as_str());
-        assert_eq!("Residence", format!("{}", BuildingType::Residence).as_str());
-        assert_eq!("Shop", format!("{}", BuildingType::Shop).as_str());
-        assert_eq!("Temple", format!("{}", BuildingType::Temple).as_str());
-        assert_eq!("Warehouse", format!("{}", BuildingType::Warehouse).as_str());
+        assert_eq!("inn", format!("{}", BuildingType::Inn).as_str());
+        assert_eq!("residence", format!("{}", BuildingType::Residence).as_str());
+        assert_eq!("shop", format!("{}", BuildingType::Shop).as_str());
+        assert_eq!("temple", format!("{}", BuildingType::Temple).as_str());
+        assert_eq!("warehouse", format!("{}", BuildingType::Warehouse).as_str());
     }
 
     #[test]

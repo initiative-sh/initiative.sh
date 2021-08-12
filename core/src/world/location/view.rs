@@ -36,7 +36,7 @@ impl<'a> fmt::Display for SummaryView<'a> {
         ) {
             (true, true, _) => {
                 let subtype = format!("{}", location.subtype);
-                if subtype.starts_with(&['A', 'E', 'I', 'O', 'U'][..]) {
+                if subtype.starts_with(&['a', 'e', 'i', 'o', 'u'][..]) {
                     write!(f, "{}, an {}", location.name, subtype)
                 } else {
                     write!(f, "{}, a {}", location.name, subtype)
@@ -102,24 +102,24 @@ mod test {
         location.description = "I am Mordenkainen".into();
 
         assert_eq!(
-            "Oaken Mermaid Inn, an Inn",
+            "Oaken Mermaid Inn, an inn",
             format!("{}", location.display_summary()),
         );
 
         location.subtype = LocationType::from(BuildingType::Residence).into();
         assert_eq!(
-            "Oaken Mermaid Inn, a Residence",
+            "Oaken Mermaid Inn, a residence",
             format!("{}", location.display_summary()),
         );
 
         location.name = Field::default();
         assert_eq!(
-            "Residence (I am Mordenkainen)",
+            "residence (I am Mordenkainen)",
             format!("{}", location.display_summary()),
         );
 
         location.description = Field::default();
-        assert_eq!("Residence", format!("{}", location.display_summary()));
+        assert_eq!("residence", format!("{}", location.display_summary()));
 
         location.subtype = Field::default();
         assert_eq!("", format!("{}", location.display_summary()));
@@ -152,7 +152,7 @@ mod test {
         assert_eq!(
             "\
 # Oaken Mermaid Inn
-*Inn*
+*inn*
 
 I am Mordenkainen",
             format!("{}", location.display_details()),
