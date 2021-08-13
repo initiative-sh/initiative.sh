@@ -47,7 +47,7 @@ fn generated_content_is_persisted() {
     // **Age:** 64 years\
     // **Size:** 5'7", 112 lbs (medium)
     //
-    // _Sybil has not yet been saved. Use ~save~ to save her to your journal._
+    // _Sybil has not yet been saved. Use ~save~ to save her to your `journal`._
     //
     // *Alternatives:* \
     // ~0~ `Mokosh` (middle-aged half-elf, she/her)\

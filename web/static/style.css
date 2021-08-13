@@ -68,6 +68,10 @@ body {
     background: var(--solarized-scheme02);
 }
 
+#output h2 {
+    font-weight: bold;
+}
+
 #output ul {
     margin-bottom: 0;
     margin-left: 0;

@@ -19,7 +19,10 @@ pub async fn save(app_meta: &mut AppMeta, name: &str) -> Result<String, String> 
             .value()
             .map_or(false, |s| s.to_lowercase() == lowercase_name)
     }) {
-        Err(format!("`{}` has already been saved to your journal", name))
+        Err(format!(
+            "`{}` has already been saved to your `journal`",
+            name,
+        ))
     } else {
         Err(format!("No matches for \"{}\"", name))
     }
@@ -36,6 +39,10 @@ pub fn load<'a>(app_meta: &'a AppMeta, name: &str) -> Option<&'a Thing> {
                 .value()
                 .map_or(false, |s| s.to_lowercase() == lowercase_name)
         })
+}
+
+pub fn load_all(app_meta: &AppMeta) -> impl Iterator<Item = &Thing> {
+    app_meta.cache.values()
 }
 
 pub async fn init_cache(app_meta: &mut AppMeta) {
