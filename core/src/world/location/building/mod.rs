@@ -111,8 +111,8 @@ mod test {
     fn generate_inn_test() {
         generate_test_builder(
             generate_inn,
-            Field::from("The Gleaming Demon").unlocked(),
-            Field::from("Thieves' guild hangout").unlocked(),
+            Field::from("Mutton and Malt").unlocked(),
+            Field::from("Previous description").unlocked(),
         );
     }
 
