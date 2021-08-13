@@ -1,3 +1,4 @@
+* **New:** New command `journal` lists everything you've saved to your journal.
 * **Enhancement:** Autocomplete suggestions when loading a thing will include
   a brief summary of that thing, eg. "adult human, they/them".
 * **Enhancement:** Attempting to save a thing that has already been saved will

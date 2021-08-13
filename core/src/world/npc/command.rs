@@ -17,7 +17,7 @@ pub fn command(species: &Option<Species>, app_meta: &mut AppMeta) -> String {
         "\
 {}
 
-_{} has not yet been saved. Use ~save~ to save {} to your journal._
+_{} has not yet been saved. Use ~save~ to save {} to your `journal`._
 
 *Alternatives:* ",
         npc.display_details(),

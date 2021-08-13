@@ -70,7 +70,7 @@ fn generated_content_is_persisted() {
                     assert_eq!("*Alternatives:* \\", generated);
                     assert_eq!(
                         format!(
-                            "_{} has not yet been saved. Use ~save~ to save it to your journal._",
+                            "_{} has not yet been saved. Use ~save~ to save it to your `journal`._",
                             name,
                         ),
                         persisted,

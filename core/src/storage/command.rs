@@ -7,6 +7,7 @@ use async_trait::async_trait;
 pub enum StorageCommand {
     Load { name: String },
     Save { name: String },
+    Journal,
 }
 
 impl StorageCommand {
@@ -30,11 +31,13 @@ impl StorageCommand {
                         }
                     )
                 }
+                Self::Journal { .. } => unreachable!(),
             }
         } else {
             match self {
                 Self::Load { .. } => "load an entry",
                 Self::Save { .. } => "save an entry to journal",
+                Self::Journal { .. } => "list journal contents",
             }
             .to_string()
         }
@@ -62,7 +65,7 @@ impl Runnable for StorageCommand {
                         ));
 
                         format!(
-                            "{}\n\n_{} has not yet been saved. Use ~save~ to save {} to your journal._",
+                            "{}\n\n_{} has not yet been saved. Use ~save~ to save {} to your `journal`._",
                             thing.display_details(),
                             thing.name(),
                             thing.gender().them(),
@@ -81,6 +84,50 @@ impl Runnable for StorageCommand {
             Self::Save { name } => repository::save(app_meta, name)
                 .await
                 .map_or_else(|e| e, |s| s),
+            Self::Journal => {
+                let mut output = "# Journal".to_string();
+                let [mut npcs, mut locations, mut regions] = [Vec::new(), Vec::new(), Vec::new()];
+
+                let record_count = repository::load_all(app_meta)
+                    .map(|thing| match thing {
+                        Thing::Npc(_) => npcs.push(thing),
+                        Thing::Location(_) => locations.push(thing),
+                        Thing::Region(_) => regions.push(thing),
+                    })
+                    .count();
+
+                let mut add_section = |title: &str, mut things: Vec<&Thing>| {
+                    if !things.is_empty() {
+                        output.push_str("\n\n## ");
+                        output.push_str(title);
+
+                        things.sort_unstable_by(|a, b| {
+                            a.name()
+                                .value()
+                                .map_or("", |s| s.as_str())
+                                .cmp(b.name().value().map_or("", |s| s.as_str()))
+                        });
+
+                        things.drain(..).enumerate().for_each(|(i, thing)| {
+                            if i > 0 {
+                                output.push('\\');
+                            }
+
+                            output.push_str(&format!("\n{}", thing.display_summary()));
+                        });
+                    }
+                };
+
+                add_section("NPCs", npcs);
+                add_section("Locations", locations);
+                add_section("Regions", regions);
+
+                if record_count == 0 {
+                    output.push_str("\n\n*Your journal is currently empty.*");
+                }
+
+                output
+            }
         }
     }
 
@@ -98,7 +145,10 @@ impl Runnable for StorageCommand {
                 name: name.to_string(),
             }]
         } else {
-            Vec::new()
+            match input {
+                "journal" => vec![Self::Journal],
+                _ => Vec::new(),
+            }
         }
     }
 
@@ -107,73 +157,74 @@ impl Runnable for StorageCommand {
             return Vec::new();
         }
 
-        let mut input_parts = ("", input);
         let mut result = Vec::new();
 
-        if !input
-            .chars()
-            .next()
-            .map(char::is_uppercase)
-            .unwrap_or_default()
+        ["save", "load"]
+            .iter()
+            .filter(|s| s.starts_with(input))
+            .filter_map(|s| {
+                let suggestion = format!("{} [name]", s);
+                Self::parse_input(&suggestion, app_meta)
+                    .drain(..)
+                    .next()
+                    .map(|command| (suggestion, command))
+            })
+            .chain(
+                ["journal"]
+                    .iter()
+                    .filter(|s| s.starts_with(input))
+                    .filter_map(|s| {
+                        Self::parse_input(s, app_meta)
+                            .drain(..)
+                            .next()
+                            .map(|c| (s.to_string(), c))
+                    }),
+            )
+            .for_each(|(s, command)| result.push((s, command.summarize(None))));
+
+        let (input_prefix, input_name) = if let Some(parts) = ["save ", "load "]
+            .iter()
+            .find_map(|prefix| input.strip_prefix(prefix).map(|name| (*prefix, name)))
         {
-            ["save", "load"]
-                .iter()
-                .filter(|s| s.starts_with(input))
-                .filter_map(|s| {
-                    let suggestion = format!("{} [name]", s);
-                    Self::parse_input(&suggestion, app_meta)
-                        .drain(..)
-                        .next()
-                        .map(|command| (suggestion, command))
-                })
-                .for_each(|(s, command)| result.push((s, command.summarize(None))));
+            parts
+        } else {
+            ("", input)
+        };
 
-            if let Some(parts) = ["save ", "load "]
-                .iter()
-                .find_map(|prefix| input.strip_prefix(prefix).map(|name| (*prefix, name)))
-            {
-                input_parts = parts;
-            }
-        }
-
-        {
-            let (input_prefix, input_name) = input_parts;
-
-            app_meta
-                .cache
-                .values()
-                .chain(app_meta.recent().iter())
-                .filter_map(|thing| {
-                    thing
-                        .name()
-                        .value()
-                        .map(|name| {
-                            if name.starts_with(input_name) {
-                                if input_prefix == "save " && thing.uuid().is_some() {
-                                    None
-                                } else {
-                                    Some((input_prefix, thing))
-                                }
-                            } else if name.starts_with(input) {
-                                Some(("", thing))
-                            } else {
+        app_meta
+            .cache
+            .values()
+            .chain(app_meta.recent().iter())
+            .filter_map(|thing| {
+                thing
+                    .name()
+                    .value()
+                    .map(|name| {
+                        if name.starts_with(input_name) {
+                            if input_prefix == "save " && thing.uuid().is_some() {
                                 None
+                            } else {
+                                Some((input_prefix, thing))
                             }
-                        })
-                        .flatten()
-                })
-                .filter_map(|(prefix, thing)| {
-                    let suggestion = format!("{}{}", prefix, thing.name());
-                    Self::parse_input(&suggestion, app_meta)
-                        .drain(..)
-                        .next()
-                        .map(|command| (suggestion, thing, command))
-                })
-                .take(10)
-                .for_each(|(suggestion, thing, command)| {
-                    result.push((suggestion, command.summarize(Some(thing))))
-                });
-        }
+                        } else if name.starts_with(input) {
+                            Some(("", thing))
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten()
+            })
+            .filter_map(|(prefix, thing)| {
+                let suggestion = format!("{}{}", prefix, thing.name());
+                Self::parse_input(&suggestion, app_meta)
+                    .drain(..)
+                    .next()
+                    .map(|command| (suggestion, thing, command))
+            })
+            .take(10)
+            .for_each(|(suggestion, thing, command)| {
+                result.push((suggestion, command.summarize(Some(thing))))
+            });
 
         result
     }
@@ -326,6 +377,18 @@ mod test {
         );
 
         assert_eq!(
+            vec![StorageCommand::Load {
+                name: "Gandalf the Grey".to_string()
+            }],
+            StorageCommand::parse_input("load Gandalf the Grey", &app_meta),
+        );
+
+        assert_eq!(
+            vec![StorageCommand::Journal],
+            StorageCommand::parse_input("journal", &app_meta),
+        );
+
+        assert_eq!(
             Vec::<StorageCommand>::new(),
             StorageCommand::parse_input("potato", &app_meta),
         );
@@ -424,6 +487,14 @@ mod test {
                 .map(|(a, b)| (a.to_string(), b.to_string()))
                 .collect::<Vec<_>>(),
             StorageCommand::autocomplete("s", &app_meta),
+        );
+
+        assert_eq!(
+            [("journal", "list journal contents")]
+                .iter()
+                .map(|(a, b)| (a.to_string(), b.to_string()))
+                .collect::<Vec<_>>(),
+            StorageCommand::autocomplete("j", &app_meta),
         );
 
         assert!(StorageCommand::autocomplete("p", &app_meta).is_empty());
