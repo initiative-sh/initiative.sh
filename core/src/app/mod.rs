@@ -18,7 +18,7 @@ impl App {
 
     pub async fn init(&mut self) -> &'static str {
         repository::init_cache(&mut self.meta).await;
-        motd!()
+        motd!().0
     }
 
     pub async fn command(&mut self, input: &str) -> String {
