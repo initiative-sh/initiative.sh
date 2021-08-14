@@ -43,7 +43,7 @@ impl DataStore for MemoryDataStore {
         things.push(thing.clone());
     }
 
-    async fn get_all(&self) -> Vec<Thing> {
-        self.things.borrow().to_vec()
+    async fn get_all(&self) -> Result<Vec<Thing>, ()> {
+        Ok(self.things.borrow().to_vec())
     }
 }

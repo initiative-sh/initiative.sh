@@ -46,15 +46,19 @@ pub fn load_all(app_meta: &AppMeta) -> impl Iterator<Item = &Thing> {
 }
 
 pub async fn init_cache(app_meta: &mut AppMeta) {
-    let mut things = app_meta.data_store.get_all().await;
-    app_meta.cache = things
-        .drain(..)
-        .filter_map(|thing| {
-            if let Some(&uuid) = thing.uuid() {
-                Some((uuid, thing))
-            } else {
-                None
-            }
-        })
-        .collect();
+    let things = app_meta.data_store.get_all().await;
+
+    if let Ok(mut things) = things {
+        app_meta.cache = things
+            .drain(..)
+            .filter_map(|thing| {
+                if let Some(&uuid) = thing.uuid() {
+                    Some((uuid, thing))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        app_meta.data_store_enabled = true;
+    }
 }

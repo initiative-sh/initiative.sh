@@ -8,8 +8,8 @@ pub struct NullDataStore;
 impl DataStore for NullDataStore {
     async fn save(&mut self, _thing: &Thing) {}
 
-    async fn get_all(&self) -> Vec<Thing> {
-        Vec::new()
+    async fn get_all(&self) -> Result<Vec<Thing>, ()> {
+        Ok(Vec::new())
     }
 }
 
@@ -17,5 +17,5 @@ impl DataStore for NullDataStore {
 pub trait DataStore {
     async fn save(&mut self, thing: &Thing);
 
-    async fn get_all(&self) -> Vec<Thing>;
+    async fn get_all(&self) -> Result<Vec<Thing>, ()>;
 }

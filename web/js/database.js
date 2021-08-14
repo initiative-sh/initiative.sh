@@ -8,8 +8,11 @@ dexie.version(1).stores({
 
 const save = async (thing) => {
   await dexie.things.put(thing);
-}
+};
 
-const get_all = async () => await dexie.things.toArray();
+const get_all = async () => {
+  return dexie.things.toArray()
+    .catch((err) => console.log(err));
+};
 
 export { save, get_all };

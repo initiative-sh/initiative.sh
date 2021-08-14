@@ -12,6 +12,7 @@ pub struct AppMeta {
     pub cache: HashMap<Uuid, world::Thing>,
     pub command_aliases: HashSet<CommandAlias>,
     pub data_store: Box<dyn DataStore>,
+    pub data_store_enabled: bool,
     pub demographics: world::Demographics,
     pub rng: SmallRng,
 
@@ -24,6 +25,7 @@ impl AppMeta {
             cache: HashMap::default(),
             command_aliases: HashSet::default(),
             data_store: Box::new(data_store),
+            data_store_enabled: false,
             demographics: world::Demographics::default(),
             recent: Vec::default(),
             rng: SmallRng::from_entropy(),
