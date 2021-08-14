@@ -1,6 +1,7 @@
 mod common;
 
 use common::{sync_app, sync_app_with_data_store, MemoryDataStore};
+use initiative_core::NullDataStore;
 
 #[test]
 fn npc_is_saved_to_storage() {
@@ -72,6 +73,29 @@ fn npc_can_be_loaded_from_storage() {
         "{}",
         npc_output_from_temp,
     );
+}
+
+#[test]
+fn startup_error_with_unusable_data_store() {
+    {
+        let mut app = sync_app_with_data_store(NullDataStore::default());
+        let output = app.init();
+        assert!(
+            output.contains("Local storage is not available in your browser."),
+            "{}",
+            output,
+        );
+    }
+
+    {
+        let mut app = sync_app_with_data_store(MemoryDataStore::default());
+        let output = app.init();
+        assert!(
+            !output.contains("Local storage is not available in your browser."),
+            "{}",
+            output,
+        );
+    }
 }
 
 #[test]

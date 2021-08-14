@@ -9,7 +9,7 @@ impl DataStore for NullDataStore {
     async fn save(&mut self, _thing: &Thing) {}
 
     async fn get_all(&self) -> Result<Vec<Thing>, ()> {
-        Ok(Vec::new())
+        Err(())
     }
 }
 

@@ -18,7 +18,13 @@ impl App {
 
     pub async fn init(&mut self) -> &'static str {
         repository::init_cache(&mut self.meta).await;
-        motd!().0
+        let (motd, motd_len) = motd!("! Local storage is not available in your browser. You will be able to use initiative.sh, but saving and loading won't work.");
+
+        if self.meta.data_store_enabled {
+            &motd[..motd_len]
+        } else {
+            motd
+        }
     }
 
     pub async fn command(&mut self, input: &str) -> String {

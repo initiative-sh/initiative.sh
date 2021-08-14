@@ -1,3 +1,5 @@
+* **Enhancement:** Users that can't save to local storage (eg. private browsing,
+  Firefox Focus) will see appropriate error messages instead of a broken site.
 * **Enhancement:** You can now look up SRD magic items such as the inimitable
   `Deck Of Many Things`, as well as categories like `magic weapons` and
   `wondrous items`.
