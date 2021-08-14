@@ -4,7 +4,14 @@ use common::sync_app;
 
 #[test]
 fn open_game_license() {
-    assert_eq!(111, sync_app().command("Open Game License").lines().count());
+    assert_eq!(
+        111,
+        sync_app()
+            .command("Open Game License")
+            .unwrap()
+            .lines()
+            .count()
+    );
 }
 
 #[test]
@@ -22,13 +29,13 @@ fn spell() {
 You gain the ability to comprehend and verbally communicate with beasts for the duration. The knowledge and awareness of many beasts is limited by their intelligence, but at a minimum, beasts can give you information about nearby locations and monsters, including whatever they can perceive or have perceived within the past day. You might be able to persuade a beast to perform a small favor for you, at the DM's discretion.
 
 *Speak With Animals is Open Game Content subject to the `Open Game License`.*",
-        sync_app().command("Speak With Animals"),
+        sync_app().command("Speak With Animals").unwrap(),
     );
 }
 
 #[test]
 fn spells() {
-    let output = sync_app().command("spells");
+    let output = sync_app().command("spells").unwrap();
     assert_eq!(
         "\
 # Spells
@@ -45,7 +52,7 @@ fn spells() {
 
 #[test]
 fn item() {
-    let output = sync_app().command("Light Crossbow");
+    let output = sync_app().command("Light Crossbow").unwrap();
 
     assert_eq!(
         "\
@@ -61,12 +68,12 @@ fn item() {
         output,
     );
 
-    assert_eq!(output, sync_app().command("Crossbow, Light"));
+    assert_eq!(output, sync_app().command("Crossbow, Light").unwrap());
 }
 
 #[test]
 fn weapons() {
-    let output = sync_app().command("melee weapons");
+    let output = sync_app().command("melee weapons").unwrap();
 
     assert_eq!(
         "\
@@ -107,13 +114,11 @@ fn weapons() {
         output,
     );
 
-    assert_eq!(output, sync_app().command("weapons, melee"));
+    assert_eq!(output, sync_app().command("weapons, melee").unwrap());
 }
 
 #[test]
 fn magic_item() {
-    let output = sync_app().command("Rod Of Rulership");
-
     assert_eq!(
         "\
 # Rod Of Rulership
@@ -123,13 +128,13 @@ fn magic_item() {
 You can use an action to present the rod and command obedience from each creature of your choice that you can see within 120 feet of you. Each target must succeed on a DC 15 Wisdom saving throw or be charmed by you for 8 hours. While charmed in this way, the creature regards you as its trusted leader. If harmed by you or your companions, or commanded to do something contrary to its nature, a target ceases to be charmed in this way. The rod can't be used again until the next dawn.
 
 *Rod Of Rulership is Open Game Content subject to the `Open Game License`.*",
-        output,
+        sync_app().command("Rod Of Rulership").unwrap(),
     );
 }
 
 #[test]
 fn magic_weapons() {
-    let output = sync_app().command("magic weapons");
+    let output = sync_app().command("magic weapons").unwrap();
 
     assert_eq!(
         "\
@@ -167,5 +172,5 @@ fn magic_weapons() {
         output,
     );
 
-    assert_eq!(output, sync_app().command("weapons, magic"));
+    assert_eq!(output, sync_app().command("weapons, magic").unwrap());
 }

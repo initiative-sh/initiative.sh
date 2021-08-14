@@ -13,7 +13,11 @@ pub async fn init() -> String {
 #[wasm_bindgen]
 pub async fn command(input: JsValue) -> JsValue {
     if let Some(input) = input.as_string() {
-        app().command(&input).await.into()
+        app()
+            .command(&input)
+            .await
+            .unwrap_or_else(|e| format!("! {}", e))
+            .into()
     } else {
         JsValue::undefined()
     }

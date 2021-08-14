@@ -29,7 +29,7 @@ impl SyncApp {
         block_on(self.0.init())
     }
 
-    pub fn command(&mut self, input: &str) -> String {
+    pub fn command(&mut self, input: &str) -> Result<String, String> {
         block_on(self.0.command(input))
     }
 

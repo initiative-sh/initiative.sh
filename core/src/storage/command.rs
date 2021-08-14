@@ -46,7 +46,7 @@ impl StorageCommand {
 
 #[async_trait(?Send)]
 impl Runnable for StorageCommand {
-    async fn run(&self, app_meta: &mut AppMeta) -> String {
+    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
             Self::Load { name } => {
                 let thing = repository::load(app_meta, name);
@@ -62,17 +62,17 @@ impl Runnable for StorageCommand {
                             .into(),
                         ));
 
-                        format!(
+                        Ok(format!(
                             "{}\n\n_{} has not yet been saved. Use ~save~ to save {} to your `journal`._",
                             thing.display_details(),
                             thing.name(),
                             thing.gender().them(),
-                        )
+                        ))
                     } else {
-                        format!("{}", thing.display_details())
+                        Ok(format!("{}", thing.display_details()))
                     }
                 } else {
-                    format!("! No matches for \"{}\"", name)
+                    Err(format!("No matches for \"{}\"", name))
                 };
 
                 if let Some(save_command) = save_command {
@@ -81,9 +81,7 @@ impl Runnable for StorageCommand {
 
                 output
             }
-            Self::Save { name } => repository::save(app_meta, name)
-                .await
-                .map_or_else(|e| format!("! {}", e), |s| s),
+            Self::Save { name } => repository::save(app_meta, name).await,
             Self::Journal => {
                 let mut output = "# Journal".to_string();
                 let [mut npcs, mut locations, mut regions] = [Vec::new(), Vec::new(), Vec::new()];
@@ -121,7 +119,7 @@ impl Runnable for StorageCommand {
                     output.push_str("\n\n*Your journal is currently empty.*");
                 }
 
-                output
+                Ok(output)
             }
         }
     }

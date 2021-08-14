@@ -4,7 +4,7 @@ use common::sync_app;
 
 #[test]
 fn about() {
-    let output = sync_app().command("about");
+    let output = sync_app().command("about").unwrap();
     assert!(output.contains("initiative.sh"), "{}", output);
 }
 
@@ -31,7 +31,7 @@ fn autocomplete_command() {
 #[test]
 fn autocomplete_proper_noun() {
     let mut app = sync_app();
-    let output = app.command("npc");
+    let output = app.command("npc").unwrap();
     let mut output_iter = output.lines();
     let npc_name = output_iter.next().unwrap().trim_start_matches("# ");
     let npc_description = output_iter.next().unwrap().trim_matches('*');
@@ -54,12 +54,12 @@ fn autocomplete_proper_noun() {
 fn debug() {
     let mut app = sync_app();
 
-    let empty_output = app.command("debug");
+    let empty_output = app.command("debug").unwrap();
     assert!(empty_output.starts_with("AppMeta { "), "{}", empty_output);
 
-    app.command("npc");
+    app.command("npc").unwrap();
 
-    let populated_output = app.command("debug");
+    let populated_output = app.command("debug").unwrap();
     assert!(
         populated_output.len() > empty_output.len(),
         "Empty:\n{}\n\nPopulated:\n{}",
@@ -70,7 +70,7 @@ fn debug() {
 
 #[test]
 fn help() {
-    let output = sync_app().command("help");
+    let output = sync_app().command("help").unwrap();
     assert!(output.contains("command"), "{}", output);
 }
 
@@ -86,6 +86,6 @@ fn init() {
 fn unknown() {
     assert_eq!(
         "Unknown command: \"blah blah\"",
-        sync_app().command("blah blah"),
+        sync_app().command("blah blah").unwrap_err(),
     );
 }

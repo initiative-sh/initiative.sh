@@ -5,8 +5,8 @@ use common::sync_app;
 #[test]
 fn results_are_random() {
     assert_ne!(
-        sync_app().command("building"),
-        sync_app().command("building")
+        sync_app().command("building").unwrap(),
+        sync_app().command("building").unwrap(),
     );
 }
 
@@ -15,7 +15,7 @@ fn generated_content_is_limited_by_building_type() {
     ["inn", "residence", "shop", "temple", "warehouse"]
         .iter()
         .for_each(|building_type| {
-            let output = sync_app().command(building_type);
+            let output = sync_app().command(building_type).unwrap();
 
             assert!(
                 output.matches(building_type).count() >= 11,
@@ -29,7 +29,7 @@ fn generated_content_is_limited_by_building_type() {
 #[test]
 fn generated_content_is_persisted() {
     let mut app = sync_app();
-    let generated_output = app.command("inn");
+    let generated_output = app.command("inn").unwrap();
 
     // # The Roaring Spirit
     // *inn*
@@ -54,7 +54,7 @@ fn generated_content_is_persisted() {
         .next()
         .unwrap()
         .trim_start_matches("# ");
-    let persisted_output = app.command(name);
+    let persisted_output = app.command(name).unwrap();
     assert_eq!(
         format!("# {}", name),
         persisted_output.lines().next().unwrap(),
@@ -96,7 +96,7 @@ fn generated_content_is_persisted() {
                     let name = &s[2..pos];
                     assert_eq!(
                         format!("# {}", name),
-                        app.command(name).lines().next().unwrap(),
+                        app.command(name).unwrap().lines().next().unwrap(),
                     );
                 } else {
                     panic!("Missing , in \"{}\"", s);

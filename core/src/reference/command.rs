@@ -27,7 +27,7 @@ impl ReferenceCommand {
 
 #[async_trait(?Send)]
 impl Runnable for ReferenceCommand {
-    async fn run(&self, _app_meta: &mut AppMeta) -> String {
+    async fn run(&self, _app_meta: &mut AppMeta) -> Result<String, String> {
         let (output, name) = match self {
             Self::Spell(spell) => (format!("{}", spell), spell.get_name()),
             Self::Spells => (Spell::get_list().to_string(), "This listing"),
@@ -35,16 +35,16 @@ impl Runnable for ReferenceCommand {
             Self::ItemCategory(category) => (format!("{}", category), "This listing"),
             Self::MagicItem(magic_item) => (format!("{}", magic_item), magic_item.get_name()),
             Self::OpenGameLicense => {
-                return include_str!("../../../data/ogl-1.0a.md")
+                return Ok(include_str!("../../../data/ogl-1.0a.md")
                     .trim_end()
-                    .to_string()
+                    .to_string());
             }
         };
 
-        format!(
+        Ok(format!(
             "{}\n\n*{} is Open Game Content subject to the `Open Game License`.*",
-            output, name
-        )
+            output, name,
+        ))
     }
 
     fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {

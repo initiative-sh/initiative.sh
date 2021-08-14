@@ -27,11 +27,11 @@ impl App {
         }
     }
 
-    pub async fn command(&mut self, input: &str) -> String {
+    pub async fn command(&mut self, input: &str) -> Result<String, String> {
         if let Some(command) = Command::parse_input(input, &self.meta).first() {
             command.run(&mut self.meta).await
         } else {
-            format!("Unknown command: \"{}\"", input)
+            Err(format!("Unknown command: \"{}\"", input))
         }
     }
 

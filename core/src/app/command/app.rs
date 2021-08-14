@@ -23,8 +23,8 @@ impl AppCommand {
 
 #[async_trait(?Send)]
 impl Runnable for AppCommand {
-    async fn run(&self, app_meta: &mut AppMeta) -> String {
-        match self {
+    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
+        Ok(match self {
             Self::About => include_str!("../../../../data/about.md")
                 .trim_end()
                 .to_string(),
@@ -33,7 +33,7 @@ impl Runnable for AppCommand {
             Self::Help => include_str!("../../../../data/help.md")
                 .trim_end()
                 .to_string(),
-        }
+        })
     }
 
     fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {

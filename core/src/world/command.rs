@@ -32,11 +32,11 @@ impl WorldCommand {
 
 #[async_trait(?Send)]
 impl Runnable for WorldCommand {
-    async fn run(&self, app_meta: &mut AppMeta) -> String {
-        match self {
+    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
+        Ok(match self {
             Self::Location { location_type } => location::command(location_type, app_meta),
             Self::Npc { species } => npc::command(species, app_meta),
-        }
+        })
     }
 
     fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
