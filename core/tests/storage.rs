@@ -149,6 +149,15 @@ fn journal_has_empty_error_message() {
 }
 
 #[test]
+fn journal_with_invalid_data_store_shows_error_message() {
+    let mut app = sync_app_with_data_store(NullDataStore::default());
+    assert_eq!(
+        "The journal is not supported by your browser.",
+        app.command("journal").unwrap_err(),
+    );
+}
+
+#[test]
 fn journal_shows_alphabetized_results() {
     let mut app = sync_app();
 

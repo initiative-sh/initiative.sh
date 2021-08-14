@@ -83,6 +83,10 @@ impl Runnable for StorageCommand {
             }
             Self::Save { name } => repository::save(app_meta, name).await,
             Self::Journal => {
+                if !app_meta.data_store_enabled {
+                    return Err("The journal is not supported by your browser.".to_string());
+                }
+
                 let mut output = "# Journal".to_string();
                 let [mut npcs, mut locations, mut regions] = [Vec::new(), Vec::new(), Vec::new()];
 
