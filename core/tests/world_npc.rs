@@ -1,6 +1,7 @@
 mod common;
 
-use common::sync_app;
+use common::{sync_app, sync_app_with_data_store};
+use initiative_core::NullDataStore;
 
 #[test]
 fn results_are_random() {
@@ -172,4 +173,14 @@ fn save_alias_exists_for_npcs() {
         let output = app.command(&name);
         assert!(!output.contains("has not yet been saved"), "{}", output);
     }
+}
+
+#[test]
+fn npc_save_alias_does_not_exist_with_invalid_data_store() {
+    let mut app = sync_app_with_data_store(NullDataStore::default());
+
+    let output = app.command("npc");
+    assert!(!output.contains("has not yet been saved"), "{}", output);
+
+    assert_eq!("Unknown command: \"save\"", app.command("save"));
 }

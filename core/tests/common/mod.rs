@@ -1,17 +1,19 @@
 use async_trait::async_trait;
-use initiative_core::{app, App, DataStore, NullDataStore, Thing};
+use initiative_core::{app, App, DataStore, Thing};
 use std::cell::RefCell;
 use std::rc::Rc;
 use tokio_test::block_on;
 
 #[allow(dead_code)]
 pub fn sync_app() -> SyncApp {
-    sync_app_with_data_store(NullDataStore::default())
+    sync_app_with_data_store(MemoryDataStore::default())
 }
 
 #[allow(dead_code)]
 pub fn sync_app_with_data_store(data_store: impl DataStore + 'static) -> SyncApp {
-    SyncApp(app(data_store))
+    let mut app = SyncApp(app(data_store));
+    app.init();
+    app
 }
 
 pub struct SyncApp(App);

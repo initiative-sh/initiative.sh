@@ -52,9 +52,7 @@ impl Runnable for StorageCommand {
                 let thing = repository::load(app_meta, name);
                 let mut save_command = None;
                 let output = if let Some(thing) = thing {
-                    if thing.uuid().is_some() {
-                        format!("{}", thing.display_details())
-                    } else {
+                    if thing.uuid().is_none() && app_meta.data_store_enabled {
                         save_command = Some(CommandAlias::new(
                             "save".to_string(),
                             format!("save {}", name),
@@ -70,9 +68,11 @@ impl Runnable for StorageCommand {
                             thing.name(),
                             thing.gender().them(),
                         )
+                    } else {
+                        format!("{}", thing.display_details())
                     }
                 } else {
-                    format!("No matches for \"{}\"", name)
+                    format!("! No matches for \"{}\"", name)
                 };
 
                 if let Some(save_command) = save_command {
@@ -83,7 +83,7 @@ impl Runnable for StorageCommand {
             }
             Self::Save { name } => repository::save(app_meta, name)
                 .await
-                .map_or_else(|e| e, |s| s),
+                .map_or_else(|e| format!("! {}", e), |s| s),
             Self::Journal => {
                 let mut output = "# Journal".to_string();
                 let [mut npcs, mut locations, mut regions] = [Vec::new(), Vec::new(), Vec::new()];

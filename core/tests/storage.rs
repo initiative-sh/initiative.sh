@@ -23,6 +23,42 @@ fn npc_is_saved_to_storage() {
 }
 
 #[test]
+fn npc_is_saved_to_storage_by_alias() {
+    let data_store = MemoryDataStore::default();
+    let mut app = sync_app_with_data_store(data_store.clone());
+
+    let generated_output = app.command("npc");
+    let npc_name = generated_output
+        .lines()
+        .next()
+        .unwrap()
+        .trim_start_matches("# ");
+
+    app.command("save");
+
+    let things = data_store.things.borrow();
+    assert_eq!(1, things.len());
+    assert_eq!(npc_name, things.first().unwrap().name().value().unwrap());
+}
+
+#[test]
+fn npc_cannot_be_saved_by_alias_with_invalid_data_store() {
+    let mut app = sync_app_with_data_store(NullDataStore::default());
+
+    let generated_output = app.command("npc");
+    let npc_name = generated_output
+        .lines()
+        .next()
+        .unwrap()
+        .trim_start_matches("# ");
+
+    let output = app.command(&npc_name);
+
+    assert!(!output.contains("has not yet been saved"), "{}", output);
+    assert_eq!("Unknown command: \"save\"", app.command("save"));
+}
+
+#[test]
 fn npc_can_be_loaded_from_storage() {
     let data_store = MemoryDataStore::default();
 
@@ -111,8 +147,7 @@ fn journal_has_empty_error_message() {
 
 #[test]
 fn journal_shows_alphabetized_results() {
-    let data_store = MemoryDataStore::default();
-    let mut app = sync_app_with_data_store(data_store.clone());
+    let mut app = sync_app();
 
     let npc_list = app.command("npc");
     let mut npcs: Vec<&str> = npc_list
