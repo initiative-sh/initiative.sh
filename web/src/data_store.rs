@@ -7,8 +7,12 @@ pub struct DataStore;
 
 #[async_trait(?Send)]
 impl initiative_core::DataStore for DataStore {
-    async fn save(&mut self, thing: &Thing) {
-        save(JsValue::from_serde(thing).unwrap()).await;
+    async fn save(&mut self, thing: &Thing) -> Result<(), ()> {
+        if save(JsValue::from_serde(thing).unwrap()).await.is_truthy() {
+            Ok(())
+        } else {
+            Err(())
+        }
     }
 
     async fn get_all(&self) -> Result<Vec<Thing>, ()> {
@@ -18,7 +22,7 @@ impl initiative_core::DataStore for DataStore {
 
 #[wasm_bindgen(module = "/js/database.js")]
 extern "C" {
-    async fn save(thing: JsValue);
+    async fn save(thing: JsValue) -> JsValue;
 
     async fn get_all() -> JsValue;
 }

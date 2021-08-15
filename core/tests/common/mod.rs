@@ -40,9 +40,10 @@ impl SyncApp {
 
 #[async_trait(?Send)]
 impl DataStore for MemoryDataStore {
-    async fn save(&mut self, thing: &Thing) {
+    async fn save(&mut self, thing: &Thing) -> Result<(), ()> {
         let mut things = self.things.borrow_mut();
         things.push(thing.clone());
+        Ok(())
     }
 
     async fn get_all(&self) -> Result<Vec<Thing>, ()> {

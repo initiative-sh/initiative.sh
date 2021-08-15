@@ -7,12 +7,14 @@ dexie.version(1).stores({
 });
 
 const save = async (thing) => {
-  await dexie.things.put(thing);
+  return dexie.things.put(thing)
+    .then(() => true)
+    .catch(() => false);
 };
 
 const get_all = async () => {
   return dexie.things.toArray()
-    .catch((err) => console.log(err));
+    .catch(() => {});
 };
 
 export { save, get_all };

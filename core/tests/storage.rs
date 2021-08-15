@@ -15,7 +15,16 @@ fn npc_is_saved_to_storage() {
         .unwrap()
         .trim_start_matches("# ");
 
-    app.command(&format!("save {}", npc_name)).unwrap();
+    {
+        let output = app.command(&format!("save {}", npc_name)).unwrap();
+        let start = format!("Saving `{}`", npc_name);
+        assert!(
+            output.starts_with(&start),
+            "\"{}\" should start with \"{}\"",
+            output,
+            start,
+        );
+    }
 
     let things = data_store.things.borrow();
     assert_eq!(1, things.len());
@@ -39,6 +48,23 @@ fn npc_is_saved_to_storage_by_alias() {
     let things = data_store.things.borrow();
     assert_eq!(1, things.len());
     assert_eq!(npc_name, things.first().unwrap().name().value().unwrap());
+}
+
+#[test]
+fn npc_cannot_be_saved_with_invalid_data_store() {
+    let mut app = sync_app_with_data_store(NullDataStore::default());
+
+    let generated_output = app.command("npc").unwrap();
+    let npc_name = generated_output
+        .lines()
+        .next()
+        .unwrap()
+        .trim_start_matches("# ");
+
+    assert_eq!(
+        format!("Couldn't save `{}`", npc_name),
+        app.command(&format!("save {}", npc_name)).unwrap_err(),
+    );
 }
 
 #[test]

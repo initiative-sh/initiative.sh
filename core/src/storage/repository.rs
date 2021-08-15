@@ -10,10 +10,19 @@ pub async fn save(app_meta: &mut AppMeta, name: &str) -> Result<String, String> 
             .map_or(false, |s| s.to_lowercase() == lowercase_name)
     }) {
         thing.set_uuid(Uuid::new_v4());
-        let result = format!("Saving {}", thing.display_summary());
-        app_meta.data_store.save(&thing).await;
-        app_meta.cache.insert(*thing.uuid().unwrap(), thing);
-        Ok(result)
+
+        let result = app_meta
+            .data_store
+            .save(&thing)
+            .await
+            .map_err(|_| format!("Couldn't save `{}`", thing.name()))
+            .map(|_| format!("Saving {}", thing.display_summary()));
+
+        if result.is_ok() {
+            app_meta.cache.insert(*thing.uuid().unwrap(), thing);
+        }
+
+        result
     } else if app_meta.cache.values().any(|t| {
         t.name()
             .value()
