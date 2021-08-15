@@ -43,6 +43,17 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                 })
                 .collect()
         }
+        "MagicItem" => srd_5e::magic_items()?
+            .iter()
+            .map(|item| {
+                (
+                    syn::parse_str(&item.token()).unwrap(),
+                    item.name(),
+                    Vec::new(),
+                    format!("{}", item.display_details()),
+                )
+            })
+            .collect(),
         _ => unimplemented!(),
     };
 

@@ -1,8 +1,10 @@
 pub use category::ItemCategory;
 pub use item::Item;
+pub use magic_item::MagicItem;
 
 mod category;
 mod item;
+mod magic_item;
 
 use std::fmt;
 

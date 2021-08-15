@@ -1,3 +1,5 @@
+* **Enhancement:** You can now look up SRD magic items such as the inimitable
+  `Deck Of Many Things`.
 * **Enhancement:** Rewrite inn name generator to provide a greater variety of
   results.
 * **New:** New command `journal` lists everything you've saved to your journal.
