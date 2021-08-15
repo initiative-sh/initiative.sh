@@ -1,4 +1,4 @@
-pub use equipment::{Equipment, EquipmentCategory};
+pub use equipment::{Item, ItemCategory};
 pub use spell::Spell;
 pub use std::fmt;
 
@@ -12,14 +12,14 @@ pub fn spells() -> Result<Vec<Spell>, String> {
         .map_err(|e| format!("{}", e))
 }
 
-pub fn equipment() -> Result<Vec<Equipment>, String> {
+pub fn items() -> Result<Vec<Item>, String> {
     serde_json::from_str(include_str!(
         "../../../data/srd_5e/src/5e-SRD-Equipment.json",
     ))
     .map_err(|e| format!("{}", e))
 }
 
-pub fn equipment_categories() -> Result<Vec<EquipmentCategory>, String> {
+pub fn item_categories() -> Result<Vec<ItemCategory>, String> {
     serde_json::from_str(include_str!(
         "../../../data/srd_5e/src/5e-SRD-Equipment-Categories.json",
     ))

@@ -1,10 +1,10 @@
-use initiative_reference::srd_5e::{equipment, equipment_categories};
+use initiative_reference::srd_5e::{item_categories, items};
 
 #[test]
 fn armor() {
-    let categories = equipment_categories().unwrap();
+    let categories = item_categories().unwrap();
     let category = categories.iter().find(|i| i.name() == "armor").unwrap();
-    let equipment = equipment().unwrap();
+    let items = items().unwrap();
 
     assert_eq!(
         "\
@@ -25,15 +25,15 @@ fn armor() {
 | `Shield` | 10 gp | +2 | — | — | 6 lb. |
 | `Splint Armor` | 200 gp | 17 | Str 15 | disadvantage | 60 lb. |
 | `Studded Leather` | 45 gp | 12 + Dex modifier | — | — | 13 lb. |",
-        format!("{}", category.display_table(&equipment[..])),
+        format!("{}", category.display_table(&items[..])),
     );
 }
 
 #[test]
 fn weapons() {
-    let categories = equipment_categories().unwrap();
+    let categories = item_categories().unwrap();
     let category = categories.iter().find(|i| i.name() == "weapons").unwrap();
-    let equipment = equipment().unwrap();
+    let items = items().unwrap();
 
     assert_eq!(
         "\
@@ -78,18 +78,18 @@ fn weapons() {
 | `War Pick` | 5 gp | 1d8 piercing | 2 lb. | — |
 | `Warhammer` | 15 gp | 1d8 bludgeoning | 2 lb. | Versatile (1d10) |
 | `Whip` | 2 gp | 1d4 slashing | 3 lb. | Finesse, reach |",
-        format!("{}", category.display_table(&equipment[..])),
+        format!("{}", category.display_table(&items[..])),
     );
 }
 
 #[test]
 fn adventuring_gear() {
-    let categories = equipment_categories().unwrap();
+    let categories = item_categories().unwrap();
     let category = categories
         .iter()
         .find(|i| i.name() == "adventuring gear")
         .unwrap();
-    let equipment = equipment().unwrap();
+    let items = items().unwrap();
 
     assert_eq!(
         "\
@@ -214,15 +214,15 @@ fn adventuring_gear() {
 | `Whetstone` | 1 cp | 1 lb. |
 | `Wooden Staff` | 5 gp | 4 lb. |
 | `Yew Wand` | 10 gp | 1 lb. |",
-        format!("{}", category.display_table(&equipment[..])),
+        format!("{}", category.display_table(&items[..])),
     );
 }
 
 #[test]
 fn tools() {
-    let categories = equipment_categories().unwrap();
+    let categories = item_categories().unwrap();
     let category = categories.iter().find(|i| i.name() == "tools").unwrap();
-    let equipment = equipment().unwrap();
+    let items = items().unwrap();
 
     assert_eq!(
         "\
@@ -261,18 +261,18 @@ fn tools() {
 | `Viol` | 30 gp | 1 lb. |
 | `Weaver's Tools` | 1 gp | 5 lb. |
 | `Woodcarver's Tools` | 1 gp | 5 lb. |",
-        format!("{}", category.display_table(&equipment[..])),
+        format!("{}", category.display_table(&items[..])),
     );
 }
 
 #[test]
 fn mounts_and_vehicles() {
-    let categories = equipment_categories().unwrap();
+    let categories = item_categories().unwrap();
     let category = categories
         .iter()
         .find(|i| i.name() == "mounts and vehicles")
         .unwrap();
-    let equipment = equipment().unwrap();
+    let items = items().unwrap();
 
     assert_eq!(
         "\
@@ -318,13 +318,13 @@ fn mounts_and_vehicles() {
 | `Wagon` | 35 gp | — |
 | `Warhorse` | 400 gp | 60 ft/round |
 | `Warship` | 25000 gp | 2.5 mph |",
-        format!("{}", category.display_table(&equipment[..])),
+        format!("{}", category.display_table(&items[..])),
     );
 }
 
 #[test]
 fn list_all_categories() {
-    let mut categories: Vec<(String, Vec<String>)> = equipment_categories()
+    let mut categories: Vec<(String, Vec<String>)> = item_categories()
         .unwrap()
         .drain(..)
         .map(|category| {

@@ -17,21 +17,21 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                 )
             })
             .collect(),
-        "Item" => srd_5e::equipment()?
+        "Item" => srd_5e::items()?
             .iter()
-            .map(|equipment| {
+            .map(|item| {
                 (
-                    syn::parse_str(equipment.token().as_str()).unwrap(),
-                    equipment.name(),
-                    equipment.alt_name().into_iter().collect(),
-                    format!("{}", equipment.display_details()),
+                    syn::parse_str(item.token().as_str()).unwrap(),
+                    item.name(),
+                    item.alt_name().into_iter().collect(),
+                    format!("{}", item.display_details()),
                 )
             })
             .collect(),
         "ItemCategory" => {
-            let items = srd_5e::equipment()?;
+            let items = srd_5e::items()?;
 
-            srd_5e::equipment_categories()?
+            srd_5e::item_categories()?
                 .iter()
                 .map(|category| {
                     (

@@ -13,7 +13,7 @@
 //! | cost                             | leather_armor     |
 //! | damage                           | dagger            |
 //! | desc                             | potion_of_healing |
-//! | equipment_category               | leather_armor     |
+//! | item_category               | leather_armor     |
 //! | name                             | leather_armor     |
 //! | range                            | light_crossbow    |
 //! | special                          | whip              |
@@ -25,15 +25,12 @@
 //! | throw_range                      | dagger            |
 //! | weight                           | leather_armor     |
 
-use initiative_reference::srd_5e::equipment;
+use initiative_reference::srd_5e::items;
 
 #[test]
 fn leather_armor() {
-    let equipment = equipment().unwrap();
-    let item = equipment
-        .iter()
-        .find(|i| i.name() == "Leather Armor")
-        .unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Leather Armor").unwrap();
 
     assert_eq!(
         "\
@@ -51,11 +48,8 @@ fn leather_armor() {
 
 #[test]
 fn chain_shirt() {
-    let equipment = equipment().unwrap();
-    let item = equipment
-        .iter()
-        .find(|i| i.name() == "Chain Shirt")
-        .unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Chain Shirt").unwrap();
 
     assert_eq!(
         "\
@@ -73,11 +67,8 @@ fn chain_shirt() {
 
 #[test]
 fn splint_armor() {
-    let equipment = equipment().unwrap();
-    let item = equipment
-        .iter()
-        .find(|i| i.name() == "Splint Armor")
-        .unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Splint Armor").unwrap();
 
     assert_eq!(
         "\
@@ -95,8 +86,8 @@ fn splint_armor() {
 
 #[test]
 fn shield() {
-    let equipment = equipment().unwrap();
-    let item = equipment.iter().find(|i| i.name() == "Shield").unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Shield").unwrap();
 
     assert_eq!(
         "\
@@ -114,8 +105,8 @@ fn shield() {
 
 #[test]
 fn trident() {
-    let equipment = equipment().unwrap();
-    let item = equipment.iter().find(|i| i.name() == "Trident").unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Trident").unwrap();
 
     assert_eq!(
         "\
@@ -132,11 +123,8 @@ fn trident() {
 
 #[test]
 fn light_crossbow() {
-    let equipment = equipment().unwrap();
-    let item = equipment
-        .iter()
-        .find(|i| i.name() == "Light Crossbow")
-        .unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Light Crossbow").unwrap();
 
     assert_eq!(
         "\
@@ -153,8 +141,8 @@ fn light_crossbow() {
 
 #[test]
 fn mastiff() {
-    let equipment = equipment().unwrap();
-    let item = equipment.iter().find(|i| i.name() == "Mastiff").unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Mastiff").unwrap();
 
     assert_eq!(
         "\
@@ -170,8 +158,8 @@ fn mastiff() {
 
 #[test]
 fn potion_of_healing() {
-    let equipment = equipment().unwrap();
-    let item = equipment
+    let items = items().unwrap();
+    let item = items
         .iter()
         .find(|i| i.name() == "Potion Of Healing")
         .unwrap();
@@ -191,8 +179,8 @@ A character who drinks the magical red fluid in this vial regains 2d4 + 2 hit po
 
 #[test]
 fn lance() {
-    let equipment = equipment().unwrap();
-    let item = equipment.iter().find(|i| i.name() == "Lance").unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Lance").unwrap();
 
     assert_eq!("\
 # Lance

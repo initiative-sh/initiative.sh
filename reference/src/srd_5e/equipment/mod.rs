@@ -1,5 +1,5 @@
-pub use category::EquipmentCategory;
-pub use item::Equipment;
+pub use category::ItemCategory;
+pub use item::Item;
 
 mod category;
 mod item;

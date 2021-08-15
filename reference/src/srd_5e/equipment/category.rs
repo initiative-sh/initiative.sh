@@ -1,21 +1,22 @@
-use super::{Column, Equipment};
+use super::{Column, Item};
 use crate::srd_5e::Reference;
 use serde::Deserialize;
 use std::fmt;
 
 #[derive(Debug, Deserialize)]
-pub struct EquipmentCategory {
+pub struct ItemCategory {
     index: String,
     name: String,
-    equipment: Vec<Reference>,
+    #[serde(rename = "equipment")]
+    items: Vec<Reference>,
 }
 
 pub struct TableView<'a> {
-    category: &'a EquipmentCategory,
-    equipment: &'a [Equipment],
+    category: &'a ItemCategory,
+    items: &'a [Item],
 }
 
-impl EquipmentCategory {
+impl ItemCategory {
     pub fn name(&self) -> String {
         match self.name.as_str() {
             "Potion" | "Ring" | "Rod" | "Scroll" | "Wand" | "Weapon" => {
@@ -47,14 +48,14 @@ impl EquipmentCategory {
         crate::to_camel_case(self.index.as_str())
     }
 
-    pub fn equipment_tokens(&self) -> Vec<String> {
-        self.equipment.iter().map(|item| item.token()).collect()
+    pub fn item_tokens(&self) -> Vec<String> {
+        self.items.iter().map(|item| item.token()).collect()
     }
 
-    pub fn display_table<'a>(&'a self, equipment: &'a [Equipment]) -> TableView {
+    pub fn display_table<'a>(&'a self, items: &'a [Item]) -> TableView {
         TableView {
             category: self,
-            equipment,
+            items,
         }
     }
 }
@@ -111,10 +112,10 @@ impl<'a> fmt::Display for TableView<'a> {
             _ => write!(f, "---|"),
         })?;
 
-        let tokens = self.category.equipment_tokens();
+        let tokens = self.category.item_tokens();
 
-        let mut items: Vec<(&Equipment, String)> = self
-            .equipment
+        let mut items: Vec<(&Item, String)> = self
+            .items
             .iter()
             .filter_map(|item| {
                 if tokens.contains(&item.token()) {

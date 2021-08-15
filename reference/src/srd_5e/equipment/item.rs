@@ -4,7 +4,7 @@ use serde::Deserialize;
 use std::fmt;
 
 #[derive(Debug, Deserialize)]
-pub struct Equipment {
+pub struct Item {
     index: String,
     name: String,
 
@@ -29,7 +29,8 @@ pub struct Equipment {
     #[serde(default)]
     special: Vec<String>,
 
-    equipment_category: Reference,
+    #[serde(rename = "equipment_category")]
+    item_category: Reference,
     gear_category: Option<Reference>,
     armor_category: Option<String>,
     vehicle_category: Option<String>,
@@ -62,7 +63,7 @@ pub struct Range {
     long: Option<u16>,
 }
 
-impl Equipment {
+impl Item {
     pub fn name(&self) -> String {
         let mut name = if self.name.contains(", ") {
             if let Some((start, end)) = self.name.split_once(", ") {
@@ -78,7 +79,7 @@ impl Equipment {
             self.name.to_owned()
         };
 
-        if self.equipment_category.index == "armor"
+        if self.item_category.index == "armor"
             && !name.contains(' ')
             && !["Breastplate", "Shield"].contains(&name.as_str())
         {
@@ -102,7 +103,7 @@ impl Equipment {
 
     pub fn display_table_row<'a>(&'a self, columns: &'a [Column]) -> TableRowView {
         TableRowView {
-            equipment: self,
+            item: self,
             columns,
         }
     }
@@ -120,7 +121,7 @@ impl Equipment {
     }
 
     pub fn get_subcategory(&self) -> Option<String> {
-        match self.equipment_category.index.as_str() {
+        match self.item_category.index.as_str() {
             "adventuring-gear" => self
                 .gear_category
                 .as_ref()
@@ -171,15 +172,15 @@ impl Equipment {
 }
 
 pub struct TableRowView<'a> {
-    equipment: &'a Equipment,
+    item: &'a Item,
     columns: &'a [Column],
 }
 
-pub struct DetailsView<'a>(&'a Equipment);
+pub struct DetailsView<'a>(&'a Item);
 
 impl<'a> fmt::Display for TableRowView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let equipment = &self.equipment;
+        let item = &self.item;
 
         if !self.columns.is_empty() {
             write!(f, "|")?;
@@ -187,8 +188,8 @@ impl<'a> fmt::Display for TableRowView<'a> {
 
         for column in self.columns {
             match column {
-                Column::ArmorClass => equipment.armor_class.as_ref().map(|ac| {
-                    if equipment
+                Column::ArmorClass => item.armor_class.as_ref().map(|ac| {
+                    if item
                         .armor_category
                         .as_ref()
                         .map_or(false, |c| c == "Shield")
@@ -198,29 +199,27 @@ impl<'a> fmt::Display for TableRowView<'a> {
                         write!(f, " {} |", ac)
                     }
                 }),
-                Column::CarryingCapacity => {
-                    equipment.capacity.as_ref().map(|c| write!(f, " {} |", c))
-                }
-                Column::Cost => Some(write!(f, " {} |", equipment.cost)),
-                Column::Damage => equipment.damage.as_ref().map(|d| write!(f, " {} |", d)),
+                Column::CarryingCapacity => item.capacity.as_ref().map(|c| write!(f, " {} |", c)),
+                Column::Cost => Some(write!(f, " {} |", item.cost)),
+                Column::Damage => item.damage.as_ref().map(|d| write!(f, " {} |", d)),
                 Column::Name => Some(write!(
                     f,
                     " `{}` |",
-                    equipment.alt_name().unwrap_or_else(|| equipment.name()),
+                    item.alt_name().unwrap_or_else(|| item.name()),
                 )),
                 Column::Properties => {
-                    if !equipment.properties.is_empty() {
+                    if !item.properties.is_empty() {
                         Some(
                             write!(f, " ")
-                                .and(equipment.display_properties(f))
+                                .and(item.display_properties(f))
                                 .and(write!(f, " |")),
                         )
                     } else {
                         None
                     }
                 }
-                Column::Speed => equipment.speed.as_ref().map(|s| write!(f, " {} |", s)),
-                Column::Stealth => equipment
+                Column::Speed => item.speed.as_ref().map(|s| write!(f, " {} |", s)),
+                Column::Stealth => item
                     .stealth_disadvantage
                     .map(|d| {
                         if d {
@@ -230,7 +229,7 @@ impl<'a> fmt::Display for TableRowView<'a> {
                         }
                     })
                     .flatten(),
-                Column::Strength => equipment
+                Column::Strength => item
                     .str_minimum
                     .map(|min| {
                         if min > 0 {
@@ -240,7 +239,7 @@ impl<'a> fmt::Display for TableRowView<'a> {
                         }
                     })
                     .flatten(),
-                Column::Weight => equipment.weight.map(|w| write!(f, " {} lb. |", w)),
+                Column::Weight => item.weight.map(|w| write!(f, " {} lb. |", w)),
             }
             .unwrap_or_else(|| write!(f, " \u{2014} |"))?;
         }
@@ -251,28 +250,24 @@ impl<'a> fmt::Display for TableRowView<'a> {
 
 impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let equipment = self.0;
+        let item = self.0;
 
-        writeln!(f, "# {}", equipment.name())?;
+        writeln!(f, "# {}", item.name())?;
 
-        if let Some(subcategory) = equipment.get_subcategory() {
-            writeln!(
-                f,
-                "*{} ({})*",
-                equipment.equipment_category.name, subcategory
-            )?;
+        if let Some(subcategory) = item.get_subcategory() {
+            writeln!(f, "*{} ({})*", item.item_category.name, subcategory)?;
         } else {
-            writeln!(f, "*{}", equipment.equipment_category.name)?;
+            writeln!(f, "*{}", item.item_category.name)?;
         }
 
-        write!(f, "\n**Cost:** {}", equipment.cost)?;
+        write!(f, "\n**Cost:** {}", item.cost)?;
 
-        if let Some(damage) = &equipment.damage {
+        if let Some(damage) = &item.damage {
             write!(f, "\\\n**Damage:** {}", damage)?;
         }
 
-        if let Some(ac) = &equipment.armor_class {
-            if equipment
+        if let Some(ac) = &item.armor_class {
+            if item
                 .armor_category
                 .as_ref()
                 .map_or(false, |c| c == "Shield")
@@ -283,7 +278,7 @@ impl<'a> fmt::Display for DetailsView<'a> {
             }
         }
 
-        if let Some(min) = equipment.str_minimum {
+        if let Some(min) = item.str_minimum {
             if min == 0 {
                 write!(f, "\\\n**Strength:** any")?;
             } else {
@@ -291,12 +286,12 @@ impl<'a> fmt::Display for DetailsView<'a> {
             }
         }
 
-        if !equipment.properties.is_empty() {
+        if !item.properties.is_empty() {
             write!(f, "\\\n**Properties:** ")?;
-            equipment.display_properties(f)?;
+            item.display_properties(f)?;
         }
 
-        if let Some(disadvantage) = equipment.stealth_disadvantage {
+        if let Some(disadvantage) = item.stealth_disadvantage {
             if disadvantage {
                 write!(f, "\\\n**Stealth:** disadvantage")?;
             } else {
@@ -304,26 +299,26 @@ impl<'a> fmt::Display for DetailsView<'a> {
             }
         }
 
-        if let Some(weight) = &equipment.weight {
+        if let Some(weight) = &item.weight {
             write!(f, "\\\n**Weight:** {} lbs", weight)?;
         }
 
-        if let Some(speed) = &equipment.speed {
+        if let Some(speed) = &item.speed {
             write!(f, "\\\n**Speed:** {}", speed)?;
         }
 
-        if let Some(capacity) = &equipment.capacity {
+        if let Some(capacity) = &item.capacity {
             write!(f, "\\\n**Carrying Capacity:** {}", capacity)?;
         }
 
-        if !equipment.desc.is_empty() {
+        if !item.desc.is_empty() {
             write!(f, "\n\n")?;
-            write_text_block(f, &equipment.desc)?;
+            write_text_block(f, &item.desc)?;
         }
 
-        if !equipment.special.is_empty() {
+        if !item.special.is_empty() {
             write!(f, "\n\n")?;
-            write_text_block(f, &equipment.special)?;
+            write_text_block(f, &item.special)?;
         }
 
         Ok(())
