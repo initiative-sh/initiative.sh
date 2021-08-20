@@ -1,4 +1,4 @@
-use initiative_reference::srd_5e::{item_categories, items};
+use initiative_reference::srd_5e::{item_categories, items, magic_items};
 
 #[test]
 fn armor() {
@@ -25,7 +25,7 @@ fn armor() {
 | `Shield` | 10 gp | +2 | — | — | 6 lb. |
 | `Splint Armor` | 200 gp | 17 | Str 15 | disadvantage | 60 lb. |
 | `Studded Leather` | 45 gp | 12 + Dex modifier | — | — | 13 lb. |",
-        format!("{}", category.display_table(&items[..])),
+        format!("{}", category.display_item_table(&items[..])),
     );
 }
 
@@ -78,7 +78,7 @@ fn weapons() {
 | `War Pick` | 5 gp | 1d8 piercing | 2 lb. | — |
 | `Warhammer` | 15 gp | 1d8 bludgeoning | 2 lb. | Versatile (1d10) |
 | `Whip` | 2 gp | 1d4 slashing | 3 lb. | Finesse, reach |",
-        format!("{}", category.display_table(&items[..])),
+        format!("{}", category.display_item_table(&items[..])),
     );
 }
 
@@ -214,7 +214,7 @@ fn adventuring_gear() {
 | `Whetstone` | 1 cp | 1 lb. |
 | `Wooden Staff` | 5 gp | 4 lb. |
 | `Yew Wand` | 10 gp | 1 lb. |",
-        format!("{}", category.display_table(&items[..])),
+        format!("{}", category.display_item_table(&items[..])),
     );
 }
 
@@ -261,7 +261,7 @@ fn tools() {
 | `Viol` | 30 gp | 1 lb. |
 | `Weaver's Tools` | 1 gp | 5 lb. |
 | `Woodcarver's Tools` | 1 gp | 5 lb. |",
-        format!("{}", category.display_table(&items[..])),
+        format!("{}", category.display_item_table(&items[..])),
     );
 }
 
@@ -318,7 +318,44 @@ fn mounts_and_vehicles() {
 | `Wagon` | 35 gp | — |
 | `Warhorse` | 400 gp | 60 ft/round |
 | `Warship` | 25000 gp | 2.5 mph |",
-        format!("{}", category.display_table(&items[..])),
+        format!("{}", category.display_item_table(&items[..])),
+    );
+}
+
+#[test]
+fn potions() {
+    let categories = item_categories().unwrap();
+    let category = categories.iter().find(|i| i.name() == "potions").unwrap();
+    let magic_items = magic_items().unwrap();
+
+    assert_eq!(
+        "\
+# Potions
+
+* `Oil Of Etherealness`
+* `Oil Of Sharpness`
+* `Oil Of Slipperiness`
+* `Philter Of Love`
+* `Potion Of Animal Friendship`
+* `Potion Of Clairvoyance`
+* `Potion Of Climbing`
+* `Potion Of Diminution`
+* `Potion Of Flying`
+* `Potion Of Gaseous Form`
+* `Potion Of Giant Strength`
+* `Potion Of Growth`
+* `Potion Of Healing`
+* `Potion Of Heroism`
+* `Potion Of Invisibility`
+* `Potion Of Mind Reading`
+* `Potion Of Poison`
+* `Potion Of Resistance`
+* `Potion Of Speed`
+* `Potion Of Water Breathing`",
+        format!(
+            "{}",
+            category.display_magic_item_list(&magic_items[..], "Potions"),
+        ),
     );
 }
 

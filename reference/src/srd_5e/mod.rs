@@ -37,7 +37,7 @@ pub fn magic_items() -> Result<Vec<MagicItem>, String> {
 pub struct Reference {
     index: String,
     name: String,
-    url: String,
+    pub url: String,
 }
 
 impl Reference {

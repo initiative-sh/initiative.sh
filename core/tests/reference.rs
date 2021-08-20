@@ -126,3 +126,46 @@ You can use an action to present the rod and command obedience from each creatur
         output,
     );
 }
+
+#[test]
+fn magic_weapons() {
+    let output = sync_app().command("magic weapons");
+
+    assert_eq!(
+        "\
+# Magic weapons
+
+* `Berserker Axe`
+* `Dagger Of Venom`
+* `Dancing Sword`
+* `Defender`
+* `Dragon Slayer`
+* `Dwarven Thrower`
+* `Flame Tongue`
+* `Frost Brand`
+* `Giant Slayer`
+* `Hammer Of Thunderbolts`
+* `Holy Avenger`
+* `Javelin Of Lightning`
+* `Luck Blade`
+* `Mace Of Disruption`
+* `Mace Of Smiting`
+* `Mace Of Terror`
+* `Nine Lives Stealer`
+* `Oathbow`
+* `Scimitar Of Speed`
+* `Sun Blade`
+* `Sword Of Life Stealing`
+* `Sword Of Sharpness`
+* `Sword Of Wounding`
+* `Trident Of Fish Command`
+* `Vicious Weapon`
+* `Vorpal Sword`
+* `Weapon, +1, +2, Or +3`
+
+*This listing is Open Game Content subject to the `Open Game License`.*",
+        output,
+    );
+
+    assert_eq!(output, sync_app().command("weapons, magic"));
+}

@@ -30,18 +30,53 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
             .collect(),
         "ItemCategory" => {
             let items = srd_5e::items()?;
+            let magic_items = srd_5e::magic_items()?;
+            let mut result = Vec::new();
 
-            srd_5e::item_categories()?
-                .iter()
-                .map(|category| {
-                    (
+            for category in srd_5e::item_categories()? {
+                let (has_items, has_magic_items) =
+                    (category.has_items(), category.has_magic_items());
+
+                if has_items {
+                    result.push((
                         syn::parse_str(category.token().as_str()).unwrap(),
                         category.name().to_lowercase(),
                         category.alt_names(),
-                        format!("{}", category.display_table(&items)),
-                    )
-                })
-                .collect()
+                        format!("{}", category.display_item_table(&items)),
+                    ));
+                }
+
+                if has_magic_items {
+                    let category_name = category.name();
+
+                    if has_items {
+                        result.push((
+                            syn::parse_str(&format!("Magic{}", category.token())).unwrap(),
+                            format!("magic {}", category_name.to_lowercase()),
+                            vec![format!("{}, magic", category_name.to_lowercase())],
+                            format!(
+                                "{}",
+                                category.display_magic_item_list(
+                                    &magic_items,
+                                    &format!("Magic {}", category_name),
+                                )
+                            ),
+                        ));
+                    } else {
+                        result.push((
+                            syn::parse_str(category.token().as_str()).unwrap(),
+                            category_name.to_lowercase(),
+                            category.alt_names(),
+                            format!(
+                                "{}",
+                                &category.display_magic_item_list(&magic_items, &category_name)
+                            ),
+                        ));
+                    }
+                }
+            }
+
+            result
         }
         "MagicItem" => srd_5e::magic_items()?
             .iter()
@@ -76,10 +111,20 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
         .iter()
         .map(|(variant, _, _, output)| quote! { #ident::#variant => #output, });
 
-    let mut list_output = format!("# {}s", ident);
-    srd_5e::spells()?.iter().for_each(|spell| {
-        list_output.push_str(format!("\n* {}", spell.display_summary()).as_str())
-    });
+    let get_list = if ident == "Spell" {
+        let mut list_output = format!("# {}s", ident);
+        srd_5e::spells()?.iter().for_each(|spell| {
+            list_output.push_str(format!("\n* {}", spell.display_summary()).as_str())
+        });
+
+        quote! {
+            pub fn get_list() -> &'static str {
+                #list_output
+            }
+        }
+    } else {
+        quote! {}
+    };
 
     let words = data.iter().flat_map(|(_, name, alt_names, _)| {
         std::iter::once(quote! { #name, })
@@ -97,9 +142,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                 &[#(#words)*]
             }
 
-            pub fn get_list() -> &'static str {
-                #list_output
-            }
+            #get_list
 
             pub fn get_name(&self) -> &'static str {
                 match self {
