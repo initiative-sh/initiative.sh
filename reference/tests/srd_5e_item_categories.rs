@@ -45,7 +45,7 @@ fn weapons() {
 | `Blowgun` | 10 gp | 1d1 piercing | 1 lb. | Ammunition (range 25/100), loading |
 | `Club` | 1 sp | 1d4 bludgeoning | 2 lb. | Light, monk |
 | `Crossbow, Hand` | 75 gp | 1d6 piercing | 3 lb. | Ammunition (range 30/120), light, loading |
-| `Crossbow, Heavy` | 50 gp | 1d10 piercing | 18 lb. | Ammunition (range 100/400), light, loading, two-handed |
+| `Crossbow, Heavy` | 50 gp | 1d10 piercing | 18 lb. | Ammunition (range 100/400), heavy, loading, two-handed |
 | `Crossbow, Light` | 25 gp | 1d8 piercing | 5 lb. | Ammunition (range 80/320), loading, two-handed |
 | `Dagger` | 2 gp | 1d4 piercing | 1 lb. | Finesse, light, monk, thrown (range 20/60) |
 | `Dart` | 5 cp | 1d4 piercing | 0.25 lb. | Finesse, thrown (range 20/60) |
@@ -176,7 +176,6 @@ fn adventuring_gear() {
 | `Poisoner's Kit` | 50 gp | 2 lb. |
 | `Pole (10-Foot)` | 5 cp | 7 lb. |
 | `Pot, Iron` | 2 gp | 10 lb. |
-| `Potion Of Healing` | 50 gp | 0.5 lb. |
 | `Pouch` | 5 sp | 1 lb. |
 | `Priest's Pack` | 19 gp | — |
 | `Quiver` | 1 gp | 1 lb. |

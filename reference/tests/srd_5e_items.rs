@@ -3,7 +3,7 @@
 //! | name: armor w/ hard-coded suffix | leather_armor     |
 //! | name: armor w/ no suffix         | chain_shirt       |
 //! | name: one word                   | mastiff           |
-//! | name: multiple words             | potion_of_healing |
+//! | name: multiple words             | holy_water_flask  |
 //! | name: one comma                  | light_crossbow    |
 //! | armor_class: fixed               | splint_armor      |
 //! | armor_class: with dex            | leather_armor     |
@@ -12,7 +12,7 @@
 //! | capacity                         | mastiff           |
 //! | cost                             | leather_armor     |
 //! | damage                           | dagger            |
-//! | desc                             | potion_of_healing |
+//! | desc                             | holy_water_flask  |
 //! | item_category               | leather_armor     |
 //! | name                             | leather_armor     |
 //! | range                            | light_crossbow    |
@@ -157,22 +157,28 @@ fn mastiff() {
 }
 
 #[test]
-fn potion_of_healing() {
+fn holy_water_flask() {
     let items = items().unwrap();
     let item = items
         .iter()
-        .find(|i| i.name() == "Potion Of Healing")
+        .find(|i| i.name() == "Holy Water (Flask)")
         .unwrap();
 
     assert_eq!(
         "\
-# Potion Of Healing
+# Holy Water (Flask)
 *Adventuring Gear (Standard Gear)*
 
-**Cost:** 50 gp\\
-**Weight:** 0.5 lbs
+**Cost:** 25 gp\\
+**Weight:** 1 lbs
 
-A character who drinks the magical red fluid in this vial regains 2d4 + 2 hit points. Drinking or administering a potion takes an action.",
+As an action, you can splash the contents of this flask onto a creature within 5 feet of you or throw it up to 20 feet, shattering it on impact. In either case, make a ranged attack against a target creature, treating the holy water as an improvised weapon.
+
+If the target is a fiend or undead, it takes 2d6 radiant damage.
+
+A cleric or paladin may create holy water by performing a special ritual.
+
+The ritual takes 1 hour to perform, uses 25 gp worth of powdered silver, and requires the caster to expend a 1st-level spell slot.",
         format!("{}", item.display_details()),
     );
 }
