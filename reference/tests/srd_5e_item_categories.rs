@@ -1,10 +1,10 @@
-use initiative_reference::srd_5e::{equipment, equipment_categories};
+use initiative_reference::srd_5e::{item_categories, items, magic_items};
 
 #[test]
 fn armor() {
-    let categories = equipment_categories().unwrap();
+    let categories = item_categories().unwrap();
     let category = categories.iter().find(|i| i.name() == "armor").unwrap();
-    let equipment = equipment().unwrap();
+    let items = items().unwrap();
 
     assert_eq!(
         "\
@@ -25,15 +25,15 @@ fn armor() {
 | `Shield` | 10 gp | +2 | — | — | 6 lb. |
 | `Splint Armor` | 200 gp | 17 | Str 15 | disadvantage | 60 lb. |
 | `Studded Leather` | 45 gp | 12 + Dex modifier | — | — | 13 lb. |",
-        format!("{}", category.display_table(&equipment[..])),
+        format!("{}", category.display_item_table(&items[..])),
     );
 }
 
 #[test]
 fn weapons() {
-    let categories = equipment_categories().unwrap();
+    let categories = item_categories().unwrap();
     let category = categories.iter().find(|i| i.name() == "weapons").unwrap();
-    let equipment = equipment().unwrap();
+    let items = items().unwrap();
 
     assert_eq!(
         "\
@@ -45,7 +45,7 @@ fn weapons() {
 | `Blowgun` | 10 gp | 1d1 piercing | 1 lb. | Ammunition (range 25/100), loading |
 | `Club` | 1 sp | 1d4 bludgeoning | 2 lb. | Light, monk |
 | `Crossbow, Hand` | 75 gp | 1d6 piercing | 3 lb. | Ammunition (range 30/120), light, loading |
-| `Crossbow, Heavy` | 50 gp | 1d10 piercing | 18 lb. | Ammunition (range 100/400), light, loading, two-handed |
+| `Crossbow, Heavy` | 50 gp | 1d10 piercing | 18 lb. | Ammunition (range 100/400), heavy, loading, two-handed |
 | `Crossbow, Light` | 25 gp | 1d8 piercing | 5 lb. | Ammunition (range 80/320), loading, two-handed |
 | `Dagger` | 2 gp | 1d4 piercing | 1 lb. | Finesse, light, monk, thrown (range 20/60) |
 | `Dart` | 5 cp | 1d4 piercing | 0.25 lb. | Finesse, thrown (range 20/60) |
@@ -78,18 +78,18 @@ fn weapons() {
 | `War Pick` | 5 gp | 1d8 piercing | 2 lb. | — |
 | `Warhammer` | 15 gp | 1d8 bludgeoning | 2 lb. | Versatile (1d10) |
 | `Whip` | 2 gp | 1d4 slashing | 3 lb. | Finesse, reach |",
-        format!("{}", category.display_table(&equipment[..])),
+        format!("{}", category.display_item_table(&items[..])),
     );
 }
 
 #[test]
 fn adventuring_gear() {
-    let categories = equipment_categories().unwrap();
+    let categories = item_categories().unwrap();
     let category = categories
         .iter()
         .find(|i| i.name() == "adventuring gear")
         .unwrap();
-    let equipment = equipment().unwrap();
+    let items = items().unwrap();
 
     assert_eq!(
         "\
@@ -176,7 +176,6 @@ fn adventuring_gear() {
 | `Poisoner's Kit` | 50 gp | 2 lb. |
 | `Pole (10-Foot)` | 5 cp | 7 lb. |
 | `Pot, Iron` | 2 gp | 10 lb. |
-| `Potion Of Healing` | 50 gp | 0.5 lb. |
 | `Pouch` | 5 sp | 1 lb. |
 | `Priest's Pack` | 19 gp | — |
 | `Quiver` | 1 gp | 1 lb. |
@@ -214,15 +213,15 @@ fn adventuring_gear() {
 | `Whetstone` | 1 cp | 1 lb. |
 | `Wooden Staff` | 5 gp | 4 lb. |
 | `Yew Wand` | 10 gp | 1 lb. |",
-        format!("{}", category.display_table(&equipment[..])),
+        format!("{}", category.display_item_table(&items[..])),
     );
 }
 
 #[test]
 fn tools() {
-    let categories = equipment_categories().unwrap();
+    let categories = item_categories().unwrap();
     let category = categories.iter().find(|i| i.name() == "tools").unwrap();
-    let equipment = equipment().unwrap();
+    let items = items().unwrap();
 
     assert_eq!(
         "\
@@ -261,18 +260,18 @@ fn tools() {
 | `Viol` | 30 gp | 1 lb. |
 | `Weaver's Tools` | 1 gp | 5 lb. |
 | `Woodcarver's Tools` | 1 gp | 5 lb. |",
-        format!("{}", category.display_table(&equipment[..])),
+        format!("{}", category.display_item_table(&items[..])),
     );
 }
 
 #[test]
 fn mounts_and_vehicles() {
-    let categories = equipment_categories().unwrap();
+    let categories = item_categories().unwrap();
     let category = categories
         .iter()
         .find(|i| i.name() == "mounts and vehicles")
         .unwrap();
-    let equipment = equipment().unwrap();
+    let items = items().unwrap();
 
     assert_eq!(
         "\
@@ -318,13 +317,50 @@ fn mounts_and_vehicles() {
 | `Wagon` | 35 gp | — |
 | `Warhorse` | 400 gp | 60 ft/round |
 | `Warship` | 25000 gp | 2.5 mph |",
-        format!("{}", category.display_table(&equipment[..])),
+        format!("{}", category.display_item_table(&items[..])),
+    );
+}
+
+#[test]
+fn potions() {
+    let categories = item_categories().unwrap();
+    let category = categories.iter().find(|i| i.name() == "potions").unwrap();
+    let magic_items = magic_items().unwrap();
+
+    assert_eq!(
+        "\
+# Potions
+
+* `Oil Of Etherealness`
+* `Oil Of Sharpness`
+* `Oil Of Slipperiness`
+* `Philter Of Love`
+* `Potion Of Animal Friendship`
+* `Potion Of Clairvoyance`
+* `Potion Of Climbing`
+* `Potion Of Diminution`
+* `Potion Of Flying`
+* `Potion Of Gaseous Form`
+* `Potion Of Giant Strength`
+* `Potion Of Growth`
+* `Potion Of Healing`
+* `Potion Of Heroism`
+* `Potion Of Invisibility`
+* `Potion Of Mind Reading`
+* `Potion Of Poison`
+* `Potion Of Resistance`
+* `Potion Of Speed`
+* `Potion Of Water Breathing`",
+        format!(
+            "{}",
+            category.display_magic_item_list(&magic_items[..], "Potions"),
+        ),
     );
 }
 
 #[test]
 fn list_all_categories() {
-    let mut categories: Vec<(String, Vec<String>)> = equipment_categories()
+    let mut categories: Vec<(String, Vec<String>)> = item_categories()
         .unwrap()
         .drain(..)
         .map(|category| {

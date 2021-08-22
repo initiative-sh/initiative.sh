@@ -109,3 +109,63 @@ fn weapons() {
 
     assert_eq!(output, sync_app().command("weapons, melee"));
 }
+
+#[test]
+fn magic_item() {
+    let output = sync_app().command("Rod Of Rulership");
+
+    assert_eq!(
+        "\
+# Rod Of Rulership
+
+*Rod, rare (requires attunement)*
+
+You can use an action to present the rod and command obedience from each creature of your choice that you can see within 120 feet of you. Each target must succeed on a DC 15 Wisdom saving throw or be charmed by you for 8 hours. While charmed in this way, the creature regards you as its trusted leader. If harmed by you or your companions, or commanded to do something contrary to its nature, a target ceases to be charmed in this way. The rod can't be used again until the next dawn.
+
+*Rod Of Rulership is Open Game Content subject to the `Open Game License`.*",
+        output,
+    );
+}
+
+#[test]
+fn magic_weapons() {
+    let output = sync_app().command("magic weapons");
+
+    assert_eq!(
+        "\
+# Magic weapons
+
+* `Berserker Axe`
+* `Dagger Of Venom`
+* `Dancing Sword`
+* `Defender`
+* `Dragon Slayer`
+* `Dwarven Thrower`
+* `Flame Tongue`
+* `Frost Brand`
+* `Giant Slayer`
+* `Hammer Of Thunderbolts`
+* `Holy Avenger`
+* `Javelin Of Lightning`
+* `Luck Blade`
+* `Mace Of Disruption`
+* `Mace Of Smiting`
+* `Mace Of Terror`
+* `Nine Lives Stealer`
+* `Oathbow`
+* `Scimitar Of Speed`
+* `Sun Blade`
+* `Sword Of Life Stealing`
+* `Sword Of Sharpness`
+* `Sword Of Wounding`
+* `Trident Of Fish Command`
+* `Vicious Weapon`
+* `Vorpal Sword`
+* `Weapon, +1, +2, Or +3`
+
+*This listing is Open Game Content subject to the `Open Game License`.*",
+        output,
+    );
+
+    assert_eq!(output, sync_app().command("weapons, magic"));
+}

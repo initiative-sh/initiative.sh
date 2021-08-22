@@ -1,21 +1,28 @@
-use super::{Column, Equipment};
+use super::{Column, Item, MagicItem};
 use crate::srd_5e::Reference;
 use serde::Deserialize;
 use std::fmt;
 
 #[derive(Debug, Deserialize)]
-pub struct EquipmentCategory {
+pub struct ItemCategory {
     index: String,
     name: String,
-    equipment: Vec<Reference>,
+    #[serde(rename = "equipment")]
+    items: Vec<Reference>,
 }
 
-pub struct TableView<'a> {
-    category: &'a EquipmentCategory,
-    equipment: &'a [Equipment],
+pub struct ItemTableView<'a> {
+    category: &'a ItemCategory,
+    items: &'a [Item],
 }
 
-impl EquipmentCategory {
+pub struct MagicItemListView<'a> {
+    category: &'a ItemCategory,
+    magic_items: &'a [MagicItem],
+    title: &'a str,
+}
+
+impl ItemCategory {
     pub fn name(&self) -> String {
         match self.name.as_str() {
             "Potion" | "Ring" | "Rod" | "Scroll" | "Wand" | "Weapon" => {
@@ -47,19 +54,43 @@ impl EquipmentCategory {
         crate::to_camel_case(self.index.as_str())
     }
 
-    pub fn equipment_tokens(&self) -> Vec<String> {
-        self.equipment.iter().map(|item| item.token()).collect()
+    pub fn item_tokens(&self) -> Vec<String> {
+        self.items.iter().map(|item| item.token()).collect()
     }
 
-    pub fn display_table<'a>(&'a self, equipment: &'a [Equipment]) -> TableView {
-        TableView {
+    pub fn has_items(&self) -> bool {
+        self.items
+            .iter()
+            .any(|item| item.url.contains("/equipment/"))
+    }
+
+    pub fn has_magic_items(&self) -> bool {
+        self.items
+            .iter()
+            .any(|item| item.url.contains("/magic-items/"))
+    }
+
+    pub fn display_item_table<'a>(&'a self, items: &'a [Item]) -> ItemTableView {
+        ItemTableView {
             category: self,
-            equipment,
+            items,
+        }
+    }
+
+    pub fn display_magic_item_list<'a>(
+        &'a self,
+        magic_items: &'a [MagicItem],
+        title: &'a str,
+    ) -> MagicItemListView {
+        MagicItemListView {
+            category: self,
+            magic_items,
+            title,
         }
     }
 }
 
-impl<'a> fmt::Display for TableView<'a> {
+impl<'a> fmt::Display for ItemTableView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -111,18 +142,13 @@ impl<'a> fmt::Display for TableView<'a> {
             _ => write!(f, "---|"),
         })?;
 
-        let tokens = self.category.equipment_tokens();
+        let tokens = self.category.item_tokens();
 
-        let mut items: Vec<(&Equipment, String)> = self
-            .equipment
+        let mut items: Vec<(&Item, String)> = self
+            .items
             .iter()
-            .filter_map(|item| {
-                if tokens.contains(&item.token()) {
-                    Some((item, item.alt_name().unwrap_or_else(|| item.name())))
-                } else {
-                    None
-                }
-            })
+            .filter(|item| tokens.contains(&item.token()))
+            .map(|item| (item, item.alt_name().unwrap_or_else(|| item.name())))
             .collect();
 
         items.sort_by(|(_, a), (_, b)| a.cmp(b));
@@ -130,6 +156,28 @@ impl<'a> fmt::Display for TableView<'a> {
         items
             .iter()
             .try_for_each(|(item, _)| write!(f, "\n{}", item.display_table_row(columns)))?;
+
+        Ok(())
+    }
+}
+
+impl<'a> fmt::Display for MagicItemListView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "# {}", self.title)?;
+
+        let tokens = self.category.item_tokens();
+
+        let mut magic_items: Vec<&MagicItem> = self
+            .magic_items
+            .iter()
+            .filter(|i| tokens.contains(&i.token()))
+            .collect();
+
+        magic_items.sort_by_key(|item| item.name());
+
+        magic_items
+            .drain(..)
+            .try_for_each(|item| write!(f, "\n* {}", item.display_summary()))?;
 
         Ok(())
     }

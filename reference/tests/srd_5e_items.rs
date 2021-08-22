@@ -3,7 +3,7 @@
 //! | name: armor w/ hard-coded suffix | leather_armor     |
 //! | name: armor w/ no suffix         | chain_shirt       |
 //! | name: one word                   | mastiff           |
-//! | name: multiple words             | potion_of_healing |
+//! | name: multiple words             | holy_water_flask  |
 //! | name: one comma                  | light_crossbow    |
 //! | armor_class: fixed               | splint_armor      |
 //! | armor_class: with dex            | leather_armor     |
@@ -12,8 +12,8 @@
 //! | capacity                         | mastiff           |
 //! | cost                             | leather_armor     |
 //! | damage                           | dagger            |
-//! | desc                             | potion_of_healing |
-//! | equipment_category               | leather_armor     |
+//! | desc                             | holy_water_flask  |
+//! | item_category               | leather_armor     |
 //! | name                             | leather_armor     |
 //! | range                            | light_crossbow    |
 //! | special                          | whip              |
@@ -25,15 +25,12 @@
 //! | throw_range                      | dagger            |
 //! | weight                           | leather_armor     |
 
-use initiative_reference::srd_5e::equipment;
+use initiative_reference::srd_5e::items;
 
 #[test]
 fn leather_armor() {
-    let equipment = equipment().unwrap();
-    let item = equipment
-        .iter()
-        .find(|i| i.name() == "Leather Armor")
-        .unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Leather Armor").unwrap();
 
     assert_eq!(
         "\
@@ -51,11 +48,8 @@ fn leather_armor() {
 
 #[test]
 fn chain_shirt() {
-    let equipment = equipment().unwrap();
-    let item = equipment
-        .iter()
-        .find(|i| i.name() == "Chain Shirt")
-        .unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Chain Shirt").unwrap();
 
     assert_eq!(
         "\
@@ -73,11 +67,8 @@ fn chain_shirt() {
 
 #[test]
 fn splint_armor() {
-    let equipment = equipment().unwrap();
-    let item = equipment
-        .iter()
-        .find(|i| i.name() == "Splint Armor")
-        .unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Splint Armor").unwrap();
 
     assert_eq!(
         "\
@@ -95,8 +86,8 @@ fn splint_armor() {
 
 #[test]
 fn shield() {
-    let equipment = equipment().unwrap();
-    let item = equipment.iter().find(|i| i.name() == "Shield").unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Shield").unwrap();
 
     assert_eq!(
         "\
@@ -114,8 +105,8 @@ fn shield() {
 
 #[test]
 fn trident() {
-    let equipment = equipment().unwrap();
-    let item = equipment.iter().find(|i| i.name() == "Trident").unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Trident").unwrap();
 
     assert_eq!(
         "\
@@ -132,11 +123,8 @@ fn trident() {
 
 #[test]
 fn light_crossbow() {
-    let equipment = equipment().unwrap();
-    let item = equipment
-        .iter()
-        .find(|i| i.name() == "Light Crossbow")
-        .unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Light Crossbow").unwrap();
 
     assert_eq!(
         "\
@@ -153,8 +141,8 @@ fn light_crossbow() {
 
 #[test]
 fn mastiff() {
-    let equipment = equipment().unwrap();
-    let item = equipment.iter().find(|i| i.name() == "Mastiff").unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Mastiff").unwrap();
 
     assert_eq!(
         "\
@@ -169,30 +157,36 @@ fn mastiff() {
 }
 
 #[test]
-fn potion_of_healing() {
-    let equipment = equipment().unwrap();
-    let item = equipment
+fn holy_water_flask() {
+    let items = items().unwrap();
+    let item = items
         .iter()
-        .find(|i| i.name() == "Potion Of Healing")
+        .find(|i| i.name() == "Holy Water (Flask)")
         .unwrap();
 
     assert_eq!(
         "\
-# Potion Of Healing
+# Holy Water (Flask)
 *Adventuring Gear (Standard Gear)*
 
-**Cost:** 50 gp\\
-**Weight:** 0.5 lbs
+**Cost:** 25 gp\\
+**Weight:** 1 lbs
 
-A character who drinks the magical red fluid in this vial regains 2d4 + 2 hit points. Drinking or administering a potion takes an action.",
+As an action, you can splash the contents of this flask onto a creature within 5 feet of you or throw it up to 20 feet, shattering it on impact. In either case, make a ranged attack against a target creature, treating the holy water as an improvised weapon.
+
+If the target is a fiend or undead, it takes 2d6 radiant damage.
+
+A cleric or paladin may create holy water by performing a special ritual.
+
+The ritual takes 1 hour to perform, uses 25 gp worth of powdered silver, and requires the caster to expend a 1st-level spell slot.",
         format!("{}", item.display_details()),
     );
 }
 
 #[test]
 fn lance() {
-    let equipment = equipment().unwrap();
-    let item = equipment.iter().find(|i| i.name() == "Lance").unwrap();
+    let items = items().unwrap();
+    let item = items.iter().find(|i| i.name() == "Lance").unwrap();
 
     assert_eq!("\
 # Lance

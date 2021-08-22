@@ -1,4 +1,4 @@
-use super::{Item, ItemCategory, Spell};
+use super::{Item, ItemCategory, MagicItem, Spell};
 use crate::app::{autocomplete_phrase, AppMeta, Runnable};
 use async_trait::async_trait;
 
@@ -8,6 +8,7 @@ pub enum ReferenceCommand {
     Spells,
     Item(Item),
     ItemCategory(ItemCategory),
+    MagicItem(MagicItem),
     OpenGameLicense,
 }
 
@@ -18,6 +19,7 @@ impl ReferenceCommand {
             Self::Spells => "SRD index",
             Self::Item(_) => "SRD item",
             Self::ItemCategory(_) => "SRD item category",
+            Self::MagicItem(_) => "SRD magic item",
             Self::OpenGameLicense => "SRD license",
         }
     }
@@ -31,6 +33,7 @@ impl Runnable for ReferenceCommand {
             Self::Spells => (Spell::get_list().to_string(), "This listing"),
             Self::Item(item) => (format!("{}", item), item.get_name()),
             Self::ItemCategory(category) => (format!("{}", category), "This listing"),
+            Self::MagicItem(magic_item) => (format!("{}", magic_item), magic_item.get_name()),
             Self::OpenGameLicense => {
                 return include_str!("../../../data/ogl-1.0a.md")
                     .trim_end()
@@ -57,6 +60,8 @@ impl Runnable for ReferenceCommand {
             vec![Self::Item(item)]
         } else if let Ok(category) = input.parse() {
             vec![Self::ItemCategory(category)]
+        } else if let Ok(magic_item) = input.parse() {
+            vec![Self::MagicItem(magic_item)]
         } else {
             Vec::new()
         }
@@ -69,7 +74,8 @@ impl Runnable for ReferenceCommand {
                 .iter()
                 .chain(Spell::get_words().iter())
                 .chain(Item::get_words().iter())
-                .chain(ItemCategory::get_words().iter()),
+                .chain(ItemCategory::get_words().iter())
+                .chain(MagicItem::get_words().iter()),
         );
 
         suggestions.sort();
