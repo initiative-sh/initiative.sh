@@ -154,6 +154,7 @@ mod test {
     fn autocomplete_test() {
         assert_eq!(
             [
+                ("delete [name]", "remove an entry from journal"),
                 ("dragonborn", "generate NPC species"),
                 ("druidic foci", "SRD item category"),
                 ("dwarf", "generate NPC species"),

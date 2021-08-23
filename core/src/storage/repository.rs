@@ -1,6 +1,42 @@
 use crate::app::AppMeta;
-use crate::world::Thing;
-use uuid::Uuid;
+use crate::{Thing, Uuid};
+
+pub async fn delete_by_name(app_meta: &mut AppMeta, name: &str) -> Result<String, String> {
+    let lowercase_name = name.to_lowercase();
+    let name_matches = |s: &String| s.to_lowercase() == lowercase_name;
+
+    let cached_thing = if let Some((uuid, thing)) = app_meta
+        .cache
+        .iter()
+        .find(|(_, t)| t.name().value().map_or(false, name_matches))
+    {
+        Some((*uuid, thing.name().to_string()))
+    } else {
+        None
+    };
+
+    if let Some((uuid, thing_name)) = cached_thing {
+        let (store_delete_success, cache_delete_success) = (
+            app_meta.data_store.delete(&uuid).await.is_ok(),
+            app_meta.cache.remove(&uuid).is_some(),
+        );
+
+        if store_delete_success || cache_delete_success {
+            Ok(format!("{} was successfully deleted.", thing_name))
+        } else {
+            Err(format!("Could not delete {}.", thing_name))
+        }
+    } else if let Some(thing) =
+        app_meta.take_recent(|t| t.name().value().map_or(false, name_matches))
+    {
+        Ok(format!(
+            "{} deleted from recent entries. This isn't normally necessary as recent entries aren't automatically saved from one session to another.",
+            thing.name(),
+        ))
+    } else {
+        Err(format!("There is no entity named {}.", name))
+    }
+}
 
 pub async fn init_cache(app_meta: &mut AppMeta) {
     let things = app_meta.data_store.get_all().await;

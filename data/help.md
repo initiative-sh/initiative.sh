@@ -15,9 +15,14 @@ items from the 5th edition D&D Systems Reference Document. For instance:
 
 * `spells` (`Acid Arrow` to `Zone Of Truth`)
 * `weapons`, `adventuring gear`, `tools`, etc. (`Abacus` to `Yew Wand`)
-* the name of any NPC you've previously generated
 * more to come
 
-You can save any generated thing to your journal by typing `save [name]`. Saved
-things will be available next time you visit the site. You can get a list of all
-saved things with `journal`.
+The journal allows you to save and load generated NPCs, locations, etc. Entries
+in your journal are saved to your browser and will be available next time you
+visit initiative.sh.
+
+* `journal` lists all journal entries.
+* `save [name]` saves a generated NPC, location, etc. to your journal.
+* `load [name]` (or just `[name]`) loads the named entry from your journal or
+  recently generated entries.
+* `delete [name]` deletes a journal entry.

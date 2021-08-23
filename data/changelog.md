@@ -1,3 +1,5 @@
+* **Enhancement:** You can now delete entries from your journal with
+  `delete [name]`. This completes the basic journal functionality.
 * **Enhancement:** Users that can't save to local storage (eg. private browsing,
   Firefox Focus) will see appropriate error messages instead of a broken site.
 * **Enhancement:** You can now look up SRD magic items such as the inimitable

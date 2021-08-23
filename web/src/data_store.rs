@@ -8,7 +8,7 @@ pub struct DataStore;
 #[async_trait(?Send)]
 impl initiative_core::DataStore for DataStore {
     async fn delete(&mut self, uuid: &Uuid) -> Result<(), ()> {
-        if delete(uuid.to_string().into()).await.is_truthy() {
+        if delete_by_uuid(uuid.to_string().into()).await.is_truthy() {
             Ok(())
         } else {
             Err(())
@@ -30,7 +30,7 @@ impl initiative_core::DataStore for DataStore {
 
 #[wasm_bindgen(module = "/js/database.js")]
 extern "C" {
-    async fn delete(uuid: JsValue) -> JsValue;
+    async fn delete_by_uuid(uuid: JsValue) -> JsValue;
 
     async fn get_all() -> JsValue;
 
