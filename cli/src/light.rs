@@ -8,7 +8,10 @@ pub async fn run(mut app: App) -> io::Result<()> {
     loop {
         match stdin.read_line(&mut buffer) {
             Ok(0) => return Ok(()),
-            Ok(_) => println!("\n{}\n", app.command(&buffer).await),
+            Ok(_) => match app.command(&buffer).await {
+                Ok(s) => println!("\n{}\n", s),
+                Err(e) => eprintln!("\n{}\n", e),
+            },
             Err(e) => return Err(e),
         }
 

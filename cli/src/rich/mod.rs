@@ -7,6 +7,7 @@ use std::io::prelude::*;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
+use termion::color;
 use termion::event::{Event, Key};
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
@@ -79,7 +80,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
                         _ => {}
                     }
 
-                    draw_status(&mut screen, status.as_str())?;
+                    draw_status(&mut screen, &status)?;
                     draw_input(&mut screen, &input)?;
                     screen.flush()?;
                 }
@@ -90,7 +91,17 @@ pub async fn run(mut app: App) -> io::Result<()> {
 
         print!("{}", termion::clear::All);
 
-        let output = app.command(&command).await;
+        let output = app.command(&command).await.unwrap_or_else(|e| {
+            format!(
+                "{}{}{}{}{}",
+                color::Fg(color::Black),
+                color::Bg(color::Red),
+                e,
+                color::Fg(color::Reset),
+                color::Bg(color::Reset),
+            )
+        });
+
         wrap(&output, termion::terminal_size().unwrap().0 as usize - 4)
             .lines()
             .enumerate()
@@ -112,7 +123,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
 
 impl Input {
     fn text(&self) -> &str {
-        self.history.get(self.index).unwrap().as_str()
+        self.history.get(self.index).unwrap()
     }
 
     fn text_mut(&mut self) -> &mut String {

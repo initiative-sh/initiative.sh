@@ -23,7 +23,7 @@ pub enum Command {
 
 #[async_trait(?Send)]
 impl Runnable for Command {
-    async fn run(&self, app_meta: &mut AppMeta) -> String {
+    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
         if !matches!(self, Self::Alias(_)) {
             app_meta.command_aliases.clear();
         }

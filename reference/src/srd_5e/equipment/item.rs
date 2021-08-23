@@ -86,19 +86,19 @@ impl Item {
             name.push_str(" Armor");
         }
 
-        crate::capitalize(name.as_str())
+        crate::capitalize(&name)
     }
 
     pub fn alt_name(&self) -> Option<String> {
         if self.name.contains(", ") {
-            Some(crate::capitalize(self.name.as_str()))
+            Some(crate::capitalize(&self.name))
         } else {
             None
         }
     }
 
     pub fn token(&self) -> String {
-        crate::to_camel_case(self.index.as_str())
+        crate::to_camel_case(&self.index)
     }
 
     pub fn display_table_row<'a>(&'a self, columns: &'a [Column]) -> TableRowView {

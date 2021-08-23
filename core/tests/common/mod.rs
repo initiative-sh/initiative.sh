@@ -1,17 +1,19 @@
 use async_trait::async_trait;
-use initiative_core::{app, App, DataStore, NullDataStore, Thing};
+use initiative_core::{app, App, DataStore, Thing};
 use std::cell::RefCell;
 use std::rc::Rc;
 use tokio_test::block_on;
 
 #[allow(dead_code)]
 pub fn sync_app() -> SyncApp {
-    sync_app_with_data_store(NullDataStore::default())
+    sync_app_with_data_store(MemoryDataStore::default())
 }
 
 #[allow(dead_code)]
 pub fn sync_app_with_data_store(data_store: impl DataStore + 'static) -> SyncApp {
-    SyncApp(app(data_store))
+    let mut app = SyncApp(app(data_store));
+    app.init();
+    app
 }
 
 pub struct SyncApp(App);
@@ -27,7 +29,7 @@ impl SyncApp {
         block_on(self.0.init())
     }
 
-    pub fn command(&mut self, input: &str) -> String {
+    pub fn command(&mut self, input: &str) -> Result<String, String> {
         block_on(self.0.command(input))
     }
 
@@ -38,12 +40,13 @@ impl SyncApp {
 
 #[async_trait(?Send)]
 impl DataStore for MemoryDataStore {
-    async fn save(&mut self, thing: &Thing) {
+    async fn save(&mut self, thing: &Thing) -> Result<(), ()> {
         let mut things = self.things.borrow_mut();
         things.push(thing.clone());
+        Ok(())
     }
 
-    async fn get_all(&self) -> Vec<Thing> {
-        self.things.borrow().to_vec()
+    async fn get_all(&self) -> Result<Vec<Thing>, ()> {
+        Ok(self.things.borrow().to_vec())
     }
 }

@@ -20,6 +20,20 @@ marked.use({
   renderer: {
     del: (text) => `<code class="temp-link">${text}</code>`,
   },
+  extensions: [
+    {
+      name: "error",
+      level: "block",
+      start: (src) => src.match(/!/)?.index,
+      tokenizer: (src, tokens) => {
+        const match = /^! (.+)$/.exec(src);
+        if (match) {
+          return { type: "error", raw: match[0], text: match[1].trim() };
+        }
+      },
+      renderer: (token) => `<p class="error">${token.text}</p>`,
+    },
+  ],
 });
 
 const autoCompleteJS = new autoComplete({

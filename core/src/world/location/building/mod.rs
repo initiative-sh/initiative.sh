@@ -92,11 +92,11 @@ mod test {
 
     #[test]
     fn fmt_test() {
-        assert_eq!("inn", format!("{}", BuildingType::Inn).as_str());
-        assert_eq!("residence", format!("{}", BuildingType::Residence).as_str());
-        assert_eq!("shop", format!("{}", BuildingType::Shop).as_str());
-        assert_eq!("temple", format!("{}", BuildingType::Temple).as_str());
-        assert_eq!("warehouse", format!("{}", BuildingType::Warehouse).as_str());
+        assert_eq!("inn", format!("{}", BuildingType::Inn));
+        assert_eq!("residence", format!("{}", BuildingType::Residence));
+        assert_eq!("shop", format!("{}", BuildingType::Shop));
+        assert_eq!("temple", format!("{}", BuildingType::Temple));
+        assert_eq!("warehouse", format!("{}", BuildingType::Warehouse));
     }
 
     #[test]

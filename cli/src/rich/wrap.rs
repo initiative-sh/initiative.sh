@@ -58,7 +58,7 @@ mod test {
              a\n\
              line\n\
              break.",
-            wrap("A word wrapped sentence with\na\nline break.", 6).as_str()
+            wrap("A word wrapped sentence with\na\nline break.", 6),
         );
     }
 
@@ -111,7 +111,7 @@ green fields gone? What do they here?";
 
         let output_actual = wrap(input, 80);
 
-        assert_eq!(output_expected, output_actual.as_str());
+        assert_eq!(output_expected, output_actual);
         assert!(output_actual.lines().all(|line| line.len() <= 80));
         assert!(output_actual.lines().any(|line| line.len() == 80));
     }

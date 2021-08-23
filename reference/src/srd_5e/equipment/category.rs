@@ -51,7 +51,7 @@ impl ItemCategory {
     }
 
     pub fn token(&self) -> String {
-        crate::to_camel_case(self.index.as_str())
+        crate::to_camel_case(&self.index)
     }
 
     pub fn item_tokens(&self) -> Vec<String> {
@@ -92,11 +92,7 @@ impl ItemCategory {
 
 impl<'a> fmt::Display for ItemTableView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "# {}\n\n|",
-            crate::capitalize(self.category.name().as_str())
-        )?;
+        write!(f, "# {}\n\n|", crate::capitalize(&self.category.name()))?;
 
         let columns = if self.category.index.contains("armor") {
             &[

@@ -13,30 +13,29 @@ pub fn command(species: &Option<Species>, app_meta: &mut AppMeta) -> String {
     let mut output = String::new();
     let npc = Npc::generate(&mut app_meta.rng, &demographics);
 
-    output.push_str(&format!(
-        "\
-{}
+    output.push_str(&format!("{}", npc.display_details()));
 
-_{} has not yet been saved. Use ~save~ to save {} to your `journal`._
-
-*Alternatives:* ",
-        npc.display_details(),
-        npc.name,
-        npc.gender.value().unwrap_or(&Gender::Trans).them(),
-    ));
-
-    if let Some(name) = npc.name.value() {
-        app_meta.command_aliases.insert(CommandAlias::new(
-            "save".to_string(),
-            format!("save {}", npc.name),
-            StorageCommand::Save {
-                name: name.to_string(),
-            }
-            .into(),
-        ));
+    if app_meta.data_store_enabled {
+        if let Some(name) = npc.name.value() {
+            output.push_str(&format!(
+                "\n\n_{} has not yet been saved. Use ~save~ to save {} to your `journal`._",
+                name,
+                npc.gender.value().unwrap_or(&Gender::Trans).them(),
+            ));
+            app_meta.command_aliases.insert(CommandAlias::new(
+                "save".to_string(),
+                format!("save {}", npc.name),
+                StorageCommand::Save {
+                    name: name.to_string(),
+                }
+                .into(),
+            ));
+        }
     }
 
     app_meta.push_recent(npc.into());
+
+    output.push_str("\n\n*Alternatives:* ");
 
     let recent = (0..10)
         .map(|i| {

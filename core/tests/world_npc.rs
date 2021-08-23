@@ -1,10 +1,14 @@
 mod common;
 
-use common::sync_app;
+use common::{sync_app, sync_app_with_data_store};
+use initiative_core::NullDataStore;
 
 #[test]
 fn results_are_random() {
-    assert_ne!(sync_app().command("npc"), sync_app().command("npc"));
+    assert_ne!(
+        sync_app().command("npc").unwrap(),
+        sync_app().command("npc").unwrap(),
+    );
 }
 
 #[test]
@@ -22,14 +26,14 @@ fn generated_content_is_limited_by_species() {
     ]
     .iter()
     .for_each(|species| {
-        let output = sync_app().command(species);
+        let output = sync_app().command(species).unwrap();
         assert_eq!(12, output.matches(species).count(), "{}", output);
     });
 
     [("half elf", "half-elf"), ("half orc", "half-orc")]
         .iter()
         .for_each(|(input, species)| {
-            let output = sync_app().command(input);
+            let output = sync_app().command(input).unwrap();
             assert_eq!(12, output.matches(species).count(), "{}", output);
         });
 }
@@ -37,7 +41,7 @@ fn generated_content_is_limited_by_species() {
 #[test]
 fn generated_content_is_persisted() {
     let mut app = sync_app();
-    let generated_output = app.command("npc");
+    let generated_output = app.command("npc").unwrap();
 
     // # Sybil
     // *elderly human, she/her*
@@ -67,10 +71,10 @@ fn generated_content_is_persisted() {
         .next()
         .unwrap()
         .trim_start_matches("# ");
-    let persisted_output = app.command(name);
+    let persisted_output = app.command(name).unwrap();
     assert_eq!(
-        Some(format!("# {}", name).as_str()),
-        persisted_output.lines().next(),
+        format!("# {}", name),
+        persisted_output.lines().next().unwrap(),
     );
     assert_eq!(
         9,
@@ -94,8 +98,8 @@ fn generated_content_is_persisted() {
                 if let Some(pos) = s.find('(') {
                     let name = &s[5..(pos - 2)];
                     assert_eq!(
-                        Some(format!("# {}", name).as_str()),
-                        app.command(name).lines().next(),
+                        format!("# {}", name),
+                        app.command(name).unwrap().lines().next().unwrap(),
                     );
                 } else {
                     panic!("Missing ( in \"{}\"", s);
@@ -112,9 +116,9 @@ fn numeric_aliases_exist_for_npcs() {
     let mut app = sync_app();
 
     // Generate a data set to potentially interfere with the one being tested.
-    app.command("npc");
+    app.command("npc").unwrap();
 
-    let generated_output = app.command("npc");
+    let generated_output = app.command("npc").unwrap();
 
     // Doing this in two steps due to borrowing issues.
     let mut outputs = generated_output
@@ -123,14 +127,11 @@ fn numeric_aliases_exist_for_npcs() {
         .map(|s| {
             if let Some(pos) = s.find('(') {
                 let digit = &s[1..2];
-                let digit_output = app.command(digit);
+                let digit_output = app.command(digit).unwrap();
 
                 let name = &s[5..(pos - 2)];
 
-                assert_eq!(
-                    Some(format!("# {}", name).as_str()),
-                    digit_output.lines().next(),
-                );
+                assert_eq!(format!("# {}", name), digit_output.lines().next().unwrap());
 
                 (digit_output, name.to_string())
             } else {
@@ -144,7 +145,7 @@ fn numeric_aliases_exist_for_npcs() {
         outputs
             .drain(..)
             .map(|(digit_output, name)| {
-                let name_output = app.command(&name);
+                let name_output = app.command(&name).unwrap();
                 assert_eq!(digit_output, name_output);
             })
             .count(),
@@ -158,21 +159,34 @@ fn save_alias_exists_for_npcs() {
     let mut app = sync_app();
 
     {
-        let output = app.command("npc");
+        let output = app.command("npc").unwrap();
         let name = output.lines().next().unwrap().trim_start_matches("# ");
 
-        let output = app.command(&name);
+        let output = app.command(&name).unwrap();
         assert!(output.contains("has not yet been saved"), "{}", output);
     }
 
     {
-        let output = app.command("npc");
+        let output = app.command("npc").unwrap();
         let name = output.lines().next().unwrap().trim_start_matches("# ");
 
-        let output = app.command("save");
+        let output = app.command("save").unwrap();
         assert!(output.contains(&format!("Saving `{}`", name)), "{}", output);
 
-        let output = app.command(&name);
+        let output = app.command(&name).unwrap();
         assert!(!output.contains("has not yet been saved"), "{}", output);
     }
+}
+
+#[test]
+fn npc_save_alias_does_not_exist_with_invalid_data_store() {
+    let mut app = sync_app_with_data_store(NullDataStore::default());
+
+    let output = app.command("npc").unwrap();
+    assert!(!output.contains("has not yet been saved"), "{}", output);
+
+    assert_eq!(
+        "Unknown command: \"save\"",
+        app.command("save").unwrap_err(),
+    );
 }

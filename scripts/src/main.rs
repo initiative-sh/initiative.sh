@@ -44,12 +44,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     Some(ReadMode::Text) if !skip_page => {
                         if let Some((infobox_type, fields)) =
-                            parse(e.unescape_and_decode(&reader)?.as_str())
+                            parse(&e.unescape_and_decode(&reader)?)
                         {
                             json_objects
                                 .entry(infobox_type)
                                 .or_insert_with(JsonValue::new_object)
-                                .insert(title.as_str(), fields)
+                                .insert(&title, fields)
                                 .unwrap();
                         }
                     }
@@ -90,7 +90,7 @@ fn parse(text: &str) -> Option<(InfoboxType, HashMap<&str, String>)> {
             depth = Some(0);
         } else if let Some(caps) = field_start.captures(line) {
             if !key.is_empty() {
-                value = strip_tags(value.as_str());
+                value = strip_tags(&value);
                 if !value.is_empty() {
                     fields.insert(key, value);
                 }

@@ -46,15 +46,13 @@ impl StorageCommand {
 
 #[async_trait(?Send)]
 impl Runnable for StorageCommand {
-    async fn run(&self, app_meta: &mut AppMeta) -> String {
+    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
             Self::Load { name } => {
                 let thing = repository::load(app_meta, name);
                 let mut save_command = None;
                 let output = if let Some(thing) = thing {
-                    if thing.uuid().is_some() {
-                        format!("{}", thing.display_details())
-                    } else {
+                    if thing.uuid().is_none() && app_meta.data_store_enabled {
                         save_command = Some(CommandAlias::new(
                             "save".to_string(),
                             format!("save {}", name),
@@ -64,15 +62,17 @@ impl Runnable for StorageCommand {
                             .into(),
                         ));
 
-                        format!(
+                        Ok(format!(
                             "{}\n\n_{} has not yet been saved. Use ~save~ to save {} to your `journal`._",
                             thing.display_details(),
                             thing.name(),
                             thing.gender().them(),
-                        )
+                        ))
+                    } else {
+                        Ok(format!("{}", thing.display_details()))
                     }
                 } else {
-                    format!("No matches for \"{}\"", name)
+                    Err(format!("No matches for \"{}\"", name))
                 };
 
                 if let Some(save_command) = save_command {
@@ -81,10 +81,12 @@ impl Runnable for StorageCommand {
 
                 output
             }
-            Self::Save { name } => repository::save(app_meta, name)
-                .await
-                .map_or_else(|e| e, |s| s),
+            Self::Save { name } => repository::save(app_meta, name).await,
             Self::Journal => {
+                if !app_meta.data_store_enabled {
+                    return Err("The journal is not supported by your browser.".to_string());
+                }
+
                 let mut output = "# Journal".to_string();
                 let [mut npcs, mut locations, mut regions] = [Vec::new(), Vec::new(), Vec::new()];
 
@@ -101,12 +103,7 @@ impl Runnable for StorageCommand {
                         output.push_str("\n\n## ");
                         output.push_str(title);
 
-                        things.sort_unstable_by(|a, b| {
-                            a.name()
-                                .value()
-                                .map_or("", |s| s.as_str())
-                                .cmp(b.name().value().map_or("", |s| s.as_str()))
-                        });
+                        things.sort_unstable_by_key(|t| t.name().value());
 
                         things.drain(..).enumerate().for_each(|(i, thing)| {
                             if i > 0 {
@@ -126,7 +123,7 @@ impl Runnable for StorageCommand {
                     output.push_str("\n\n*Your journal is currently empty.*");
                 }
 
-                output
+                Ok(output)
             }
         }
     }

@@ -48,7 +48,7 @@ fn acid_splash() {
 You hurl a bubble of acid. Choose one creature within range, or choose two creatures within range that are within 5 feet of each other. A target must succeed on a dexterity saving throw or take 1d6 acid damage.
 
 This spell's damage increases by 1d6 when you reach 5th level (2d6), 11th level (3d6), and 17th level (4d6).",
-        format!("{}", spell.display_details()).as_str(),
+        format!("{}", spell.display_details()),
     );
 }
 
@@ -77,7 +77,7 @@ You set an alarm against unwanted intrusion. Choose a door, a window, or an area
 A mental alarm alerts you with a ping in your mind if you are within 1 mile of the warded area. This ping awakens you if you are sleeping.
 
 An audible alarm produces the sound of a hand bell for 10 seconds within 60 feet.",
-        format!("{}", spell.display_details()).as_str(),
+        format!("{}", spell.display_details()),
     );
 }
 
@@ -107,7 +107,7 @@ fn blindness_deafness() {
 You can blind or deafen a foe. Choose one creature that you can see within range to make a constitution saving throw. If it fails, the target is either blinded or deafened (your choice) for the duration. At the end of each of its turns, the target can make a constitution saving throw. On a success, the spell ends.
 
 ***At higher levels:*** When you cast this spell using a spell slot of 3rd level or higher, you can target one additional creature for each slot level above 2nd.",
-        format!("{}", spell.display_details()).as_str(),
+        format!("{}", spell.display_details()),
     );
 }
 
@@ -138,7 +138,7 @@ On each of your turns, you can use a bonus action to mentally command any creatu
 The creature is under your control for 24 hours, after which it stops obeying any command you've given it. To maintain control of the creature for another 24 hours, you must cast this spell on the creature again before the current 24-hour period ends. This use of the spell reasserts your control over up to four creatures you have animated with this spell, rather than animating a new one.
 
 ***At higher levels:*** When you cast this spell using a spell slot of 4th level or higher, you animate or reassert control over two additional undead creatures for each slot level above 3rd. Each of the creatures must come from a different corpse or pile of bones.",
-        format!("{}", spell.display_details()).as_str(),
+        format!("{}", spell.display_details()),
     );
 }
 
@@ -176,7 +176,7 @@ As your action, you touch a creature you can reach that is charmed, frightened, 
 Dismissal.
 
 As your action, make a melee spell attack against a celestial, an elemental, a fey, a fiend, or an undead you can reach. On a hit, you attempt to drive the creature back to its home plane. The creature must succeed on a charisma saving throw or be sent back to its home plane (if it isn't there already). If they aren't on their home plane, undead are sent to the Shadowfell, and fey are sent to the Feywild.",
-        format!("{}", spell.display_details()).as_str(),
+        format!("{}", spell.display_details()),
     );
 }
 
@@ -210,6 +210,6 @@ By casting gem-inlaid sticks, rolling dragon bones, laying out ornate cards, or 
 The spell doesn't take into account any possible circumstances that might change the outcome, such as the casting of additional spells or the loss or gain of a companion.
 
 If you cast the spell two or more times before completing your next long rest, there is a cumulative 25 percent chance for each casting after the first that you get a random reading. The DM makes this roll in secret.",
-        format!("{}", spell.display_details()).as_str(),
+        format!("{}", spell.display_details()),
     );
 }

@@ -19,6 +19,11 @@ body {
     color: var(--solarized-scheme02);
 }
 
+#output {
+    margin: 0.5rem 0.5rem 0;
+    padding: 0 0 1rem;
+}
+
 #output p {
     margin: 1.2rem 0 0;
 }
@@ -104,11 +109,6 @@ body {
     content: "* ";
 }
 
-#output {
-    margin: 0.5rem 0.5rem 0;
-    padding: 0 0 1rem;
-}
-
 #output code {
     background: inherit;
     border: none;
@@ -120,6 +120,11 @@ body {
 
 #output code.temp-link {
     text-decoration-style: dashed;
+}
+
+#output .error {
+    color: var(--solarized-base3);
+    background: var(--solarized-red);
 }
 
 #prompt-form {

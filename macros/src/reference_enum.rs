@@ -10,7 +10,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
             .iter()
             .map(|spell| {
                 (
-                    syn::parse_str(spell.token().as_str()).unwrap(),
+                    syn::parse_str(&spell.token()).unwrap(),
                     spell.name(),
                     Vec::new(),
                     format!("{}", spell.display_details()),
@@ -21,7 +21,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
             .iter()
             .map(|item| {
                 (
-                    syn::parse_str(item.token().as_str()).unwrap(),
+                    syn::parse_str(&item.token()).unwrap(),
                     item.name(),
                     item.alt_name().into_iter().collect(),
                     format!("{}", item.display_details()),
@@ -39,7 +39,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
 
                 if has_items {
                     result.push((
-                        syn::parse_str(category.token().as_str()).unwrap(),
+                        syn::parse_str(&category.token()).unwrap(),
                         category.name().to_lowercase(),
                         category.alt_names(),
                         format!("{}", category.display_item_table(&items)),
@@ -64,7 +64,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                         ));
                     } else {
                         result.push((
-                            syn::parse_str(category.token().as_str()).unwrap(),
+                            syn::parse_str(&category.token()).unwrap(),
                             category_name.to_lowercase(),
                             category.alt_names(),
                             format!(
@@ -113,9 +113,9 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
 
     let get_list = if ident == "Spell" {
         let mut list_output = format!("# {}s", ident);
-        srd_5e::spells()?.iter().for_each(|spell| {
-            list_output.push_str(format!("\n* {}", spell.display_summary()).as_str())
-        });
+        srd_5e::spells()?
+            .iter()
+            .for_each(|spell| list_output.push_str(&format!("\n* {}", spell.display_summary())));
 
         quote! {
             pub fn get_list() -> &'static str {
