@@ -2,6 +2,41 @@ use crate::app::AppMeta;
 use crate::world::Thing;
 use uuid::Uuid;
 
+pub async fn init_cache(app_meta: &mut AppMeta) {
+    let things = app_meta.data_store.get_all().await;
+
+    if let Ok(mut things) = things {
+        app_meta.cache = things
+            .drain(..)
+            .filter_map(|thing| {
+                if let Some(&uuid) = thing.uuid() {
+                    Some((uuid, thing))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        app_meta.data_store_enabled = true;
+    }
+}
+
+pub fn load<'a>(app_meta: &'a AppMeta, name: &str) -> Option<&'a Thing> {
+    let lowercase_name = name.to_lowercase();
+    app_meta
+        .cache
+        .values()
+        .chain(app_meta.recent().iter())
+        .find(|t| {
+            t.name()
+                .value()
+                .map_or(false, |s| s.to_lowercase() == lowercase_name)
+        })
+}
+
+pub fn load_all(app_meta: &AppMeta) -> impl Iterator<Item = &Thing> {
+    app_meta.cache.values()
+}
+
 pub async fn save(app_meta: &mut AppMeta, name: &str) -> Result<String, String> {
     let lowercase_name = name.to_lowercase();
     if let Some(mut thing) = app_meta.take_recent(|t| {
@@ -34,40 +69,5 @@ pub async fn save(app_meta: &mut AppMeta, name: &str) -> Result<String, String> 
         ))
     } else {
         Err(format!("No matches for \"{}\"", name))
-    }
-}
-
-pub fn load<'a>(app_meta: &'a AppMeta, name: &str) -> Option<&'a Thing> {
-    let lowercase_name = name.to_lowercase();
-    app_meta
-        .cache
-        .values()
-        .chain(app_meta.recent().iter())
-        .find(|t| {
-            t.name()
-                .value()
-                .map_or(false, |s| s.to_lowercase() == lowercase_name)
-        })
-}
-
-pub fn load_all(app_meta: &AppMeta) -> impl Iterator<Item = &Thing> {
-    app_meta.cache.values()
-}
-
-pub async fn init_cache(app_meta: &mut AppMeta) {
-    let things = app_meta.data_store.get_all().await;
-
-    if let Ok(mut things) = things {
-        app_meta.cache = things
-            .drain(..)
-            .filter_map(|thing| {
-                if let Some(&uuid) = thing.uuid() {
-                    Some((uuid, thing))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        app_meta.data_store_enabled = true;
     }
 }

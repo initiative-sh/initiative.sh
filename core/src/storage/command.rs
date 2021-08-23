@@ -5,15 +5,16 @@ use async_trait::async_trait;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StorageCommand {
+    Journal,
     Load { name: String },
     Save { name: String },
-    Journal,
 }
 
 impl StorageCommand {
     fn summarize(&self, thing: Option<&Thing>) -> String {
         if let Some(thing) = thing {
             match self {
+                Self::Journal { .. } => unreachable!(),
                 Self::Load { .. } => {
                     if thing.uuid().is_some() {
                         format!("{}", thing.display_description())
@@ -31,13 +32,12 @@ impl StorageCommand {
                         }
                     )
                 }
-                Self::Journal { .. } => unreachable!(),
             }
         } else {
             match self {
+                Self::Journal { .. } => "list journal contents",
                 Self::Load { .. } => "load an entry",
                 Self::Save { .. } => "save an entry to journal",
-                Self::Journal { .. } => "list journal contents",
             }
             .to_string()
         }
@@ -48,40 +48,6 @@ impl StorageCommand {
 impl Runnable for StorageCommand {
     async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
-            Self::Load { name } => {
-                let thing = repository::load(app_meta, name);
-                let mut save_command = None;
-                let output = if let Some(thing) = thing {
-                    if thing.uuid().is_none() && app_meta.data_store_enabled {
-                        save_command = Some(CommandAlias::new(
-                            "save".to_string(),
-                            format!("save {}", name),
-                            StorageCommand::Save {
-                                name: name.to_string(),
-                            }
-                            .into(),
-                        ));
-
-                        Ok(format!(
-                            "{}\n\n_{} has not yet been saved. Use ~save~ to save {} to your `journal`._",
-                            thing.display_details(),
-                            thing.name(),
-                            thing.gender().them(),
-                        ))
-                    } else {
-                        Ok(format!("{}", thing.display_details()))
-                    }
-                } else {
-                    Err(format!("No matches for \"{}\"", name))
-                };
-
-                if let Some(save_command) = save_command {
-                    app_meta.command_aliases.insert(save_command);
-                }
-
-                output
-            }
-            Self::Save { name } => repository::save(app_meta, name).await,
             Self::Journal => {
                 if !app_meta.data_store_enabled {
                     return Err("The journal is not supported by your browser.".to_string());
@@ -125,6 +91,40 @@ impl Runnable for StorageCommand {
 
                 Ok(output)
             }
+            Self::Load { name } => {
+                let thing = repository::load(app_meta, name);
+                let mut save_command = None;
+                let output = if let Some(thing) = thing {
+                    if thing.uuid().is_none() && app_meta.data_store_enabled {
+                        save_command = Some(CommandAlias::new(
+                            "save".to_string(),
+                            format!("save {}", name),
+                            StorageCommand::Save {
+                                name: name.to_string(),
+                            }
+                            .into(),
+                        ));
+
+                        Ok(format!(
+                            "{}\n\n_{} has not yet been saved. Use ~save~ to save {} to your `journal`._",
+                            thing.display_details(),
+                            thing.name(),
+                            thing.gender().them(),
+                        ))
+                    } else {
+                        Ok(format!("{}", thing.display_details()))
+                    }
+                } else {
+                    Err(format!("No matches for \"{}\"", name))
+                };
+
+                if let Some(save_command) = save_command {
+                    app_meta.command_aliases.insert(save_command);
+                }
+
+                output
+            }
+            Self::Save { name } => repository::save(app_meta, name).await,
         }
     }
 
@@ -133,12 +133,12 @@ impl Runnable for StorageCommand {
             vec![Self::Load {
                 name: input.to_string(),
             }]
-        } else if let Some(name) = input.strip_prefix("save ") {
-            vec![Self::Save {
-                name: name.to_string(),
-            }]
         } else if let Some(name) = input.strip_prefix("load ") {
             vec![Self::Load {
+                name: name.to_string(),
+            }]
+        } else if let Some(name) = input.strip_prefix("save ") {
+            vec![Self::Save {
                 name: name.to_string(),
             }]
         } else {
@@ -156,7 +156,7 @@ impl Runnable for StorageCommand {
 
         let mut result = Vec::new();
 
-        ["save", "load"]
+        ["load", "save"]
             .iter()
             .filter(|s| s.starts_with(input))
             .filter_map(|s| {
@@ -179,7 +179,7 @@ impl Runnable for StorageCommand {
             )
             .for_each(|(s, command)| result.push((s, command.summarize(None))));
 
-        let (input_prefix, input_name) = if let Some(parts) = ["save ", "load "]
+        let (input_prefix, input_name) = if let Some(parts) = ["load ", "save "]
             .iter()
             .find_map(|prefix| input.strip_prefix(prefix).map(|name| (*prefix, name)))
         {
