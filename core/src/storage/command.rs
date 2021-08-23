@@ -101,12 +101,7 @@ impl Runnable for StorageCommand {
                         output.push_str("\n\n## ");
                         output.push_str(title);
 
-                        things.sort_unstable_by(|a, b| {
-                            a.name()
-                                .value()
-                                .map_or("", |s| s.as_str())
-                                .cmp(b.name().value().map_or("", |s| s.as_str()))
-                        });
+                        things.sort_unstable_by_key(|t| t.name().value());
 
                         things.drain(..).enumerate().for_each(|(i, thing)| {
                             if i > 0 {

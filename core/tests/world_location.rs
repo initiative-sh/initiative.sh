@@ -56,8 +56,8 @@ fn generated_content_is_persisted() {
         .trim_start_matches("# ");
     let persisted_output = app.command(name);
     assert_eq!(
-        Some(format!("# {}", name).as_str()),
-        persisted_output.lines().next(),
+        format!("# {}", name),
+        persisted_output.lines().next().unwrap(),
     );
     assert_eq!(
         4,
@@ -95,8 +95,8 @@ fn generated_content_is_persisted() {
                 if let Some(pos) = s.find(',') {
                     let name = &s[2..pos];
                     assert_eq!(
-                        Some(format!("# {}", name).as_str()),
-                        app.command(name).lines().next(),
+                        format!("# {}", name),
+                        app.command(name).lines().next().unwrap(),
                     );
                 } else {
                     panic!("Missing , in \"{}\"", s);

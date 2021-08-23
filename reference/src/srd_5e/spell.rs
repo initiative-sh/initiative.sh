@@ -44,11 +44,11 @@ pub struct DetailsView<'a>(&'a Spell);
 
 impl Spell {
     pub fn name(&self) -> String {
-        crate::capitalize(self.name.as_str())
+        crate::capitalize(&self.name)
     }
 
     pub fn token(&self) -> String {
-        crate::to_camel_case(self.index.as_str())
+        crate::to_camel_case(&self.index)
     }
 
     pub fn display_summary(&self) -> SummaryView {

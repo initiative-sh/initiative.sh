@@ -14,7 +14,7 @@ fn npc_is_saved_to_storage() {
         .unwrap()
         .trim_start_matches("# ");
 
-    app.command(format!("save {}", npc_name).as_str());
+    app.command(&format!("save {}", npc_name));
 
     let things = data_store.things.borrow();
     assert_eq!(1, things.len());

@@ -408,7 +408,7 @@ mod test {
         // Ordering is not guaranteed in hash maps, so we have to fudge it with a round-trip.
         assert_eq!(
             demographics,
-            serde_json::from_str(serde_json::to_string(&demographics).unwrap().as_str()).unwrap(),
+            serde_json::from_str(&serde_json::to_string(&demographics).unwrap()).unwrap(),
         );
     }
 

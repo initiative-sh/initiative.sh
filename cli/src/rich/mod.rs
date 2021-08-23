@@ -79,7 +79,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
                         _ => {}
                     }
 
-                    draw_status(&mut screen, status.as_str())?;
+                    draw_status(&mut screen, &status)?;
                     draw_input(&mut screen, &input)?;
                     screen.flush()?;
                 }
@@ -112,7 +112,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
 
 impl Input {
     fn text(&self) -> &str {
-        self.history.get(self.index).unwrap().as_str()
+        self.history.get(self.index).unwrap()
     }
 
     fn text_mut(&mut self) -> &mut String {

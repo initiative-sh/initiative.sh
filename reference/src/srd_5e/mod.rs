@@ -42,7 +42,7 @@ pub struct Reference {
 
 impl Reference {
     pub fn token(&self) -> String {
-        crate::to_camel_case(self.index.as_str())
+        crate::to_camel_case(&self.index)
     }
 }
 

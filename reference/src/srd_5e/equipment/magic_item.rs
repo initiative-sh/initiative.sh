@@ -19,7 +19,7 @@ impl MagicItem {
     }
 
     pub fn token(&self) -> String {
-        crate::to_camel_case(self.index.as_str())
+        crate::to_camel_case(&self.index)
     }
 
     pub fn display_summary(&self) -> SummaryView {

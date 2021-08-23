@@ -86,6 +86,6 @@ fn init() {
 fn unknown() {
     assert_eq!(
         "Unknown command: \"blah blah\"",
-        sync_app().command("blah blah").as_str()
+        sync_app().command("blah blah"),
     );
 }

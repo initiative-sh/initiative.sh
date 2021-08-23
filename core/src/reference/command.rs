@@ -83,7 +83,7 @@ impl Runnable for ReferenceCommand {
 
         suggestions
             .iter()
-            .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s.as_str(), app_meta)))
+            .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s, app_meta)))
             .map(|(s, c)| (s.clone(), c.summarize().to_string()))
             .collect()
     }
