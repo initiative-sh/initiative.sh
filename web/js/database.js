@@ -6,6 +6,12 @@ dexie.version(1).stores({
   things: "&uuid, name, type",
 });
 
+const delete = async (uuid) => {
+  return dexie.things.delete(uuid)
+    .then(() => true)
+    .catch(() => false);
+};
+
 const get_all = async () => {
   return dexie.things.toArray()
     .catch(() => {});

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use initiative_core::{app, App, DataStore, Thing};
+use initiative_core::{app, App, DataStore, Thing, Uuid};
 use std::cell::RefCell;
 use std::rc::Rc;
 use tokio_test::block_on;
@@ -40,6 +40,21 @@ impl SyncApp {
 
 #[async_trait(?Send)]
 impl DataStore for MemoryDataStore {
+    async fn delete(&mut self, uuid: &Uuid) -> Result<(), ()> {
+        let mut things = self.things.borrow_mut();
+
+        if let Some((index, _)) = things
+            .iter()
+            .enumerate()
+            .find(|(_, t)| t.uuid() == Some(uuid))
+        {
+            things.swap_remove(index);
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
     async fn get_all(&self) -> Result<Vec<Thing>, ()> {
         Ok(self.things.borrow().to_vec())
     }

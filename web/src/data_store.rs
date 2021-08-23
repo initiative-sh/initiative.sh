@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use initiative_core::Thing;
+use initiative_core::{Thing, Uuid};
 use wasm_bindgen::prelude::*;
 
 #[derive(Default)]
@@ -7,6 +7,14 @@ pub struct DataStore;
 
 #[async_trait(?Send)]
 impl initiative_core::DataStore for DataStore {
+    async fn delete(&mut self, uuid: &Uuid) -> Result<(), ()> {
+        if delete(uuid.to_string().into()).await.is_truthy() {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
     async fn get_all(&self) -> Result<Vec<Thing>, ()> {
         get_all().await.into_serde().map_err(|_| ())
     }
@@ -22,6 +30,8 @@ impl initiative_core::DataStore for DataStore {
 
 #[wasm_bindgen(module = "/js/database.js")]
 extern "C" {
+    async fn delete(uuid: JsValue) -> JsValue;
+
     async fn get_all() -> JsValue;
 
     async fn save(thing: JsValue) -> JsValue;
