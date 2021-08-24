@@ -1,3 +1,7 @@
+pub use command::TimeCommand;
+
+mod command;
+
 use std::convert::TryInto;
 use std::fmt;
 use std::str::FromStr;
@@ -14,7 +18,7 @@ pub struct TimeShortView<'a>(&'a Time);
 
 pub struct TimeLongView<'a>(&'a Time);
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Interval {
     days: i32,
     hours: i32,
@@ -24,7 +28,6 @@ pub struct Interval {
 }
 
 impl Time {
-    #[allow(dead_code)]
     pub fn try_new(days: i32, hours: u8, minutes: u8, seconds: u8) -> Result<Self, ()> {
         if hours < 24 && minutes < 60 && seconds < 60 {
             Ok(Self {
@@ -38,7 +41,6 @@ impl Time {
         }
     }
 
-    #[allow(dead_code)]
     pub fn checked_add(&self, interval: &Interval) -> Option<Self> {
         let (mut days, mut hours, mut minutes, mut seconds) = (
             (self.days as i64) + (interval.days as i64),
@@ -83,7 +85,6 @@ impl Time {
         }
     }
 
-    #[allow(dead_code)]
     pub fn checked_sub(&self, interval: &Interval) -> Option<Self> {
         if let (Some(days), Some(hours), Some(minutes), Some(seconds), Some(rounds)) = (
             0i32.checked_sub(interval.days),
@@ -104,12 +105,10 @@ impl Time {
         }
     }
 
-    #[allow(dead_code)]
     pub fn display_short(&self) -> TimeShortView {
         TimeShortView(self)
     }
 
-    #[allow(dead_code)]
     pub fn display_long(&self) -> TimeLongView {
         TimeLongView(self)
     }

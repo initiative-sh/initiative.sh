@@ -1,3 +1,5 @@
+# About initiative.sh
+
 initiative.sh's design philosophy is to minimize the time and effort between the
 question ("Is there a blacksmith nearby?") and the answer ("Yes, it's called
 Frosthammer & Sons, and Fenrik Frosthammer is at the forge.").

@@ -9,6 +9,7 @@ mod runnable;
 use super::AppMeta;
 use crate::reference::ReferenceCommand;
 use crate::storage::StorageCommand;
+use crate::time::TimeCommand;
 use crate::world::WorldCommand;
 use async_trait::async_trait;
 
@@ -18,6 +19,7 @@ pub enum Command {
     App(AppCommand),
     Reference(ReferenceCommand),
     Storage(StorageCommand),
+    Time(TimeCommand),
     World(WorldCommand),
 }
 
@@ -33,6 +35,7 @@ impl Runnable for Command {
             Self::App(c) => c.run(app_meta).await,
             Self::Reference(c) => c.run(app_meta).await,
             Self::Storage(c) => c.run(app_meta).await,
+            Self::Time(c) => c.run(app_meta).await,
             Self::World(c) => c.run(app_meta).await,
         }
     }
@@ -56,6 +59,11 @@ impl Runnable for Command {
             )
             .chain(
                 StorageCommand::parse_input(input, app_meta)
+                    .drain(..)
+                    .map(|c| c.into()),
+            )
+            .chain(
+                TimeCommand::parse_input(input, app_meta)
                     .drain(..)
                     .map(|c| c.into()),
             )
@@ -104,6 +112,12 @@ impl From<ReferenceCommand> for Command {
 impl From<StorageCommand> for Command {
     fn from(c: StorageCommand) -> Command {
         Command::Storage(c)
+    }
+}
+
+impl From<TimeCommand> for Command {
+    fn from(c: TimeCommand) -> Command {
+        Command::Time(c)
     }
 }
 

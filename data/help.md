@@ -1,3 +1,5 @@
+# Help
+
 Commands are intended to be typed, although underlined words are also clickable
 to make it easier to discover new commands. They're also intended to be as
 intuitive and succinct as possible.
@@ -26,3 +28,13 @@ visit initiative.sh.
 * `load [name]` (or just `[name]`) loads the named entry from your journal or
   recently generated entries.
 * `delete [name]` deletes a journal entry.
+
+The journal also tracks the current time. When you start a game, the time is day
+1 at 8:00 am.
+
+* `now` shows the current time.
+* `+[number][d, h, m, s, or r]` advances time by a given number of days, hours,
+  minutes, seconds, or rounds.  For instance, `+8h` advances time by 8 hours.
+* `-[number][d, h, m, s, or r]` rewinds time by the same.
+* You can skip the number to advance or rewind time by a single unit, so `+d`
+  advances to the next day.
