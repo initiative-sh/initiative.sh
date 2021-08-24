@@ -12,6 +12,7 @@ fn about() {
 fn autocomplete_command() {
     assert_eq!(
         [
+            ("delete [name]", "remove an entry from journal"),
             ("dragonborn", "generate NPC species"),
             ("druidic foci", "SRD item category"),
             ("dwarf", "generate NPC species"),

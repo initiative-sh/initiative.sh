@@ -6,8 +6,8 @@ dexie.version(1).stores({
   things: "&uuid, name, type",
 });
 
-const save = async (thing) => {
-  return dexie.things.put(thing)
+const delete_by_uuid = async (uuid) => {
+  return dexie.things.delete(uuid)
     .then(() => true)
     .catch(() => false);
 };
@@ -17,4 +17,10 @@ const get_all = async () => {
     .catch(() => {});
 };
 
-export { save, get_all };
+const save = async (thing) => {
+  return dexie.things.put(thing)
+    .then(() => true)
+    .catch(() => false);
+};
+
+export { delete_by_uuid, get_all, save };

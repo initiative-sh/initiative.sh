@@ -5,15 +5,24 @@ use async_trait::async_trait;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StorageCommand {
+    Delete { name: String },
+    Journal,
     Load { name: String },
     Save { name: String },
-    Journal,
 }
 
 impl StorageCommand {
     fn summarize(&self, thing: Option<&Thing>) -> String {
         if let Some(thing) = thing {
+            let thing_type = match thing {
+                Thing::Location(_) => "location",
+                Thing::Npc(_) => "NPC",
+                Thing::Region(_) => "region",
+            };
+
             match self {
+                Self::Delete { .. } => format!("remove {} from journal", thing_type),
+                Self::Journal { .. } => unreachable!(),
                 Self::Load { .. } => {
                     if thing.uuid().is_some() {
                         format!("{}", thing.display_description())
@@ -21,23 +30,14 @@ impl StorageCommand {
                         format!("{} (unsaved)", thing.display_description())
                     }
                 }
-                Self::Save { .. } => {
-                    format!(
-                        "save {} to journal",
-                        match thing {
-                            Thing::Location(_) => "location",
-                            Thing::Npc(_) => "NPC",
-                            Thing::Region(_) => "region",
-                        }
-                    )
-                }
-                Self::Journal { .. } => unreachable!(),
+                Self::Save { .. } => format!("save {} to journal", thing_type),
             }
         } else {
             match self {
+                Self::Delete { .. } => "remove an entry from journal",
+                Self::Journal { .. } => "list journal contents",
                 Self::Load { .. } => "load an entry",
                 Self::Save { .. } => "save an entry to journal",
-                Self::Journal { .. } => "list journal contents",
             }
             .to_string()
         }
@@ -48,40 +48,6 @@ impl StorageCommand {
 impl Runnable for StorageCommand {
     async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
-            Self::Load { name } => {
-                let thing = repository::load(app_meta, name);
-                let mut save_command = None;
-                let output = if let Some(thing) = thing {
-                    if thing.uuid().is_none() && app_meta.data_store_enabled {
-                        save_command = Some(CommandAlias::new(
-                            "save".to_string(),
-                            format!("save {}", name),
-                            StorageCommand::Save {
-                                name: name.to_string(),
-                            }
-                            .into(),
-                        ));
-
-                        Ok(format!(
-                            "{}\n\n_{} has not yet been saved. Use ~save~ to save {} to your `journal`._",
-                            thing.display_details(),
-                            thing.name(),
-                            thing.gender().them(),
-                        ))
-                    } else {
-                        Ok(format!("{}", thing.display_details()))
-                    }
-                } else {
-                    Err(format!("No matches for \"{}\"", name))
-                };
-
-                if let Some(save_command) = save_command {
-                    app_meta.command_aliases.insert(save_command);
-                }
-
-                output
-            }
-            Self::Save { name } => repository::save(app_meta, name).await,
             Self::Journal => {
                 if !app_meta.data_store_enabled {
                     return Err("The journal is not supported by your browser.".to_string());
@@ -125,6 +91,47 @@ impl Runnable for StorageCommand {
 
                 Ok(output)
             }
+            Self::Delete { name } => {
+                if !app_meta.data_store_enabled {
+                    return Err("The journal is not supported by your browser.".to_string());
+                }
+
+                repository::delete_by_name(app_meta, name).await
+            }
+            Self::Load { name } => {
+                let thing = repository::load(app_meta, name);
+                let mut save_command = None;
+                let output = if let Some(thing) = thing {
+                    if thing.uuid().is_none() && app_meta.data_store_enabled {
+                        save_command = Some(CommandAlias::new(
+                            "save".to_string(),
+                            format!("save {}", name),
+                            StorageCommand::Save {
+                                name: name.to_string(),
+                            }
+                            .into(),
+                        ));
+
+                        Ok(format!(
+                            "{}\n\n_{} has not yet been saved. Use ~save~ to save {} to your `journal`._",
+                            thing.display_details(),
+                            thing.name(),
+                            thing.gender().them(),
+                        ))
+                    } else {
+                        Ok(format!("{}", thing.display_details()))
+                    }
+                } else {
+                    Err(format!("No matches for \"{}\"", name))
+                };
+
+                if let Some(save_command) = save_command {
+                    app_meta.command_aliases.insert(save_command);
+                }
+
+                output
+            }
+            Self::Save { name } => repository::save(app_meta, name).await,
         }
     }
 
@@ -133,12 +140,16 @@ impl Runnable for StorageCommand {
             vec![Self::Load {
                 name: input.to_string(),
             }]
-        } else if let Some(name) = input.strip_prefix("save ") {
-            vec![Self::Save {
+        } else if let Some(name) = input.strip_prefix("delete ") {
+            vec![Self::Delete {
                 name: name.to_string(),
             }]
         } else if let Some(name) = input.strip_prefix("load ") {
             vec![Self::Load {
+                name: name.to_string(),
+            }]
+        } else if let Some(name) = input.strip_prefix("save ") {
+            vec![Self::Save {
                 name: name.to_string(),
             }]
         } else {
@@ -156,7 +167,7 @@ impl Runnable for StorageCommand {
 
         let mut result = Vec::new();
 
-        ["save", "load"]
+        ["delete", "load", "save"]
             .iter()
             .filter(|s| s.starts_with(input))
             .filter_map(|s| {
@@ -179,7 +190,7 @@ impl Runnable for StorageCommand {
             )
             .for_each(|(s, command)| result.push((s, command.summarize(None))));
 
-        let (input_prefix, input_name) = if let Some(parts) = ["save ", "load "]
+        let (input_prefix, input_name) = if let Some(parts) = ["delete ", "load ", "save "]
             .iter()
             .find_map(|prefix| input.strip_prefix(prefix).map(|name| (*prefix, name)))
         {
@@ -198,10 +209,9 @@ impl Runnable for StorageCommand {
                     .value()
                     .map(|name| {
                         if name.starts_with(input_name) {
-                            if input_prefix == "save " && thing.uuid().is_some() {
-                                None
-                            } else {
-                                Some((input_prefix, thing))
+                            match (input_prefix, thing.uuid()) {
+                                ("save ", Some(_)) | ("delete ", None) => None,
+                                _ => Some((input_prefix, thing)),
                             }
                         } else if name.starts_with(input) {
                             Some(("", thing))
@@ -448,6 +458,17 @@ mod test {
         );
 
         assert_eq!(
+            [(
+                "delete Potato & Potato, Esq.",
+                "remove location from journal"
+            )]
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect::<Vec<_>>(),
+            StorageCommand::autocomplete("delete P", &app_meta),
+        );
+
+        assert_eq!(
             [
                 ("save Potato Johnson", "save NPC to journal"),
                 ("save potato should be capitalized", "save NPC to journal"),
@@ -468,6 +489,14 @@ mod test {
             .map(|(a, b)| (a.to_string(), b.to_string()))
             .collect::<Vec<_>>(),
             StorageCommand::autocomplete("load P", &app_meta),
+        );
+
+        assert_eq!(
+            [("delete [name]", "remove an entry from journal")]
+                .iter()
+                .map(|(a, b)| (a.to_string(), b.to_string()))
+                .collect::<Vec<_>>(),
+            StorageCommand::autocomplete("delete", &app_meta),
         );
 
         assert_eq!(

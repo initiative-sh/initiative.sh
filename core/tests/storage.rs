@@ -141,6 +141,67 @@ fn npc_can_be_loaded_from_storage() {
 }
 
 #[test]
+fn npc_can_be_deleted_from_temp() {
+    let mut app = sync_app();
+
+    let generated_output = app.command("npc").unwrap();
+    let npc_name = generated_output
+        .lines()
+        .next()
+        .unwrap()
+        .trim_start_matches("# ")
+        .to_string();
+
+    assert_eq!(
+        format!(
+            "{} deleted from recent entries. This isn't normally necessary as recent entries aren't automatically saved from one session to another.",
+            npc_name,
+        ),
+        app.command(&format!("delete {}", npc_name)).unwrap(),
+    );
+
+    assert_eq!(
+        format!("There is no entity named {}.", npc_name),
+        app.command(&format!("delete {}", npc_name)).unwrap_err(),
+    );
+}
+
+#[test]
+fn npc_can_be_deleted_from_data_store() {
+    let mut app = sync_app();
+
+    let generated_output = app.command("npc").unwrap();
+    let npc_name = generated_output
+        .lines()
+        .next()
+        .unwrap()
+        .trim_start_matches("# ")
+        .to_string();
+
+    app.command(&format!("save {}", npc_name)).unwrap();
+
+    assert_eq!(
+        format!("{} was successfully deleted.", npc_name),
+        app.command(&format!("delete {}", npc_name)).unwrap(),
+    );
+
+    assert_eq!(
+        format!("There is no entity named {}.", npc_name),
+        app.command(&format!("delete {}", npc_name)).unwrap_err(),
+    );
+}
+
+#[test]
+fn delete_is_disabled_with_unusable_data_store() {
+    let mut app = sync_app_with_data_store(NullDataStore::default());
+
+    assert_eq!(
+        "The journal is not supported by your browser.",
+        app.command("delete Potato Johnson").unwrap_err(),
+    );
+}
+
+#[test]
 fn startup_error_with_unusable_data_store() {
     {
         let mut app = sync_app_with_data_store(NullDataStore::default());

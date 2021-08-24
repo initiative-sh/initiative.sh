@@ -1,6 +1,77 @@
 use crate::app::AppMeta;
-use crate::world::Thing;
-use uuid::Uuid;
+use crate::{Thing, Uuid};
+
+pub async fn delete_by_name(app_meta: &mut AppMeta, name: &str) -> Result<String, String> {
+    let lowercase_name = name.to_lowercase();
+    let name_matches = |s: &String| s.to_lowercase() == lowercase_name;
+
+    let cached_thing = if let Some((uuid, thing)) = app_meta
+        .cache
+        .iter()
+        .find(|(_, t)| t.name().value().map_or(false, name_matches))
+    {
+        Some((*uuid, thing.name().to_string()))
+    } else {
+        None
+    };
+
+    if let Some((uuid, thing_name)) = cached_thing {
+        let (store_delete_success, cache_delete_success) = (
+            app_meta.data_store.delete(&uuid).await.is_ok(),
+            app_meta.cache.remove(&uuid).is_some(),
+        );
+
+        if store_delete_success || cache_delete_success {
+            Ok(format!("{} was successfully deleted.", thing_name))
+        } else {
+            Err(format!("Could not delete {}.", thing_name))
+        }
+    } else if let Some(thing) =
+        app_meta.take_recent(|t| t.name().value().map_or(false, name_matches))
+    {
+        Ok(format!(
+            "{} deleted from recent entries. This isn't normally necessary as recent entries aren't automatically saved from one session to another.",
+            thing.name(),
+        ))
+    } else {
+        Err(format!("There is no entity named {}.", name))
+    }
+}
+
+pub async fn init_cache(app_meta: &mut AppMeta) {
+    let things = app_meta.data_store.get_all().await;
+
+    if let Ok(mut things) = things {
+        app_meta.cache = things
+            .drain(..)
+            .filter_map(|thing| {
+                if let Some(&uuid) = thing.uuid() {
+                    Some((uuid, thing))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        app_meta.data_store_enabled = true;
+    }
+}
+
+pub fn load<'a>(app_meta: &'a AppMeta, name: &str) -> Option<&'a Thing> {
+    let lowercase_name = name.to_lowercase();
+    app_meta
+        .cache
+        .values()
+        .chain(app_meta.recent().iter())
+        .find(|t| {
+            t.name()
+                .value()
+                .map_or(false, |s| s.to_lowercase() == lowercase_name)
+        })
+}
+
+pub fn load_all(app_meta: &AppMeta) -> impl Iterator<Item = &Thing> {
+    app_meta.cache.values()
+}
 
 pub async fn save(app_meta: &mut AppMeta, name: &str) -> Result<String, String> {
     let lowercase_name = name.to_lowercase();
@@ -34,40 +105,5 @@ pub async fn save(app_meta: &mut AppMeta, name: &str) -> Result<String, String> 
         ))
     } else {
         Err(format!("No matches for \"{}\"", name))
-    }
-}
-
-pub fn load<'a>(app_meta: &'a AppMeta, name: &str) -> Option<&'a Thing> {
-    let lowercase_name = name.to_lowercase();
-    app_meta
-        .cache
-        .values()
-        .chain(app_meta.recent().iter())
-        .find(|t| {
-            t.name()
-                .value()
-                .map_or(false, |s| s.to_lowercase() == lowercase_name)
-        })
-}
-
-pub fn load_all(app_meta: &AppMeta) -> impl Iterator<Item = &Thing> {
-    app_meta.cache.values()
-}
-
-pub async fn init_cache(app_meta: &mut AppMeta) {
-    let things = app_meta.data_store.get_all().await;
-
-    if let Ok(mut things) = things {
-        app_meta.cache = things
-            .drain(..)
-            .filter_map(|thing| {
-                if let Some(&uuid) = thing.uuid() {
-                    Some((uuid, thing))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        app_meta.data_store_enabled = true;
     }
 }
