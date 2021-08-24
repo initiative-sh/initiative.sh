@@ -1,5 +1,6 @@
 use super::CommandAlias;
 use crate::storage::DataStore;
+use crate::time::Time;
 use crate::world;
 use rand::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -15,6 +16,7 @@ pub struct AppMeta {
     pub data_store_enabled: bool,
     pub demographics: world::Demographics,
     pub rng: SmallRng,
+    pub time: Time,
 
     recent: Vec<world::Thing>,
 }
@@ -29,6 +31,7 @@ impl AppMeta {
             demographics: world::Demographics::default(),
             recent: Vec::default(),
             rng: SmallRng::from_entropy(),
+            time: Time::try_new(1, 8, 0, 0).unwrap(),
         }
     }
 

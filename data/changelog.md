@@ -1,3 +1,5 @@
+* **New:** Time! See the current time with `now`, advance and rewind time with
+  `+1d`, `-1h`, etc. Time does not yet persist between sessions.
 * **Enhancement:** You can now delete entries from your journal with
   `delete [name]`. This completes the basic journal functionality.
 * **Enhancement:** Users that can't save to local storage (eg. private browsing,
