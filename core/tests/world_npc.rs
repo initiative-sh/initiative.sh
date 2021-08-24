@@ -71,7 +71,7 @@ fn generated_content_is_persisted() {
         .next()
         .unwrap()
         .trim_start_matches("# ");
-    let persisted_output = app.command(name).unwrap();
+    let persisted_output = app.command(&format!("load {}", name)).unwrap();
     assert_eq!(
         format!("# {}", name),
         persisted_output.lines().next().unwrap(),
@@ -99,7 +99,11 @@ fn generated_content_is_persisted() {
                     let name = &s[5..(pos - 2)];
                     assert_eq!(
                         format!("# {}", name),
-                        app.command(name).unwrap().lines().next().unwrap(),
+                        app.command(&format!("load {}", name))
+                            .unwrap()
+                            .lines()
+                            .next()
+                            .unwrap(),
                     );
                 } else {
                     panic!("Missing ( in \"{}\"", s);
@@ -145,7 +149,7 @@ fn numeric_aliases_exist_for_npcs() {
         outputs
             .drain(..)
             .map(|(digit_output, name)| {
-                let name_output = app.command(&name).unwrap();
+                let name_output = app.command(&format!("load {}", name)).unwrap();
                 assert_eq!(digit_output, name_output);
             })
             .count(),
@@ -162,7 +166,7 @@ fn save_alias_exists_for_npcs() {
         let output = app.command("npc").unwrap();
         let name = output.lines().next().unwrap().trim_start_matches("# ");
 
-        let output = app.command(&name).unwrap();
+        let output = app.command(&format!("load {}", name)).unwrap();
         assert!(output.contains("has not yet been saved"), "{}", output);
     }
 
@@ -173,7 +177,7 @@ fn save_alias_exists_for_npcs() {
         let output = app.command("save").unwrap();
         assert!(output.contains(&format!("Saving `{}`", name)), "{}", output);
 
-        let output = app.command(&name).unwrap();
+        let output = app.command(&format!("load {}", name)).unwrap();
         assert!(!output.contains("has not yet been saved"), "{}", output);
     }
 }
