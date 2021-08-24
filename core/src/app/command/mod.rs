@@ -81,6 +81,7 @@ impl Runnable for Command {
             .chain(AppCommand::autocomplete(input, app_meta).drain(..))
             .chain(ReferenceCommand::autocomplete(input, app_meta).drain(..))
             .chain(StorageCommand::autocomplete(input, app_meta).drain(..))
+            .chain(TimeCommand::autocomplete(input, app_meta).drain(..))
             .chain(WorldCommand::autocomplete(input, app_meta).drain(..))
             .collect();
 
@@ -168,6 +169,7 @@ mod test {
     fn autocomplete_test() {
         assert_eq!(
             [
+                ("date", "get the current time"),
                 ("delete [name]", "remove an entry from journal"),
                 ("dragonborn", "generate NPC species"),
                 ("druidic foci", "SRD item category"),
