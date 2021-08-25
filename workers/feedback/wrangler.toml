@@ -1,0 +1,5 @@
+name = "initiative-feedback"
+type = "rust"
+account_id = "186bcc49898ec25db1f9a2d907554c60"
+route = "https://initiative.sh/feedback"
+zone_id = "d9062a48db53cc686deedf69442e9973"
