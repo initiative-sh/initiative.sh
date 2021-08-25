@@ -1,3 +1,6 @@
+* **Enhancement:** Tab key can be used to select an autocomplete option without
+  submitting. If the selection includes a bracketed phrase like `save [name]`,
+  the autofill will update to suggest ways to complete the phrase.
 * **New:** Time! See the current time with `now`, advance and rewind time with
   `+1d`, `-1h`, etc. Time does not yet persist between sessions.
 * **Enhancement:** You can now delete entries from your journal with

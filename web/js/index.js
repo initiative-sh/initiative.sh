@@ -46,6 +46,7 @@ const autoCompleteJS = new autoComplete({
     }),
     keys: ["suggestion"],
   },
+  query: (input) => input.split("[")[0],
   resultsList: {
     class: "autocomplete-list",
   },
@@ -65,16 +66,29 @@ const autoCompleteJS = new autoComplete({
   wrapper: false,
 });
 
-const runCommand = async (command) => {
+const selectBracketedExpression = (command) => {
+  promptElement.value = command;
+
   const match = /\[[^\]]+\]/.exec(command);
-  if (match) {
-    promptElement.value = command;
-    promptElement.focus();
-    promptElement.setSelectionRange(
-      match.index,
-      match.index + match[0].length,
-    );
-  } else {
+  if (!match) {
+    return false;
+  }
+
+  promptElement.focus();
+  promptElement.setSelectionRange(
+    match.index,
+    match.index + match[0].length,
+  );
+
+  if (!autoCompleteJS.isOpen) {
+    autoCompleteJS.start();
+  }
+
+  return true;
+};
+
+const runCommand = async (command) => {
+  if (!selectBracketedExpression(command)) {
     output("\\> " + command + "\n\n" + await wasm.command(command));
   }
 };
@@ -102,14 +116,34 @@ promptFormElement.addEventListener("submit", async (event) => {
 });
 
 promptFormElement.addEventListener("navigate", (event) => {
-  promptElement.value = event.detail.selection.value.suggestion;
+  selectBracketedExpression(event.detail.selection.value.suggestion);
 });
 
 promptFormElement.addEventListener("selection", async (event) => {
-  await runCommand(event.detail.selection.value.suggestion);
+  if (event.detail.event.type == "click") {
+    await runCommand(event.detail.selection.value.suggestion);
+  }
 });
 
-window.addEventListener("keydown", (event) => promptElement.focus());
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Tab") {
+    event.preventDefault();
+
+    if (autoCompleteJS.isOpen &&
+      (autoCompleteJS.feedback.results.length == 1 || autoCompleteJS.cursor > -1))
+    {
+      let index = Math.max(autoCompleteJS.cursor, 0);
+
+      selectBracketedExpression(
+        autoCompleteJS.feedback.results[index].value.suggestion
+      );
+
+      autoCompleteJS.start();
+    }
+  } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
+    promptElement.focus();
+  }
+});
 
 outputElement.addEventListener("click", async (event) => {
   if (event.target.nodeName === "CODE") {
