@@ -6,8 +6,8 @@ use wasm_bindgen_test::*;
 wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
-fn init() {
-    let motd = app().init();
+async fn init() {
+    let motd = app().init().await;
     assert!(motd.lines().count() > 1, "{}", motd);
 }
 
@@ -33,25 +33,25 @@ async fn autocomplete() {
 
 #[wasm_bindgen_test]
 async fn command() {
-    let output = app().command("about").await;
+    let output = app().command("about").await.unwrap();
     assert!(output.contains("initiative.sh"), "{}", output);
 }
 
 #[wasm_bindgen_test]
 async fn app_is_persistent() {
-    let npc_output = app().command("npc").await;
+    let npc_output = app().command("npc").await.unwrap();
     let npc_name = npc_output.lines().next().unwrap().trim_start_matches("# ");
-    let npc_details = app().command(npc_name).await;
+    let npc_details = app().command(npc_name).await.unwrap();
 
     assert!(npc_details.lines().count() > 1, "{}", npc_details);
 
-    assert_eq!(npc_details, app().command(npc_name).await);
+    assert_eq!(npc_details, app().command(npc_name).await.unwrap());
 }
 
 #[wasm_bindgen_test]
 async fn memory_exhaustion() {
     let npc_output = loop {
-        let output = app().command("npc").await;
+        let output = app().command("npc").await.unwrap();
         if output
             .lines()
             .next()
@@ -62,15 +62,15 @@ async fn memory_exhaustion() {
     };
 
     let npc_name = npc_output.lines().next().unwrap().trim_start_matches("# ");
-    let npc_details = app().command(npc_name).await;
+    let npc_details = app().command(npc_name).await.unwrap();
     assert!(npc_details.lines().count() > 1, "{}", npc_details);
 
     // Expect to keep at least 88 NPCs in memory before evicting.
     for i in 0..8 {
-        app().command("npc").await;
+        app().command("npc").await.unwrap();
         assert_eq!(
             npc_details,
-            app().command(npc_name).await,
+            app().command(npc_name).await.unwrap(),
             "Failed on iteration {}",
             i,
         );

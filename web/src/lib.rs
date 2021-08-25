@@ -6,7 +6,7 @@ use initiative_core as core;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub async fn init() -> String {
+pub async fn initialize() -> String {
     app().init().await.to_string()
 }
 

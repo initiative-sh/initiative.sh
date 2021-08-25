@@ -151,7 +151,7 @@ outputElement.addEventListener("click", async (event) => {
   }
 });
 
-wasm.init()
+wasm.initialize()
   .then((motd) => output(motd))
   .catch((err) => console.log(err));
 
