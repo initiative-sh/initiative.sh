@@ -7,5 +7,4 @@ members = [
     "reference",
     "scripts",
     "web",
-    "workers/feedback",
 ]

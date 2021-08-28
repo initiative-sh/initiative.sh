@@ -1,7 +1,13 @@
 name = "initiative-feedback"
-type = "rust"
+type = "javascript"
 account_id = "186bcc49898ec25db1f9a2d907554c60"
 workers_dev = true
+
+[build]
+command = "npm install && npm run build"
+
+[build.upload]
+format = "service-worker"
 
 [[kv_namespaces]]
 binding = "RATE_LIMIT"
