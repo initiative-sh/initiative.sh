@@ -1,33 +1,36 @@
+import { Octokit } from '@octokit/core'
+
+const OWNER = 'MikkelPaulson'
+const REPO = 'initiative.sh'
+
 export async function handleRequest(request: Request): Promise<Response> {
-  const user_ip = request.headers.get('x-real-ip') || ''
-  const rate_limit_result_raw = await RATE_LIMIT.get(
-    getRateLimitKey(user_ip, 'feedback'),
+  const userIP = request.headers.get('x-real-ip') || ''
+  const rateLimitResultRaw = await RATE_LIMIT.get(
+    getRateLimitKey(userIP, 'feedback'),
     { type: 'text' },
   )
 
-  let rate_limit_result = null
+  let rateLimitResult = null
   try {
-    rate_limit_result = JSON.parse(
-      rate_limit_result_raw ? rate_limit_result_raw : '[]',
-    )
+    rateLimitResult = JSON.parse(rateLimitResultRaw ? rateLimitResultRaw : '[]')
   } catch (e) {
     // Ignore it
   }
 
-  const rate_limit_new = Array.isArray(rate_limit_result)
-    ? rate_limit_result.filter((date) => date >= Date.now())
+  const rateLimitNew = Array.isArray(rateLimitResult)
+    ? rateLimitResult.filter((date) => date >= Date.now())
     : []
 
-  if (rate_limit_new.length > 1) {
-    console.log('Too many requests for IP ' + user_ip)
+  if (rateLimitNew.length > 1) {
+    console.log('Too many requests for IP ' + userIP)
     return new Response('Too many requests. Please try again later.', {
       status: 429,
     })
   } else {
-    rate_limit_new.push(Date.now() + 600 * 1000)
+    rateLimitNew.push(Date.now() + 600 * 1000)
     await RATE_LIMIT.put(
-      getRateLimitKey(user_ip, 'feedback'),
-      JSON.stringify(rate_limit_new),
+      getRateLimitKey(userIP, 'feedback'),
+      JSON.stringify(rateLimitNew),
       { expirationTtl: 600 },
     )
   }
@@ -51,25 +54,142 @@ export async function handleRequest(request: Request): Promise<Response> {
       }),
     })
   } else {
-    return request
-      .json()
-      .then(
-        (body) => `message: ${body.message}
-error: ${body.error}
-history: ${body.history}
-user-agent: ${request.headers.get('user-agent')}`,
-      )
-      .then((message) => {
-        console.log('Success:', message)
-        return new Response(message, { status: 200 })
-      })
-      .catch((error) => {
-        console.log('Error:', error)
-        return new Response(error, { status: 400 })
-      })
+    let requestBody = null
+
+    try {
+      requestBody = await request.json()
+    } catch (e) {
+      console.log('JSON parse error:', e)
+      return new Response(e, { status: 400 })
+    }
+
+    const octokit = new Octokit({ auth: GITHUB_TOKEN })
+
+    if (requestBody.error) {
+      // Bug report - `report` command
+      const issueLabel = 'user error report'
+      const issueTitle = sanitizeTitle(requestBody.error)
+      let issueComment = `Message: ${sanitizeInline(requestBody.message)}
+User-agent: ${sanitizeInline(request.headers.get('user-agent'))}
+IP address: ${sanitizeInline(userIP)}`
+
+      if (requestBody.history) {
+        issueComment += `
+
+---
+
+${sanitizeBlock(requestBody.history)}`
+      }
+
+      let issueNumber = null
+
+      try {
+        const query = `repo:${OWNER}/${REPO} is:issue is:open label:"${issueLabel}" "${issueTitle}" in:title`
+        console.log('Searching for ' + query)
+
+        const searchResults = await octokit.request('GET /search/issues', {
+          accept: 'application/vnd.github.v3+json',
+          q: query,
+          sort: 'created',
+          per_page: 100,
+        })
+
+        if (searchResults.data.total_count > 0) {
+          for (const issue of searchResults.data.items) {
+            if (issue.title === issueTitle) {
+              issueNumber = issue.number
+              console.log(`Matched issue ${issueNumber}: ${issue.title}`)
+              break
+            }
+          }
+
+          if (issueNumber === null) {
+            console.log(
+              `No exact matches found among ${searchResults.data.total_count} results.`,
+            )
+          }
+        } else {
+          console.log(`No matches found`)
+        }
+      } catch (e) {
+        console.log('Error 1', e)
+        return new Response(e, { status: 400 })
+      }
+
+      if (issueNumber === null) {
+        try {
+          const githubResponse = await octokit.request(
+            'POST /repos/{owner}/{repo}/issues',
+            {
+              accept: 'application/vnd.github.v3+json',
+              owner: OWNER,
+              repo: REPO,
+              title: issueTitle,
+              labels: [issueLabel],
+            },
+          )
+
+          issueNumber = githubResponse.data.number
+          console.log(`Created issue ${issueNumber} with title ${issueTitle}`)
+        } catch (e) {
+          console.log('Error 2', e)
+          return new Response(e, { status: 400 })
+        }
+      }
+
+      try {
+        await octokit.request(
+          'POST /repos/{owner}/{repo}/issues/{issue_number}/comments',
+          {
+            accept: 'application/vnd.github.v3+json',
+            owner: OWNER,
+            repo: REPO,
+            issue_number: issueNumber,
+            body: issueComment,
+          },
+        )
+      } catch (e) {
+        console.log('Error 3', e)
+        return new Response(e, { status: 400 })
+      }
+    } else {
+      // Suggestion - `suggest` command
+    }
+
+    const message = `message: ${requestBody.message}
+error: ${requestBody.error}
+history: ${requestBody.history}
+user-agent: ${request.headers.get('user-agent')}`
+
+    console.log('Success:', message)
+    return new Response(message, { status: 200 })
   }
 }
 
-function getRateLimitKey(user_ip: string, resource: string): string {
-  return 'ip#' + user_ip + '#' + resource
+function getRateLimitKey(userIP: string, resource: string): string {
+  return 'ip#' + userIP + '#' + resource
+}
+
+function sanitizeTitle(input: string | null): string {
+  if (input) {
+    return input.replaceAll(/["\\]/g, '')
+  } else {
+    return 'empty'
+  }
+}
+
+function sanitizeInline(input: string | null): string {
+  if (input) {
+    return '`' + input.replaceAll('`', '') + '`'
+  } else {
+    return '_empty_'
+  }
+}
+
+function sanitizeBlock(input: string | null): string {
+  if (input) {
+    return '```text\n' + input.replaceAll(/^ {0,3}`{3,}/gm, '') + '\n```'
+  } else {
+    return '_empty_'
+  }
 }
