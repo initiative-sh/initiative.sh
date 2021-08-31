@@ -22,10 +22,11 @@ export async function handleRequest(request: Request): Promise<Response> {
     : []
 
   if (rateLimitNew.length > 1) {
-    console.log('Too many requests for IP ' + userIP)
-    return new Response('Too many requests. Please try again later.', {
-      status: 429,
-    })
+    console.log('Too many requests for IP', userIP)
+    return new Response(
+      'Thank you for your enthusiasm! Please try submitting again later.',
+      { status: 429 },
+    )
   } else {
     rateLimitNew.push(Date.now() + 600 * 1000)
     await RATE_LIMIT.put(
@@ -59,14 +60,21 @@ export async function handleRequest(request: Request): Promise<Response> {
     try {
       requestBody = await request.json()
     } catch (e) {
-      console.log('JSON parse error:', e)
+      console.log('Error 0', e)
       return new Response(e, { status: 400 })
     }
+
+    console.log('message', requestBody.message)
+    console.log('error', requestBody.error)
+    console.log('user-agent', request.headers.get('user-agent'))
+    console.log('history:\n' + requestBody.history)
 
     const octokit = new Octokit({ auth: GITHUB_TOKEN })
 
     if (requestBody.error) {
       // Bug report - `report` command
+      const errorMessage =
+        'We were unable to record your error report. Please try contacting us by email: support@initiative.sh.'
       const issueLabel = 'user error report'
       const issueTitle = sanitizeTitle(requestBody.error)
       let issueComment = `Message: ${sanitizeInline(requestBody.message)}
@@ -113,7 +121,7 @@ ${sanitizeBlock(requestBody.history)}`
         }
       } catch (e) {
         console.log('Error 1', e)
-        return new Response(e, { status: 400 })
+        return new Response(errorMessage, { status: 400 })
       }
 
       if (issueNumber === null) {
@@ -133,7 +141,7 @@ ${sanitizeBlock(requestBody.history)}`
           console.log(`Created issue ${issueNumber} with title ${issueTitle}`)
         } catch (e) {
           console.log('Error 2', e)
-          return new Response(e, { status: 400 })
+          return new Response(errorMessage, { status: 400 })
         }
       }
 
@@ -150,19 +158,56 @@ ${sanitizeBlock(requestBody.history)}`
         )
       } catch (e) {
         console.log('Error 3', e)
-        return new Response(e, { status: 400 })
+        return new Response(errorMessage, { status: 400 })
       }
     } else {
       // Suggestion - `suggest` command
+      const errorMessage =
+        'We were unable to record your suggestion. Please try contacting us by email: support@initiative.sh.'
+      const issueLabel = 'user suggestion'
+      const issueTitle = sanitizeTitle(requestBody.message)
+      let issueBody = `User-agent: ${sanitizeInline(
+        request.headers.get('user-agent'),
+      )}
+IP address: ${sanitizeInline(userIP)}`
+
+      if (requestBody.history) {
+        issueBody += `
+
+---
+
+${sanitizeBlock(requestBody.history)}`
+      }
+
+      try {
+        const githubResponse = await octokit.request(
+          'POST /repos/{owner}/{repo}/issues',
+          {
+            accept: 'application/vnd.github.v3+json',
+            body: issueBody,
+            owner: OWNER,
+            repo: REPO,
+            title: issueTitle,
+            labels: [issueLabel],
+          },
+        )
+
+        console.log(
+          `Created issue ${githubResponse.data.number} with title "${githubResponse.data.title}"`,
+        )
+      } catch (e) {
+        console.log('Error 4', e)
+        return new Response(errorMessage, { status: 400 })
+      }
     }
 
-    const message = `message: ${requestBody.message}
-error: ${requestBody.error}
-history: ${requestBody.history}
-user-agent: ${request.headers.get('user-agent')}`
-
-    console.log('Success:', message)
-    return new Response(message, { status: 200 })
+    console.log('Success')
+    return new Response(
+      'Your ' +
+        (requestBody.error ? 'error report' : 'suggestion') +
+        ' has been received. Thank you!',
+      { status: 200 },
+    )
   }
 }
 
