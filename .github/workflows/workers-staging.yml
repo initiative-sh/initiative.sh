@@ -1,0 +1,26 @@
+name: Deploy workers (staging)
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  deploy-workers:
+    name: Deploy feedback worker
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Install Wrangler
+        run: npm i @cloudflare/wrangler -g
+      - name: Deploy worker
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          wrangler whoami
+          wrangler publish --env staging
+        working-directory: workers/feedback
