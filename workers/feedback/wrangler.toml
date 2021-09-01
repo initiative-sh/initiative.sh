@@ -7,6 +7,11 @@ kv_namespaces = [
   { binding = "RATE_LIMIT", id = "dedca7225d724b43b863e5b6712a7926", preview_id = "24265fb0801c4bfa867ce400bc7c170d" },
 ]
 
+[vars]
+GITHUB_TOKEN = ""
+GITHUB_OWNER = "MikkelPaulson"
+GITHUB_REPO = "initiative.sh"
+
 [build]
 command = "npm install && npm run build"
 
@@ -30,3 +35,6 @@ zone_id = "d9062a48db53cc686deedf69442e9973"
 kv_namespaces = [
   { binding = "RATE_LIMIT", id = "dedca7225d724b43b863e5b6712a7926", preview_id = "24265fb0801c4bfa867ce400bc7c170d" },
 ]
+
+# [secrets]
+# GITHUB_TOKEN
