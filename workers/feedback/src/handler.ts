@@ -11,6 +11,9 @@ class AppError {
   ) {
     this.debugMessage = debugMessage
     this.response = new Response(message, responseMeta ?? { status: 400 })
+    if (!this.response.headers.has('content-type')) {
+      this.response.headers.set('content-type', 'text/plain')
+    }
   }
 }
 
@@ -54,20 +57,22 @@ class PostData {
 }
 
 export async function handleRequest(request: Request): Promise<Response> {
-  const userIP = request.headers.get('x-real-ip')
-
   try {
-    await assertNotRateLimited(userIP)
-    return await dispatchRoutes(request)
+    const response = await dispatchRoutes(request)
+    if (!response.headers.has('content-type')) {
+      response.headers.set('content-type', 'text/plain')
+    }
+    return response
   } catch (e) {
     if (e instanceof AppError) {
       console.log('Error:', e.debugMessage)
       return e.response
+    } else if (e instanceof Error) {
+      console.log('Raw error: ', e.message)
+      return new AppError(e.message).response
     } else {
-      console.log('Error:', e)
-      return new Response('An error occurred. Please try again later.', {
-        status: 500,
-      })
+      console.log('Raw error: ', e)
+      return new AppError(e).response
     }
   }
 }
@@ -76,7 +81,11 @@ async function dispatchRoutes(request: Request): Promise<Response> {
   switch (request.url.replace(/^https?:\/\/[^/]+/, '')) {
     case '/':
       assertRequestMethod(request, 'POST')
+      await assertNotRateLimited(request.headers.get('x-real-ip'))
       return handlePostIndex(await parsePostIndexRequest(request))
+    case '/healthcheck':
+      assertRequestMethod(request, 'GET')
+      return handleHealthCheck()
   }
 
   return handle404(request)
@@ -89,6 +98,29 @@ async function handlePostIndex(postData: PostData): Promise<Response> {
     return await handlePostIndexErrorReport(postData)
   } else {
     return await handlePostIndexSuggestion(postData)
+  }
+}
+
+async function handleHealthCheck(): Promise<Response> {
+  try {
+    const octokit = new Octokit({ auth: GITHUB_TOKEN })
+    const githubResponse = await octokit.request('GET /repos/{owner}/{repo}', {
+      owner: GITHUB_OWNER,
+      repo: GITHUB_REPO,
+    })
+
+    if (githubResponse.data.full_name === `${GITHUB_OWNER}/${GITHUB_REPO}`) {
+      return new Response('Health check OK\nBuild: ' + GITHUB_SHA)
+    } else {
+      return new Response('Health check failed\nBuild: ' + GITHUB_SHA, {
+        status: 500,
+      })
+    }
+  } catch (e) {
+    return new Response(
+      'Health check failed: ' + e + '\nBuild: ' + GITHUB_SHA,
+      { status: 500 },
+    )
   }
 }
 

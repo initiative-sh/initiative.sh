@@ -21,6 +21,7 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
         run: |
+          sed 's/^GITHUB_SHA\b.*/GITHUB_SHA = "'"$GITHUB_SHA"'"/' -i wrangler.toml
           wrangler whoami
           wrangler publish --env production
         working-directory: workers/feedback

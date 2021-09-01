@@ -8,18 +8,17 @@ kv_namespaces = [
 ]
 
 [vars]
-GITHUB_TOKEN = ""
 GITHUB_OWNER = "MikkelPaulson"
 GITHUB_REPO = "initiative.sh"
+GITHUB_SHA = ""
+GITHUB_TOKEN = ""
 
 [build]
 command = "npm install && npm run build"
-
-[build.upload]
-format = "service-worker"
+upload.format = "service-worker"
 
 [env.staging]
-route = "https://staging.initiative.sh/feedback"
+route = "https://staging.initiative.sh/feedback/*"
 workers_dev = false
 zone_id = "d9062a48db53cc686deedf69442e9973"
 
@@ -28,7 +27,7 @@ kv_namespaces = [
 ]
 
 [env.production]
-route = "https://initiative.sh/feedback"
+route = "https://initiative.sh/feedback/*"
 workers_dev = false
 zone_id = "d9062a48db53cc686deedf69442e9973"
 
