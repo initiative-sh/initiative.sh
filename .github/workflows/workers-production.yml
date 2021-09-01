@@ -5,7 +5,7 @@ on:
     branches: [ main ]
 
 jobs:
-  deploy-workers:
+  deploy-feedback-worker:
     name: Deploy feedback worker
 
     runs-on: ubuntu-latest
@@ -14,14 +14,8 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: Install Wrangler
-        run: npm i @cloudflare/wrangler -g
       - name: Deploy worker
         env:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-        run: |
-          sed 's/^GITHUB_SHA\b.*/GITHUB_SHA = "'"$GITHUB_SHA"'"/' -i wrangler.toml
-          wrangler whoami
-          wrangler publish --env production
-        working-directory: workers/feedback
+        run: workers/deploy.sh feedback production "${GITHUB_SHA}"

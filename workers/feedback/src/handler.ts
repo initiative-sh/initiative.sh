@@ -78,14 +78,18 @@ export async function handleRequest(request: Request): Promise<Response> {
 }
 
 async function dispatchRoutes(request: Request): Promise<Response> {
-  switch (request.url.replace(/^https?:\/\/[^/]+/, '')) {
-    case '/':
-      assertRequestMethod(request, 'POST')
-      await assertNotRateLimited(request.headers.get('x-real-ip'))
-      return handlePostIndex(await parsePostIndexRequest(request))
-    case '/healthcheck':
-      assertRequestMethod(request, 'GET')
-      return handleHealthCheck()
+  const match = request.url.match(/^https?:\/\/[^/]+(\/.*)$/)
+
+  if (match !== null) {
+    switch (match[1]) {
+      case '/feedback':
+        assertRequestMethod(request, 'POST')
+        await assertNotRateLimited(request.headers.get('x-real-ip'))
+        return handlePostIndex(await parsePostIndexRequest(request))
+      case '/feedback/healthcheck':
+        assertRequestMethod(request, 'GET')
+        return handleHealthCheck()
+    }
   }
 
   return handle404(request)
@@ -110,15 +114,15 @@ async function handleHealthCheck(): Promise<Response> {
     })
 
     if (githubResponse.data.full_name === `${GITHUB_OWNER}/${GITHUB_REPO}`) {
-      return new Response('Health check OK\nBuild: ' + GITHUB_SHA)
+      return new Response(`Health check OK on build ${GITHUB_SHA}`)
     } else {
-      return new Response('Health check failed\nBuild: ' + GITHUB_SHA, {
+      return new Response(`Health check failed on build ${GITHUB_SHA}`, {
         status: 500,
       })
     }
   } catch (e) {
     return new Response(
-      'Health check failed: ' + e + '\nBuild: ' + GITHUB_SHA,
+      `Health check failed on build ${GITHUB_SHA}: ${e.message}`,
       { status: 500 },
     )
   }

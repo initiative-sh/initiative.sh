@@ -18,22 +18,38 @@ command = "npm install && npm run build"
 upload.format = "service-worker"
 
 [env.staging]
-route = "https://staging.initiative.sh/feedback/*"
+routes = [
+    "https://staging.initiative.sh/feedback",
+    "https://staging.initiative.sh/feedback/*",
+]
 workers_dev = false
 zone_id = "d9062a48db53cc686deedf69442e9973"
 
 kv_namespaces = [
   { binding = "RATE_LIMIT", id = "dedca7225d724b43b863e5b6712a7926", preview_id = "24265fb0801c4bfa867ce400bc7c170d" },
 ]
+
+[env.staging.vars]
+GITHUB_OWNER = "MikkelPaulson"
+GITHUB_REPO = "initiative.sh"
+GITHUB_SHA = ""
 
 [env.production]
-route = "https://initiative.sh/feedback/*"
+routes = [
+    "https://initiative.sh/feedback",
+    "https://initiative.sh/feedback/*",
+]
 workers_dev = false
 zone_id = "d9062a48db53cc686deedf69442e9973"
 
 kv_namespaces = [
   { binding = "RATE_LIMIT", id = "dedca7225d724b43b863e5b6712a7926", preview_id = "24265fb0801c4bfa867ce400bc7c170d" },
 ]
+
+[env.production.vars]
+GITHUB_OWNER = "MikkelPaulson"
+GITHUB_REPO = "initiative.sh"
+GITHUB_SHA = ""
 
 # [secrets]
 # GITHUB_TOKEN
