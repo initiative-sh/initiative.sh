@@ -1,3 +1,10 @@
 [workspace]
 default-members = ["cli"]
-members = ["cli", "core", "macros", "reference", "scripts", "web"]
+members = [
+    "cli",
+    "core",
+    "macros",
+    "reference",
+    "scripts",
+    "web",
+]

@@ -1,0 +1,21 @@
+name: Deploy workers (production)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy-feedback-worker:
+    name: Deploy feedback worker
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Deploy worker
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: workers/deploy.sh feedback production "${GITHUB_SHA}"
