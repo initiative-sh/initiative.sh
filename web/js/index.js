@@ -19,12 +19,13 @@ const reducedMotion = (() => {
 marked.use({
   renderer: {
     del: (text) => `<code class="temp-link">${text}</code>`,
+    link: (href, _, text) => `<a href="${href}" target="_blank">${text}</a>`,
   },
   extensions: [
     {
       name: "error",
       level: "block",
-      start: (src) => src.match(/!/)?.index,
+      start: (src) => src.match(/^! /)?.index,
       tokenizer: (src, tokens) => {
         const match = /^! (.+)$/.exec(src);
         if (match) {

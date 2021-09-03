@@ -12,10 +12,9 @@ It aims to do that through three principles:
   and the demographics in the area. If you're in a dwarvish settlement, the
   innkeeper and most of the patrons will probably be dwarves. (Work in
   progress.)
-* **Persistence:** The people and places you generate are saved and visible in
-  your scrollback history, so you don't need to worry about forgetting to
-  scribble down a generated name that came up in conversation. (Work in
-  progress.)
+* **Persistence:** The people and places you generate visible in your scrollback
+  history and can be saved to your `journal`, so you don't need to worry about
+  forgetting to scribble down a generated name that came up in conversation.
 
 *(initiative.sh is under active development and not all features described have
 been implemented yet. Please check back regularly for updates, which will be

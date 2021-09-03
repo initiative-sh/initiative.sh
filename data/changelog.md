@@ -1,3 +1,5 @@
+* **New:** There's a Discord server now! See the link in the welcome message to
+  join.
 * **Enhancement:** Tab key can be used to select an autocomplete option without
   submitting. If the selection includes a bracketed phrase like `save [name]`,
   the autofill will update to suggest ways to complete the phrase.
