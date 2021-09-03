@@ -24,6 +24,14 @@ body {
     padding: 0 0 1rem;
 }
 
+#output a {
+    color: var(--solarized-red);
+    text-decoration: underline;
+}
+#output a::after {
+    content: '\29c9';
+}
+
 #output p {
     margin: 1.2rem 0 0;
 }
