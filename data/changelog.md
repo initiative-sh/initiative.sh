@@ -1,3 +1,7 @@
+* **New:** New additions to the changelog are now automatically announced to the
+  #releases Discord channel!
+* **Enhancement:** This is just a dummy update to make sure Discord handles
+  multiple bullet points nicely.
 * **Enhancement:** Tab key now fills as much text as possible. Try typing "weap"
   and pressing tab.
 * **New:** There's a Discord server now! See the link in the welcome message to
