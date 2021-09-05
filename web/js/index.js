@@ -130,16 +130,31 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "Tab") {
     event.preventDefault();
 
-    if (autoCompleteJS.isOpen &&
-      (autoCompleteJS.feedback.results.length == 1 || autoCompleteJS.cursor > -1))
-    {
-      let index = Math.max(autoCompleteJS.cursor, 0);
+    if (autoCompleteJS.isOpen) {
+      if (autoCompleteJS.cursor > -1) {
+        selectBracketedExpression(
+          autoCompleteJS.feedback.results[autoCompleteJS.cursor].value.suggestion
+        );
 
-      selectBracketedExpression(
-        autoCompleteJS.feedback.results[index].value.suggestion
-      );
+        autoCompleteJS.start();
+      } else {
+        const commonPrefix = autoCompleteJS.feedback.results
+          .map((result) => result.value.suggestion)
+          .reduce((a, b) => {
+            let acc = "";
+            for (let i = 0; i < Math.min(a.length, b.length); i++) {
+              if (a[i] == b[i]) {
+                acc += a[i];
+              } else {
+                break;
+              }
+            }
+            return acc;
+          });
 
-      autoCompleteJS.start();
+        selectBracketedExpression(commonPrefix);
+        autoCompleteJS.start();
+      }
     }
   } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
     promptElement.focus();

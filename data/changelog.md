@@ -1,7 +1,9 @@
+* **Enhancement:** Tab key now fills as much text as possible. Try typing "weap"
+  and pressing tab.
 * **New:** There's a Discord server now! See the link in the welcome message to
   join.
 * **Enhancement:** Tab key can be used to select an autocomplete option without
-  submitting. If the selection includes a bracketed phrase like `save [name]`,
+  submitting. If the selection includes a bracketed phrase like `load [name]`,
   the autofill will update to suggest ways to complete the phrase.
 * **New:** Time! See the current time with `now`, advance and rewind time with
   `+1d`, `-1h`, etc. Time does not yet persist between sessions.
