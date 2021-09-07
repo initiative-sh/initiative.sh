@@ -91,6 +91,9 @@ pub async fn save(app_meta: &mut AppMeta, name: &str) -> Result<String, String> 
 
         if result.is_ok() {
             app_meta.cache.insert(*thing.uuid().unwrap(), thing);
+        } else {
+            // Oops, better put it back where we found it.
+            app_meta.push_recent(thing);
         }
 
         result

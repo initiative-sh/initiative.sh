@@ -118,7 +118,6 @@ body {
 }
 
 #output code {
-    background: inherit;
     border: none;
     color: var(--solarized-blue);
     cursor: pointer;
@@ -133,6 +132,10 @@ body {
 #output .error {
     color: var(--solarized-base3);
     background: var(--solarized-red);
+}
+
+#output .error code, output .error a {
+    color: inherit;
 }
 
 #prompt-form {
