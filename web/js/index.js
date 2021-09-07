@@ -26,13 +26,22 @@ marked.use({
       name: "error",
       level: "block",
       start: (src) => src.match(/^! /)?.index,
-      tokenizer: (src, tokens) => {
+      tokenizer: function (src, tokens) {
         const match = /^! (.+)$/.exec(src);
         if (match) {
-          return { type: "error", raw: match[0], text: match[1].trim() };
+          const token = {
+            type: "error",
+            raw: match[0],
+            text: match[1].trim(),
+            tokens: [],
+          };
+          this.inlineTokens(token.text, token.tokens);
+          return token;
         }
       },
-      renderer: (token) => `<p class="error">${token.text}</p>`,
+      renderer: function (token) {
+        return `<p class="error">${this.parseInline(token.tokens)}</p>`;
+      },
     },
   ],
 });

@@ -1,3 +1,4 @@
+* **Bug:** Fixed formatting in error messages not being displayed.
 * **New:** New additions to the changelog are now automatically announced to the
   #releases Discord channel!
 * **Enhancement:** This is just a dummy update to make sure Discord handles
