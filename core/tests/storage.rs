@@ -65,6 +65,16 @@ fn npc_cannot_be_saved_with_invalid_data_store() {
         format!("Couldn't save `{}`", npc_name),
         app.command(&format!("save {}", npc_name)).unwrap_err(),
     );
+
+    // The NPC should still be in the recent store.
+    assert_eq!(
+        format!("# {}", npc_name),
+        app.command(&format!("load {}", npc_name))
+            .unwrap()
+            .lines()
+            .next()
+            .unwrap(),
+    );
 }
 
 #[test]
