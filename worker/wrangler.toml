@@ -20,7 +20,7 @@ upload.format = "service-worker"
 [env.staging]
 routes = [
     "https://staging.initiative.sh/feedback",
-    "https://staging.initiative.sh/feedback/healthcheck",
+    "https://staging.initiative.sh/healthcheck",
 ]
 workers_dev = false
 zone_id = "d9062a48db53cc686deedf69442e9973"
@@ -37,7 +37,7 @@ GITHUB_SHA = ""
 [env.production]
 routes = [
     "https://initiative.sh/feedback",
-    "https://initiative.sh/feedback/healthcheck",
+    "https://initiative.sh/healthcheck",
 ]
 workers_dev = false
 zone_id = "d9062a48db53cc686deedf69442e9973"

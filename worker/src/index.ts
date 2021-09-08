@@ -39,7 +39,7 @@ async function dispatchRoutes(request: Request): Promise<Response> {
       case '/feedback':
         assertRequestMethod(request, 'POST')
         return handleFeedback(request)
-      case '/feedback/healthcheck':
+      case '/healthcheck':
         assertRequestMethod(request, 'GET')
         return handleHealthCheck()
     }
