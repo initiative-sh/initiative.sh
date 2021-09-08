@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use initiative_core::{app, App, DataStore, Thing, Uuid};
+use initiative_core::{app, App, DataStore, NullAccountManager, Thing, Uuid};
 use std::cell::RefCell;
 use std::rc::Rc;
 use tokio_test::block_on;
@@ -11,7 +11,7 @@ pub fn sync_app() -> SyncApp {
 
 #[allow(dead_code)]
 pub fn sync_app_with_data_store(data_store: impl DataStore + 'static) -> SyncApp {
-    let mut app = SyncApp(app(data_store));
+    let mut app = SyncApp(app(data_store, NullAccountManager::default()));
     app.init();
     app
 }

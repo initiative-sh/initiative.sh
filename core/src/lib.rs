@@ -12,7 +12,10 @@ mod storage;
 mod time;
 mod world;
 
-pub fn app(data_store: impl DataStore + 'static) -> app::App {
-    let app_meta = app::AppMeta::new(data_store, NullAccountManager::default());
+pub fn app(
+    data_store: impl DataStore + 'static,
+    account_manager: impl AccountManager + 'static,
+) -> app::App {
+    let app_meta = app::AppMeta::new(data_store, account_manager);
     app::App::new(app_meta)
 }

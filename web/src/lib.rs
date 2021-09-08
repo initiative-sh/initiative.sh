@@ -41,7 +41,7 @@ pub extern "C" fn app() -> &'static mut core::app::App {
     unsafe {
         if APP.is_none() {
             let data_store = DataStore::default();
-            APP = Some(core::app(data_store));
+            APP = Some(core::app(data_store, core::NullAccountManager::default()));
         }
 
         APP.as_mut().unwrap()
