@@ -7,6 +7,7 @@ mod app;
 mod runnable;
 
 use super::AppMeta;
+use crate::account::AccountCommand;
 use crate::reference::ReferenceCommand;
 use crate::storage::StorageCommand;
 use crate::time::TimeCommand;
@@ -15,6 +16,7 @@ use async_trait::async_trait;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
+    Account(AccountCommand),
     Alias(CommandAlias),
     App(AppCommand),
     Reference(ReferenceCommand),
@@ -31,6 +33,7 @@ impl Runnable for Command {
         }
 
         match self {
+            Self::Account(c) => c.run(app_meta).await,
             Self::Alias(c) => c.run(app_meta).await,
             Self::App(c) => c.run(app_meta).await,
             Self::Reference(c) => c.run(app_meta).await,
@@ -44,6 +47,11 @@ impl Runnable for Command {
         std::iter::empty()
             .chain(
                 CommandAlias::parse_input(input, app_meta)
+                    .drain(..)
+                    .map(|c| c.into()),
+            )
+            .chain(
+                AccountCommand::parse_input(input, app_meta)
                     .drain(..)
                     .map(|c| c.into()),
             )
@@ -78,6 +86,7 @@ impl Runnable for Command {
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         let mut suggestions: Vec<(String, String)> = std::iter::empty()
             .chain(CommandAlias::autocomplete(input, app_meta).drain(..))
+            //.chain(AccountCommand::autocomplete(input, app_meta).drain(..))
             .chain(AppCommand::autocomplete(input, app_meta).drain(..))
             .chain(ReferenceCommand::autocomplete(input, app_meta).drain(..))
             .chain(StorageCommand::autocomplete(input, app_meta).drain(..))
@@ -89,6 +98,12 @@ impl Runnable for Command {
         suggestions.truncate(10);
 
         suggestions
+    }
+}
+
+impl From<AccountCommand> for Command {
+    fn from(c: AccountCommand) -> Command {
+        Command::Account(c)
     }
 }
 
