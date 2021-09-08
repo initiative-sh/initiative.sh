@@ -36,7 +36,7 @@ echo "Verifying build..."
 set -x
 for _ in $(seq 1 6); do
   sleep 10
-  if [[ "$(curl "https://$domain/healthcheck")" == "Health check OK on build ${sha}" ]]; then
+  if [[ "$(curl "https://$domain/healthcheck" | head -n 1)" == "Health check OK on build ${sha}" ]]; then
     echo "Verification successful"
     exit 0
   fi
