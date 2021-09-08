@@ -1,5 +1,5 @@
 {
-  "name": "initiative-feedback-worker",
+  "name": "initiative-worker",
   "version": "0.0.1",
   "description": "",
   "main": "dist/worker.js",

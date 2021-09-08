@@ -1,21 +1,8 @@
 import { Octokit } from '@octokit/core'
+import { AppError, assertNotRateLimited } from './common'
 
-class AppError {
-  debugMessage: string
-  response: Response
-
-  constructor(
-    debugMessage: string,
-    message = 'An error occurred. Please try contacting us by email: support@initiative.sh',
-    responseMeta: ResponseInit | null = null,
-  ) {
-    this.debugMessage = debugMessage
-    this.response = new Response(message, responseMeta ?? { status: 400 })
-    if (!this.response.headers.has('content-type')) {
-      this.response.headers.set('content-type', 'text/plain')
-    }
-  }
-}
+const ERROR_MESSAGE =
+  'An error occurred. Please try contacting us by email: support@initiative.sh'
 
 class PostData {
   error: string | null
@@ -56,46 +43,14 @@ class PostData {
   }
 }
 
-export async function handleRequest(request: Request): Promise<Response> {
-  try {
-    const response = await dispatchRoutes(request)
-    if (!response.headers.has('content-type')) {
-      response.headers.set('content-type', 'text/plain')
-    }
-    return response
-  } catch (e) {
-    if (e instanceof AppError) {
-      console.log('Error:', e.debugMessage)
-      return e.response
-    } else if (e instanceof Error) {
-      console.log('Raw error: ', e.message)
-      return new AppError(e.message).response
-    } else {
-      console.log('Raw error: ', e)
-      return new AppError(e).response
-    }
-  }
-}
+export async function postIndex(request: Request): Promise<Response> {
+  await assertNotRateLimited(
+    'feedback',
+    request.headers.get('x-real-ip'),
+    'Thank you for your enthusiasm! Please try submitting again later.',
+  )
 
-async function dispatchRoutes(request: Request): Promise<Response> {
-  const match = request.url.match(/^https?:\/\/[^/]+(\/.*)$/)
-
-  if (match !== null) {
-    switch (match[1]) {
-      case '/feedback':
-        assertRequestMethod(request, 'POST')
-        await assertNotRateLimited(request.headers.get('x-real-ip'))
-        return handlePostIndex(await parsePostIndexRequest(request))
-      case '/feedback/healthcheck':
-        assertRequestMethod(request, 'GET')
-        return handleHealthCheck()
-    }
-  }
-
-  return handle404(request)
-}
-
-async function handlePostIndex(postData: PostData): Promise<Response> {
+  const postData = await parsePostIndexRequest(request)
   console.log(JSON.stringify(postData))
 
   if (postData.error !== null) {
@@ -105,37 +60,12 @@ async function handlePostIndex(postData: PostData): Promise<Response> {
   }
 }
 
-async function handleHealthCheck(): Promise<Response> {
-  try {
-    const octokit = new Octokit({ auth: GITHUB_TOKEN })
-    const githubResponse = await octokit.request('GET /repos/{owner}/{repo}', {
-      owner: GITHUB_OWNER,
-      repo: GITHUB_REPO,
-    })
-
-    if (githubResponse.data.full_name === `${GITHUB_OWNER}/${GITHUB_REPO}`) {
-      return new Response(`Health check OK on build ${GITHUB_SHA}`)
-    } else {
-      return new Response(`Health check failed on build ${GITHUB_SHA}`, {
-        status: 500,
-      })
-    }
-  } catch (e) {
-    return new Response(
-      `Health check failed on build ${GITHUB_SHA}: ${e.message}`,
-      { status: 500 },
-    )
-  }
-}
-
 async function parsePostIndexRequest(request: Request): Promise<PostData> {
-  assertContentType(request, 'application/json')
-
   try {
     const requestBody = await request.json()
 
     if (requestBody === null || typeof requestBody.message !== 'string') {
-      throw new AppError('Request missing "message" field.', 'Invalid request.')
+      throw new AppError('Request missing "message" field.', ERROR_MESSAGE)
     }
 
     return new PostData(
@@ -147,7 +77,7 @@ async function parsePostIndexRequest(request: Request): Promise<PostData> {
     )
   } catch (e) {
     if (typeof e === 'string') {
-      throw new AppError('JSON parse error: ' + e, 'Invalid request.')
+      throw new AppError('JSON parse error: ' + e, ERROR_MESSAGE)
     } else {
       throw e
     }
@@ -198,7 +128,7 @@ async function handlePostIndexErrorReport(
       console.log(`No matches found`)
     }
   } catch (e) {
-    throw new AppError(e + ' (1)')
+    throw new AppError(e + ' (1)', ERROR_MESSAGE)
   }
 
   if (issueNumber === null) {
@@ -217,7 +147,7 @@ async function handlePostIndexErrorReport(
       issueNumber = githubResponse.data.number
       console.log(`Created issue ${issueNumber} with title ${issueTitle}`)
     } catch (e) {
-      throw new AppError(e + ' (2)')
+      throw new AppError(e + ' (2)', ERROR_MESSAGE)
     }
   }
 
@@ -233,7 +163,7 @@ async function handlePostIndexErrorReport(
       },
     )
   } catch (e) {
-    throw new AppError(e + ' (3)')
+    throw new AppError(e + ' (3)', ERROR_MESSAGE)
   }
 
   console.log('Success')
@@ -270,86 +200,13 @@ async function handlePostIndexSuggestion(
       `Created issue ${githubResponse.data.number} with title "${githubResponse.data.title}"`,
     )
   } catch (e) {
-    throw new AppError(e + ' (4)')
+    throw new AppError(e + ' (4)', ERROR_MESSAGE)
   }
 
   console.log('Success')
   return new Response('Your suggestion has been received. Thank you!', {
     status: 200,
   })
-}
-
-function handle404(request: Request): Response {
-  throw new AppError('Not found: ' + request.url, 'Not found.', { status: 404 })
-}
-
-function assertContentType(request: Request, contentType: string): void {
-  if (request.headers.get('content-type') !== contentType) {
-    throw new AppError(
-      'Unexpected content type: ' + request.headers.get('content-type'),
-      'Invalid request type.',
-      { status: 415 },
-    )
-  }
-}
-
-function assertRequestMethod(request: Request, expectedMethod: string): void {
-  if (request.method !== expectedMethod) {
-    throw new AppError(
-      'Unexpected request method: ' + request.method,
-      'Invalid request method.',
-      {
-        status: 405,
-        headers: new Headers({
-          Allow: expectedMethod,
-        }),
-      },
-    )
-  }
-}
-
-async function assertNotRateLimited(userIP: string | null): Promise<void> {
-  if (userIP === null) {
-    throw new AppError(
-      'Received a request with no IP address.',
-      'Invalid request.',
-    )
-  }
-
-  const rateLimitResultRaw = await RATE_LIMIT.get(
-    getRateLimitKey(userIP, 'feedback'),
-    { type: 'text' },
-  )
-
-  let rateLimitResult = null
-  try {
-    rateLimitResult = JSON.parse(rateLimitResultRaw ? rateLimitResultRaw : '[]')
-  } catch (e) {
-    // Ignore it
-  }
-
-  const rateLimitNew = Array.isArray(rateLimitResult)
-    ? rateLimitResult.filter((date) => date >= Date.now())
-    : []
-
-  if (rateLimitNew.length > 1) {
-    throw new AppError(
-      'Too many requests for IP ' + userIP,
-      'Thank you for your enthusiasm! Please try submitting again later.',
-      { status: 429 },
-    )
-  } else {
-    rateLimitNew.push(Date.now() + 600 * 1000)
-    await RATE_LIMIT.put(
-      getRateLimitKey(userIP, 'feedback'),
-      JSON.stringify(rateLimitNew),
-      { expirationTtl: 600 },
-    )
-  }
-}
-
-function getRateLimitKey(userIP: string, resource: string): string {
-  return 'ip#' + userIP + '#' + resource
 }
 
 function sanitizeTitle(input: string | null): string {
