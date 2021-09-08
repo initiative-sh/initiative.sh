@@ -183,3 +183,7 @@ wasm.initialize()
   .catch((err) => console.log(err));
 
 promptElement.focus();
+
+export async function signup() {
+  console.log('hello!')
+}

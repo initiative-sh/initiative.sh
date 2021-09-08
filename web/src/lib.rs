@@ -7,6 +7,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub async fn initialize() -> String {
+    signup().await;
     app().init().await.to_string()
 }
 
@@ -35,6 +36,11 @@ pub async fn autocomplete(input: JsValue) -> JsValue {
 #[wasm_bindgen]
 pub fn sha1(input: &str) -> String {
     sha1::Sha1::from(input).hexdigest()
+}
+
+#[wasm_bindgen(raw_module = "../js/index")]
+extern "C" {
+    async fn signup() -> JsValue;
 }
 
 static mut APP: Option<core::app::App> = None;
