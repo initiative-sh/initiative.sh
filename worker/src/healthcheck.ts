@@ -1,7 +1,7 @@
 import { Octokit } from '@octokit/core'
 
 export async function handleRequest(): Promise<Response> {
-  const messages = []
+  const messages: string[] = []
   let ok = true
 
   try {
@@ -19,6 +19,14 @@ export async function handleRequest(): Promise<Response> {
     }
   } catch (e) {
     messages.push(`A: error (${e.message})`)
+    ok = false
+  }
+
+  try {
+    const response = await RATE_LIMIT.list()
+    messages.push(`B: OK (${response.keys.length})`)
+  } catch (e) {
+    messages.push(`B: error (${e.message})`)
     ok = false
   }
 
