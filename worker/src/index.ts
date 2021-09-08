@@ -1,6 +1,6 @@
 import { AppError } from './common'
-import { handleRequest as handleFeedback } from './feedback'
-import { handleRequest as handleHealthCheck } from './healthcheck'
+import * as Feedback from './feedback'
+import * as HealthCheck from './healthcheck'
 
 addEventListener('fetch', (event) => {
   event.respondWith(handleRequest(event.request))
@@ -38,10 +38,10 @@ async function dispatchRoutes(request: Request): Promise<Response> {
     switch (match[1]) {
       case '/feedback':
         assertRequestMethod(request, 'POST')
-        return handleFeedback(request)
+        return Feedback.postIndex(request)
       case '/healthcheck':
         assertRequestMethod(request, 'GET')
-        return handleHealthCheck()
+        return HealthCheck.getIndex()
     }
   }
 

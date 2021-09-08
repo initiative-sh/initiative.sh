@@ -1,6 +1,6 @@
 import { Octokit } from '@octokit/core'
 
-export async function handleRequest(): Promise<Response> {
+export async function getIndex(): Promise<Response> {
   const messages: string[] = []
   let ok = true
 

@@ -43,16 +43,14 @@ class PostData {
   }
 }
 
-export async function handleRequest(request: Request): Promise<Response> {
+export async function postIndex(request: Request): Promise<Response> {
   await assertNotRateLimited(
     'feedback',
     request.headers.get('x-real-ip'),
     'Thank you for your enthusiasm! Please try submitting again later.',
   )
-  return handlePostIndex(await parsePostIndexRequest(request))
-}
 
-async function handlePostIndex(postData: PostData): Promise<Response> {
+  const postData = await parsePostIndexRequest(request)
   console.log(JSON.stringify(postData))
 
   if (postData.error !== null) {
