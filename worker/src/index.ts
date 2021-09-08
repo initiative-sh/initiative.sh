@@ -19,10 +19,10 @@ async function handleRequest(request: Request): Promise<Response> {
       return e.response
     } else if (e instanceof Error) {
       console.log('Raw error: ', e.message)
-      return new AppError(e.message).response
+      return new AppError(e.message, 'An error occurred.').response
     } else {
       console.log('Raw error: ', e)
-      return new AppError(e).response
+      return new AppError(e, 'An error occurred.').response
     }
   }
 }

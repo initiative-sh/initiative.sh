@@ -4,7 +4,7 @@ export class AppError {
 
   constructor(
     debugMessage: string,
-    message = 'An error occurred. Please try contacting us by email: support@initiative.sh',
+    message: string,
     responseMeta: ResponseInit | null = null,
   ) {
     this.debugMessage = debugMessage
@@ -16,17 +16,16 @@ export class AppError {
 }
 
 export async function assertNotRateLimited(
+  resource: string,
   userIP: string | null,
+  errorMessage: string,
 ): Promise<void> {
   if (userIP === null) {
-    throw new AppError(
-      'Received a request with no IP address.',
-      'Invalid request.',
-    )
+    throw new AppError('Received a request with no IP address.', errorMessage)
   }
 
   const rateLimitResultRaw = await RATE_LIMIT.get(
-    getRateLimitKey(userIP, 'feedback'),
+    getRateLimitKey(userIP, resource),
     { type: 'text' },
   )
 
@@ -42,15 +41,13 @@ export async function assertNotRateLimited(
     : []
 
   if (rateLimitNew.length > 1) {
-    throw new AppError(
-      'Too many requests for IP ' + userIP,
-      'Thank you for your enthusiasm! Please try submitting again later.',
-      { status: 429 },
-    )
+    throw new AppError('Too many requests for IP ' + userIP, errorMessage, {
+      status: 429,
+    })
   } else {
     rateLimitNew.push(Date.now() + 600 * 1000)
     await RATE_LIMIT.put(
-      getRateLimitKey(userIP, 'feedback'),
+      getRateLimitKey(userIP, resource),
       JSON.stringify(rateLimitNew),
       { expirationTtl: 600 },
     )

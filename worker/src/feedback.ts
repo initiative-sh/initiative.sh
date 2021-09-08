@@ -1,6 +1,9 @@
 import { Octokit } from '@octokit/core'
 import { AppError, assertNotRateLimited } from './common'
 
+const ERROR_MESSAGE =
+  'An error occurred. Please try contacting us by email: support@initiative.sh'
+
 class PostData {
   error: string | null
   history: string | null
@@ -41,7 +44,11 @@ class PostData {
 }
 
 export async function handleRequest(request: Request): Promise<Response> {
-  await assertNotRateLimited(request.headers.get('x-real-ip'))
+  await assertNotRateLimited(
+    'feedback',
+    request.headers.get('x-real-ip'),
+    'Thank you for your enthusiasm! Please try submitting again later.',
+  )
   return handlePostIndex(await parsePostIndexRequest(request))
 }
 
@@ -60,7 +67,7 @@ async function parsePostIndexRequest(request: Request): Promise<PostData> {
     const requestBody = await request.json()
 
     if (requestBody === null || typeof requestBody.message !== 'string') {
-      throw new AppError('Request missing "message" field.', 'Invalid request.')
+      throw new AppError('Request missing "message" field.', ERROR_MESSAGE)
     }
 
     return new PostData(
@@ -72,7 +79,7 @@ async function parsePostIndexRequest(request: Request): Promise<PostData> {
     )
   } catch (e) {
     if (typeof e === 'string') {
-      throw new AppError('JSON parse error: ' + e, 'Invalid request.')
+      throw new AppError('JSON parse error: ' + e, ERROR_MESSAGE)
     } else {
       throw e
     }
@@ -123,7 +130,7 @@ async function handlePostIndexErrorReport(
       console.log(`No matches found`)
     }
   } catch (e) {
-    throw new AppError(e + ' (1)')
+    throw new AppError(e + ' (1)', ERROR_MESSAGE)
   }
 
   if (issueNumber === null) {
@@ -142,7 +149,7 @@ async function handlePostIndexErrorReport(
       issueNumber = githubResponse.data.number
       console.log(`Created issue ${issueNumber} with title ${issueTitle}`)
     } catch (e) {
-      throw new AppError(e + ' (2)')
+      throw new AppError(e + ' (2)', ERROR_MESSAGE)
     }
   }
 
@@ -158,7 +165,7 @@ async function handlePostIndexErrorReport(
       },
     )
   } catch (e) {
-    throw new AppError(e + ' (3)')
+    throw new AppError(e + ' (3)', ERROR_MESSAGE)
   }
 
   console.log('Success')
@@ -195,7 +202,7 @@ async function handlePostIndexSuggestion(
       `Created issue ${githubResponse.data.number} with title "${githubResponse.data.title}"`,
     )
   } catch (e) {
-    throw new AppError(e + ' (4)')
+    throw new AppError(e + ' (4)', ERROR_MESSAGE)
   }
 
   console.log('Success')
