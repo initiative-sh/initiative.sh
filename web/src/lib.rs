@@ -32,6 +32,11 @@ pub async fn autocomplete(input: JsValue) -> JsValue {
     }
 }
 
+#[wasm_bindgen]
+pub fn sha1(input: &str) -> String {
+    sha1::Sha1::from(input).hexdigest()
+}
+
 static mut APP: Option<core::app::App> = None;
 
 #[no_mangle]

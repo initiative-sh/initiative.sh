@@ -176,6 +176,8 @@ outputElement.addEventListener("click", async (event) => {
   }
 });
 
+console.log(wasm.sha1('foo'))
+
 wasm.initialize()
   .then((motd) => output(motd))
   .catch((err) => console.log(err));

@@ -16,6 +16,7 @@ initiative-core = { path = "../core", features = [ "js" ] }
 async-trait = "0.1"
 futures = "0.3"
 js-sys = "0.3"
+sha1 = { version = "0.6", features = [ "std" ] }
 wasm-bindgen = { version = "0.2.63", features = [ "serde-serialize" ] }
 wasm-bindgen-futures = "0.4"
 
