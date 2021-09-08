@@ -76,6 +76,7 @@ impl Runnable for WorldCommand {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::account::NullAccountManager;
     use crate::storage::NullDataStore;
 
     #[test]
@@ -112,7 +113,7 @@ mod test {
 
     #[test]
     fn parse_input_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = AppMeta::new(NullDataStore::default(), NullAccountManager::default());
 
         assert_eq!(
             vec![WorldCommand::Location {
@@ -141,7 +142,7 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = AppMeta::new(NullDataStore::default(), NullAccountManager::default());
 
         vec![
             ("building", "generate building"),

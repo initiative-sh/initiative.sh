@@ -61,6 +61,7 @@ pub fn command(species: &Option<Species>, app_meta: &mut AppMeta) -> String {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::account::NullAccountManager;
     use crate::app::AppMeta;
     use crate::storage::NullDataStore;
     use crate::world::Thing;
@@ -69,7 +70,7 @@ mod test {
 
     #[test]
     fn any_species_test() {
-        let mut app_meta = AppMeta::new(NullDataStore::default());
+        let mut app_meta = AppMeta::new(NullDataStore::default(), NullAccountManager::default());
         app_meta.rng = SmallRng::seed_from_u64(0);
         let mut results: HashMap<_, u8> = HashMap::new();
 
@@ -95,7 +96,7 @@ mod test {
 
     #[test]
     fn specific_species_test() {
-        let mut app_meta = AppMeta::new(NullDataStore::default());
+        let mut app_meta = AppMeta::new(NullDataStore::default(), NullAccountManager::default());
         app_meta.rng = SmallRng::seed_from_u64(0);
 
         command(&Some(Species::Human), &mut app_meta);

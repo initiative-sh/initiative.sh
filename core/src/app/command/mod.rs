@@ -131,11 +131,12 @@ impl From<WorldCommand> for Command {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::account::NullAccountManager;
     use crate::storage::NullDataStore;
 
     #[test]
     fn parse_input_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = AppMeta::new(NullDataStore::default(), NullAccountManager::default());
 
         assert_eq!(
             vec![Command::App(AppCommand::About)],
@@ -178,7 +179,10 @@ mod test {
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
             .collect::<Vec<_>>(),
-            Command::autocomplete("d", &AppMeta::new(NullDataStore::default())),
+            Command::autocomplete(
+                "d",
+                &AppMeta::new(NullDataStore::default(), NullAccountManager::default())
+            ),
         );
     }
 

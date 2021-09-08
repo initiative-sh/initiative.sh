@@ -1,4 +1,5 @@
 use super::CommandAlias;
+use crate::account::AccountManager;
 use crate::storage::DataStore;
 use crate::time::Time;
 use crate::world;
@@ -10,6 +11,7 @@ use uuid::Uuid;
 const RECENT_MAX_LEN: usize = 100;
 
 pub struct AppMeta {
+    pub account_manager: Box<dyn AccountManager>,
     pub cache: HashMap<Uuid, world::Thing>,
     pub command_aliases: HashSet<CommandAlias>,
     pub data_store: Box<dyn DataStore>,
@@ -22,8 +24,12 @@ pub struct AppMeta {
 }
 
 impl AppMeta {
-    pub fn new(data_store: impl DataStore + 'static) -> Self {
+    pub fn new(
+        data_store: impl DataStore + 'static,
+        account_manager: impl AccountManager + 'static,
+    ) -> Self {
         Self {
+            account_manager: Box::new(account_manager),
             cache: HashMap::default(),
             command_aliases: HashSet::default(),
             data_store: Box::new(data_store),
@@ -90,12 +96,13 @@ impl fmt::Debug for AppMeta {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::account::NullAccountManager;
     use crate::storage::NullDataStore;
     use crate::world::Demographics;
 
     #[test]
     fn push_recent_test() {
-        let mut app_meta = AppMeta::new(NullDataStore::default());
+        let mut app_meta = AppMeta::new(NullDataStore::default(), NullAccountManager::default());
 
         (0..RECENT_MAX_LEN).for_each(|i| {
             let mut npc = world::Npc::default();
@@ -139,7 +146,7 @@ mod test {
 
     #[test]
     fn batch_push_recent_test() {
-        let mut app_meta = AppMeta::new(NullDataStore::default());
+        let mut app_meta = AppMeta::new(NullDataStore::default(), NullAccountManager::default());
 
         app_meta.batch_push_recent(Vec::new());
         assert_eq!(0, app_meta.recent.len());
@@ -227,7 +234,7 @@ mod test {
 
     #[test]
     fn debug_test() {
-        let mut app_meta = AppMeta::new(NullDataStore::default());
+        let mut app_meta = AppMeta::new(NullDataStore::default(), NullAccountManager::default());
         app_meta.demographics = Demographics::new(HashMap::new().into());
 
         assert_eq!(
