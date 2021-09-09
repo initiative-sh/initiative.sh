@@ -158,10 +158,6 @@ mod test {
             ("tiefling", "generate NPC species"),
             // BuildingType
             ("inn", "generate building type"),
-            ("residence", "generate building type"),
-            ("shop", "generate building type"),
-            ("temple", "generate building type"),
-            ("warehouse", "generate building type"),
         ]
         .drain(..)
         .for_each(|(word, summary)| {

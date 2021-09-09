@@ -429,9 +429,9 @@ mod test {
             app_meta.cache.insert(
                 uuid,
                 Location {
-                    name: "Potato & Potato, Esq.".into(),
+                    name: "Potato & Meat".into(),
                     uuid: Some(uuid.into()),
-                    subtype: LocationType::Building(Some(BuildingType::Shop)).into(),
+                    subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
                     ..Default::default()
                 }
                 .into(),
@@ -448,7 +448,7 @@ mod test {
 
         assert_eq!(
             [
-                ("Potato & Potato, Esq.", "shop"),
+                ("Potato & Meat", "inn"),
                 ("Potato Johnson", "adult elf, they/them (unsaved)"),
             ]
             .iter()
@@ -458,13 +458,10 @@ mod test {
         );
 
         assert_eq!(
-            [(
-                "delete Potato & Potato, Esq.",
-                "remove location from journal"
-            )]
-            .iter()
-            .map(|(a, b)| (a.to_string(), b.to_string()))
-            .collect::<Vec<_>>(),
+            [("delete Potato & Meat", "remove location from journal")]
+                .iter()
+                .map(|(a, b)| (a.to_string(), b.to_string()))
+                .collect::<Vec<_>>(),
             StorageCommand::autocomplete("delete P", &app_meta),
         );
 
@@ -482,7 +479,7 @@ mod test {
 
         assert_eq!(
             [
-                ("load Potato & Potato, Esq.", "shop"),
+                ("load Potato & Meat", "inn"),
                 ("load Potato Johnson", "adult elf, they/them (unsaved)"),
             ]
             .iter()

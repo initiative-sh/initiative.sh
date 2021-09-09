@@ -58,7 +58,8 @@ mod test {
             }
         });
 
-        assert!(results.len() > 1, "{:?}\n{:?}", app_meta, results);
+        // This should fail when we start re-adding location types.
+        assert!(results.len() == 1, "{:?}\n{:?}", app_meta, results);
         assert_eq!(
             11,
             results.values().sum::<u8>(),

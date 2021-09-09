@@ -1,3 +1,6 @@
+* **"Enhancement":** Removed buildings such as residence and temple for the time
+  being. They weren't really generating anything interesting and were blocking
+  features that expect all Things to have a name.
 * **Bug:** Fixed things being silently dropped from the recent journal if the
   save operation failed.
 * **Bug:** Fixed formatting in error messages not being displayed.

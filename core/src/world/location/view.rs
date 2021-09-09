@@ -106,20 +106,14 @@ mod test {
             format!("{}", location.display_summary()),
         );
 
-        location.subtype = LocationType::from(BuildingType::Residence).into();
-        assert_eq!(
-            "Oaken Mermaid Inn, a residence",
-            format!("{}", location.display_summary()),
-        );
-
         location.name = Field::default();
         assert_eq!(
-            "residence (I am Mordenkainen)",
+            "inn (I am Mordenkainen)",
             format!("{}", location.display_summary()),
         );
 
         location.description = Field::default();
-        assert_eq!("residence", format!("{}", location.display_summary()));
+        assert_eq!("inn", format!("{}", location.display_summary()));
 
         location.subtype = Field::default();
         assert_eq!("", format!("{}", location.display_summary()));

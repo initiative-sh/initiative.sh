@@ -76,10 +76,6 @@ impl Generate for Location {
 
                     match building_type.unwrap() {
                         BuildingType::Inn => generate_inn(self, rng, demographics),
-                        BuildingType::Residence => generate_residence(self, rng, demographics),
-                        BuildingType::Shop => generate_shop(self, rng, demographics),
-                        BuildingType::Temple => generate_temple(self, rng, demographics),
-                        BuildingType::Warehouse => generate_warehouse(self, rng, demographics),
                     }
                 }
             }
@@ -130,8 +126,9 @@ mod test {
     fn generate_test() {
         let demographics = Demographics::default();
 
+        // This should fail when we start re-adding location types.
         let mut rng = SmallRng::seed_from_u64(0);
-        assert_ne!(
+        assert_eq!(
             Location::generate(&mut rng, &demographics).subtype,
             Location::generate(&mut rng, &demographics).subtype,
         );
