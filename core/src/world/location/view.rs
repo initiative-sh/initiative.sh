@@ -37,15 +37,15 @@ impl<'a> fmt::Display for SummaryView<'a> {
             (true, true, _) => {
                 let subtype = format!("{}", location.subtype);
                 if subtype.starts_with(&['a', 'e', 'i', 'o', 'u'][..]) {
-                    write!(f, "{}, an {}", location.name, subtype)
+                    write!(f, "`{}`, an {}", location.name, subtype)
                 } else {
-                    write!(f, "{}, a {}", location.name, subtype)
+                    write!(f, "`{}`, a {}", location.name, subtype)
                 }
             }
             (true, false, true) => write!(f, "{} ({})", location.subtype, location.description),
             (true, false, false) => write!(f, "{}", location.subtype),
-            (false, true, true) => write!(f, "{} ({})", location.name, location.description),
-            (false, true, false) => write!(f, "{}", location.name),
+            (false, true, true) => write!(f, "`{}` ({})", location.name, location.description),
+            (false, true, false) => write!(f, "`{}`", location.name),
             (false, false, true) => write!(f, "{}", location.description),
             (false, false, false) => Ok(()),
         }
@@ -102,7 +102,7 @@ mod test {
         location.description = "I am Mordenkainen".into();
 
         assert_eq!(
-            "Oaken Mermaid Inn, an inn",
+            "`Oaken Mermaid Inn`, an inn",
             format!("{}", location.display_summary()),
         );
 
@@ -120,13 +120,13 @@ mod test {
 
         location.name = "The Invulnerable Vagrant".into();
         assert_eq!(
-            "The Invulnerable Vagrant",
+            "`The Invulnerable Vagrant`",
             format!("{}", location.display_summary()),
         );
 
         location.description = "Come in and see me, and me, and me!".into();
         assert_eq!(
-            "The Invulnerable Vagrant (Come in and see me, and me, and me!)",
+            "`The Invulnerable Vagrant` (Come in and see me, and me, and me!)",
             format!("{}", location.display_summary()),
         );
 

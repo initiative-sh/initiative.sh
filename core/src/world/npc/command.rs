@@ -24,7 +24,7 @@ pub fn command(species: &Option<Species>, app_meta: &mut AppMeta) -> String {
             ));
             app_meta.command_aliases.insert(CommandAlias::new(
                 "save".to_string(),
-                format!("save {}", npc.name),
+                format!("save {}", name),
                 StorageCommand::Save {
                     name: name.to_string(),
                 }
@@ -45,7 +45,7 @@ pub fn command(species: &Option<Species>, app_meta: &mut AppMeta) -> String {
                 i.to_string(),
                 format!("load {}", alt.name),
                 StorageCommand::Load {
-                    name: alt.name.value().unwrap().to_owned(),
+                    name: alt.name.to_string(),
                 }
                 .into(),
             ));

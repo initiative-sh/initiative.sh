@@ -1,3 +1,6 @@
+* **Enhancement:** Inns now enjoy the same ergonomics as NPCs: you can reference
+  alternative suggestions with numerals, and the "save" shortcut is now
+  available where applicable.
 * **"Enhancement":** Removed buildings such as residence and temple for the time
   being. They weren't really generating anything interesting and were blocking
   features that expect all Things to have a name.
