@@ -1,14 +1,6 @@
 pub use inn::generate as generate_inn;
-pub use residence::generate as generate_residence;
-pub use shop::generate as generate_shop;
-pub use temple::generate as generate_temple;
-pub use warehouse::generate as generate_warehouse;
 
 mod inn;
-mod residence;
-mod shop;
-mod temple;
-mod warehouse;
 
 use super::{Demographics, Generate, LocationType};
 use initiative_macros::WordList;
@@ -19,10 +11,6 @@ use std::fmt;
 #[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
 pub enum BuildingType {
     Inn,
-    Residence,
-    Shop,
-    Temple,
-    Warehouse,
 }
 
 impl Default for BuildingType {
@@ -32,15 +20,8 @@ impl Default for BuildingType {
 }
 
 impl Generate for BuildingType {
-    fn regenerate(&mut self, rng: &mut impl Rng, _demographics: &Demographics) {
-        *self = match rng.gen_range(1..=20) {
-            1..=10 => BuildingType::Residence,
-            11..=12 => BuildingType::Temple,
-            13..=15 => BuildingType::Inn,
-            16..=17 => BuildingType::Warehouse,
-            18..=20 => BuildingType::Shop,
-            _ => unreachable!(),
-        };
+    fn regenerate(&mut self, _rng: &mut impl Rng, _demographics: &Demographics) {
+        *self = BuildingType::Inn;
     }
 }
 
@@ -48,10 +29,6 @@ impl fmt::Display for BuildingType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             BuildingType::Inn => write!(f, "inn"),
-            BuildingType::Residence => write!(f, "residence"),
-            BuildingType::Shop => write!(f, "shop"),
-            BuildingType::Temple => write!(f, "temple"),
-            BuildingType::Warehouse => write!(f, "warehouse"),
         }
     }
 }
@@ -74,11 +51,11 @@ mod test {
 
         assert_eq!(
             [
-                BuildingType::Shop,
-                BuildingType::Residence,
-                BuildingType::Residence,
-                BuildingType::Warehouse,
-                BuildingType::Shop,
+                BuildingType::Inn,
+                BuildingType::Inn,
+                BuildingType::Inn,
+                BuildingType::Inn,
+                BuildingType::Inn,
             ],
             [
                 BuildingType::generate(&mut rng, &demographics),
@@ -93,10 +70,6 @@ mod test {
     #[test]
     fn fmt_test() {
         assert_eq!("inn", format!("{}", BuildingType::Inn));
-        assert_eq!("residence", format!("{}", BuildingType::Residence));
-        assert_eq!("shop", format!("{}", BuildingType::Shop));
-        assert_eq!("temple", format!("{}", BuildingType::Temple));
-        assert_eq!("warehouse", format!("{}", BuildingType::Warehouse));
     }
 
     #[test]
@@ -113,42 +86,6 @@ mod test {
             generate_inn,
             Field::from("Mutton and Malt").unlocked(),
             Field::from("Previous description").unlocked(),
-        );
-    }
-
-    #[test]
-    fn generate_residence_test() {
-        generate_test_builder(
-            generate_residence,
-            Field::default(),
-            Field::from("Lavish, guarded mansion").unlocked(),
-        );
-    }
-
-    #[test]
-    fn generate_shop_test() {
-        generate_test_builder(
-            generate_shop,
-            Field::default(),
-            Field::from("Scribe").unlocked(),
-        );
-    }
-
-    #[test]
-    fn generate_temple_test() {
-        generate_test_builder(
-            generate_temple,
-            Field::default(),
-            Field::from("Hidden shrine to a fiend or an evil deity").unlocked(),
-        );
-    }
-
-    #[test]
-    fn generate_warehouse_test() {
-        generate_test_builder(
-            generate_warehouse,
-            Field::default(),
-            Field::from("Secret smuggler's den").unlocked(),
         );
     }
 

@@ -259,6 +259,7 @@ fn journal_shows_alphabetized_results() {
     let mut app = sync_app();
 
     let npc_list = app.command("npc").unwrap();
+    println!("{}", npc_list);
     let mut npcs: Vec<&str> = npc_list
         .lines()
         .skip_while(|s| !s.starts_with('~'))
@@ -279,16 +280,17 @@ fn journal_shows_alphabetized_results() {
     npcs.sort();
 
     let inn_list = app.command("inn").unwrap();
+    println!("{}", inn_list);
     let mut inns: Vec<&str> = inn_list
         .lines()
-        .skip_while(|s| !s.starts_with(char::is_numeric))
-        .map(|s| s[2..].trim_end_matches('\\'))
+        .skip_while(|s| !s.starts_with('~'))
+        .map(|s| s[4..].trim_end_matches('\\'))
         .map(|line| {
             println!(
                 "{}",
                 app.command(&format!(
                     "save {}",
-                    line.find(',').map(|pos| &line[..pos]).unwrap()
+                    line.find(',').map(|pos| &line[1..pos - 1]).unwrap()
                 ))
                 .unwrap(),
             );
@@ -299,11 +301,12 @@ fn journal_shows_alphabetized_results() {
     inns.sort();
 
     let output = app.command("journal").unwrap();
+    println!("{}", output);
     let mut output_iter = output.lines();
 
-    assert_eq!(Some("# Journal"), output_iter.next(), "{}", output);
-    assert_eq!(Some(""), output_iter.next(), "{}", output);
-    assert_eq!(Some("## NPCs"), output_iter.next(), "{}", output);
+    assert_eq!(Some("# Journal"), output_iter.next());
+    assert_eq!(Some(""), output_iter.next());
+    assert_eq!(Some("## NPCs"), output_iter.next());
 
     npcs.drain(..)
         .zip(output_iter.by_ref())
@@ -316,19 +319,19 @@ fn journal_shows_alphabetized_results() {
             }
         });
 
-    assert_eq!(Some(""), output_iter.next(), "{}", output);
-    assert_eq!(Some("## Locations"), output_iter.next(), "{}", output);
+    assert_eq!(Some(""), output_iter.next());
+    assert_eq!(Some("## Locations"), output_iter.next());
 
     inns.drain(..)
         .zip(output_iter.by_ref())
         .enumerate()
         .for_each(|(i, (a, b))| {
             if i == 9 {
-                assert_eq!(a, b, "{}", output)
+                assert_eq!(a, b)
             } else {
-                assert_eq!(format!("{}\\", a), b, "{}", output)
+                assert_eq!(format!("{}\\", a), b)
             }
         });
 
-    assert!(output_iter.next().is_none(), "{}", output);
+    assert!(output_iter.next().is_none());
 }
