@@ -136,6 +136,66 @@ trait Generate {
     fn gen_name(rng: &mut impl Rng, age: &Age, gender: &Gender) -> String;
 }
 
+trait GenerateSimple {
+    fn gen_fname_simple(rng: &mut impl Rng, gender: &Gender) -> String {
+        gen_name(
+            rng,
+            match gender {
+                Gender::Feminine => Self::syllable_fname_count_f(),
+                Gender::Masculine => Self::syllable_fname_count_m(),
+                _ => Self::syllable_fname_count(),
+            },
+            match gender {
+                Gender::Feminine => Self::syllable_fname_first_f(),
+                Gender::Masculine => Self::syllable_fname_first_m(),
+                _ => Self::syllable_fname_first(),
+            },
+            Self::syllable_fname_middle(),
+            match gender {
+                Gender::Feminine => Self::syllable_fname_last_f(),
+                Gender::Masculine => Self::syllable_fname_last_m(),
+                _ => Self::syllable_fname_last(),
+            },
+        )
+    }
+
+    fn gen_lname_simple(rng: &mut impl Rng) -> String {
+        if rng.gen_bool(Self::compound_word_probability()) {
+            format!(
+                "{}{}",
+                weighted_index_from_tuple(rng, Self::word_lname_first()),
+                weighted_index_from_tuple(rng, Self::word_lname_last())
+            )
+        } else {
+            gen_name(
+                rng,
+                Self::syllable_lname_count(),
+                Self::syllable_lname_first(),
+                Self::syllable_lname_middle(),
+                Self::syllable_lname_last(),
+            )
+        }
+    }
+
+    fn syllable_fname_count_f() -> &'static [(u8, usize)];
+    fn syllable_fname_first_f() -> &'static [(&'static str, usize)];
+    fn syllable_fname_last_f() -> &'static [(&'static str, usize)];
+    fn syllable_fname_count_m() -> &'static [(u8, usize)];
+    fn syllable_fname_first_m() -> &'static [(&'static str, usize)];
+    fn syllable_fname_last_m() -> &'static [(&'static str, usize)];
+    fn syllable_fname_count() -> &'static [(u8, usize)];
+    fn syllable_fname_first() -> &'static [(&'static str, usize)];
+    fn syllable_fname_last() -> &'static [(&'static str, usize)];
+    fn syllable_fname_middle() -> &'static [(&'static str, usize)];
+    fn syllable_lname_count() -> &'static [(u8, usize)];
+    fn syllable_lname_first() -> &'static [(&'static str, usize)];
+    fn syllable_lname_middle() -> &'static [(&'static str, usize)];
+    fn syllable_lname_last() -> &'static [(&'static str, usize)];
+    fn compound_word_probability() -> f64;
+    fn word_lname_first() -> &'static [(&'static str, usize)];
+    fn word_lname_last() -> &'static [(&'static str, usize)];
+}
+
 pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
     if let Some(ethnicity) = npc.ethnicity.value() {
         match ethnicity {
