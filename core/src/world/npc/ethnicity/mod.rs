@@ -29,6 +29,7 @@ mod tiefling;
 mod warforged;
 
 use super::{Age, Gender, Npc, Species};
+use crate::world::weighted_index_from_tuple;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -220,9 +221,30 @@ impl fmt::Display for Ethnicity {
     }
 }
 
+fn gen_name(
+    rng: &mut impl Rng,
+    syllable_count_dist: &[(u8, usize)],
+    start_dist: &[(&str, usize)],
+    mid_dist: &[(&str, usize)],
+    end_dist: &[(&str, usize)],
+) -> String {
+    let syllable_count = *weighted_index_from_tuple(rng, syllable_count_dist);
+    if syllable_count < 2 {
+        panic!("Expected at least two syllables.");
+    }
+
+    let mut result = weighted_index_from_tuple(rng, start_dist).to_string();
+    for _ in 2..syllable_count {
+        result.push_str(*weighted_index_from_tuple(rng, mid_dist));
+    }
+    result.push_str(*weighted_index_from_tuple(rng, end_dist));
+    result
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+    use rand::prelude::*;
 
     #[test]
     fn default_species_test() {
@@ -243,5 +265,34 @@ mod test {
 
         let value: Ethnicity = serde_json::from_str("\"Shou\"").unwrap();
         assert_eq!(Ethnicity::Shou, value);
+    }
+
+    #[test]
+    fn generate_name_test() {
+        let mut rng = SmallRng::seed_from_u64(0);
+        let syllable_count_dist = &[(2, 2), (3, 3), (4, 1)][..];
+        let start_dist = &[("Ta", 1), ("Te", 2), ("To", 3)][..];
+        let mid_dist = &[("la", 1), ("le", 2), ("lo", 3)][..];
+        let end_dist = &[("ra", 1), ("ro", 2), ("ri", 3)][..];
+
+        assert_eq!(
+            [
+                "Telori", "Telero", "Toro", "Tori", "Teleri", "Tolaro", "Taleloro", "Toro", "Tori",
+                "Teloro", "Talari", "Tori", "Teri", "Tolara", "Taloro", "Tolori", "Tololoro",
+                "Teleri", "Tolelero", "Tori",
+            ]
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>(),
+            (0..20)
+                .map(|_| gen_name(
+                    &mut rng,
+                    &syllable_count_dist,
+                    &start_dist,
+                    &mid_dist,
+                    &end_dist
+                ))
+                .collect::<Vec<_>>(),
+        );
     }
 }
