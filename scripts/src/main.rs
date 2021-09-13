@@ -4,7 +4,7 @@ use quick_xml::Reader;
 use regex::Regex;
 use std::collections::HashMap;
 use std::fmt;
-use std::fs::File;
+//use std::fs::File;
 use std::io;
 use std::str::FromStr;
 
@@ -16,6 +16,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut read_mode = None;
     let mut skip_page = false;
     let mut title = String::new();
+
+    println!("Name,Race,Ethnicity,Sex,Gender");
 
     loop {
         match reader.read_event(&mut buf) {
@@ -46,6 +48,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if let Some((infobox_type, fields)) =
                             parse(&e.unescape_and_decode(&reader)?)
                         {
+                            if InfoboxType::Person == infobox_type {
+                                if let Some(name) = fields.get("name") {
+                                    println!(
+                                        "{},{},{},{},{}",
+                                        JsonValue::from(name.as_str()).dump(),
+                                        fields
+                                            .get("race")
+                                            .map_or(String::new(), |s| JsonValue::from(s.as_str())
+                                                .dump()),
+                                        fields
+                                            .get("ethnicity")
+                                            .map_or(String::new(), |s| JsonValue::from(s.as_str())
+                                                .dump()),
+                                        fields
+                                            .get("sex")
+                                            .map_or(String::new(), |s| JsonValue::from(s.as_str())
+                                                .dump()),
+                                        fields
+                                            .get("gender")
+                                            .map_or(String::new(), |s| JsonValue::from(s.as_str())
+                                                .dump()),
+                                    );
+                                }
+                            }
                             json_objects
                                 .entry(infobox_type)
                                 .or_insert_with(JsonValue::new_object)
@@ -63,9 +89,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         buf.clear();
     }
 
+    /*
     for (infobox_type, json_object) in json_objects.iter() {
         json_object.write_pretty(&mut File::create(format!("{}s.json", infobox_type))?, 2)?;
     }
+    */
 
     Ok(())
 }
