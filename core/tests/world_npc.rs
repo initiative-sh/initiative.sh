@@ -27,14 +27,14 @@ fn generated_content_is_limited_by_species() {
     .iter()
     .for_each(|species| {
         let output = sync_app().command(species).unwrap();
-        assert_eq!(12, output.matches(species).count(), "{}", output);
+        assert!(output.matches(species).count() >= 12, "{}", output);
     });
 
     [("half elf", "half-elf"), ("half orc", "half-orc")]
         .iter()
         .for_each(|(input, species)| {
             let output = sync_app().command(input).unwrap();
-            assert_eq!(12, output.matches(species).count(), "{}", output);
+            assert!(output.matches(species).count() >= 12, "{}", output);
         });
 }
 

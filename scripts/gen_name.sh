@@ -27,6 +27,9 @@ function gen_where() {
     Orc)
       echo -n "p.race IN('Orc', 'Half-orc')"
       ;;
+    Dragonborn)
+      echo -n "p.race IN('Dragonborn', 'Dragon')"
+      ;;
     *)
       echo -n "p.race = '$race'"
   esac

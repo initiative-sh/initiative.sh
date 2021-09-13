@@ -181,7 +181,7 @@ mod test_display_for_npc_details_view {
         let mut npc = Npc::default();
         npc.name.replace("Potato Johnson".to_string());
         npc.species.replace(Species::Human);
-        npc.ethnicity.replace(Ethnicity::Arabic);
+        npc.ethnicity.replace(Ethnicity::Elvish);
         npc.gender.replace(Gender::Trans);
         npc.age.replace(Age::Adult(30));
         npc.size.replace(Size::Medium {
@@ -194,7 +194,7 @@ mod test_display_for_npc_details_view {
 # Potato Johnson
 *adult human, they/them*
 
-**Species:** human (Arabic)\\
+**Species:** human (Elvish)\\
 **Gender:** trans\\
 **Age:** 30 years\\
 **Size:** 5'11\", 140 lbs (medium)",
@@ -210,7 +210,7 @@ mod test_display_for_npc_details_view {
                 npc.species.replace(Species::Human);
             }
             if b & 0b10 != 0 {
-                npc.ethnicity.replace(Ethnicity::Arabic);
+                npc.ethnicity.replace(Ethnicity::Elvish);
             }
             npc
         };
@@ -220,11 +220,11 @@ mod test_display_for_npc_details_view {
             format!("{}", npc(0b1).display_details())
         );
         assert_eq!(
-            "# Unnamed NPC\n**\n\n**Ethnicity:** Arabic",
+            "# Unnamed NPC\n**\n\n**Ethnicity:** Elvish",
             format!("{}", npc(0b10).display_details())
         );
         assert_eq!(
-            "# Unnamed NPC\n*human*\n\n**Species:** human (Arabic)",
+            "# Unnamed NPC\n*human*\n\n**Species:** human (Elvish)",
             format!("{}", npc(0b11).display_details())
         );
     }
