@@ -1,5 +1,5 @@
-use super::human::Ethnicity as Human;
 use super::{Age, Gender, Generate};
+use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 
 pub struct Ethnicity;
@@ -27,14 +27,23 @@ impl Ethnicity {
 
 impl Generate for Ethnicity {
     fn gen_name(rng: &mut impl Rng, age: &Age, gender: &Gender) -> String {
-        match (rng.gen_bool(0.2), gender) {
-            (true, Gender::Masculine) => {
+        match gender {
+            Gender::Masculine => {
                 Self::MASCULINE_NAMES[rng.gen_range(0..Self::MASCULINE_NAMES.len())].to_string()
             }
-            (true, Gender::Feminine) => {
+            Gender::Feminine => {
                 Self::FEMININE_NAMES[rng.gen_range(0..Self::FEMININE_NAMES.len())].to_string()
             }
-            _ => Human::gen_name(rng, age, gender),
+            _ => {
+                let dist =
+                    WeightedIndex::new(&[Self::MASCULINE_NAMES.len(), Self::FEMININE_NAMES.len()])
+                        .unwrap();
+                if dist.sample(rng) == 0 {
+                    Self::gen_name(rng, age, &Gender::Masculine)
+                } else {
+                    Self::gen_name(rng, age, &Gender::Feminine)
+                }
+            }
         }
     }
 }
@@ -54,14 +63,7 @@ mod test_generate_for_ethnicity {
         let t = Gender::Trans;
 
         assert_eq!(
-            [
-                "Hippolytos",
-                "Jorge",
-                "Jane",
-                "Volen",
-                "Luciana",
-                "Sebek-khu",
-            ],
+            ["Krusk", "Lubash", "Vorka", "Lezre", "Gubrash", "Ootah"],
             [
                 gen_name(&mut rng, &age, &m),
                 gen_name(&mut rng, &age, &m),
@@ -77,7 +79,7 @@ mod test_generate_for_ethnicity {
         let mut npc = Npc::default();
         npc.gender.replace(*gender);
         npc.age.replace(*age);
-        npc.ethnicity.replace(Ethnicity::HalfOrcish);
+        npc.ethnicity.replace(Ethnicity::Orcish);
         regenerate(rng, &mut npc);
         format!("{}", npc.name)
     }

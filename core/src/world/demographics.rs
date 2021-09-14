@@ -135,7 +135,7 @@ impl Default for Demographics {
     fn default() -> Self {
         let mut groups = HashMap::new();
         groups.insert((Species::Human, Ethnicity::Human), 1_020_000);
-        groups.insert((Species::HalfElf, Ethnicity::HalfElvish), 320_000);
+        groups.insert((Species::HalfElf, Ethnicity::Elvish), 320_000);
         groups.insert((Species::Elf, Ethnicity::Elvish), 220_000);
         groups.insert((Species::Gnome, Ethnicity::Gnomish), 220_000);
         groups.insert((Species::Halfling, Ethnicity::Halfling), 100_000);

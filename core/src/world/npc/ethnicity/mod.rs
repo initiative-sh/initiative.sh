@@ -10,8 +10,6 @@ mod french;
 mod german;
 mod gnomish;
 mod greek;
-mod half_elvish;
-mod half_orcish;
 mod halfling;
 mod human;
 mod indian;
@@ -19,6 +17,7 @@ mod japanese;
 mod mesoamerican;
 mod niger_congo;
 mod norse;
+mod orcish;
 mod polynesian;
 mod roman;
 mod slavic;
@@ -71,8 +70,7 @@ pub enum Ethnicity {
     Dwarvish,
     Elvish,
     Gnomish,
-    HalfElvish,
-    HalfOrcish,
+    Orcish,
     Halfling,
     Human,
     Tiefling,
@@ -115,8 +113,7 @@ impl Ethnicity {
             Self::Dwarvish => Species::Dwarf,
             Self::Elvish => Species::Elf,
             Self::Gnomish => Species::Gnome,
-            Self::HalfElvish => Species::HalfElf,
-            Self::HalfOrcish => Species::HalfOrc,
+            Self::Orcish => Species::HalfOrc,
             Self::Halfling => Species::Halfling,
             Self::Tiefling => Species::Tiefling,
 
@@ -213,8 +210,7 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
             Ethnicity::German => german::Ethnicity::regenerate(rng, npc),
             Ethnicity::Gnomish => gnomish::Ethnicity::regenerate(rng, npc),
             Ethnicity::Greek => greek::Ethnicity::regenerate(rng, npc),
-            Ethnicity::HalfElvish => half_elvish::Ethnicity::regenerate(rng, npc),
-            Ethnicity::HalfOrcish => half_orcish::Ethnicity::regenerate(rng, npc),
+            Ethnicity::Orcish => orcish::Ethnicity::regenerate(rng, npc),
             Ethnicity::Halfling => halfling::Ethnicity::regenerate(rng, npc),
             Ethnicity::Human => human::Ethnicity::regenerate(rng, npc),
             Ethnicity::Tiefling => tiefling::Ethnicity::regenerate(rng, npc),
@@ -254,8 +250,7 @@ impl fmt::Display for Ethnicity {
             Self::German => write!(f, "German"),
             Self::Gnomish => write!(f, "Gnomish"),
             Self::Greek => write!(f, "Greek"),
-            Self::HalfElvish => write!(f, "Half-Elvish"),
-            Self::HalfOrcish => write!(f, "Half-Orcish"),
+            Self::Orcish => write!(f, "Orcish"),
             Self::Halfling => write!(f, "Halfling"),
             Self::Human => write!(f, "Human"),
             Self::Illuskan => write!(f, "Illuskan"),
@@ -312,8 +307,7 @@ mod test {
         assert_eq!(Species::Dwarf, Ethnicity::Dwarvish.default_species());
         assert_eq!(Species::Elf, Ethnicity::Elvish.default_species());
         assert_eq!(Species::Gnome, Ethnicity::Gnomish.default_species());
-        assert_eq!(Species::HalfElf, Ethnicity::HalfElvish.default_species());
-        assert_eq!(Species::HalfOrc, Ethnicity::HalfOrcish.default_species());
+        assert_eq!(Species::HalfOrc, Ethnicity::Orcish.default_species());
         assert_eq!(Species::Halfling, Ethnicity::Halfling.default_species());
         assert_eq!(Species::Human, Ethnicity::Arabic.default_species());
         assert_eq!(Species::Tiefling, Ethnicity::Tiefling.default_species());
