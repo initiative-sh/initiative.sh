@@ -1,3 +1,6 @@
+* **Enhancement:** Rewrote name generators to work syllable by syllable. You
+  might end up with some awkward names, but you'll have access to a much greater
+  variety of names as a result.
 * **Enhancement:** Inns now enjoy the same ergonomics as NPCs: you can reference
   alternative suggestions with numerals, and the "save" shortcut is now
   available where applicable.

@@ -101,7 +101,7 @@ impl Species {
             Self::Elf => Ethnicity::Elvish,
             Self::Gnome => Ethnicity::Gnomish,
             Self::HalfElf => Ethnicity::Human,
-            Self::HalfOrc => Ethnicity::HalfOrcish,
+            Self::HalfOrc => Ethnicity::Orcish,
             Self::Halfling => Ethnicity::Halfling,
             Self::Human => Ethnicity::Human,
             Self::Tiefling => Ethnicity::Tiefling,
@@ -213,7 +213,7 @@ mod test {
         assert_eq!(Ethnicity::Elvish, Species::Elf.default_ethnicity());
         assert_eq!(Ethnicity::Gnomish, Species::Gnome.default_ethnicity());
         assert_eq!(Ethnicity::Human, Species::HalfElf.default_ethnicity());
-        assert_eq!(Ethnicity::HalfOrcish, Species::HalfOrc.default_ethnicity());
+        assert_eq!(Ethnicity::Orcish, Species::HalfOrc.default_ethnicity());
         assert_eq!(Ethnicity::Halfling, Species::Halfling.default_ethnicity());
         assert_eq!(Ethnicity::Human, Species::Human.default_ethnicity());
         assert_eq!(Ethnicity::Tiefling, Species::Tiefling.default_ethnicity());
