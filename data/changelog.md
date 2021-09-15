@@ -1,3 +1,5 @@
+* **New:** Rectified a major oversight for a D&D app: added a dice roller! Get
+  your `Fireball` on with `roll 8d6` or use `roll (d4+1)^3` for `Magic Missile`.
 * **Enhancement:** Rewrote name generators to work syllable by syllable. You
   might end up with some awkward names, but you'll have access to a much greater
   variety of names as a result.
