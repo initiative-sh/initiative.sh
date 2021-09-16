@@ -1,6 +1,7 @@
 use super::{Item, ItemCategory, MagicItem, Spell};
 use crate::app::{autocomplete_phrase, AppMeta, Runnable};
 use async_trait::async_trait;
+use caith::Roller;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ReferenceCommand {
@@ -43,7 +44,8 @@ impl Runnable for ReferenceCommand {
 
         Ok(format!(
             "{}\n\n*{} is Open Game Content subject to the `Open Game License`.*",
-            output, name,
+            linkify_dice(&output),
+            name,
         ))
     }
 
@@ -87,4 +89,60 @@ impl Runnable for ReferenceCommand {
             .map(|(s, c)| (s.clone(), c.summarize().to_string()))
             .collect()
     }
+}
+
+fn linkify_dice(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+    let mut input_offset = 0;
+
+    let mut hold = String::new();
+    let mut hold_offset = 0;
+    let mut hold_active = false;
+
+    for part in input.split_inclusive(|c: char| c.is_whitespace() || c.is_ascii_punctuation()) {
+        if !hold_active && part.contains(|c: char| c.is_ascii_digit()) && part.contains('d') {
+            hold_active = true;
+            hold_offset = input_offset;
+        } else if hold_active && part.contains(char::is_alphabetic) {
+            hold_active = false;
+        }
+
+        if hold_active {
+            hold.push_str(part);
+        } else {
+            while !hold.is_empty() {
+                let hold_trimmed = hold.trim();
+                if hold_trimmed.contains('d')
+                    && Roller::new(hold_trimmed).map_or(false, |r| r.roll().is_ok())
+                {
+                    result.push('`');
+                    result.push_str(hold_trimmed);
+                    result.push('`');
+                    result.push_str(&input[hold_offset + hold_trimmed.len()..input_offset]);
+                    hold.clear();
+                    break;
+                }
+
+                if let Some(pos) =
+                    hold.rfind(|c: char| c.is_whitespace() || c.is_ascii_punctuation())
+                {
+                    hold.truncate(pos);
+
+                    if hold.is_empty() {
+                        result.push_str(&input[hold_offset..input_offset]);
+                    }
+                } else {
+                    result.push_str(&input[hold_offset..input_offset]);
+                    hold.clear();
+                }
+            }
+
+            result.push_str(part);
+        }
+
+        input_offset += part.len();
+    }
+
+    result.push_str(&hold);
+    result
 }

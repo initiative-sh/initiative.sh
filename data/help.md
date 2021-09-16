@@ -38,3 +38,15 @@ The journal also tracks the current time. When you start a game, the time is day
 * `-[number][d, h, m, s, or r]` rewinds time by the same.
 * You can skip the number to advance or rewind time by a single unit, so `+d`
   advances to the next day.
+
+Of course, no DM tool would be complete without a dice roller: `roll [formula]`
+or simply `[formula]`.
+Some examples to get you started:
+
+* `8d6: Fireball`
+* `d20+3: dexterity check with +3 bonus`
+* `2d20k1+5: +5 attack roll with disadvantage` (k = keep low)
+* `2d20d1+5: +5 attack roll with advantage` (d = drop low)
+* `(d4+1)^3: magic missile` (rolls 3 times)
+* See [the documentation](https://github.com/Geobert/caith/blob/v4.2.0/README.md#syntax)
+  for more options.
