@@ -2,6 +2,19 @@ import * as wasm from "initiative-web";
 import autoComplete from "@tarekraafat/autocomplete.js";
 import marked from "marked";
 
+if (window.stillLoadingTimeout) {
+  clearTimeout(window.stillLoadingTimeout)
+}
+
+if (window.stillLoadingInterval) {
+  clearInterval(window.stillLoadingInterval)
+}
+
+const stillLoading = document.getElementById('still-loading')
+if (stillLoading) {
+  stillLoading.parentNode.removeChild(stillLoading)
+}
+
 document.body.insertAdjacentHTML(
   "beforeend",
   "<form id=\"prompt-form\"><input type=\"text\" id=\"prompt\" autocomplete=\"off\" autocorrect=\"off\" autocapitalize=\"none\"></form>"

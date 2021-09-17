@@ -1,6 +1,42 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <script charset="utf-8">
+      const loadingStarted = Date.now()
+
+      document.addEventListener(
+        'DOMContentLoaded',
+        (event) => window.stillLoadingInterval = setInterval(
+          () => {
+            if ((Date.now() - loadingStarted) > 2000) {
+              clearInterval(window.stillLoadingInterval)
+
+              document.getElementById('output').insertAdjacentHTML(
+                'beforeend',
+                '<p id="still-loading">initiative.sh is loading</p>',
+              )
+
+              window.stillLoadingInterval = setInterval(
+                () => document.getElementById('still-loading').insertAdjacentText('beforeend', '.'),
+                500,
+              )
+
+              window.stillLoadingTimeout = setTimeout(
+                () => {
+                  clearInterval(window.stillLoadingInterval)
+
+                  const notice = document.getElementById('still-loading')
+                  notice.classList.add('error')
+                  notice.innerHTML = 'initiative.sh is still loading. If this message persists, it may have failed due to an error. Please join us on <a href="https://discord.gg/ZrqJPpxXVZ" target="_blank">Discord</a> or contact <a href="mailto:support@initiative.sh">support@initiative.sh</a> for help.'
+                },
+                10000,
+              )
+            }
+          },
+          200,
+        ),
+      )
+    </script>
     <meta charset="utf-8">
     <meta name="description" content="initiative.sh is a storytelling aid for game masters. It's designed to be used at the table to support the creative process as your sessions evolve in real time.">
     <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, maximum-scale=1">
@@ -29,7 +65,10 @@
         <p class="error">You appear to be using an older browser or browsing the
         web with JavaScript disabled. Unfortunately it's not possible to build
         an HTML-only command line interface, so I don't have an alternative
-        version to offer you.</p>
+        version to offer you. Please feel free to join the conversation
+        <a href="https://discord.gg/ZrqJPpxXVZ" target="_blank">on Discord</a>
+        or reach out to me at
+        <a href="mailto:support@initiative.sh">support@initiative.sh</a>.</p>
       </noscript>
     </div>
   </body>
