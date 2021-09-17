@@ -1,3 +1,5 @@
+* **Enhancement:** Added a loading message if the site is taking a while to load
+  or crashes silently in the background.
 * **New:** Rectified a major oversight for a D&D app: added a dice roller! Get
   your `Fireball` on with `roll 8d6` or use `roll (d4+1)^3` for `Magic Missile`.
 * **Enhancement:** Rewrote name generators to work syllable by syllable. You

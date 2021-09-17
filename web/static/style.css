@@ -134,7 +134,7 @@ body {
     background: var(--solarized-red);
 }
 
-#output .error code, output .error a {
+#output .error code, #output .error a {
     color: inherit;
 }
 
