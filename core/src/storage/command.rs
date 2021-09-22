@@ -2,6 +2,7 @@ use super::repository;
 use crate::app::{AppMeta, CommandAlias, Runnable};
 use crate::world::Thing;
 use async_trait::async_trait;
+use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StorageCommand {
@@ -234,6 +235,17 @@ impl Runnable for StorageCommand {
             });
 
         result
+    }
+}
+
+impl fmt::Display for StorageCommand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            Self::Delete { name } => write!(f, "delete {}", name),
+            Self::Journal => write!(f, "journal"),
+            Self::Load { name } => write!(f, "load {}", name),
+            Self::Save { name } => write!(f, "save {}", name),
+        }
     }
 }
 
@@ -531,5 +543,34 @@ mod test {
 
         assert!(StorageCommand::autocomplete("p", &app_meta).is_empty());
         assert!(StorageCommand::autocomplete("", &app_meta).is_empty());
+    }
+
+    #[test]
+    fn display_test() {
+        let app_meta = AppMeta::new(NullDataStore::default());
+
+        vec![
+            StorageCommand::Delete {
+                name: "Potato Johnson".to_string(),
+            },
+            StorageCommand::Journal,
+            StorageCommand::Load {
+                name: "Potato Johnson".to_string(),
+            },
+            StorageCommand::Save {
+                name: "Potato Johnson".to_string(),
+            },
+        ]
+        .drain(..)
+        .for_each(|command| {
+            let command_string = command.to_string();
+            assert_ne!("", command_string);
+            assert_eq!(
+                (Some(command), Vec::new()),
+                StorageCommand::parse_input(&command_string, &app_meta),
+                "{}",
+                command_string,
+            );
+        });
     }
 }

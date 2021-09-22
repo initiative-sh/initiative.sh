@@ -12,6 +12,7 @@ use crate::storage::StorageCommand;
 use crate::time::TimeCommand;
 use crate::world::WorldCommand;
 use async_trait::async_trait;
+use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Command {
@@ -120,6 +121,19 @@ impl CommandType {
             Self::Storage(c) => c.run(app_meta).await,
             Self::Time(c) => c.run(app_meta).await,
             Self::World(c) => c.run(app_meta).await,
+        }
+    }
+}
+
+impl fmt::Display for CommandType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            Self::Alias(c) => write!(f, "{}", c),
+            Self::App(c) => write!(f, "{}", c),
+            Self::Reference(c) => write!(f, "{}", c),
+            Self::Storage(c) => write!(f, "{}", c),
+            Self::Time(c) => write!(f, "{}", c),
+            Self::World(c) => write!(f, "{}", c),
         }
     }
 }

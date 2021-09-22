@@ -99,7 +99,7 @@ impl fmt::Display for LocationType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Building(Some(building_type)) => write!(f, "{}", building_type),
-            Self::Building(None) => write!(f, "Building"),
+            Self::Building(None) => write!(f, "building"),
         }
     }
 }
@@ -153,7 +153,7 @@ mod test {
             format!("{}", LocationType::Building(Some(BuildingType::Inn))),
         );
 
-        assert_eq!("Building", format!("{}", LocationType::Building(None)));
+        assert_eq!("building", format!("{}", LocationType::Building(None)));
     }
 
     #[test]

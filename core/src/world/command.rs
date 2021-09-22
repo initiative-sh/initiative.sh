@@ -4,6 +4,7 @@ use crate::app::{autocomplete_phrase, AppMeta, Runnable};
 use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
 use async_trait::async_trait;
+use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum WorldCommand {
@@ -71,6 +72,18 @@ impl Runnable for WorldCommand {
                 .map(|c| (s, c.summarize().to_string()))
         })
         .collect()
+    }
+}
+
+impl fmt::Display for WorldCommand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            Self::Location { location_type } => write!(f, "{}", location_type),
+            Self::Npc {
+                species: Some(species),
+            } => write!(f, "{}", species),
+            Self::Npc { species: None } => write!(f, "npc"),
+        }
     }
 }
 
@@ -178,5 +191,34 @@ mod test {
             vec![("building".to_string(), "generate building".to_string())],
             WorldCommand::autocomplete("b", &app_meta),
         );
+    }
+
+    #[test]
+    fn display_test() {
+        let app_meta = AppMeta::new(NullDataStore::default());
+
+        vec![
+            WorldCommand::Location {
+                location_type: LocationType::Building(None),
+            },
+            WorldCommand::Location {
+                location_type: LocationType::Building(Some(BuildingType::Inn)),
+            },
+            WorldCommand::Npc { species: None },
+            WorldCommand::Npc {
+                species: Some(Species::Elf),
+            },
+        ]
+        .drain(..)
+        .for_each(|command| {
+            let command_string = command.to_string();
+            assert_ne!("", command_string);
+            assert_eq!(
+                (Some(command), Vec::new()),
+                WorldCommand::parse_input(&command_string, &app_meta),
+                "{}",
+                command_string,
+            );
+        });
     }
 }

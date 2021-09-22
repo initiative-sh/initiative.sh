@@ -2,6 +2,7 @@ use crate::app::{autocomplete_phrase, AppMeta, Runnable};
 use async_trait::async_trait;
 use caith::Roller;
 use initiative_macros::changelog;
+use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum AppCommand {
@@ -100,6 +101,18 @@ impl Runnable for AppCommand {
     }
 }
 
+impl fmt::Display for AppCommand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            Self::About => write!(f, "about"),
+            Self::Changelog => write!(f, "changelog"),
+            Self::Debug => write!(f, "debug"),
+            Self::Help => write!(f, "help"),
+            Self::Roll(s) => write!(f, "roll {}", s),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -176,5 +189,29 @@ mod test {
             Vec::<(String, String)>::new(),
             AppCommand::autocomplete("debug", &app_meta),
         );
+    }
+
+    #[test]
+    fn display_test() {
+        let app_meta = AppMeta::new(NullDataStore::default());
+
+        vec![
+            AppCommand::About,
+            AppCommand::Changelog,
+            AppCommand::Debug,
+            AppCommand::Help,
+            AppCommand::Roll("d20".to_string()),
+        ]
+        .drain(..)
+        .for_each(|command| {
+            let command_string = command.to_string();
+            assert_ne!("", command_string);
+            assert_eq!(
+                (Some(command), Vec::new()),
+                AppCommand::parse_input(&command_string, &app_meta),
+                "{}",
+                command_string,
+            );
+        });
     }
 }

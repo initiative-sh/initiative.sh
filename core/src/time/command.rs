@@ -1,6 +1,7 @@
 use super::Interval;
 use crate::app::{AppMeta, CommandAlias, Runnable};
 use async_trait::async_trait;
+use std::fmt;
 use std::iter;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -132,6 +133,16 @@ impl Runnable for TimeCommand {
                 .collect()
         } else {
             Vec::new()
+        }
+    }
+}
+
+impl fmt::Display for TimeCommand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            Self::Add { interval } => write!(f, "+{}", interval.display_short()),
+            Self::Now => write!(f, "now"),
+            Self::Sub { interval } => write!(f, "-{}", interval.display_short()),
         }
     }
 }
@@ -281,5 +292,31 @@ mod test {
             vec![("+1r".to_string(), "advance time by 1 round".to_string())],
             TimeCommand::autocomplete("+1r", &app_meta),
         );
+    }
+
+    #[test]
+    fn display_test() {
+        let app_meta = AppMeta::new(NullDataStore::default());
+
+        vec![
+            TimeCommand::Add {
+                interval: Interval::new(2, 3, 4, 5, 6),
+            },
+            TimeCommand::Now,
+            TimeCommand::Sub {
+                interval: Interval::new(2, 3, 4, 5, 6),
+            },
+        ]
+        .drain(..)
+        .for_each(|command| {
+            let command_string = command.to_string();
+            assert_ne!("", command_string);
+            assert_eq!(
+                (Some(command), Vec::new()),
+                TimeCommand::parse_input(&command_string, &app_meta),
+                "{}",
+                command_string,
+            );
+        });
     }
 }

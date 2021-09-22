@@ -2,6 +2,7 @@ use super::{Item, ItemCategory, MagicItem, Spell};
 use crate::app::{autocomplete_phrase, AppMeta, Runnable};
 use async_trait::async_trait;
 use caith::Roller;
+use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ReferenceCommand {
@@ -61,13 +62,13 @@ impl Runnable for ReferenceCommand {
                     if let Ok(spell) = spell.parse() {
                         exact_match = Some(Self::Spell(spell));
                     }
+                } else if let Some(category) = input.strip_prefix("srd item category ") {
+                    if let Ok(category) = category.parse() {
+                        exact_match = Some(Self::ItemCategory(category));
+                    }
                 } else if let Some(item) = input.strip_prefix("srd item ") {
                     if let Ok(item) = item.parse() {
                         exact_match = Some(Self::Item(item));
-                    }
-                } else if let Some(category) = input.strip_prefix("srd category ") {
-                    if let Ok(category) = category.parse() {
-                        exact_match = Some(Self::ItemCategory(category));
                     }
                 } else if let Some(item) = input.strip_prefix("srd magic item ") {
                     if let Ok(item) = item.parse() {
@@ -115,6 +116,19 @@ impl Runnable for ReferenceCommand {
                 .map(|c| (s.clone(), c.summarize().to_string()))
         })
         .collect()
+    }
+}
+
+impl fmt::Display for ReferenceCommand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            Self::Spell(spell) => write!(f, "srd spell {}", spell.get_name()),
+            Self::Spells => write!(f, "srd spells"),
+            Self::Item(item) => write!(f, "srd item {}", item.get_name()),
+            Self::ItemCategory(category) => write!(f, "srd item category {}", category.get_name()),
+            Self::MagicItem(item) => write!(f, "srd magic item {}", item.get_name()),
+            Self::OpenGameLicense => write!(f, "Open Game License"),
+        }
     }
 }
 
@@ -172,4 +186,35 @@ fn linkify_dice(input: &str) -> String {
 
     result.push_str(&hold);
     result
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::storage::NullDataStore;
+
+    #[test]
+    fn display_test() {
+        let app_meta = AppMeta::new(NullDataStore::default());
+
+        vec![
+            ReferenceCommand::Spell(Spell::Shield),
+            ReferenceCommand::Spells,
+            ReferenceCommand::Item(Item::Shield),
+            ReferenceCommand::ItemCategory(ItemCategory::Shields),
+            ReferenceCommand::MagicItem(MagicItem::DeckOfManyThings),
+            ReferenceCommand::OpenGameLicense,
+        ]
+        .drain(..)
+        .for_each(|command| {
+            let command_string = command.to_string();
+            assert_ne!("", command_string);
+            assert_eq!(
+                (Some(command), Vec::new()),
+                ReferenceCommand::parse_input(&command_string, &app_meta),
+                "{}",
+                command_string,
+            );
+        });
+    }
 }
