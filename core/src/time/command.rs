@@ -57,24 +57,33 @@ impl Runnable for TimeCommand {
     }
 
     fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut result = Vec::new();
+        let mut fuzzy_matches = Vec::new();
 
-        match input {
-            "now" | "time" | "date" => result.push(Self::Now),
-            s if s.starts_with('+') => {
-                if let Ok(interval) = input[1..].parse() {
-                    result.push(Self::Add { interval });
+        (
+            match input {
+                "now" => Some(Self::Now),
+                "time" | "date" => {
+                    fuzzy_matches.push(Self::Now);
+                    None
                 }
-            }
-            s if s.starts_with('-') => {
-                if let Ok(interval) = input[1..].parse() {
-                    result.push(Self::Sub { interval });
+                s if s.starts_with('+') => {
+                    if let Ok(interval) = input[1..].parse() {
+                        Some(Self::Add { interval })
+                    } else {
+                        None
+                    }
                 }
-            }
-            _ => {}
-        }
-
-        (None, result)
+                s if s.starts_with('-') => {
+                    if let Ok(interval) = input[1..].parse() {
+                        Some(Self::Sub { interval })
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            },
+            fuzzy_matches,
+        )
     }
 
     fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
@@ -138,30 +147,30 @@ mod test {
 
         assert_eq!(
             (
-                None,
-                vec![TimeCommand::Add {
+                Some(TimeCommand::Add {
                     interval: Interval::new(0, 0, 1, 0, 0),
-                }],
+                }),
+                Vec::<TimeCommand>::new(),
             ),
             TimeCommand::parse_input("+1m", &app_meta),
         );
 
         assert_eq!(
             (
-                None,
-                vec![TimeCommand::Add {
+                Some(TimeCommand::Add {
                     interval: Interval::new(1, 0, 0, 0, 0),
-                }],
+                }),
+                Vec::<TimeCommand>::new(),
             ),
             TimeCommand::parse_input("+d", &app_meta),
         );
 
         assert_eq!(
             (
-                None,
-                vec![TimeCommand::Sub {
+                Some(TimeCommand::Sub {
                     interval: Interval::new(0, 10, 0, 0, 0),
-                }],
+                }),
+                Vec::<TimeCommand>::new(),
             ),
             TimeCommand::parse_input("-10h", &app_meta),
         );

@@ -57,13 +57,12 @@ impl Runnable for CommandAlias {
 
     fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         (
-            None,
             app_meta
                 .command_aliases
                 .iter()
-                .filter(|c| c.term == input)
-                .cloned()
-                .collect(),
+                .find(|c| c.term == input)
+                .cloned(),
+            Vec::new(),
         )
     }
 

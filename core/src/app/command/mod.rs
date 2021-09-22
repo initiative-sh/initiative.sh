@@ -86,19 +86,14 @@ impl Runnable for Command {
     }
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
-        let mut suggestions: Vec<(String, String)> = std::iter::empty()
+        std::iter::empty()
             .chain(CommandAlias::autocomplete(input, app_meta).drain(..))
             .chain(AppCommand::autocomplete(input, app_meta).drain(..))
             .chain(ReferenceCommand::autocomplete(input, app_meta).drain(..))
             .chain(StorageCommand::autocomplete(input, app_meta).drain(..))
             .chain(TimeCommand::autocomplete(input, app_meta).drain(..))
             .chain(WorldCommand::autocomplete(input, app_meta).drain(..))
-            .collect();
-
-        suggestions.sort_by(|(a, _), (b, _)| a.cmp(b));
-        suggestions.truncate(10);
-
-        suggestions
+            .collect()
     }
 }
 
@@ -188,7 +183,7 @@ mod test {
             (
                 Some(
                     Command::with_input("about")
-                        .union((None, vec![CommandType::App(AppCommand::About)]).into())
+                        .union((Some(CommandType::App(AppCommand::About)), Vec::new()).into())
                 ),
                 Vec::new(),
             ),
@@ -200,13 +195,10 @@ mod test {
                 Some(
                     Command::with_input("Open Game License").union(
                         (
-                            None,
-                            vec![
-                                CommandType::Reference(ReferenceCommand::OpenGameLicense),
-                                CommandType::Storage(StorageCommand::Load {
-                                    name: "Open Game License".to_string()
-                                }),
-                            ]
+                            Some(CommandType::Reference(ReferenceCommand::OpenGameLicense)),
+                            vec![CommandType::Storage(StorageCommand::Load {
+                                name: "Open Game License".to_string()
+                            })],
                         )
                             .into()
                     )
@@ -239,8 +231,8 @@ mod test {
                 Some(
                     Command::with_input("npc").union(
                         (
-                            None,
-                            vec![CommandType::World(WorldCommand::Npc { species: None })],
+                            Some(CommandType::World(WorldCommand::Npc { species: None })),
+                            Vec::new(),
                         )
                             .into()
                     )
@@ -255,10 +247,10 @@ mod test {
     fn autocomplete_test() {
         assert_eq!(
             [
-                ("date", "get the current time"),
-                ("delete [name]", "remove an entry from journal"),
-                ("dragonborn", "generate NPC species"),
                 ("druidic foci", "SRD item category"),
+                ("delete [name]", "remove an entry from journal"),
+                ("date", "get the current time"),
+                ("dragonborn", "generate NPC species"),
                 ("dwarf", "generate NPC species"),
             ]
             .iter()

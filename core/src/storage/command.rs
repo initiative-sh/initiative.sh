@@ -136,30 +136,32 @@ impl Runnable for StorageCommand {
     }
 
     fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        let mut fuzzy_matches = Vec::new();
+
         (
-            None,
             if input.starts_with(char::is_uppercase) {
-                vec![Self::Load {
+                fuzzy_matches.push(Self::Load {
                     name: input.to_string(),
-                }]
+                });
+                None
             } else if let Some(name) = input.strip_prefix("delete ") {
-                vec![Self::Delete {
+                Some(Self::Delete {
                     name: name.to_string(),
-                }]
+                })
             } else if let Some(name) = input.strip_prefix("load ") {
-                vec![Self::Load {
+                Some(Self::Load {
                     name: name.to_string(),
-                }]
+                })
             } else if let Some(name) = input.strip_prefix("save ") {
-                vec![Self::Save {
+                Some(Self::Save {
                     name: name.to_string(),
-                }]
+                })
+            } else if input == "journal" {
+                Some(Self::Journal)
             } else {
-                match input {
-                    "journal" => vec![Self::Journal],
-                    _ => Vec::new(),
-                }
+                None
             },
+            fuzzy_matches,
         )
     }
 
@@ -176,22 +178,14 @@ impl Runnable for StorageCommand {
             .filter_map(|s| {
                 let suggestion = format!("{} [name]", s);
                 Self::parse_input(&suggestion, app_meta)
-                    .1
-                    .drain(..)
-                    .next()
+                    .0
                     .map(|command| (suggestion, command))
             })
             .chain(
                 ["journal"]
                     .iter()
                     .filter(|s| s.starts_with(input))
-                    .filter_map(|s| {
-                        Self::parse_input(s, app_meta)
-                            .1
-                            .drain(..)
-                            .next()
-                            .map(|c| (s.to_string(), c))
-                    }),
+                    .filter_map(|s| Self::parse_input(s, app_meta).0.map(|c| (s.to_string(), c))),
             )
             .for_each(|(s, command)| result.push((s, command.summarize(None))));
 
@@ -228,10 +222,10 @@ impl Runnable for StorageCommand {
             })
             .filter_map(|(prefix, thing)| {
                 let suggestion = format!("{}{}", prefix, thing.name());
-                Self::parse_input(&suggestion, app_meta)
-                    .1
-                    .drain(..)
-                    .next()
+                let (exact_match, mut fuzzy_matches) = Self::parse_input(&suggestion, app_meta);
+
+                exact_match
+                    .or_else(|| fuzzy_matches.drain(..).next())
                     .map(|command| (suggestion, thing, command))
             })
             .take(10)
@@ -387,26 +381,26 @@ mod test {
 
         assert_eq!(
             (
-                None,
-                vec![StorageCommand::Save {
+                Some(StorageCommand::Save {
                     name: "Gandalf the Grey".to_string()
-                }],
+                }),
+                Vec::new(),
             ),
             StorageCommand::parse_input("save Gandalf the Grey", &app_meta),
         );
 
         assert_eq!(
             (
-                None,
-                vec![StorageCommand::Load {
+                Some(StorageCommand::Load {
                     name: "Gandalf the Grey".to_string()
-                }],
+                }),
+                Vec::new(),
             ),
             StorageCommand::parse_input("load Gandalf the Grey", &app_meta),
         );
 
         assert_eq!(
-            (None, vec![StorageCommand::Journal]),
+            (Some(StorageCommand::Journal), Vec::new()),
             StorageCommand::parse_input("journal", &app_meta),
         );
 

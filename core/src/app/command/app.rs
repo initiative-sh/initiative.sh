@@ -2,7 +2,6 @@ use crate::app::{autocomplete_phrase, AppMeta, Runnable};
 use async_trait::async_trait;
 use caith::Roller;
 use initiative_macros::changelog;
-use std::str::FromStr;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum AppCommand {
@@ -58,7 +57,23 @@ impl Runnable for AppCommand {
     }
 
     fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        (None, input.parse().map(|c| vec![c]).unwrap_or_default())
+        let mut fuzzy_matches = Vec::new();
+
+        (
+            match input {
+                "about" => Some(Self::About),
+                "changelog" => Some(Self::Changelog),
+                "debug" => Some(Self::Debug),
+                "help" => Some(Self::Help),
+                s if s.starts_with("roll ") => Some(Self::Roll(s[5..].to_string())),
+                s if Roller::new(s).map_or(false, |r| r.roll().is_ok()) => {
+                    fuzzy_matches.push(Self::Roll(s.to_string()));
+                    None
+                }
+                _ => None,
+            },
+            fuzzy_matches,
+        )
     }
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
@@ -68,7 +83,7 @@ impl Runnable for AppCommand {
 
         autocomplete_phrase(input, &mut ["about", "changelog", "help"].iter())
             .drain(..)
-            .filter_map(|s| s.parse::<Self>().ok().map(|c| (s, c)))
+            .filter_map(|s| Self::parse_input(&s, app_meta).0.map(|c| (s, c)))
             .chain(
                 ["roll"]
                     .iter()
@@ -76,30 +91,12 @@ impl Runnable for AppCommand {
                     .filter_map(|s| {
                         let suggestion = format!("{} [dice]", s);
                         Self::parse_input(&suggestion, app_meta)
-                            .1
-                            .drain(..)
-                            .next()
+                            .0
                             .map(|command| (suggestion, command))
                     }),
             )
             .map(|(s, c)| (s, c.summarize().to_string()))
             .collect()
-    }
-}
-
-impl FromStr for AppCommand {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s {
-            "about" => Self::About,
-            "changelog" => Self::Changelog,
-            "debug" => Self::Debug,
-            "help" => Self::Help,
-            s if s.starts_with("roll ") => Self::Roll(s[5..].to_string()),
-            s if Roller::new(s).map_or(false, |r| r.roll().is_ok()) => Self::Roll(s.to_string()),
-            _ => return Err(()),
-        })
     }
 }
 
@@ -121,8 +118,21 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
-            (None, vec![AppCommand::Debug]),
+            (Some(AppCommand::Debug), Vec::<AppCommand>::new()),
             AppCommand::parse_input("debug", &app_meta),
+        );
+
+        assert_eq!(
+            (
+                Some(AppCommand::Roll("d20".to_string())),
+                Vec::<AppCommand>::new(),
+            ),
+            AppCommand::parse_input("roll d20", &app_meta),
+        );
+
+        assert_eq!(
+            (None, vec![AppCommand::Roll("d20".to_string())]),
+            AppCommand::parse_input("d20", &app_meta),
         );
 
         assert_eq!(
@@ -147,6 +157,11 @@ mod test {
                 AppCommand::autocomplete(word, &app_meta),
             )
         });
+
+        assert_eq!(
+            vec![("about".to_string(), "about initiative.sh".to_string())],
+            AppCommand::autocomplete("a", &app_meta),
+        );
 
         assert_eq!(
             vec![(

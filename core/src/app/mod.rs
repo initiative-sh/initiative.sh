@@ -34,6 +34,8 @@ impl App {
     }
 
     pub async fn autocomplete(&self, input: &str) -> Vec<(String, String)> {
-        Command::autocomplete(input, &self.meta)
+        let mut suggestions: Vec<_> = Command::autocomplete(input, &self.meta);
+        suggestions.sort_by(|(a, _), (b, _)| a.cmp(b));
+        suggestions
     }
 }
