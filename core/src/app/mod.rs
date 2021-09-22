@@ -28,11 +28,9 @@ impl App {
     }
 
     pub async fn command(&mut self, input: &str) -> Result<String, String> {
-        if let Some(command) = Command::parse_input(input, &self.meta).1.first() {
-            command.run(&mut self.meta).await
-        } else {
-            Err(format!("Unknown command: \"{}\"", input))
-        }
+        Command::parse_input_irrefutable(input, &self.meta)
+            .run(&mut self.meta)
+            .await
     }
 
     pub async fn autocomplete(&self, input: &str) -> Vec<(String, String)> {

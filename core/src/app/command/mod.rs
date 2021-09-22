@@ -14,94 +14,74 @@ use crate::world::WorldCommand;
 use async_trait::async_trait;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Command(CommandType);
+pub struct Command {
+    input: String,
+    exact_match: Option<CommandType>,
+    fuzzy_matches: Vec<CommandType>,
+}
+
+impl Command {
+    pub fn with_input(input: &str) -> Self {
+        Self {
+            input: input.to_string(),
+            exact_match: None,
+            fuzzy_matches: Vec::new(),
+        }
+    }
+
+    fn union(mut self, mut other: Self) -> Self {
+        let input = self.input;
+        let exact_match = self.exact_match.or(other.exact_match);
+        let fuzzy_matches = self
+            .fuzzy_matches
+            .drain(..)
+            .chain(other.fuzzy_matches.drain(..))
+            .collect();
+
+        Self {
+            input,
+            exact_match,
+            fuzzy_matches,
+        }
+    }
+
+    pub fn parse_input_irrefutable(input: &str, app_meta: &AppMeta) -> Self {
+        Command::with_input(input)
+            .union(CommandAlias::parse_input(input, app_meta).into())
+            .union(AppCommand::parse_input(input, app_meta).into())
+            .union(ReferenceCommand::parse_input(input, app_meta).into())
+            .union(StorageCommand::parse_input(input, app_meta).into())
+            .union(TimeCommand::parse_input(input, app_meta).into())
+            .union(WorldCommand::parse_input(input, app_meta).into())
+    }
+}
+
+impl<T: Into<CommandType>> From<(Option<T>, Vec<T>)> for Command {
+    fn from(mut input: (Option<T>, Vec<T>)) -> Self {
+        Self {
+            input: String::new(),
+            exact_match: input.0.map(|c| c.into()),
+            fuzzy_matches: input.1.drain(..).map(|c| c.into()).collect(),
+        }
+    }
+}
 
 #[async_trait(?Send)]
 impl Runnable for Command {
     async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
-        self.0.run(app_meta).await
-    }
-
-    fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        match CommandType::parse_input(input, app_meta) {
-            (Some(c), mut v) => (Some(Self(c)), v.drain(..).map(|c| c.into()).collect()),
-            (None, mut v) => (None, v.drain(..).map(|c| c.into()).collect()),
-        }
-    }
-
-    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
-        CommandType::autocomplete(input, app_meta)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum CommandType {
-    Alias(CommandAlias),
-    App(AppCommand),
-    Reference(ReferenceCommand),
-    Storage(StorageCommand),
-    Time(TimeCommand),
-    World(WorldCommand),
-}
-
-#[async_trait(?Send)]
-impl Runnable for CommandType {
-    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
-        if !matches!(self, Self::Alias(_)) {
-            app_meta.command_aliases.clear();
-        }
-
-        match self {
-            Self::Alias(c) => c.run(app_meta).await,
-            Self::App(c) => c.run(app_meta).await,
-            Self::Reference(c) => c.run(app_meta).await,
-            Self::Storage(c) => c.run(app_meta).await,
-            Self::Time(c) => c.run(app_meta).await,
-            Self::World(c) => c.run(app_meta).await,
+        if let Some(command) = &self.exact_match {
+            command.run(app_meta).await
+        } else if let Some(command) = self.fuzzy_matches.first() {
+            command.run(app_meta).await
+        } else {
+            Err(format!("Unknown command: \"{}\"", self.input))
         }
     }
 
     fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         (
-            None,
-            std::iter::empty()
-                .chain(
-                    CommandAlias::parse_input(input, app_meta)
-                        .1
-                        .drain(..)
-                        .map(|c| c.into()),
-                )
-                .chain(
-                    AppCommand::parse_input(input, app_meta)
-                        .1
-                        .drain(..)
-                        .map(|c| c.into()),
-                )
-                .chain(
-                    ReferenceCommand::parse_input(input, app_meta)
-                        .1
-                        .drain(..)
-                        .map(|c| c.into()),
-                )
-                .chain(
-                    StorageCommand::parse_input(input, app_meta)
-                        .1
-                        .drain(..)
-                        .map(|c| c.into()),
-                )
-                .chain(
-                    TimeCommand::parse_input(input, app_meta)
-                        .1
-                        .drain(..)
-                        .map(|c| c.into()),
-                )
-                .chain(
-                    WorldCommand::parse_input(input, app_meta)
-                        .1
-                        .drain(..)
-                        .map(|c| c.into()),
-                )
-                .collect(),
+            Some(Self::parse_input_irrefutable(input, app_meta)),
+            Vec::new(),
         )
     }
 
@@ -122,9 +102,40 @@ impl Runnable for CommandType {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum CommandType {
+    Alias(CommandAlias),
+    App(AppCommand),
+    Reference(ReferenceCommand),
+    Storage(StorageCommand),
+    Time(TimeCommand),
+    World(WorldCommand),
+}
+
+impl CommandType {
+    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
+        if !matches!(self, Self::Alias(_)) {
+            app_meta.command_aliases.clear();
+        }
+
+        match self {
+            Self::Alias(c) => c.run(app_meta).await,
+            Self::App(c) => c.run(app_meta).await,
+            Self::Reference(c) => c.run(app_meta).await,
+            Self::Storage(c) => c.run(app_meta).await,
+            Self::Time(c) => c.run(app_meta).await,
+            Self::World(c) => c.run(app_meta).await,
+        }
+    }
+}
+
 impl<T: Into<CommandType>> From<T> for Command {
     fn from(c: T) -> Command {
-        Command(c.into())
+        Command {
+            input: String::new(),
+            exact_match: Some(c.into()),
+            fuzzy_matches: Vec::new(),
+        }
     }
 }
 
@@ -174,39 +185,69 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
-            (None, vec![CommandType::App(AppCommand::About)]),
-            CommandType::parse_input("about", &app_meta),
+            (
+                Some(
+                    Command::with_input("about")
+                        .union((None, vec![CommandType::App(AppCommand::About)]).into())
+                ),
+                Vec::new(),
+            ),
+            Command::parse_input("about", &app_meta),
         );
 
         assert_eq!(
             (
-                None,
-                vec![
-                    CommandType::Reference(ReferenceCommand::OpenGameLicense),
-                    CommandType::Storage(StorageCommand::Load {
-                        name: "Open Game License".to_string()
-                    }),
-                ]
+                Some(
+                    Command::with_input("Open Game License").union(
+                        (
+                            None,
+                            vec![
+                                CommandType::Reference(ReferenceCommand::OpenGameLicense),
+                                CommandType::Storage(StorageCommand::Load {
+                                    name: "Open Game License".to_string()
+                                }),
+                            ]
+                        )
+                            .into()
+                    )
+                ),
+                Vec::new(),
             ),
-            CommandType::parse_input("Open Game License", &app_meta),
+            Command::parse_input("Open Game License", &app_meta),
         );
 
         assert_eq!(
             (
-                None,
-                vec![CommandType::Storage(StorageCommand::Load {
-                    name: "Gandalf the Grey".to_string(),
-                })]
+                Some(
+                    Command::with_input("Gandalf the Grey").union(
+                        (
+                            None,
+                            vec![CommandType::Storage(StorageCommand::Load {
+                                name: "Gandalf the Grey".to_string(),
+                            })],
+                        )
+                            .into()
+                    )
+                ),
+                Vec::new(),
             ),
-            CommandType::parse_input("Gandalf the Grey", &app_meta),
+            Command::parse_input("Gandalf the Grey", &app_meta),
         );
 
         assert_eq!(
             (
-                None,
-                vec![CommandType::World(WorldCommand::Npc { species: None })]
+                Some(
+                    Command::with_input("npc").union(
+                        (
+                            None,
+                            vec![CommandType::World(WorldCommand::Npc { species: None })],
+                        )
+                            .into()
+                    )
+                ),
+                Vec::new(),
             ),
-            CommandType::parse_input("npc", &app_meta),
+            Command::parse_input("npc", &app_meta),
         );
     }
 
@@ -223,7 +264,7 @@ mod test {
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
             .collect::<Vec<_>>(),
-            CommandType::autocomplete("d", &AppMeta::new(NullDataStore::default())),
+            Command::autocomplete("d", &AppMeta::new(NullDataStore::default())),
         );
     }
 
