@@ -57,8 +57,8 @@ impl Runnable for AppCommand {
         })
     }
 
-    fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
-        input.parse().map(|c| vec![c]).unwrap_or_default()
+    fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        (None, input.parse().map(|c| vec![c]).unwrap_or_default())
     }
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
@@ -76,6 +76,7 @@ impl Runnable for AppCommand {
                     .filter_map(|s| {
                         let suggestion = format!("{} [dice]", s);
                         Self::parse_input(&suggestion, app_meta)
+                            .1
                             .drain(..)
                             .next()
                             .map(|command| (suggestion, command))
@@ -120,12 +121,12 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
-            vec![AppCommand::Debug],
+            (None, vec![AppCommand::Debug]),
             AppCommand::parse_input("debug", &app_meta),
         );
 
         assert_eq!(
-            Vec::<AppCommand>::new(),
+            (None, Vec::<AppCommand>::new()),
             AppCommand::parse_input("potato", &app_meta),
         );
     }

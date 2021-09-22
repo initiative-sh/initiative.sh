@@ -49,23 +49,23 @@ impl Runnable for ReferenceCommand {
         ))
     }
 
-    fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
+    fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         match input {
-            "Open Game License" => return vec![Self::OpenGameLicense],
-            "spells" => return vec![Self::Spells],
+            "Open Game License" => return (None, vec![Self::OpenGameLicense]),
+            "spells" => return (None, vec![Self::Spells]),
             _ => {}
         }
 
         if let Ok(spell) = input.parse() {
-            vec![Self::Spell(spell)]
+            (None, vec![Self::Spell(spell)])
         } else if let Ok(item) = input.parse() {
-            vec![Self::Item(item)]
+            (None, vec![Self::Item(item)])
         } else if let Ok(category) = input.parse() {
-            vec![Self::ItemCategory(category)]
+            (None, vec![Self::ItemCategory(category)])
         } else if let Ok(magic_item) = input.parse() {
-            vec![Self::MagicItem(magic_item)]
+            (None, vec![Self::MagicItem(magic_item)])
         } else {
-            Vec::new()
+            (None, Vec::new())
         }
     }
 
@@ -85,7 +85,7 @@ impl Runnable for ReferenceCommand {
 
         suggestions
             .iter()
-            .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s, app_meta)))
+            .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s, app_meta).1))
             .map(|(s, c)| (s.clone(), c.summarize().to_string()))
             .collect()
     }

@@ -40,39 +40,48 @@ impl Runnable for Command {
         }
     }
 
-    fn parse_input(input: &str, app_meta: &AppMeta) -> Vec<Self> {
-        std::iter::empty()
-            .chain(
-                CommandAlias::parse_input(input, app_meta)
-                    .drain(..)
-                    .map(|c| c.into()),
-            )
-            .chain(
-                AppCommand::parse_input(input, app_meta)
-                    .drain(..)
-                    .map(|c| c.into()),
-            )
-            .chain(
-                ReferenceCommand::parse_input(input, app_meta)
-                    .drain(..)
-                    .map(|c| c.into()),
-            )
-            .chain(
-                StorageCommand::parse_input(input, app_meta)
-                    .drain(..)
-                    .map(|c| c.into()),
-            )
-            .chain(
-                TimeCommand::parse_input(input, app_meta)
-                    .drain(..)
-                    .map(|c| c.into()),
-            )
-            .chain(
-                WorldCommand::parse_input(input, app_meta)
-                    .drain(..)
-                    .map(|c| c.into()),
-            )
-            .collect()
+    fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        (
+            None,
+            std::iter::empty()
+                .chain(
+                    CommandAlias::parse_input(input, app_meta)
+                        .1
+                        .drain(..)
+                        .map(|c| c.into()),
+                )
+                .chain(
+                    AppCommand::parse_input(input, app_meta)
+                        .1
+                        .drain(..)
+                        .map(|c| c.into()),
+                )
+                .chain(
+                    ReferenceCommand::parse_input(input, app_meta)
+                        .1
+                        .drain(..)
+                        .map(|c| c.into()),
+                )
+                .chain(
+                    StorageCommand::parse_input(input, app_meta)
+                        .1
+                        .drain(..)
+                        .map(|c| c.into()),
+                )
+                .chain(
+                    TimeCommand::parse_input(input, app_meta)
+                        .1
+                        .drain(..)
+                        .map(|c| c.into()),
+                )
+                .chain(
+                    WorldCommand::parse_input(input, app_meta)
+                        .1
+                        .drain(..)
+                        .map(|c| c.into()),
+                )
+                .collect(),
+        )
     }
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
@@ -138,29 +147,38 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
-            vec![Command::App(AppCommand::About)],
+            (None, vec![Command::App(AppCommand::About)]),
             Command::parse_input("about", &app_meta),
         );
 
         assert_eq!(
-            vec![
-                Command::Reference(ReferenceCommand::OpenGameLicense),
-                Command::Storage(StorageCommand::Load {
-                    name: "Open Game License".to_string()
-                }),
-            ],
+            (
+                None,
+                vec![
+                    Command::Reference(ReferenceCommand::OpenGameLicense),
+                    Command::Storage(StorageCommand::Load {
+                        name: "Open Game License".to_string()
+                    }),
+                ]
+            ),
             Command::parse_input("Open Game License", &app_meta),
         );
 
         assert_eq!(
-            vec![Command::Storage(StorageCommand::Load {
-                name: "Gandalf the Grey".to_string(),
-            })],
+            (
+                None,
+                vec![Command::Storage(StorageCommand::Load {
+                    name: "Gandalf the Grey".to_string(),
+                })]
+            ),
             Command::parse_input("Gandalf the Grey", &app_meta),
         );
 
         assert_eq!(
-            vec![Command::World(WorldCommand::Npc { species: None })],
+            (
+                None,
+                vec![Command::World(WorldCommand::Npc { species: None })]
+            ),
             Command::parse_input("npc", &app_meta),
         );
     }

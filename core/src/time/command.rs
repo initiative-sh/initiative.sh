@@ -56,7 +56,7 @@ impl Runnable for TimeCommand {
         }
     }
 
-    fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
+    fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut result = Vec::new();
 
         match input {
@@ -74,7 +74,7 @@ impl Runnable for TimeCommand {
             _ => {}
         }
 
-        result
+        (None, result)
     }
 
     fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
@@ -131,6 +131,46 @@ impl Runnable for TimeCommand {
 mod test {
     use super::*;
     use crate::NullDataStore;
+
+    #[test]
+    fn parse_input_test() {
+        let app_meta = AppMeta::new(NullDataStore::default());
+
+        assert_eq!(
+            (
+                None,
+                vec![TimeCommand::Add {
+                    interval: Interval::new(0, 0, 1, 0, 0),
+                }],
+            ),
+            TimeCommand::parse_input("+1m", &app_meta),
+        );
+
+        assert_eq!(
+            (
+                None,
+                vec![TimeCommand::Add {
+                    interval: Interval::new(1, 0, 0, 0, 0),
+                }],
+            ),
+            TimeCommand::parse_input("+d", &app_meta),
+        );
+
+        assert_eq!(
+            (
+                None,
+                vec![TimeCommand::Sub {
+                    interval: Interval::new(0, 10, 0, 0, 0),
+                }],
+            ),
+            TimeCommand::parse_input("-10h", &app_meta),
+        );
+
+        assert_eq!(
+            (None, Vec::<TimeCommand>::new()),
+            TimeCommand::parse_input("1d2h", &app_meta),
+        );
+    }
 
     #[test]
     fn autocomplete_test() {

@@ -5,7 +5,7 @@ use async_trait::async_trait;
 pub trait Runnable: Sized {
     async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String>;
 
-    fn parse_input(input: &str, app_meta: &AppMeta) -> Vec<Self>;
+    fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>);
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)>;
 }

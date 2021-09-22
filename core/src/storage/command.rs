@@ -135,29 +135,32 @@ impl Runnable for StorageCommand {
         }
     }
 
-    fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
-        if input.starts_with(char::is_uppercase) {
-            vec![Self::Load {
-                name: input.to_string(),
-            }]
-        } else if let Some(name) = input.strip_prefix("delete ") {
-            vec![Self::Delete {
-                name: name.to_string(),
-            }]
-        } else if let Some(name) = input.strip_prefix("load ") {
-            vec![Self::Load {
-                name: name.to_string(),
-            }]
-        } else if let Some(name) = input.strip_prefix("save ") {
-            vec![Self::Save {
-                name: name.to_string(),
-            }]
-        } else {
-            match input {
-                "journal" => vec![Self::Journal],
-                _ => Vec::new(),
-            }
-        }
+    fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        (
+            None,
+            if input.starts_with(char::is_uppercase) {
+                vec![Self::Load {
+                    name: input.to_string(),
+                }]
+            } else if let Some(name) = input.strip_prefix("delete ") {
+                vec![Self::Delete {
+                    name: name.to_string(),
+                }]
+            } else if let Some(name) = input.strip_prefix("load ") {
+                vec![Self::Load {
+                    name: name.to_string(),
+                }]
+            } else if let Some(name) = input.strip_prefix("save ") {
+                vec![Self::Save {
+                    name: name.to_string(),
+                }]
+            } else {
+                match input {
+                    "journal" => vec![Self::Journal],
+                    _ => Vec::new(),
+                }
+            },
+        )
     }
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
@@ -173,6 +176,7 @@ impl Runnable for StorageCommand {
             .filter_map(|s| {
                 let suggestion = format!("{} [name]", s);
                 Self::parse_input(&suggestion, app_meta)
+                    .1
                     .drain(..)
                     .next()
                     .map(|command| (suggestion, command))
@@ -183,6 +187,7 @@ impl Runnable for StorageCommand {
                     .filter(|s| s.starts_with(input))
                     .filter_map(|s| {
                         Self::parse_input(s, app_meta)
+                            .1
                             .drain(..)
                             .next()
                             .map(|c| (s.to_string(), c))
@@ -224,6 +229,7 @@ impl Runnable for StorageCommand {
             .filter_map(|(prefix, thing)| {
                 let suggestion = format!("{}{}", prefix, thing.name());
                 Self::parse_input(&suggestion, app_meta)
+                    .1
                     .drain(..)
                     .next()
                     .map(|command| (suggestion, thing, command))
@@ -370,33 +376,42 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
-            vec![StorageCommand::Load {
-                name: "Gandalf the Grey".to_string()
-            }],
+            (
+                None,
+                vec![StorageCommand::Load {
+                    name: "Gandalf the Grey".to_string()
+                }],
+            ),
             StorageCommand::parse_input("Gandalf the Grey", &app_meta),
         );
 
         assert_eq!(
-            vec![StorageCommand::Save {
-                name: "Gandalf the Grey".to_string()
-            }],
+            (
+                None,
+                vec![StorageCommand::Save {
+                    name: "Gandalf the Grey".to_string()
+                }],
+            ),
             StorageCommand::parse_input("save Gandalf the Grey", &app_meta),
         );
 
         assert_eq!(
-            vec![StorageCommand::Load {
-                name: "Gandalf the Grey".to_string()
-            }],
+            (
+                None,
+                vec![StorageCommand::Load {
+                    name: "Gandalf the Grey".to_string()
+                }],
+            ),
             StorageCommand::parse_input("load Gandalf the Grey", &app_meta),
         );
 
         assert_eq!(
-            vec![StorageCommand::Journal],
+            (None, vec![StorageCommand::Journal]),
             StorageCommand::parse_input("journal", &app_meta),
         );
 
         assert_eq!(
-            Vec::<StorageCommand>::new(),
+            (None, Vec::<StorageCommand>::new()),
             StorageCommand::parse_input("potato", &app_meta),
         );
     }

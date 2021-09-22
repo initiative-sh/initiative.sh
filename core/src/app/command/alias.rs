@@ -55,13 +55,16 @@ impl Runnable for CommandAlias {
         result
     }
 
-    fn parse_input(input: &str, app_meta: &AppMeta) -> Vec<Self> {
-        app_meta
-            .command_aliases
-            .iter()
-            .filter(|c| c.term == input)
-            .cloned()
-            .collect()
+    fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        (
+            None,
+            app_meta
+                .command_aliases
+                .iter()
+                .filter(|c| c.term == input)
+                .cloned()
+                .collect(),
+        )
     }
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {

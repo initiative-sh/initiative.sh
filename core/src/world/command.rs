@@ -39,18 +39,21 @@ impl Runnable for WorldCommand {
         })
     }
 
-    fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
-        if let Ok(species) = input.parse() {
-            vec![Self::Npc {
-                species: Some(species),
-            }]
-        } else if let Ok(location_type) = input.parse() {
-            vec![Self::Location { location_type }]
-        } else if "npc" == input {
-            vec![Self::Npc { species: None }]
-        } else {
-            Vec::new()
-        }
+    fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        (
+            None,
+            if let Ok(species) = input.parse() {
+                vec![Self::Npc {
+                    species: Some(species),
+                }]
+            } else if let Ok(location_type) = input.parse() {
+                vec![Self::Location { location_type }]
+            } else if "npc" == input {
+                vec![Self::Npc { species: None }]
+            } else {
+                Vec::new()
+            },
+        )
     }
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
@@ -67,7 +70,7 @@ impl Runnable for WorldCommand {
 
         suggestions
             .iter()
-            .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s, app_meta)))
+            .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s, app_meta).1))
             .map(|(s, c)| (s.clone(), c.summarize().to_string()))
             .collect()
     }
@@ -115,26 +118,32 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
-            vec![WorldCommand::Location {
-                location_type: LocationType::Building(None)
-            }],
+            (
+                None,
+                vec![WorldCommand::Location {
+                    location_type: LocationType::Building(None)
+                }]
+            ),
             WorldCommand::parse_input("building", &app_meta),
         );
 
         assert_eq!(
-            vec![WorldCommand::Npc { species: None }],
+            (None, vec![WorldCommand::Npc { species: None }]),
             WorldCommand::parse_input("npc", &app_meta),
         );
 
         assert_eq!(
-            vec![WorldCommand::Npc {
-                species: Some(Species::Elf)
-            }],
+            (
+                None,
+                vec![WorldCommand::Npc {
+                    species: Some(Species::Elf)
+                }]
+            ),
             WorldCommand::parse_input("elf", &app_meta),
         );
 
         assert_eq!(
-            Vec::<WorldCommand>::new(),
+            (None, Vec::<WorldCommand>::new()),
             WorldCommand::parse_input("potato", &app_meta),
         );
     }
