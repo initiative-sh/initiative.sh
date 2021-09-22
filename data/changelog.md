@@ -1,3 +1,6 @@
+* **New:** Added a privacy policy outlining what personal information we
+  collect. Currently: we don't, which is why we haven't had a privacy policy
+  until now.
 * **Enhancement:** Added a loading message if the site is taking a while to load
   or crashes silently in the background.
 * **New:** Rectified a major oversight for a D&D app: added a dice roller! Get

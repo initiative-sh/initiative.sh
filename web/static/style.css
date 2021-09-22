@@ -85,6 +85,10 @@ body {
     font-weight: bold;
 }
 
+#output h3 {
+    font-style: italic;
+}
+
 #output ul {
     margin-bottom: 0;
     margin-left: 0;

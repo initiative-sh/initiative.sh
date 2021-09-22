@@ -27,7 +27,7 @@
 
                   const notice = document.getElementById('still-loading')
                   notice.classList.add('error')
-                  notice.innerHTML = 'initiative.sh is still loading. If this message persists, it may have failed due to an error. Please join us on <a href="https://discord.gg/ZrqJPpxXVZ" target="_blank">Discord</a> or contact <a href="mailto:support@initiative.sh">support@initiative.sh</a> for help.'
+                  notice.innerHTML = 'initiative.sh is still loading. If this message persists, it may have failed due to an error.'
                 },
                 10000,
               )
@@ -38,7 +38,7 @@
       )
     </script>
     <meta charset="utf-8">
-    <meta name="description" content="initiative.sh is a storytelling aid for game masters. It's designed to be used at the table to support the creative process as your sessions evolve in real time.">
+    <meta name="description" content="initiative.sh is a storytelling aid for game masters. It's designed to support the creative process as your sessions evolve in real time.">
     <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, maximum-scale=1">
     <title>initiative.sh - D&D tools for game masters at the table</title>
     <% for (var css in htmlWebpackPlugin.files.css) { %>
@@ -58,17 +58,20 @@
       <div role="hidden" class="logo-tiny">INITIATIVE.SH</div>
 
       <p>initiative.sh is a storytelling aid for game masters. It's designed to
-      be used at the table to support the creative process as your sessions
-      evolve in real time.</p>
+      support the creative process as your sessions evolve in real time.</p>
+
+      <p>Please join the conversation
+      <a href="https://discord.gg/ZrqJPpxXVZ" target="_blank">on Discord</a> or
+      contact <a href="mailto:support@initiative.sh">support@initiative.sh</a>
+      to help me make initiative.sh the best tool in your DM toolbox. Your use
+      of initiative.sh is subject to its
+      <a href="/privacy.html" target="_blank">privacy policy</a>.</p>
 
       <noscript>
         <p class="error">You appear to be using an older browser or browsing the
         web with JavaScript disabled. Unfortunately it's not possible to build
         an HTML-only command line interface, so I don't have an alternative
-        version to offer you. Please feel free to join the conversation
-        <a href="https://discord.gg/ZrqJPpxXVZ" target="_blank">on Discord</a>
-        or reach out to me at
-        <a href="mailto:support@initiative.sh">support@initiative.sh</a>.</p>
+        version to offer you.</p>
       </noscript>
     </div>
   </body>

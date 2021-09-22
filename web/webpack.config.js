@@ -1,51 +1,60 @@
-const HtmlWebpackPlugin = require("html-webpack-plugin");
-const CopyWebpackPlugin = require("copy-webpack-plugin");
-const path = require("path");
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+const CopyWebpackPlugin = require('copy-webpack-plugin')
+const path = require('path')
+
+const templateParameters = (compilation, files, tags, options) => {
+  compilation.getAssets()
+    .map(asset => asset.name)
+    .filter(name => name.endsWith('.css'))
+    .forEach(name => files.css.push(name))
+
+  return {
+    htmlWebpackPlugin: {
+      tags: tags,
+      files: files,
+      options: options,
+    },
+  }
+}
 
 module.exports = {
-  entry: "./js/index.js",
+  entry: './js/index.js',
   output: {
-    path: path.resolve(__dirname, "dist"),
-    filename: "[name].[contenthash].js",
+    path: path.resolve(__dirname, 'dist'),
+    filename: '[name].[contenthash].js',
   },
-  mode: "development",
+  mode: 'development',
   /*
   module: {
     rules: [
       {
         test: /\.css$/i,
-        use: [MiniCssExtractPlugin.loader, "css-loader"],
+        use: [MiniCssExtractPlugin.loader, 'css-loader'],
       },
     ],
   },
     */
   plugins: [
     new HtmlWebpackPlugin({
-      template: "js/index.html",
-      templateParameters: (compilation, files, tags, options) => {
-        compilation.getAssets()
-          .map(asset => asset.name)
-          .filter(name => name.endsWith(".css"))
-          .forEach(name => files.css.push(name));
-
-        return {
-          htmlWebpackPlugin: {
-            tags: tags,
-            files: files,
-            options: options,
-          },
-        };
-      },
+      filename: 'index.html',
+      template: 'js/index.html',
+      templateParameters: templateParameters,
+    }),
+    new HtmlWebpackPlugin({
+      filename: 'privacy.html',
+      inject: false,
+      template: 'js/privacy.html',
+      templateParameters: templateParameters,
     }),
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: path.resolve(__dirname, "node_modules/source-code-pro"),
-          to: path.resolve(__dirname, "dist/source-code-pro"),
+          from: path.resolve(__dirname, 'node_modules/source-code-pro'),
+          to: path.resolve(__dirname, 'dist/source-code-pro'),
         },
         {
-          from: path.resolve(__dirname, "static/*.css"),
-          to: path.resolve(__dirname, "dist/[name].[contenthash][ext]"),
+          from: path.resolve(__dirname, 'static/*.css'),
+          to: path.resolve(__dirname, 'dist/[name].[contenthash][ext]'),
         },
       ],
     }),
@@ -54,6 +63,6 @@ module.exports = {
     asyncWebAssembly: true,
   },
   devServer: {
-    contentBase: path.join(__dirname, "static"),
+    contentBase: path.join(__dirname, 'static'),
   },
-};
+}
