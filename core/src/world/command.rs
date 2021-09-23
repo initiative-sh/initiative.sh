@@ -4,6 +4,7 @@ use crate::app::{autocomplete_phrase, AppMeta, Runnable};
 use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
 use async_trait::async_trait;
+use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum WorldCommand {
@@ -39,37 +40,50 @@ impl Runnable for WorldCommand {
         })
     }
 
-    fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
-        if let Ok(species) = input.parse() {
-            vec![Self::Npc {
-                species: Some(species),
-            }]
-        } else if let Ok(location_type) = input.parse() {
-            vec![Self::Location { location_type }]
-        } else if "npc" == input {
-            vec![Self::Npc { species: None }]
-        } else {
-            Vec::new()
-        }
+    fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        (
+            if let Ok(species) = input.parse() {
+                Some(Self::Npc {
+                    species: Some(species),
+                })
+            } else if let Ok(location_type) = input.parse() {
+                Some(Self::Location { location_type })
+            } else if "npc" == input {
+                Some(Self::Npc { species: None })
+            } else {
+                None
+            },
+            Vec::new(),
+        )
     }
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
-        let mut suggestions = autocomplete_phrase(
+        autocomplete_phrase(
             input,
             &mut ["npc", "building"]
                 .iter()
                 .chain(Species::get_words().iter())
                 .chain(BuildingType::get_words().iter()),
-        );
+        )
+        .drain(..)
+        .filter_map(|s| {
+            Self::parse_input(&s, app_meta)
+                .0
+                .map(|c| (s, c.summarize().to_string()))
+        })
+        .collect()
+    }
+}
 
-        suggestions.sort();
-        suggestions.truncate(10);
-
-        suggestions
-            .iter()
-            .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s, app_meta)))
-            .map(|(s, c)| (s.clone(), c.summarize().to_string()))
-            .collect()
+impl fmt::Display for WorldCommand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            Self::Location { location_type } => write!(f, "{}", location_type),
+            Self::Npc {
+                species: Some(species),
+            } => write!(f, "{}", species),
+            Self::Npc { species: None } => write!(f, "npc"),
+        }
     }
 }
 
@@ -115,26 +129,32 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
-            vec![WorldCommand::Location {
-                location_type: LocationType::Building(None)
-            }],
+            (
+                Some(WorldCommand::Location {
+                    location_type: LocationType::Building(None)
+                }),
+                Vec::new(),
+            ),
             WorldCommand::parse_input("building", &app_meta),
         );
 
         assert_eq!(
-            vec![WorldCommand::Npc { species: None }],
+            (Some(WorldCommand::Npc { species: None }), Vec::new()),
             WorldCommand::parse_input("npc", &app_meta),
         );
 
         assert_eq!(
-            vec![WorldCommand::Npc {
-                species: Some(Species::Elf)
-            }],
+            (
+                Some(WorldCommand::Npc {
+                    species: Some(Species::Elf)
+                }),
+                Vec::new(),
+            ),
             WorldCommand::parse_input("elf", &app_meta),
         );
 
         assert_eq!(
-            Vec::<WorldCommand>::new(),
+            (None, Vec::<WorldCommand>::new()),
             WorldCommand::parse_input("potato", &app_meta),
         );
     }
@@ -165,6 +185,40 @@ mod test {
                 vec![(word.to_string(), summary.to_string())],
                 WorldCommand::autocomplete(word, &app_meta),
             )
+        });
+
+        assert_eq!(
+            vec![("building".to_string(), "generate building".to_string())],
+            WorldCommand::autocomplete("b", &app_meta),
+        );
+    }
+
+    #[test]
+    fn display_test() {
+        let app_meta = AppMeta::new(NullDataStore::default());
+
+        vec![
+            WorldCommand::Location {
+                location_type: LocationType::Building(None),
+            },
+            WorldCommand::Location {
+                location_type: LocationType::Building(Some(BuildingType::Inn)),
+            },
+            WorldCommand::Npc { species: None },
+            WorldCommand::Npc {
+                species: Some(Species::Elf),
+            },
+        ]
+        .drain(..)
+        .for_each(|command| {
+            let command_string = command.to_string();
+            assert_ne!("", command_string);
+            assert_eq!(
+                (Some(command), Vec::new()),
+                WorldCommand::parse_input(&command_string, &app_meta),
+                "{}",
+                command_string,
+            );
         });
     }
 }

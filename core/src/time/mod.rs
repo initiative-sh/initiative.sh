@@ -2,8 +2,10 @@ pub use command::TimeCommand;
 
 mod command;
 
+use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fmt;
+use std::ops::AddAssign;
 use std::str::FromStr;
 
 #[derive(Debug, Default, PartialEq)]
@@ -18,7 +20,7 @@ pub struct TimeShortView<'a>(&'a Time);
 
 pub struct TimeLongView<'a>(&'a Time);
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Interval {
     days: i32,
     hours: i32,
@@ -26,6 +28,10 @@ pub struct Interval {
     seconds: i32,
     rounds: i32,
 }
+
+pub struct IntervalShortView<'a>(&'a Interval);
+
+pub struct IntervalLongView<'a>(&'a Interval);
 
 impl Time {
     pub fn try_new(days: i32, hours: u8, minutes: u8, seconds: u8) -> Result<Self, ()> {
@@ -174,39 +180,107 @@ impl Interval {
     pub fn rounds(rounds: i32) -> Self {
         Self::new(0, 0, 0, 0, rounds)
     }
+
+    pub fn display_short(&self) -> IntervalShortView {
+        IntervalShortView(self)
+    }
+
+    pub fn display_long(&self) -> IntervalLongView {
+        IntervalLongView(self)
+    }
+}
+
+impl AddAssign for Interval {
+    fn add_assign(&mut self, other: Self) {
+        self.days += other.days;
+        self.hours += other.hours;
+        self.minutes += other.minutes;
+        self.seconds += other.seconds;
+        self.rounds += other.rounds;
+    }
 }
 
 impl FromStr for Interval {
     type Err = ();
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        if let Some((i, c)) = raw.char_indices().last() {
-            let value = if i == 0 {
-                // Interpret input like "d" as "1d"
-                1
-            } else if raw.starts_with(|c: char| c.is_ascii_digit()) {
-                raw[..i].parse().map_err(|_| ())?
-            } else {
-                // Don't accept "-1d", that's handled by the command parser
-                return Err(());
-            };
+        match raw.trim() {
+            "" => Err(()),
+            "0" => Ok(Interval::default()),
+            s => {
+                let mut used_chars = HashSet::new();
+                let mut interval = Interval::default();
 
-            match c {
-                'd' => Ok(Self::days(value)),
-                'h' => Ok(Self::hours(value)),
-                'm' => Ok(Self::minutes(value)),
-                's' => Ok(Self::seconds(value)),
-                'r' => Ok(Self::rounds(value)),
-                _ => Err(()),
+                s.split_inclusive(|c: char| !c.is_ascii_digit())
+                    .enumerate()
+                    .try_for_each(|(raw_index, s)| {
+                        let part = s.trim();
+
+                        if part.is_empty() {
+                            Ok(())
+                        } else if let Some((part_index, c)) = part.char_indices().last() {
+                            if !used_chars.insert(c) {
+                                return Err(());
+                            }
+
+                            let value = if part_index == 0 && raw_index == 0 {
+                                // Interpret input like "d" as "1d"
+                                1
+                            } else if part.starts_with(|c: char| c.is_ascii_digit()) {
+                                part[..part_index].parse().map_err(|_| ())?
+                            } else {
+                                // Don't accept "-1d", that's handled by the command parser
+                                return Err(());
+                            };
+
+                            match c {
+                                'd' => interval += Self::days(value),
+                                'h' => interval += Self::hours(value),
+                                'm' => interval += Self::minutes(value),
+                                's' => interval += Self::seconds(value),
+                                'r' => interval += Self::rounds(value),
+                                _ => return Err(()),
+                            }
+
+                            Ok(())
+                        } else {
+                            Err(())
+                        }
+                    })?;
+
+                Ok(interval)
             }
-        } else {
-            Err(())
         }
     }
 }
 
-impl fmt::Display for Interval {
+impl<'a> fmt::Display for IntervalShortView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let interval = self.0;
+        let fields = [
+            (interval.days, 'd'),
+            (interval.hours, 'h'),
+            (interval.minutes, 'm'),
+            (interval.seconds, 's'),
+            (interval.rounds, 'r'),
+        ];
+
+        fields
+            .iter()
+            .filter(|(i, _)| i > &0)
+            .try_for_each(|(i, c)| write!(f, "{}{}", i, c))?;
+
+        if !fields.iter().any(|(i, _)| i > &0) {
+            write!(f, "0")?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> fmt::Display for IntervalLongView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let interval = self.0;
         let mut first = true;
 
         let mut w = |value: i32, name: &str| -> fmt::Result {
@@ -222,11 +296,11 @@ impl fmt::Display for Interval {
             Ok(())
         };
 
-        w(self.days, "day")?;
-        w(self.hours, "hour")?;
-        w(self.minutes, "minute")?;
-        w(self.seconds, "second")?;
-        w(self.rounds, "round")?;
+        w(interval.days, "day")?;
+        w(interval.hours, "hour")?;
+        w(interval.minutes, "minute")?;
+        w(interval.seconds, "second")?;
+        w(interval.rounds, "round")?;
 
         Ok(())
     }
@@ -391,24 +465,45 @@ mod test {
         assert_eq!(Ok(days(1)), "01d".parse());
         assert_eq!(Ok(days(i32::MAX)), format!("{}d", i32::MAX).parse());
 
+        assert_eq!(Ok(Interval::default()), "0".parse());
+        assert_eq!(Ok(i(2, 3, 4, 5, 6)), "2d3h4m5s6r".parse());
+        assert_eq!(Ok(i(2, 3, 4, 5, 6)), "2d 3h 4m 5s 6r".parse());
+
         assert_eq!(Err(()), format!("{}d", i64::MAX).parse::<Interval>());
         assert_eq!(Err(()), "".parse::<Interval>());
         assert_eq!(Err(()), "1 d".parse::<Interval>());
         assert_eq!(Err(()), "1a".parse::<Interval>());
         assert_eq!(Err(()), "-1d".parse::<Interval>());
+        assert_eq!(Err(()), "2d3h4m5s6r7p".parse::<Interval>());
+        assert_eq!(Err(()), "1dd".parse::<Interval>());
+        assert_eq!(Err(()), "2d1d".parse::<Interval>());
     }
 
     #[test]
-    fn interval_display_test() {
-        assert_eq!("1 day", days(1).to_string());
-        assert_eq!("1 hour", hours(1).to_string());
-        assert_eq!("1 minute", minutes(1).to_string());
-        assert_eq!("1 second", seconds(1).to_string());
-        assert_eq!("1 round", rounds(1).to_string());
+    fn interval_display_short_test() {
+        assert_eq!("1d", days(1).display_short().to_string());
+        assert_eq!("1h", hours(1).display_short().to_string());
+        assert_eq!("1m", minutes(1).display_short().to_string());
+        assert_eq!("1s", seconds(1).display_short().to_string());
+        assert_eq!("1r", rounds(1).display_short().to_string());
+
+        assert_eq!("0", Interval::default().display_short().to_string());
+        assert_eq!("2d3h4m5s6r", i(2, 3, 4, 5, 6).display_short().to_string());
+    }
+
+    #[test]
+    fn interval_display_long_test() {
+        assert_eq!("1 day", days(1).display_long().to_string());
+        assert_eq!("1 hour", hours(1).display_long().to_string());
+        assert_eq!("1 minute", minutes(1).display_long().to_string());
+        assert_eq!("1 second", seconds(1).display_long().to_string());
+        assert_eq!("1 round", rounds(1).display_long().to_string());
+
+        assert_eq!("", Interval::default().display_long().to_string());
 
         assert_eq!(
             "2 days, 3 hours, 4 minutes, 5 seconds, 6 rounds",
-            i(2, 3, 4, 5, 6).to_string(),
+            i(2, 3, 4, 5, 6).display_long().to_string(),
         );
     }
 

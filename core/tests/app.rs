@@ -110,3 +110,17 @@ fn unknown() {
         sync_app().command("blah blah").unwrap_err(),
     );
 }
+
+#[test]
+#[ignore]
+fn command_conflict() {
+    todo!();
+}
+
+#[test]
+fn command_conflict_ambiguous() {
+    assert_eq!(
+        "There are several possible interpretations of this command. Did you mean:\n\n* `srd item Shield`\n* `srd spell Shield`",
+        sync_app().command("Shield").unwrap_err(),
+    );
+}

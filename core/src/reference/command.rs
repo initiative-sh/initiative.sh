@@ -2,6 +2,7 @@ use super::{Item, ItemCategory, MagicItem, Spell};
 use crate::app::{autocomplete_phrase, AppMeta, Runnable};
 use async_trait::async_trait;
 use caith::Roller;
+use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ReferenceCommand {
@@ -49,28 +50,55 @@ impl Runnable for ReferenceCommand {
         ))
     }
 
-    fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
+    fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        let mut exact_match = None;
+        let mut fuzzy_matches = Vec::new();
+
         match input {
-            "Open Game License" => return vec![Self::OpenGameLicense],
-            "spells" => return vec![Self::Spells],
-            _ => {}
+            "Open Game License" => exact_match = Some(Self::OpenGameLicense),
+            "srd spells" => exact_match = Some(Self::Spells),
+            _ => {
+                if let Some(spell) = input.strip_prefix("srd spell ") {
+                    if let Ok(spell) = spell.parse() {
+                        exact_match = Some(Self::Spell(spell));
+                    }
+                } else if let Some(category) = input.strip_prefix("srd item category ") {
+                    if let Ok(category) = category.parse() {
+                        exact_match = Some(Self::ItemCategory(category));
+                    }
+                } else if let Some(item) = input.strip_prefix("srd item ") {
+                    if let Ok(item) = item.parse() {
+                        exact_match = Some(Self::Item(item));
+                    }
+                } else if let Some(item) = input.strip_prefix("srd magic item ") {
+                    if let Ok(item) = item.parse() {
+                        exact_match = Some(Self::MagicItem(item));
+                    }
+                }
+            }
         }
 
         if let Ok(spell) = input.parse() {
-            vec![Self::Spell(spell)]
-        } else if let Ok(item) = input.parse() {
-            vec![Self::Item(item)]
-        } else if let Ok(category) = input.parse() {
-            vec![Self::ItemCategory(category)]
-        } else if let Ok(magic_item) = input.parse() {
-            vec![Self::MagicItem(magic_item)]
-        } else {
-            Vec::new()
+            fuzzy_matches.push(Self::Spell(spell));
         }
+        if let Ok(item) = input.parse() {
+            fuzzy_matches.push(Self::Item(item));
+        }
+        if let Ok(category) = input.parse() {
+            fuzzy_matches.push(Self::ItemCategory(category));
+        }
+        if let Ok(magic_item) = input.parse() {
+            fuzzy_matches.push(Self::MagicItem(magic_item));
+        }
+        if input == "spells" {
+            fuzzy_matches.push(Self::Spells);
+        }
+
+        (exact_match, fuzzy_matches)
     }
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
-        let mut suggestions = autocomplete_phrase(
+        autocomplete_phrase(
             input,
             &mut ["Open Game License", "spells"]
                 .iter()
@@ -78,16 +106,29 @@ impl Runnable for ReferenceCommand {
                 .chain(Item::get_words().iter())
                 .chain(ItemCategory::get_words().iter())
                 .chain(MagicItem::get_words().iter()),
-        );
+        )
+        .drain(..)
+        .filter_map(|s| {
+            let (exact_match, mut fuzzy_matches) = Self::parse_input(&s, app_meta);
 
-        suggestions.sort();
-        suggestions.truncate(10);
+            exact_match
+                .or_else(|| fuzzy_matches.drain(..).next())
+                .map(|c| (s.clone(), c.summarize().to_string()))
+        })
+        .collect()
+    }
+}
 
-        suggestions
-            .iter()
-            .flat_map(|s| std::iter::repeat(s).zip(Self::parse_input(s, app_meta)))
-            .map(|(s, c)| (s.clone(), c.summarize().to_string()))
-            .collect()
+impl fmt::Display for ReferenceCommand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            Self::Spell(spell) => write!(f, "srd spell {}", spell.get_name()),
+            Self::Spells => write!(f, "srd spells"),
+            Self::Item(item) => write!(f, "srd item {}", item.get_name()),
+            Self::ItemCategory(category) => write!(f, "srd item category {}", category.get_name()),
+            Self::MagicItem(item) => write!(f, "srd magic item {}", item.get_name()),
+            Self::OpenGameLicense => write!(f, "Open Game License"),
+        }
     }
 }
 
@@ -145,4 +186,35 @@ fn linkify_dice(input: &str) -> String {
 
     result.push_str(&hold);
     result
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::storage::NullDataStore;
+
+    #[test]
+    fn display_test() {
+        let app_meta = AppMeta::new(NullDataStore::default());
+
+        vec![
+            ReferenceCommand::Spell(Spell::Shield),
+            ReferenceCommand::Spells,
+            ReferenceCommand::Item(Item::Shield),
+            ReferenceCommand::ItemCategory(ItemCategory::Shields),
+            ReferenceCommand::MagicItem(MagicItem::DeckOfManyThings),
+            ReferenceCommand::OpenGameLicense,
+        ]
+        .drain(..)
+        .for_each(|command| {
+            let command_string = command.to_string();
+            assert_ne!("", command_string);
+            assert_eq!(
+                (Some(command), Vec::new()),
+                ReferenceCommand::parse_input(&command_string, &app_meta),
+                "{}",
+                command_string,
+            );
+        });
+    }
 }

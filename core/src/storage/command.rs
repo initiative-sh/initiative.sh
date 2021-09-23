@@ -2,6 +2,7 @@ use super::repository;
 use crate::app::{AppMeta, CommandAlias, Runnable};
 use crate::world::Thing;
 use async_trait::async_trait;
+use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StorageCommand {
@@ -135,29 +136,36 @@ impl Runnable for StorageCommand {
         }
     }
 
-    fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
-        if input.starts_with(char::is_uppercase) {
-            vec![Self::Load {
-                name: input.to_string(),
-            }]
-        } else if let Some(name) = input.strip_prefix("delete ") {
-            vec![Self::Delete {
-                name: name.to_string(),
-            }]
-        } else if let Some(name) = input.strip_prefix("load ") {
-            vec![Self::Load {
-                name: name.to_string(),
-            }]
-        } else if let Some(name) = input.strip_prefix("save ") {
-            vec![Self::Save {
-                name: name.to_string(),
-            }]
-        } else {
-            match input {
-                "journal" => vec![Self::Journal],
-                _ => Vec::new(),
-            }
-        }
+    fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        let mut fuzzy_matches = Vec::new();
+
+        (
+            if input.starts_with(char::is_uppercase) {
+                if repository::load(app_meta, input).is_some() {
+                    fuzzy_matches.push(Self::Load {
+                        name: input.to_string(),
+                    });
+                }
+                None
+            } else if let Some(name) = input.strip_prefix("delete ") {
+                Some(Self::Delete {
+                    name: name.to_string(),
+                })
+            } else if let Some(name) = input.strip_prefix("load ") {
+                Some(Self::Load {
+                    name: name.to_string(),
+                })
+            } else if let Some(name) = input.strip_prefix("save ") {
+                Some(Self::Save {
+                    name: name.to_string(),
+                })
+            } else if input == "journal" {
+                Some(Self::Journal)
+            } else {
+                None
+            },
+            fuzzy_matches,
+        )
     }
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
@@ -173,20 +181,14 @@ impl Runnable for StorageCommand {
             .filter_map(|s| {
                 let suggestion = format!("{} [name]", s);
                 Self::parse_input(&suggestion, app_meta)
-                    .drain(..)
-                    .next()
+                    .0
                     .map(|command| (suggestion, command))
             })
             .chain(
                 ["journal"]
                     .iter()
                     .filter(|s| s.starts_with(input))
-                    .filter_map(|s| {
-                        Self::parse_input(s, app_meta)
-                            .drain(..)
-                            .next()
-                            .map(|c| (s.to_string(), c))
-                    }),
+                    .filter_map(|s| Self::parse_input(s, app_meta).0.map(|c| (s.to_string(), c))),
             )
             .for_each(|(s, command)| result.push((s, command.summarize(None))));
 
@@ -223,9 +225,10 @@ impl Runnable for StorageCommand {
             })
             .filter_map(|(prefix, thing)| {
                 let suggestion = format!("{}{}", prefix, thing.name());
-                Self::parse_input(&suggestion, app_meta)
-                    .drain(..)
-                    .next()
+                let (exact_match, mut fuzzy_matches) = Self::parse_input(&suggestion, app_meta);
+
+                exact_match
+                    .or_else(|| fuzzy_matches.drain(..).next())
                     .map(|command| (suggestion, thing, command))
             })
             .take(10)
@@ -234,6 +237,17 @@ impl Runnable for StorageCommand {
             });
 
         result
+    }
+}
+
+impl fmt::Display for StorageCommand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            Self::Delete { name } => write!(f, "delete {}", name),
+            Self::Journal => write!(f, "journal"),
+            Self::Load { name } => write!(f, "load {}", name),
+            Self::Save { name } => write!(f, "save {}", name),
+        }
     }
 }
 
@@ -370,33 +384,37 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
-            vec![StorageCommand::Load {
-                name: "Gandalf the Grey".to_string()
-            }],
+            (Option::<StorageCommand>::None, Vec::new()),
             StorageCommand::parse_input("Gandalf the Grey", &app_meta),
         );
 
         assert_eq!(
-            vec![StorageCommand::Save {
-                name: "Gandalf the Grey".to_string()
-            }],
+            (
+                Some(StorageCommand::Save {
+                    name: "Gandalf the Grey".to_string()
+                }),
+                Vec::new(),
+            ),
             StorageCommand::parse_input("save Gandalf the Grey", &app_meta),
         );
 
         assert_eq!(
-            vec![StorageCommand::Load {
-                name: "Gandalf the Grey".to_string()
-            }],
+            (
+                Some(StorageCommand::Load {
+                    name: "Gandalf the Grey".to_string()
+                }),
+                Vec::new(),
+            ),
             StorageCommand::parse_input("load Gandalf the Grey", &app_meta),
         );
 
         assert_eq!(
-            vec![StorageCommand::Journal],
+            (Some(StorageCommand::Journal), Vec::new()),
             StorageCommand::parse_input("journal", &app_meta),
         );
 
         assert_eq!(
-            Vec::<StorageCommand>::new(),
+            (None, Vec::<StorageCommand>::new()),
             StorageCommand::parse_input("potato", &app_meta),
         );
     }
@@ -522,5 +540,34 @@ mod test {
 
         assert!(StorageCommand::autocomplete("p", &app_meta).is_empty());
         assert!(StorageCommand::autocomplete("", &app_meta).is_empty());
+    }
+
+    #[test]
+    fn display_test() {
+        let app_meta = AppMeta::new(NullDataStore::default());
+
+        vec![
+            StorageCommand::Delete {
+                name: "Potato Johnson".to_string(),
+            },
+            StorageCommand::Journal,
+            StorageCommand::Load {
+                name: "Potato Johnson".to_string(),
+            },
+            StorageCommand::Save {
+                name: "Potato Johnson".to_string(),
+            },
+        ]
+        .drain(..)
+        .for_each(|command| {
+            let command_string = command.to_string();
+            assert_ne!("", command_string);
+            assert_eq!(
+                (Some(command), Vec::new()),
+                StorageCommand::parse_input(&command_string, &app_meta),
+                "{}",
+                command_string,
+            );
+        });
     }
 }

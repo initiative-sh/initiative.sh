@@ -1,6 +1,7 @@
 use super::{Command, Runnable};
 use crate::app::AppMeta;
 use async_trait::async_trait;
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::mem;
 
@@ -55,13 +56,15 @@ impl Runnable for CommandAlias {
         result
     }
 
-    fn parse_input(input: &str, app_meta: &AppMeta) -> Vec<Self> {
-        app_meta
-            .command_aliases
-            .iter()
-            .filter(|c| c.term == input)
-            .cloned()
-            .collect()
+    fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        (
+            app_meta
+                .command_aliases
+                .iter()
+                .find(|c| c.term == input)
+                .cloned(),
+            Vec::new(),
+        )
     }
 
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
@@ -71,5 +74,11 @@ impl Runnable for CommandAlias {
             .filter(|c| c.term.starts_with(input))
             .map(|c| (c.term.clone(), c.summary.clone()))
             .collect()
+    }
+}
+
+impl fmt::Display for CommandAlias {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}", self.term)
     }
 }

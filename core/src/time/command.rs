@@ -1,6 +1,7 @@
 use super::Interval;
 use crate::app::{AppMeta, CommandAlias, Runnable};
 use async_trait::async_trait;
+use std::fmt;
 use std::iter;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -43,58 +44,69 @@ impl Runnable for TimeCommand {
             ))
         } else {
             match self {
-                Self::Add { interval } => Err(format!("Unable to advance time by {}.", interval)),
-                Self::Sub { interval } => Err(format!("Unable to rewind time by {}.", interval)),
+                Self::Add { interval } => Err(format!(
+                    "Unable to advance time by {}.",
+                    interval.display_long(),
+                )),
+                Self::Sub { interval } => Err(format!(
+                    "Unable to rewind time by {}.",
+                    interval.display_long(),
+                )),
                 Self::Now => unreachable!(),
             }
         }
     }
 
-    fn parse_input(input: &str, _app_meta: &AppMeta) -> Vec<Self> {
-        let mut result = Vec::new();
+    fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        let mut fuzzy_matches = Vec::new();
 
-        match input {
-            "now" | "time" | "date" => result.push(Self::Now),
-            s if s.starts_with('+') => {
-                if let Ok(interval) = input[1..].parse() {
-                    result.push(Self::Add { interval });
+        (
+            match input {
+                "now" => Some(Self::Now),
+                "time" | "date" => {
+                    fuzzy_matches.push(Self::Now);
+                    None
                 }
-            }
-            s if s.starts_with('-') => {
-                if let Ok(interval) = input[1..].parse() {
-                    result.push(Self::Sub { interval });
+                s if s.starts_with('+') => {
+                    if let Ok(interval) = input[1..].parse() {
+                        Some(Self::Add { interval })
+                    } else {
+                        None
+                    }
                 }
-            }
-            _ => {}
-        }
-
-        result
+                s if s.starts_with('-') => {
+                    if let Ok(interval) = input[1..].parse() {
+                        Some(Self::Sub { interval })
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            },
+            fuzzy_matches,
+        )
     }
 
     fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
         if input.starts_with(&['+', '-'][..]) {
-            let (prefix, suffix) = if let Some((index, _)) = input
-                .char_indices()
-                .skip(1)
-                .find(|(_, c)| !c.is_ascii_digit())
-            {
-                (&input[0..1], &input[index..])
-            } else {
-                (&input[0..1], "")
-            };
-
             let suggest = |suffix: &str| -> Result<(String, String), ()> {
                 let suggestion = format!("{}{}", input, suffix);
-                let description = if prefix == "+" {
-                    format!("advance time by {}", &suggestion[1..].parse::<Interval>()?)
+                let description = if input.starts_with('+') {
+                    format!(
+                        "advance time by {}",
+                        &suggestion[1..].parse::<Interval>()?.display_long(),
+                    )
                 } else {
-                    format!("rewind time by {}", &suggestion[1..].parse::<Interval>()?)
+                    format!(
+                        "rewind time by {}",
+                        &suggestion[1..].parse::<Interval>()?.display_long(),
+                    )
                 };
                 Ok((suggestion, description))
             };
 
             let suggest_all = || {
-                ["d", "h", "m", "s", "r"]
+                ["", "d", "h", "m", "s", "r"]
                     .iter()
                     .filter_map(|suffix| suggest(suffix).ok())
             };
@@ -111,14 +123,7 @@ impl Runnable for TimeCommand {
                 ))
                 .chain(suggest_all())
                 .collect(),
-                _ if suffix.is_empty() => suggest_all().collect(),
-                _ => {
-                    if let Ok(suggestion) = suggest("") {
-                        vec![suggestion]
-                    } else {
-                        Vec::new()
-                    }
-                }
+                _ => suggest_all().collect(),
             }
         } else if !input.is_empty() {
             ["now", "time", "date"]
@@ -132,10 +137,60 @@ impl Runnable for TimeCommand {
     }
 }
 
+impl fmt::Display for TimeCommand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            Self::Add { interval } => write!(f, "+{}", interval.display_short()),
+            Self::Now => write!(f, "now"),
+            Self::Sub { interval } => write!(f, "-{}", interval.display_short()),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::NullDataStore;
+
+    #[test]
+    fn parse_input_test() {
+        let app_meta = AppMeta::new(NullDataStore::default());
+
+        assert_eq!(
+            (
+                Some(TimeCommand::Add {
+                    interval: Interval::new(0, 0, 1, 0, 0),
+                }),
+                Vec::<TimeCommand>::new(),
+            ),
+            TimeCommand::parse_input("+1m", &app_meta),
+        );
+
+        assert_eq!(
+            (
+                Some(TimeCommand::Add {
+                    interval: Interval::new(1, 0, 0, 0, 0),
+                }),
+                Vec::<TimeCommand>::new(),
+            ),
+            TimeCommand::parse_input("+d", &app_meta),
+        );
+
+        assert_eq!(
+            (
+                Some(TimeCommand::Sub {
+                    interval: Interval::new(0, 10, 0, 0, 0),
+                }),
+                Vec::<TimeCommand>::new(),
+            ),
+            TimeCommand::parse_input("-10h", &app_meta),
+        );
+
+        assert_eq!(
+            (None, Vec::<TimeCommand>::new()),
+            TimeCommand::parse_input("1d2h", &app_meta),
+        );
+    }
 
     #[test]
     fn autocomplete_test() {
@@ -205,6 +260,19 @@ mod test {
         );
 
         assert_eq!(
+            [
+                ("+10d5h", "advance time by 10 days, 5 hours"),
+                ("+10d5m", "advance time by 10 days, 5 minutes"),
+                ("+10d5s", "advance time by 10 days, 5 seconds"),
+                ("+10d5r", "advance time by 10 days, 5 rounds"),
+            ]
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect::<Vec<_>>(),
+            TimeCommand::autocomplete("+10d5", &app_meta),
+        );
+
+        assert_eq!(
             vec![("+1d".to_string(), "advance time by 1 day".to_string())],
             TimeCommand::autocomplete("+1d", &app_meta),
         );
@@ -224,5 +292,31 @@ mod test {
             vec![("+1r".to_string(), "advance time by 1 round".to_string())],
             TimeCommand::autocomplete("+1r", &app_meta),
         );
+    }
+
+    #[test]
+    fn display_test() {
+        let app_meta = AppMeta::new(NullDataStore::default());
+
+        vec![
+            TimeCommand::Add {
+                interval: Interval::new(2, 3, 4, 5, 6),
+            },
+            TimeCommand::Now,
+            TimeCommand::Sub {
+                interval: Interval::new(2, 3, 4, 5, 6),
+            },
+        ]
+        .drain(..)
+        .for_each(|command| {
+            let command_string = command.to_string();
+            assert_ne!("", command_string);
+            assert_eq!(
+                (Some(command), Vec::new()),
+                TimeCommand::parse_input(&command_string, &app_meta),
+                "{}",
+                command_string,
+            );
+        });
     }
 }

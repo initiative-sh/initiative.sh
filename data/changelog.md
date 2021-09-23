@@ -1,3 +1,8 @@
+* **Enhancement:** Better behaviour if several names come into conflict, like in
+  the case of `Shield`, or the automated test that failed because it decided to
+  name a character `Lance`.
+* **Enhancement:** Added support for more complex time expressions, like
+  `+1d5h`.
 * **New:** Added a privacy policy outlining what personal information we
   collect. Currently: we don't, which is why we haven't had a privacy policy
   until now.
