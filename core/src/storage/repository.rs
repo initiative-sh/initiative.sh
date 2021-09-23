@@ -1,7 +1,7 @@
 use crate::app::AppMeta;
 use crate::{Thing, Uuid};
 
-pub async fn delete_by_name(app_meta: &mut AppMeta, name: &str) -> Result<String, String> {
+pub async fn delete_thing_by_name(app_meta: &mut AppMeta, name: &str) -> Result<String, String> {
     let lowercase_name = name.to_lowercase();
     let name_matches = |s: &String| s.to_lowercase() == lowercase_name;
 
@@ -17,7 +17,11 @@ pub async fn delete_by_name(app_meta: &mut AppMeta, name: &str) -> Result<String
 
     if let Some((uuid, thing_name)) = cached_thing {
         let (store_delete_success, cache_delete_success) = (
-            app_meta.data_store.delete(&uuid).await.is_ok(),
+            app_meta
+                .data_store
+                .delete_thing_by_uuid(&uuid)
+                .await
+                .is_ok(),
             app_meta.cache.remove(&uuid).is_some(),
         );
 
@@ -39,7 +43,7 @@ pub async fn delete_by_name(app_meta: &mut AppMeta, name: &str) -> Result<String
 }
 
 pub async fn init_cache(app_meta: &mut AppMeta) {
-    let things = app_meta.data_store.get_all().await;
+    let things = app_meta.data_store.get_all_the_things().await;
 
     if let Ok(mut things) = things {
         app_meta.cache = things
@@ -56,7 +60,7 @@ pub async fn init_cache(app_meta: &mut AppMeta) {
     }
 }
 
-pub fn load<'a>(app_meta: &'a AppMeta, name: &str) -> Option<&'a Thing> {
+pub fn load_thing_by_name<'a>(app_meta: &'a AppMeta, name: &str) -> Option<&'a Thing> {
     let lowercase_name = name.to_lowercase();
     app_meta
         .cache
@@ -69,11 +73,11 @@ pub fn load<'a>(app_meta: &'a AppMeta, name: &str) -> Option<&'a Thing> {
         })
 }
 
-pub fn load_all(app_meta: &AppMeta) -> impl Iterator<Item = &Thing> {
+pub fn load_all_the_things(app_meta: &AppMeta) -> impl Iterator<Item = &Thing> {
     app_meta.cache.values()
 }
 
-pub async fn save(app_meta: &mut AppMeta, name: &str) -> Result<String, String> {
+pub async fn save_thing_by_name(app_meta: &mut AppMeta, name: &str) -> Result<String, String> {
     let lowercase_name = name.to_lowercase();
     if let Some(mut thing) = app_meta.take_recent(|t| {
         t.name()
@@ -84,7 +88,7 @@ pub async fn save(app_meta: &mut AppMeta, name: &str) -> Result<String, String> 
 
         let result = app_meta
             .data_store
-            .save(&thing)
+            .save_thing(&thing)
             .await
             .map_err(|_| format!("Couldn't save `{}`", thing.name()))
             .map(|_| format!("Saving {}", thing.display_summary()));

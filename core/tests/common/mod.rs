@@ -40,7 +40,7 @@ impl SyncApp {
 
 #[async_trait(?Send)]
 impl DataStore for MemoryDataStore {
-    async fn delete(&mut self, uuid: &Uuid) -> Result<(), ()> {
+    async fn delete_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<(), ()> {
         let mut things = self.things.borrow_mut();
 
         if let Some((index, _)) = things
@@ -55,11 +55,11 @@ impl DataStore for MemoryDataStore {
         }
     }
 
-    async fn get_all(&self) -> Result<Vec<Thing>, ()> {
+    async fn get_all_the_things(&self) -> Result<Vec<Thing>, ()> {
         Ok(self.things.borrow().to_vec())
     }
 
-    async fn save(&mut self, thing: &Thing) -> Result<(), ()> {
+    async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()> {
         let mut things = self.things.borrow_mut();
         things.push(thing.clone());
         Ok(())
