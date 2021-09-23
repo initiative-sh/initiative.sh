@@ -6,24 +6,42 @@ pub struct NullDataStore;
 
 #[async_trait(?Send)]
 impl DataStore for NullDataStore {
-    async fn delete(&mut self, _uuid: &Uuid) -> Result<(), ()> {
+    async fn delete_thing_by_uuid(&mut self, _uuid: &Uuid) -> Result<(), ()> {
         Err(())
     }
 
-    async fn get_all(&self) -> Result<Vec<Thing>, ()> {
+    async fn get_all_the_things(&self) -> Result<Vec<Thing>, ()> {
         Err(())
     }
 
-    async fn save(&mut self, _thing: &Thing) -> Result<(), ()> {
+    async fn save_thing(&mut self, _thing: &Thing) -> Result<(), ()> {
+        Err(())
+    }
+
+    async fn set_value(&mut self, _key: &str, _value: &str) -> Result<(), ()> {
+        Err(())
+    }
+
+    async fn get_value(&self, _key: &str) -> Result<Option<String>, ()> {
+        Err(())
+    }
+
+    async fn delete_value(&mut self, _key: &str) -> Result<(), ()> {
         Err(())
     }
 }
 
 #[async_trait(?Send)]
 pub trait DataStore {
-    async fn delete(&mut self, uuid: &Uuid) -> Result<(), ()>;
+    async fn delete_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<(), ()>;
 
-    async fn get_all(&self) -> Result<Vec<Thing>, ()>;
+    async fn get_all_the_things(&self) -> Result<Vec<Thing>, ()>;
 
-    async fn save(&mut self, thing: &Thing) -> Result<(), ()>;
+    async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()>;
+
+    async fn set_value(&mut self, key: &str, value: &str) -> Result<(), ()>;
+
+    async fn get_value(&self, key: &str) -> Result<Option<String>, ()>;
+
+    async fn delete_value(&mut self, key: &str) -> Result<(), ()>;
 }

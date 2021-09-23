@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use initiative_core::{app, App, DataStore, Thing, Uuid};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 use tokio_test::block_on;
 
@@ -21,6 +22,7 @@ pub struct SyncApp(App);
 #[derive(Clone, Default)]
 pub struct MemoryDataStore {
     pub things: Rc<RefCell<Vec<Thing>>>,
+    pub key_values: Rc<RefCell<HashMap<String, String>>>,
 }
 
 #[allow(dead_code)]
@@ -40,7 +42,7 @@ impl SyncApp {
 
 #[async_trait(?Send)]
 impl DataStore for MemoryDataStore {
-    async fn delete(&mut self, uuid: &Uuid) -> Result<(), ()> {
+    async fn delete_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<(), ()> {
         let mut things = self.things.borrow_mut();
 
         if let Some((index, _)) = things
@@ -55,13 +57,30 @@ impl DataStore for MemoryDataStore {
         }
     }
 
-    async fn get_all(&self) -> Result<Vec<Thing>, ()> {
+    async fn get_all_the_things(&self) -> Result<Vec<Thing>, ()> {
         Ok(self.things.borrow().to_vec())
     }
 
-    async fn save(&mut self, thing: &Thing) -> Result<(), ()> {
+    async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()> {
         let mut things = self.things.borrow_mut();
         things.push(thing.clone());
+        Ok(())
+    }
+
+    async fn set_value(&mut self, key: &str, value: &str) -> Result<(), ()> {
+        let mut key_values = self.key_values.borrow_mut();
+        key_values.insert(key.to_string(), value.to_string());
+        Ok(())
+    }
+
+    async fn get_value(&self, key: &str) -> Result<Option<String>, ()> {
+        let key_values = self.key_values.borrow();
+        Ok(key_values.get(key).cloned())
+    }
+
+    async fn delete_value(&mut self, key: &str) -> Result<(), ()> {
+        let mut key_values = self.key_values.borrow_mut();
+        key_values.remove(key);
         Ok(())
     }
 }

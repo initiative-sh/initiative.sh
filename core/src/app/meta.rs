@@ -16,9 +16,9 @@ pub struct AppMeta {
     pub data_store_enabled: bool,
     pub demographics: world::Demographics,
     pub rng: SmallRng,
-    pub time: Time,
 
     recent: Vec<world::Thing>,
+    time: Time,
 }
 
 impl AppMeta {
@@ -74,6 +74,18 @@ impl AppMeta {
 
     pub fn recent(&self) -> &[world::Thing] {
         self.recent.as_ref()
+    }
+
+    pub async fn set_time(&mut self, time: Time) {
+        self.data_store
+            .set_value("time", &time.display_short().to_string())
+            .await
+            .ok();
+        self.time = time;
+    }
+
+    pub fn get_time(&self) -> &Time {
+        &self.time
     }
 }
 

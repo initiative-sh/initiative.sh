@@ -15,15 +15,20 @@ pub enum TimeCommand {
 impl Runnable for TimeCommand {
     async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
         let time = match self {
-            Self::Add { interval } => app_meta.time.checked_add(interval),
-            Self::Sub { interval } => app_meta.time.checked_sub(interval),
-            Self::Now => return Ok(format!("It is currently {}.", app_meta.time.display_long())),
+            Self::Add { interval } => app_meta.get_time().checked_add(interval),
+            Self::Sub { interval } => app_meta.get_time().checked_sub(interval),
+            Self::Now => {
+                return Ok(format!(
+                    "It is currently {}.",
+                    app_meta.get_time().display_long()
+                ))
+            }
         };
 
         if let Some(time) = time {
             app_meta.command_aliases.insert(CommandAlias::new(
                 "undo".to_string(),
-                format!("change time to {}", app_meta.time.display_short()),
+                format!("change time to {}", app_meta.get_time().display_short()),
                 match self {
                     Self::Add { interval } => Self::Sub {
                         interval: interval.clone(),
@@ -36,11 +41,11 @@ impl Runnable for TimeCommand {
                     Self::Now => unreachable!(),
                 },
             ));
-            app_meta.time = time;
+            app_meta.set_time(time).await;
 
             Ok(format!(
                 "It is now {}. Use ~undo~ to reverse.",
-                app_meta.time.display_long(),
+                app_meta.get_time().display_long(),
             ))
         } else {
             match self {

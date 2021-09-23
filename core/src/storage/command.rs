@@ -57,7 +57,7 @@ impl Runnable for StorageCommand {
                 let mut output = "# Journal".to_string();
                 let [mut npcs, mut locations, mut regions] = [Vec::new(), Vec::new(), Vec::new()];
 
-                let record_count = repository::load_all(app_meta)
+                let record_count = repository::load_all_the_things(app_meta)
                     .map(|thing| match thing {
                         Thing::Npc(_) => npcs.push(thing),
                         Thing::Location(_) => locations.push(thing),
@@ -97,10 +97,10 @@ impl Runnable for StorageCommand {
                     return Err("The journal is not supported by your browser.".to_string());
                 }
 
-                repository::delete_by_name(app_meta, name).await
+                repository::delete_thing_by_name(app_meta, name).await
             }
             Self::Load { name } => {
-                let thing = repository::load(app_meta, name);
+                let thing = repository::load_thing_by_name(app_meta, name);
                 let mut save_command = None;
                 let output = if let Some(thing) = thing {
                     if thing.uuid().is_none() && app_meta.data_store_enabled {
@@ -132,7 +132,7 @@ impl Runnable for StorageCommand {
 
                 output
             }
-            Self::Save { name } => repository::save(app_meta, name).await,
+            Self::Save { name } => repository::save_thing_by_name(app_meta, name).await,
         }
     }
 
@@ -141,7 +141,7 @@ impl Runnable for StorageCommand {
 
         (
             if input.starts_with(char::is_uppercase) {
-                if repository::load(app_meta, input).is_some() {
+                if repository::load_thing_by_name(app_meta, input).is_some() {
                     fuzzy_matches.push(Self::Load {
                         name: input.to_string(),
                     });

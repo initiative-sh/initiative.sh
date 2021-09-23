@@ -1,26 +1,52 @@
-import Dexie from "dexie";
+import Dexie from "dexie"
 
-const dexie = new Dexie("initiative");
+const dexie = new Dexie("initiative")
 
-dexie.version(1).stores({
+dexie.version(2).stores({
   things: "&uuid, name, type",
-});
+  keyValue: "&key",
+})
 
-const delete_by_uuid = async (uuid) => {
+const delete_thing_by_uuid = async (uuid) => {
   return dexie.things.delete(uuid)
     .then(() => true)
-    .catch(() => false);
-};
+    .catch(() => false)
+}
 
-const get_all = async () => {
+const get_all_the_things = async () => {
   return dexie.things.toArray()
-    .catch(() => {});
-};
+    .catch(() => {})
+}
 
-const save = async (thing) => {
+const save_thing = async (thing) => {
   return dexie.things.put(thing)
     .then(() => true)
-    .catch(() => false);
-};
+    .catch(() => false)
+}
 
-export { delete_by_uuid, get_all, save };
+const set_value = async (key, value) => {
+  return dexie.keyValue.put({key, value})
+    .then(() => true)
+    .catch(() => false)
+}
+
+const get_value = async (key) => {
+  return dexie.keyValue.get(key)
+    .then((result) => result.value)
+    .catch(() => false)
+}
+
+const delete_value = async (key) => {
+  return dexie.keyValue.delete(key)
+    .then(() => true)
+    .catch(() => false)
+}
+
+export {
+  delete_thing_by_uuid,
+  delete_value,
+  get_all_the_things,
+  get_value,
+  save_thing,
+  set_value,
+}
