@@ -32,6 +32,32 @@ impl initiative_core::DataStore for DataStore {
             Err(())
         }
     }
+
+    async fn set_value(&mut self, key: &str, value: &str) -> Result<(), ()> {
+        if set_value(key, value).await.is_truthy() {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    async fn get_value(&self, key: &str) -> Result<Option<String>, ()> {
+        let result = get_value(key).await;
+
+        if result.as_bool() == Some(false) {
+            Err(())
+        } else {
+            Ok(result.as_string())
+        }
+    }
+
+    async fn delete_value(&mut self, key: &str) -> Result<(), ()> {
+        if delete_value(key).await.is_truthy() {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
 }
 
 #[wasm_bindgen(module = "/js/database.js")]
@@ -41,4 +67,10 @@ extern "C" {
     async fn get_all_the_things() -> JsValue;
 
     async fn save_thing(thing: JsValue) -> JsValue;
+
+    async fn set_value(key: &str, value: &str) -> JsValue;
+
+    async fn get_value(key: &str) -> JsValue;
+
+    async fn delete_value(key: &str) -> JsValue;
 }
