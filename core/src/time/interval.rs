@@ -123,20 +123,28 @@ impl FromStr for Interval {
 impl<'a> fmt::Display for IntervalShortView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let interval = self.0;
-        let fields = [
+        let mut output = false;
+
+        [
             (interval.days, 'd'),
             (interval.hours, 'h'),
             (interval.minutes, 'm'),
             (interval.seconds, 's'),
             (interval.rounds, 'r'),
-        ];
+        ]
+        .iter()
+        .filter(|(value, _)| value > &0)
+        .try_for_each(|(value, name)| {
+            if output {
+                write!(f, " ")?;
+            } else {
+                output = true;
+            }
 
-        fields
-            .iter()
-            .filter(|(i, _)| i > &0)
-            .try_for_each(|(i, c)| write!(f, "{}{}", i, c))?;
+            write!(f, "{}{}", value, name)
+        })?;
 
-        if !fields.iter().any(|(i, _)| i > &0) {
+        if !output {
             write!(f, "0")?;
         }
 
@@ -147,26 +155,36 @@ impl<'a> fmt::Display for IntervalShortView<'a> {
 impl<'a> fmt::Display for IntervalLongView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let interval = self.0;
-        let mut first = true;
+        let mut output = false;
 
-        let mut w = |value: i32, name: &str| -> fmt::Result {
-            if value != 0 {
-                if !first {
-                    write!(f, ", ")?;
-                }
-
-                write!(f, "{} {}{}", value, name, if value == 1 { "" } else { "s" })?;
-                first = false;
+        [
+            (interval.days, "day"),
+            (interval.hours, "hour"),
+            (interval.minutes, "minute"),
+            (interval.seconds, "second"),
+            (interval.rounds, "round"),
+        ]
+        .iter()
+        .filter(|(value, _)| value > &0)
+        .try_for_each(|(value, name)| {
+            if output {
+                write!(f, ", ")?;
+            } else {
+                output = true;
             }
 
-            Ok(())
-        };
+            write!(
+                f,
+                "{} {}{}",
+                value,
+                name,
+                if value == &1 { "" } else { "s" }
+            )
+        })?;
 
-        w(interval.days, "day")?;
-        w(interval.hours, "hour")?;
-        w(interval.minutes, "minute")?;
-        w(interval.seconds, "second")?;
-        w(interval.rounds, "round")?;
+        if !output {
+            write!(f, "nuthin'")?;
+        }
 
         Ok(())
     }
@@ -231,7 +249,10 @@ mod test {
         assert_eq!("1r", rounds(1).display_short().to_string());
 
         assert_eq!("0", Interval::default().display_short().to_string());
-        assert_eq!("2d3h4m5s6r", i(2, 3, 4, 5, 6).display_short().to_string());
+        assert_eq!(
+            "2d 3h 4m 5s 6r",
+            i(2, 3, 4, 5, 6).display_short().to_string(),
+        );
     }
 
     #[test]
@@ -242,7 +263,7 @@ mod test {
         assert_eq!("1 second", seconds(1).display_long().to_string());
         assert_eq!("1 round", rounds(1).display_long().to_string());
 
-        assert_eq!("", Interval::default().display_long().to_string());
+        assert_eq!("nuthin'", Interval::default().display_long().to_string());
 
         assert_eq!(
             "2 days, 3 hours, 4 minutes, 5 seconds, 6 rounds",
