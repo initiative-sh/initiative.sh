@@ -79,19 +79,9 @@ impl Runnable for TimeCommand {
 
     fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
         if input.starts_with(&['+', '-'][..]) {
-            let (prefix, suffix) = if let Some((index, _)) = input
-                .char_indices()
-                .skip(1)
-                .find(|(_, c)| !c.is_ascii_digit())
-            {
-                (&input[0..1], &input[index..])
-            } else {
-                (&input[0..1], "")
-            };
-
             let suggest = |suffix: &str| -> Result<(String, String), ()> {
                 let suggestion = format!("{}{}", input, suffix);
-                let description = if prefix == "+" {
+                let description = if input.starts_with('+') {
                     format!(
                         "advance time by {}",
                         &suggestion[1..].parse::<Interval>()?.display_long(),
@@ -106,7 +96,7 @@ impl Runnable for TimeCommand {
             };
 
             let suggest_all = || {
-                ["d", "h", "m", "s", "r"]
+                ["", "d", "h", "m", "s", "r"]
                     .iter()
                     .filter_map(|suffix| suggest(suffix).ok())
             };
@@ -123,14 +113,7 @@ impl Runnable for TimeCommand {
                 ))
                 .chain(suggest_all())
                 .collect(),
-                _ if suffix.is_empty() => suggest_all().collect(),
-                _ => {
-                    if let Ok(suggestion) = suggest("") {
-                        vec![suggestion]
-                    } else {
-                        Vec::new()
-                    }
-                }
+                _ => suggest_all().collect(),
             }
         } else if !input.is_empty() {
             ["now", "time", "date"]
@@ -214,6 +197,19 @@ mod test {
             .map(|(a, b)| (a.to_string(), b.to_string()))
             .collect::<Vec<_>>(),
             TimeCommand::autocomplete("+10", &app_meta),
+        );
+
+        assert_eq!(
+            [
+                ("+10d5h", "advance time by 10 days, 5 hours"),
+                ("+10d5m", "advance time by 10 days, 5 minutes"),
+                ("+10d5s", "advance time by 10 days, 5 seconds"),
+                ("+10d5r", "advance time by 10 days, 5 rounds"),
+            ]
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect::<Vec<_>>(),
+            TimeCommand::autocomplete("+10d5", &app_meta),
         );
 
         assert_eq!(

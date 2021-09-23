@@ -2,6 +2,7 @@ pub use command::TimeCommand;
 
 mod command;
 
+use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fmt;
 use std::ops::AddAssign;
@@ -207,6 +208,7 @@ impl FromStr for Interval {
             "" => Err(()),
             "0" => Ok(Interval::default()),
             s => {
+                let mut used_chars = HashSet::new();
                 let mut interval = Interval::default();
 
                 s.split_inclusive(|c: char| !c.is_ascii_digit())
@@ -217,6 +219,10 @@ impl FromStr for Interval {
                         if part.is_empty() {
                             Ok(())
                         } else if let Some((part_index, c)) = part.char_indices().last() {
+                            if !used_chars.insert(c) {
+                                return Err(());
+                            }
+
                             let value = if part_index == 0 && raw_index == 0 {
                                 // Interpret input like "d" as "1d"
                                 1
@@ -457,12 +463,11 @@ mod test {
 
         assert_eq!(Ok(days(0)), "0d".parse());
         assert_eq!(Ok(days(1)), "01d".parse());
-        assert_eq!(Ok(days(3)), "2d1d".parse()); // Why not, I guess???
         assert_eq!(Ok(days(i32::MAX)), format!("{}d", i32::MAX).parse());
 
         assert_eq!(Ok(Interval::default()), "0".parse());
-        assert_eq!(Ok(i(2, 3, 4, 5, 6)), "2d3h4m5s6r".parse::<Interval>());
-        assert_eq!(Ok(i(2, 3, 4, 5, 6)), "2d 3h 4m 5s 6r".parse::<Interval>());
+        assert_eq!(Ok(i(2, 3, 4, 5, 6)), "2d3h4m5s6r".parse());
+        assert_eq!(Ok(i(2, 3, 4, 5, 6)), "2d 3h 4m 5s 6r".parse());
 
         assert_eq!(Err(()), format!("{}d", i64::MAX).parse::<Interval>());
         assert_eq!(Err(()), "".parse::<Interval>());
@@ -471,6 +476,7 @@ mod test {
         assert_eq!(Err(()), "-1d".parse::<Interval>());
         assert_eq!(Err(()), "2d3h4m5s6r7p".parse::<Interval>());
         assert_eq!(Err(()), "1dd".parse::<Interval>());
+        assert_eq!(Err(()), "2d1d".parse::<Interval>());
     }
 
     #[test]

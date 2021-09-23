@@ -1,3 +1,5 @@
+* **Enhancement:** Added support for more complex time expressions, like
+  `+1d5h`.
 * **New:** Added a privacy policy outlining what personal information we
   collect. Currently: we don't, which is why we haven't had a privacy policy
   until now.
