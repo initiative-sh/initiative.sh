@@ -1,3 +1,6 @@
+* **Enhancement:** Changes to the game `time` are now saved between sessions.
+  There's still some work to do before this feature is worth featuring more
+  prominently, but at least it's in a usable state now.
 * **Enhancement:** Better behaviour if several names come into conflict, like in
   the case of `Shield`, or the automated test that failed because it decided to
   name a character `Lance`.

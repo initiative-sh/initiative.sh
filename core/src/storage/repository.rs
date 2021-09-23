@@ -58,6 +58,12 @@ pub async fn init_cache(app_meta: &mut AppMeta) {
             .collect();
         app_meta.data_store_enabled = true;
     }
+
+    if let Ok(Some(time_str)) = app_meta.data_store.get_value("time").await {
+        if let Ok(time) = time_str.parse() {
+            app_meta.set_time(time).await;
+        }
+    }
 }
 
 pub fn load_thing_by_name<'a>(app_meta: &'a AppMeta, name: &str) -> Option<&'a Thing> {

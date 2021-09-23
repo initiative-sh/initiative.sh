@@ -77,6 +77,10 @@ impl AppMeta {
     }
 
     pub async fn set_time(&mut self, time: Time) {
+        self.data_store
+            .set_value("time", &time.display_short().to_string())
+            .await
+            .ok();
         self.time = time;
     }
 
