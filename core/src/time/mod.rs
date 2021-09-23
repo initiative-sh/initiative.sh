@@ -1,11 +1,11 @@
 pub use command::TimeCommand;
+pub use interval::Interval;
 
 mod command;
+mod interval;
 
-use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fmt;
-use std::ops::AddAssign;
 use std::str::FromStr;
 
 #[derive(Debug, Default, PartialEq)]
@@ -19,19 +19,6 @@ pub struct Time {
 pub struct TimeShortView<'a>(&'a Time);
 
 pub struct TimeLongView<'a>(&'a Time);
-
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Interval {
-    days: i32,
-    hours: i32,
-    minutes: i32,
-    seconds: i32,
-    rounds: i32,
-}
-
-pub struct IntervalShortView<'a>(&'a Interval);
-
-pub struct IntervalLongView<'a>(&'a Interval);
 
 impl Time {
     pub fn try_new(days: i32, hours: u8, minutes: u8, seconds: u8) -> Result<Self, ()> {
@@ -169,162 +156,6 @@ impl<'a> fmt::Display for TimeLongView<'a> {
     }
 }
 
-impl Interval {
-    pub fn new(days: i32, hours: i32, minutes: i32, seconds: i32, rounds: i32) -> Self {
-        Self {
-            days,
-            hours,
-            minutes,
-            seconds,
-            rounds,
-        }
-    }
-
-    pub fn days(days: i32) -> Self {
-        Self::new(days, 0, 0, 0, 0)
-    }
-
-    pub fn hours(hours: i32) -> Self {
-        Self::new(0, hours, 0, 0, 0)
-    }
-
-    pub fn minutes(minutes: i32) -> Self {
-        Self::new(0, 0, minutes, 0, 0)
-    }
-
-    pub fn seconds(seconds: i32) -> Self {
-        Self::new(0, 0, 0, seconds, 0)
-    }
-
-    pub fn rounds(rounds: i32) -> Self {
-        Self::new(0, 0, 0, 0, rounds)
-    }
-
-    pub fn display_short(&self) -> IntervalShortView {
-        IntervalShortView(self)
-    }
-
-    pub fn display_long(&self) -> IntervalLongView {
-        IntervalLongView(self)
-    }
-}
-
-impl AddAssign for Interval {
-    fn add_assign(&mut self, other: Self) {
-        self.days += other.days;
-        self.hours += other.hours;
-        self.minutes += other.minutes;
-        self.seconds += other.seconds;
-        self.rounds += other.rounds;
-    }
-}
-
-impl FromStr for Interval {
-    type Err = ();
-
-    fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        match raw.trim() {
-            "" => Err(()),
-            "0" => Ok(Interval::default()),
-            s => {
-                let mut used_chars = HashSet::new();
-                let mut interval = Interval::default();
-
-                s.split_inclusive(|c: char| !c.is_ascii_digit())
-                    .enumerate()
-                    .try_for_each(|(raw_index, s)| {
-                        let part = s.trim();
-
-                        if part.is_empty() {
-                            Ok(())
-                        } else if let Some((part_index, c)) = part.char_indices().last() {
-                            if !used_chars.insert(c) {
-                                return Err(());
-                            }
-
-                            let value = if part_index == 0 && raw_index == 0 {
-                                // Interpret input like "d" as "1d"
-                                1
-                            } else if part.starts_with(|c: char| c.is_ascii_digit()) {
-                                part[..part_index].parse().map_err(|_| ())?
-                            } else {
-                                // Don't accept "-1d", that's handled by the command parser
-                                return Err(());
-                            };
-
-                            match c {
-                                'd' => interval += Self::days(value),
-                                'h' => interval += Self::hours(value),
-                                'm' => interval += Self::minutes(value),
-                                's' => interval += Self::seconds(value),
-                                'r' => interval += Self::rounds(value),
-                                _ => return Err(()),
-                            }
-
-                            Ok(())
-                        } else {
-                            Err(())
-                        }
-                    })?;
-
-                Ok(interval)
-            }
-        }
-    }
-}
-
-impl<'a> fmt::Display for IntervalShortView<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let interval = self.0;
-        let fields = [
-            (interval.days, 'd'),
-            (interval.hours, 'h'),
-            (interval.minutes, 'm'),
-            (interval.seconds, 's'),
-            (interval.rounds, 'r'),
-        ];
-
-        fields
-            .iter()
-            .filter(|(i, _)| i > &0)
-            .try_for_each(|(i, c)| write!(f, "{}{}", i, c))?;
-
-        if !fields.iter().any(|(i, _)| i > &0) {
-            write!(f, "0")?;
-        }
-
-        Ok(())
-    }
-}
-
-impl<'a> fmt::Display for IntervalLongView<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let interval = self.0;
-        let mut first = true;
-
-        let mut w = |value: i32, name: &str| -> fmt::Result {
-            if value != 0 {
-                if !first {
-                    write!(f, ", ")?;
-                }
-
-                write!(f, "{} {}{}", value, name, if value == 1 { "" } else { "s" })?;
-                first = false;
-            }
-
-            Ok(())
-        };
-
-        w(interval.days, "day")?;
-        w(interval.hours, "hour")?;
-        w(interval.minutes, "minute")?;
-        w(interval.seconds, "second")?;
-        w(interval.rounds, "round")?;
-
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -342,83 +173,122 @@ mod test {
     fn time_checked_add_test() {
         assert_eq!(
             t(3, 6, 9, 12),
-            t(1, 2, 3, 4).checked_add(&i(2, 4, 6, 8, 0)).unwrap(),
+            t(1, 2, 3, 4)
+                .checked_add(&Interval::new(2, 4, 6, 8, 0))
+                .unwrap(),
         );
 
         assert_eq!(
             t(1, 1, 1, 1),
             Time::default()
-                .checked_add(&seconds(86400 + 3600 + 60 + 1))
+                .checked_add(&Interval::new_seconds(86400 + 3600 + 60 + 1))
                 .unwrap(),
         );
 
         assert_eq!(
             t(1, 1, 1, 0),
             Time::default()
-                .checked_add(&minutes(1440 + 60 + 1))
+                .checked_add(&Interval::new_minutes(1440 + 60 + 1))
                 .unwrap(),
         );
 
         assert_eq!(
             t(1, 1, 0, 0),
-            Time::default().checked_add(&hours(24 + 1)).unwrap(),
+            Time::default()
+                .checked_add(&Interval::new_hours(24 + 1))
+                .unwrap(),
         );
 
         assert_eq!(
             t(2, 0, 0, 0),
-            t(1, 23, 59, 59).checked_add(&seconds(1)).unwrap(),
+            t(1, 23, 59, 59)
+                .checked_add(&Interval::new_seconds(1))
+                .unwrap(),
         );
 
-        assert_eq!(t(0, 0, 0, 6), t0().checked_add(&rounds(1)).unwrap());
-        assert_eq!(t(0, 0, 1, 0), t0().checked_add(&rounds(10)).unwrap());
+        assert_eq!(
+            t(0, 0, 0, 6),
+            t0().checked_add(&Interval::new_rounds(1)).unwrap(),
+        );
+        assert_eq!(
+            t(0, 0, 1, 0),
+            t0().checked_add(&Interval::new_rounds(10)).unwrap(),
+        );
     }
 
     #[test]
     fn time_checked_add_test_limits() {
-        assert!(tmax().checked_add(&days(1)).is_none());
-        assert!(t1().checked_add(&days(i32::MAX - 1)).is_some());
-        assert!(t1().checked_add(&days(i32::MAX)).is_none());
+        assert!(tmax().checked_add(&Interval::new_days(1)).is_none());
+        assert!(t1()
+            .checked_add(&Interval::new_days(i32::MAX - 1))
+            .is_some());
+        assert!(t1().checked_add(&Interval::new_days(i32::MAX)).is_none());
 
-        assert!(tmax().checked_add(&hours(1)).is_none());
-        assert!(t1().checked_add(&hours(i32::MAX)).is_some());
+        assert!(tmax().checked_add(&Interval::new_hours(1)).is_none());
+        assert!(t1().checked_add(&Interval::new_hours(i32::MAX)).is_some());
 
-        assert!(tmax().checked_add(&minutes(1)).is_none());
-        assert!(t1().checked_add(&minutes(i32::MAX)).is_some());
+        assert!(tmax().checked_add(&Interval::new_minutes(1)).is_none());
+        assert!(t1().checked_add(&Interval::new_minutes(i32::MAX)).is_some());
 
-        assert!(tmax().checked_add(&seconds(1)).is_none());
-        assert!(t1().checked_add(&seconds(i32::MAX)).is_some());
+        assert!(tmax().checked_add(&Interval::new_seconds(1)).is_none());
+        assert!(t1().checked_add(&Interval::new_seconds(i32::MAX)).is_some());
 
-        assert!(tmax().checked_add(&rounds(1)).is_none());
-        assert!(t1().checked_add(&rounds(i32::MAX)).is_some());
+        assert!(tmax().checked_add(&Interval::new_rounds(1)).is_none());
+        assert!(t1().checked_add(&Interval::new_rounds(i32::MAX)).is_some());
     }
 
     #[test]
     fn time_checked_sub_test() {
-        assert_eq!(t(-1, 0, 0, 0), t0().checked_sub(&days(1)).unwrap());
+        assert_eq!(
+            t(-1, 0, 0, 0),
+            t0().checked_sub(&Interval::new_days(1)).unwrap(),
+        );
 
-        assert_eq!(t0(), t(0, 1, 0, 0).checked_sub(&hours(1)).unwrap());
-        assert_eq!(t(-1, 23, 0, 0), t0().checked_sub(&hours(1)).unwrap());
+        assert_eq!(
+            t0(),
+            t(0, 1, 0, 0).checked_sub(&Interval::new_hours(1)).unwrap(),
+        );
+        assert_eq!(
+            t(-1, 23, 0, 0),
+            t0().checked_sub(&Interval::new_hours(1)).unwrap(),
+        );
 
-        assert_eq!(t0(), t(0, 0, 1, 0).checked_sub(&minutes(1)).unwrap());
-        assert_eq!(t(-1, 23, 59, 0), t0().checked_sub(&minutes(1)).unwrap());
+        assert_eq!(
+            t0(),
+            t(0, 0, 1, 0)
+                .checked_sub(&Interval::new_minutes(1))
+                .unwrap(),
+        );
+        assert_eq!(
+            t(-1, 23, 59, 0),
+            t0().checked_sub(&Interval::new_minutes(1)).unwrap(),
+        );
 
-        assert_eq!(t0(), t(0, 0, 0, 1).checked_sub(&seconds(1)).unwrap());
-        assert_eq!(t(-1, 23, 59, 59), t0().checked_sub(&seconds(1)).unwrap());
+        assert_eq!(
+            t0(),
+            t(0, 0, 0, 1)
+                .checked_sub(&Interval::new_seconds(1))
+                .unwrap(),
+        );
+        assert_eq!(
+            t(-1, 23, 59, 59),
+            t0().checked_sub(&Interval::new_seconds(1)).unwrap(),
+        );
     }
 
     #[test]
     fn time_checked_sub_test_limits() {
-        assert!(t0().checked_sub(&days(i32::MAX)).is_some());
-        assert!(t0().checked_sub(&days(i32::MIN)).is_none());
+        assert!(t0().checked_sub(&Interval::new_days(i32::MAX)).is_some());
+        assert!(t0().checked_sub(&Interval::new_days(i32::MIN)).is_none());
 
-        assert!(t0().checked_sub(&hours(i32::MAX)).is_some());
-        assert!(t0().checked_sub(&hours(i32::MIN)).is_none());
+        assert!(t0().checked_sub(&Interval::new_hours(i32::MAX)).is_some());
+        assert!(t0().checked_sub(&Interval::new_hours(i32::MIN)).is_none());
 
-        assert!(t0().checked_sub(&minutes(i32::MAX)).is_some());
-        assert!(t0().checked_sub(&minutes(i32::MIN)).is_none());
+        assert!(t0().checked_sub(&Interval::new_minutes(i32::MAX)).is_some());
+        assert!(t0().checked_sub(&Interval::new_minutes(i32::MIN)).is_none());
 
-        assert!(t0().checked_sub(&seconds(i32::MAX)).is_some());
-        assert!(t0().checked_sub(&seconds(i32::MIN)).is_none());
+        assert!(t0().checked_sub(&Interval::new_seconds(i32::MAX)).is_some());
+        assert!(t0().checked_sub(&Interval::new_seconds(i32::MIN)).is_none());
     }
 
     #[test]
@@ -458,80 +328,6 @@ mod test {
         assert_eq!(Ok(t(1, 23, 59, 59)), "1:23:59:59".parse());
     }
 
-    #[test]
-    fn interval_new_test() {
-        assert_eq!(
-            i(100, 200, 300, 400, 500),
-            Interval::new(100, 200, 300, 400, 500),
-        );
-
-        assert_eq!(i(1, 0, 0, 0, 0), Interval::days(1));
-        assert_eq!(i(0, 1, 0, 0, 0), Interval::hours(1));
-        assert_eq!(i(0, 0, 1, 0, 0), Interval::minutes(1));
-        assert_eq!(i(0, 0, 0, 1, 0), Interval::seconds(1));
-        assert_eq!(i(0, 0, 0, 0, 1), Interval::rounds(1));
-    }
-
-    #[test]
-    fn interval_from_str_test() {
-        assert_eq!(Ok(days(10)), "10d".parse());
-        assert_eq!(Ok(hours(10)), "10h".parse());
-        assert_eq!(Ok(minutes(10)), "10m".parse());
-        assert_eq!(Ok(seconds(10)), "10s".parse());
-        assert_eq!(Ok(rounds(10)), "10r".parse());
-
-        assert_eq!(Ok(days(1)), "d".parse());
-        assert_eq!(Ok(hours(1)), "h".parse());
-        assert_eq!(Ok(minutes(1)), "m".parse());
-        assert_eq!(Ok(seconds(1)), "s".parse());
-        assert_eq!(Ok(rounds(1)), "r".parse());
-
-        assert_eq!(Ok(days(0)), "0d".parse());
-        assert_eq!(Ok(days(1)), "01d".parse());
-        assert_eq!(Ok(days(i32::MAX)), format!("{}d", i32::MAX).parse());
-
-        assert_eq!(Ok(Interval::default()), "0".parse());
-        assert_eq!(Ok(i(2, 3, 4, 5, 6)), "2d3h4m5s6r".parse());
-        assert_eq!(Ok(i(2, 3, 4, 5, 6)), "2d 3h 4m 5s 6r".parse());
-
-        assert_eq!(Err(()), format!("{}d", i64::MAX).parse::<Interval>());
-        assert_eq!(Err(()), "".parse::<Interval>());
-        assert_eq!(Err(()), "1 d".parse::<Interval>());
-        assert_eq!(Err(()), "1a".parse::<Interval>());
-        assert_eq!(Err(()), "-1d".parse::<Interval>());
-        assert_eq!(Err(()), "2d3h4m5s6r7p".parse::<Interval>());
-        assert_eq!(Err(()), "1dd".parse::<Interval>());
-        assert_eq!(Err(()), "2d1d".parse::<Interval>());
-    }
-
-    #[test]
-    fn interval_display_short_test() {
-        assert_eq!("1d", days(1).display_short().to_string());
-        assert_eq!("1h", hours(1).display_short().to_string());
-        assert_eq!("1m", minutes(1).display_short().to_string());
-        assert_eq!("1s", seconds(1).display_short().to_string());
-        assert_eq!("1r", rounds(1).display_short().to_string());
-
-        assert_eq!("0", Interval::default().display_short().to_string());
-        assert_eq!("2d3h4m5s6r", i(2, 3, 4, 5, 6).display_short().to_string());
-    }
-
-    #[test]
-    fn interval_display_long_test() {
-        assert_eq!("1 day", days(1).display_long().to_string());
-        assert_eq!("1 hour", hours(1).display_long().to_string());
-        assert_eq!("1 minute", minutes(1).display_long().to_string());
-        assert_eq!("1 second", seconds(1).display_long().to_string());
-        assert_eq!("1 round", rounds(1).display_long().to_string());
-
-        assert_eq!("", Interval::default().display_long().to_string());
-
-        assert_eq!(
-            "2 days, 3 hours, 4 minutes, 5 seconds, 6 rounds",
-            i(2, 3, 4, 5, 6).display_long().to_string(),
-        );
-    }
-
     fn t(days: i32, hours: u8, minutes: u8, seconds: u8) -> Time {
         Time {
             days,
@@ -551,35 +347,5 @@ mod test {
 
     fn tmax() -> Time {
         t(i32::MAX, 23, 59, 59)
-    }
-
-    fn i(days: i32, hours: i32, minutes: i32, seconds: i32, rounds: i32) -> Interval {
-        Interval {
-            days,
-            hours,
-            minutes,
-            seconds,
-            rounds,
-        }
-    }
-
-    fn days(days: i32) -> Interval {
-        i(days, 0, 0, 0, 0)
-    }
-
-    fn hours(hours: i32) -> Interval {
-        i(0, hours, 0, 0, 0)
-    }
-
-    fn minutes(minutes: i32) -> Interval {
-        i(0, 0, minutes, 0, 0)
-    }
-
-    fn seconds(seconds: i32) -> Interval {
-        i(0, 0, 0, seconds, 0)
-    }
-
-    fn rounds(rounds: i32) -> Interval {
-        i(0, 0, 0, 0, rounds)
     }
 }
