@@ -71,11 +71,44 @@ impl<T: Into<CommandType>> From<(Option<T>, Vec<T>)> for Command {
 impl Runnable for Command {
     async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
         if let Some(command) = &self.exact_match {
-            command.run(app_meta).await
-        } else if let Some(command) = self.fuzzy_matches.first() {
-            command.run(app_meta).await
+            let mut result = command.run(app_meta).await;
+            if !self.fuzzy_matches.is_empty() {
+                let f = |mut message: String| -> String {
+                    message.push_str("\n\n! There are other possible interpretations of this command. Did you mean:\n");
+                    let mut lines: Vec<_> = self
+                        .fuzzy_matches
+                        .iter()
+                        .map(|command| format!("\n* `{}`", command))
+                        .collect();
+                    lines.sort();
+                    lines.drain(..).for_each(|line| message.push_str(&line));
+                    message
+                };
+
+                result = match result {
+                    Ok(s) => Ok(f(s)),
+                    Err(s) => Err(f(s)),
+                };
+            }
+            result
         } else {
-            Err(format!("Unknown command: \"{}\"", self.input))
+            match self.fuzzy_matches.len() {
+                0 => Err(format!("Unknown command: \"{}\"", self.input)),
+                1 => self.fuzzy_matches.first().unwrap().run(app_meta).await,
+                _ => {
+                    let mut message =
+                        "There are several possible interpretations of this command. Did you mean:\n"
+                            .to_string();
+                    let mut lines: Vec<_> = self
+                        .fuzzy_matches
+                        .iter()
+                        .map(|command| format!("\n* `{}`", command))
+                        .collect();
+                    lines.sort();
+                    lines.drain(..).for_each(|line| message.push_str(&line));
+                    Err(message)
+                }
+            }
         }
     }
 
@@ -210,9 +243,7 @@ mod test {
                     Command::with_input("Open Game License").union(
                         (
                             Some(CommandType::Reference(ReferenceCommand::OpenGameLicense)),
-                            vec![CommandType::Storage(StorageCommand::Load {
-                                name: "Open Game License".to_string()
-                            })],
+                            Vec::new(),
                         )
                             .into()
                     )
@@ -225,15 +256,8 @@ mod test {
         assert_eq!(
             (
                 Some(
-                    Command::with_input("Gandalf the Grey").union(
-                        (
-                            None,
-                            vec![CommandType::Storage(StorageCommand::Load {
-                                name: "Gandalf the Grey".to_string(),
-                            })],
-                        )
-                            .into()
-                    )
+                    Command::with_input("Gandalf the Grey")
+                        .union((Option::<StorageCommand>::None, Vec::new()).into())
                 ),
                 Vec::new(),
             ),

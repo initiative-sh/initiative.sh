@@ -67,7 +67,9 @@ impl Runnable for AppCommand {
                 "debug" => Some(Self::Debug),
                 "help" => Some(Self::Help),
                 s if s.starts_with("roll ") => Some(Self::Roll(s[5..].to_string())),
-                s if Roller::new(s).map_or(false, |r| r.roll().is_ok()) => {
+                s if !s.chars().all(|c| c.is_ascii_digit())
+                    && Roller::new(s).map_or(false, |r| r.roll().is_ok()) =>
+                {
                     fuzzy_matches.push(Self::Roll(s.to_string()));
                     None
                 }

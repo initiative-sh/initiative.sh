@@ -136,14 +136,16 @@ impl Runnable for StorageCommand {
         }
     }
 
-    fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+    fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut fuzzy_matches = Vec::new();
 
         (
             if input.starts_with(char::is_uppercase) {
-                fuzzy_matches.push(Self::Load {
-                    name: input.to_string(),
-                });
+                if repository::load(app_meta, input).is_some() {
+                    fuzzy_matches.push(Self::Load {
+                        name: input.to_string(),
+                    });
+                }
                 None
             } else if let Some(name) = input.strip_prefix("delete ") {
                 Some(Self::Delete {
@@ -382,12 +384,7 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
-            (
-                None,
-                vec![StorageCommand::Load {
-                    name: "Gandalf the Grey".to_string()
-                }],
-            ),
+            (Option::<StorageCommand>::None, Vec::new()),
             StorageCommand::parse_input("Gandalf the Grey", &app_meta),
         );
 

@@ -40,7 +40,7 @@ marked.use({
       level: "block",
       start: (src) => src.match(/^! /)?.index,
       tokenizer: function (src, tokens) {
-        const match = /^! (.+)$/.exec(src);
+        const match = /^! (.+)/.exec(src);
         if (match) {
           const token = {
             type: "error",
