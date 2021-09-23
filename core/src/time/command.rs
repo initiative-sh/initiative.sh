@@ -43,8 +43,14 @@ impl Runnable for TimeCommand {
             ))
         } else {
             match self {
-                Self::Add { interval } => Err(format!("Unable to advance time by {}.", interval)),
-                Self::Sub { interval } => Err(format!("Unable to rewind time by {}.", interval)),
+                Self::Add { interval } => Err(format!(
+                    "Unable to advance time by {}.",
+                    interval.display_long(),
+                )),
+                Self::Sub { interval } => Err(format!(
+                    "Unable to rewind time by {}.",
+                    interval.display_long(),
+                )),
                 Self::Now => unreachable!(),
             }
         }
@@ -86,9 +92,15 @@ impl Runnable for TimeCommand {
             let suggest = |suffix: &str| -> Result<(String, String), ()> {
                 let suggestion = format!("{}{}", input, suffix);
                 let description = if prefix == "+" {
-                    format!("advance time by {}", &suggestion[1..].parse::<Interval>()?)
+                    format!(
+                        "advance time by {}",
+                        &suggestion[1..].parse::<Interval>()?.display_long(),
+                    )
                 } else {
-                    format!("rewind time by {}", &suggestion[1..].parse::<Interval>()?)
+                    format!(
+                        "rewind time by {}",
+                        &suggestion[1..].parse::<Interval>()?.display_long(),
+                    )
                 };
                 Ok((suggestion, description))
             };
