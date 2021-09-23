@@ -120,6 +120,25 @@ impl Time {
     }
 }
 
+impl FromStr for Time {
+    type Err = ();
+
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        let mut parts = raw.split(':');
+
+        let days = parts.next().ok_or(())?.parse().map_err(|_| ())?;
+        let hours = parts.next().ok_or(())?.parse().map_err(|_| ())?;
+        let minutes = parts.next().ok_or(())?.parse().map_err(|_| ())?;
+        let seconds = parts.next().ok_or(())?.parse().map_err(|_| ())?;
+
+        if parts.next().is_none() {
+            Time::try_new(days, hours, minutes, seconds)
+        } else {
+            Err(())
+        }
+    }
+}
+
 impl<'a> fmt::Display for TimeShortView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let time = self.0;
@@ -431,6 +450,12 @@ mod test {
             "day 5 at 11:59:59 pm",
             t(5, 23, 59, 59).display_long().to_string(),
         );
+    }
+
+    #[test]
+    fn time_from_str_test() {
+        assert_eq!(Ok(t(1, 2, 3, 4)), "1:02:03:04".parse());
+        assert_eq!(Ok(t(1, 23, 59, 59)), "1:23:59:59".parse());
     }
 
     #[test]
