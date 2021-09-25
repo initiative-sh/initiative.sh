@@ -183,7 +183,9 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-outputElement.addEventListener("click", async (event) => {
+window.addEventListener("click", async (event) => {
+  promptElement.focus();
+
   if (event.target.nodeName === "CODE") {
     await runCommand(event.target.innerText);
   }
