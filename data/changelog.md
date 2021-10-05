@@ -1,3 +1,5 @@
+* **Enhancement:** On mobile, the keyboard will no longer pop up when clicking a
+  link.
 * **Enhancement:** Input field is now focused whenever you click or tap anywhere
   on the page, improving the "stickiness" of the experience, especially on
   mobile.
