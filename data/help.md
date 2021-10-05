@@ -10,7 +10,7 @@ situation. You can see more details about an alternative by typing its name or
 the number listed next to it.
 
 * `npc` (`human`, `elf`, etc.)
-* `building` (`inn`, `temple`, etc.)
+* `building` (`inn`)
 
 Proper (capitalized) nouns will give you existing people, places, or reference
 items from the 5th edition D&D Systems Reference Document. For instance:
