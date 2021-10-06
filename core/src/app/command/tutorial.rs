@@ -8,6 +8,7 @@ pub enum TutorialCommand {
     Introduction,
     Inn,
     Save,
+    Npc { inn_name: String },
 }
 
 #[async_trait(?Send)]
@@ -32,8 +33,10 @@ impl Runnable for TutorialCommand {
                 Ok(include_str!("../../../../data/tutorial/01-inn.md").to_string()),
                 Some(Self::Save),
             ),
-            Self::Save if input == "inn" => (
-                input_command.run(input, app_meta).await.map(|mut output| {
+            Self::Save if input == "inn" => {
+                let command_output = input_command.run(input, app_meta).await;
+
+                if let Ok(mut output) = command_output {
                     let inn_name = output
                         .lines()
                         .next()
@@ -45,10 +48,26 @@ impl Runnable for TutorialCommand {
                         include_str!("../../../../data/tutorial/02-save.md"),
                         inn_name = inn_name,
                     ));
-                    output
-                }),
-                None,
-            ),
+
+                    (Ok(output), Some(Self::Npc { inn_name }))
+                } else {
+                    (command_output, Some(self.clone()))
+                }
+            }
+            Self::Npc { inn_name }
+                if input == "save"
+                    || (input.starts_with("save ")
+                        && input.ends_with(inn_name.as_str())
+                        && input.len() == "save ".len() + inn_name.len()) =>
+            {
+                (
+                    input_command.run(input, app_meta).await.map(|mut output| {
+                        output.push_str(include_str!("../../../../data/tutorial/03-npc.md"));
+                        output
+                    }),
+                    None,
+                )
+            }
             _ => (
                 Ok(include_str!("../../../../data/tutorial/xx-still-active.md").to_string()),
                 Some(self.clone()),

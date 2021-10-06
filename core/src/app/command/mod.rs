@@ -142,7 +142,7 @@ pub enum CommandType {
 
 impl CommandType {
     async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
-        if !matches!(self, Self::Alias(_)) {
+        if !matches!(self, Self::Alias(_) | Self::Tutorial(_)) {
             app_meta.command_aliases.clear();
         }
 
