@@ -44,6 +44,10 @@ pub enum TutorialCommand {
         npc_gender: Gender,
         npc_name: String,
     },
+    Delete {
+        npc_gender: Gender,
+        npc_name: String,
+    },
 }
 
 #[async_trait(?Send)]
@@ -293,6 +297,24 @@ impl Runnable for TutorialCommand {
                         include_str!("../../../../data/tutorial/10-roll.md"),
                         npc_name = npc_name,
                         theyve = npc_gender.theyve(),
+                    ));
+                    output
+                }),
+                Some(Self::Delete {
+                    npc_gender: *npc_gender,
+                    npc_name: npc_name.clone(),
+                }),
+            ),
+            Self::Delete {
+                npc_gender,
+                npc_name,
+            } if input == "d20+4" => (
+                input_command.run(input, app_meta).await.map(|mut output| {
+                    output.push_str(&format!(
+                        include_str!("../../../../data/tutorial/11-delete.md"),
+                        npc_name = npc_name,
+                        them = npc_gender.them(),
+                        they_cap = npc_gender.they_cap(),
                     ));
                     output
                 }),
