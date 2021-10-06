@@ -11,7 +11,7 @@ pub enum TutorialCommand {
 
 #[async_trait(?Send)]
 impl Runnable for TutorialCommand {
-    async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         let (result, next_command) = match self {
             Self::Introduction => {
                 app_meta.command_aliases.insert(CommandAlias::literal(
@@ -25,20 +25,15 @@ impl Runnable for TutorialCommand {
                     Some(Self::Inn),
                 )
             }
-            Self::Inn => (
+            Self::Inn if input == "next" => (
                 Ok(include_str!("../../../../data/tutorial/01-inn.md").to_string()),
                 None,
             ),
+            _ => (
+                Ok(include_str!("../../../../data/tutorial/xx-still-active.md").to_string()),
+                Some(self.clone()),
+            ),
         };
-        /*
-        Command::parse_input_irrefutable(input, app_meta)
-            .run(input, app_meta)
-            .await
-            .map(|mut output| {
-                output.push_str("\n\n## Tutorial");
-                output
-            })
-        */
 
         if let Some(command) = next_command {
             app_meta
