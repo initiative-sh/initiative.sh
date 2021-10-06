@@ -14,24 +14,14 @@ use crate::world::WorldCommand;
 use async_trait::async_trait;
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Command {
-    input: String,
     exact_match: Option<CommandType>,
     fuzzy_matches: Vec<CommandType>,
 }
 
 impl Command {
-    pub fn with_input(input: &str) -> Self {
-        Self {
-            input: input.to_string(),
-            exact_match: None,
-            fuzzy_matches: Vec::new(),
-        }
-    }
-
     fn union(mut self, mut other: Self) -> Self {
-        let input = self.input;
         let exact_match = self.exact_match.or(other.exact_match);
         let fuzzy_matches = self
             .fuzzy_matches
@@ -40,14 +30,13 @@ impl Command {
             .collect();
 
         Self {
-            input,
             exact_match,
             fuzzy_matches,
         }
     }
 
     pub fn parse_input_irrefutable(input: &str, app_meta: &AppMeta) -> Self {
-        Command::with_input(input)
+        Command::default()
             .union(CommandAlias::parse_input(input, app_meta).into())
             .union(AppCommand::parse_input(input, app_meta).into())
             .union(ReferenceCommand::parse_input(input, app_meta).into())
@@ -60,7 +49,6 @@ impl Command {
 impl<T: Into<CommandType>> From<(Option<T>, Vec<T>)> for Command {
     fn from(mut input: (Option<T>, Vec<T>)) -> Self {
         Self {
-            input: String::new(),
             exact_match: input.0.map(|c| c.into()),
             fuzzy_matches: input.1.drain(..).map(|c| c.into()).collect(),
         }
@@ -93,7 +81,7 @@ impl Runnable for Command {
             result
         } else {
             match self.fuzzy_matches.len() {
-                0 => Err(format!("Unknown command: \"{}\"", self.input)),
+                0 => Err(format!("Unknown command: \"{}\"", input)),
                 1 => {
                     self.fuzzy_matches
                         .first()
@@ -180,7 +168,6 @@ impl fmt::Display for CommandType {
 impl<T: Into<CommandType>> From<T> for Command {
     fn from(c: T) -> Command {
         Command {
-            input: String::new(),
             exact_match: Some(c.into()),
             fuzzy_matches: Vec::new(),
         }
@@ -235,7 +222,7 @@ mod test {
         assert_eq!(
             (
                 Some(
-                    Command::with_input("about")
+                    Command::default()
                         .union((Some(CommandType::App(AppCommand::About)), Vec::new()).into())
                 ),
                 Vec::new(),
@@ -246,7 +233,7 @@ mod test {
         assert_eq!(
             (
                 Some(
-                    Command::with_input("Open Game License").union(
+                    Command::default().union(
                         (
                             Some(CommandType::Reference(ReferenceCommand::OpenGameLicense)),
                             Vec::new(),
@@ -261,10 +248,7 @@ mod test {
 
         assert_eq!(
             (
-                Some(
-                    Command::with_input("Gandalf the Grey")
-                        .union((Option::<StorageCommand>::None, Vec::new()).into())
-                ),
+                Some(Command::default().union((Option::<StorageCommand>::None, Vec::new()).into())),
                 Vec::new(),
             ),
             Command::parse_input("Gandalf the Grey", &app_meta),
@@ -273,7 +257,7 @@ mod test {
         assert_eq!(
             (
                 Some(
-                    Command::with_input("npc").union(
+                    Command::default().union(
                         (
                             Some(CommandType::World(WorldCommand::Npc { species: None })),
                             Vec::new(),
