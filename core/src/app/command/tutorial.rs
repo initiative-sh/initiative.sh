@@ -1,4 +1,4 @@
-use super::{CommandAlias, Runnable};
+use super::{Command, CommandAlias, Runnable};
 use crate::app::AppMeta;
 use async_trait::async_trait;
 use std::fmt;
@@ -7,11 +7,14 @@ use std::fmt;
 pub enum TutorialCommand {
     Introduction,
     Inn,
+    Save,
 }
 
 #[async_trait(?Send)]
 impl Runnable for TutorialCommand {
     async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+        let input_command = Command::parse_input_irrefutable(input, app_meta);
+
         let (result, next_command) = match self {
             Self::Introduction => {
                 app_meta.command_aliases.insert(CommandAlias::literal(
@@ -27,6 +30,23 @@ impl Runnable for TutorialCommand {
             }
             Self::Inn if input == "next" => (
                 Ok(include_str!("../../../../data/tutorial/01-inn.md").to_string()),
+                Some(Self::Save),
+            ),
+            Self::Save if input == "inn" => (
+                input_command.run(input, app_meta).await.map(|mut output| {
+                    let inn_name = output
+                        .lines()
+                        .next()
+                        .unwrap()
+                        .trim_start_matches(&[' ', '#'][..])
+                        .to_string();
+
+                    output.push_str(&format!(
+                        include_str!("../../../../data/tutorial/02-save.md"),
+                        inn_name = inn_name,
+                    ));
+                    output
+                }),
                 None,
             ),
             _ => (
