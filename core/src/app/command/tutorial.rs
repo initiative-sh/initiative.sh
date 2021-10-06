@@ -21,9 +21,15 @@ pub enum TutorialCommand {
         npc_gender: Gender,
     },
     Journal {
+        npc_gender: Gender,
         npc_name: String,
     },
     LoadByName {
+        npc_gender: Gender,
+        npc_name: String,
+    },
+    Spell {
+        npc_gender: Gender,
         npc_name: String,
     },
 }
@@ -165,6 +171,7 @@ impl Runnable for TutorialCommand {
                     (
                         Ok(output),
                         Some(Self::Journal {
+                            npc_gender: *npc_gender,
                             npc_name: npc_name.clone(),
                         }),
                     )
@@ -172,11 +179,13 @@ impl Runnable for TutorialCommand {
                     (command_output, Some(self.clone()))
                 }
             }
-            Self::Journal { npc_name }
-                if input == "save"
-                    || (input.starts_with("save ")
-                        && input.ends_with(npc_name.as_str())
-                        && input.len() == "save ".len() + npc_name.len()) =>
+            Self::Journal {
+                npc_gender,
+                npc_name,
+            } if input == "save"
+                || (input.starts_with("save ")
+                    && input.ends_with(npc_name.as_str())
+                    && input.len() == "save ".len() + npc_name.len()) =>
             {
                 (
                     input_command.run(input, app_meta).await.map(|mut output| {
@@ -184,11 +193,15 @@ impl Runnable for TutorialCommand {
                         output
                     }),
                     Some(Self::LoadByName {
+                        npc_gender: *npc_gender,
                         npc_name: npc_name.clone(),
                     }),
                 )
             }
-            Self::LoadByName { npc_name } if input == "journal" => (
+            Self::LoadByName {
+                npc_gender,
+                npc_name,
+            } if input == "journal" => (
                 input_command.run(input, app_meta).await.map(|mut output| {
                     output.push_str(&format!(
                         include_str!("../../../../data/tutorial/07-load-by-name.md"),
@@ -196,8 +209,32 @@ impl Runnable for TutorialCommand {
                     ));
                     output
                 }),
-                None,
+                Some(Self::Spell {
+                    npc_gender: *npc_gender,
+                    npc_name: npc_name.clone(),
+                }),
             ),
+            Self::Spell {
+                npc_gender,
+                npc_name,
+            } if input == npc_name
+                || (input.starts_with("load ")
+                    && input.ends_with(npc_name.as_str())
+                    && input.len() == "load ".len() + npc_name.len()) => {
+                (
+                    input_command.run(input, app_meta).await.map(|mut output| {
+                        output.push_str(&format!(
+                            include_str!("../../../../data/tutorial/08-spell.md"),
+                            npc_name = npc_name,
+                            their = npc_gender.their(),
+                            them = npc_gender.them(),
+                            theyre_cap = npc_gender.theyre_cap(),
+                        ));
+                        output
+                    }),
+                    None,
+                )
+            }
             _ => (
                 Ok(include_str!("../../../../data/tutorial/xx-still-active.md").to_string()),
                 Some(self.clone()),
