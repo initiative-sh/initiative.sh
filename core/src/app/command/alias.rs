@@ -108,3 +108,105 @@ impl fmt::Display for CommandAlias {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::{AppCommand, Command};
+    use crate::storage::NullDataStore;
+    use std::collections::HashSet;
+    use tokio_test::block_on;
+
+    #[test]
+    fn literal_test() {
+        let alias = CommandAlias::literal(
+            "term".to_string(),
+            "summary".to_string(),
+            AppCommand::About.into(),
+        );
+
+        if let CommandAlias::Literal {
+            term,
+            summary,
+            command,
+        } = alias
+        {
+            assert_eq!("term", term);
+            assert_eq!("summary", summary);
+            assert_eq!(Box::new(Command::from(AppCommand::About)), command);
+        } else {
+            panic!("{:?}", alias);
+        }
+    }
+
+    #[test]
+    fn eq_test() {
+        assert_eq!(
+            literal("foo", "foo", AppCommand::About.into()),
+            literal("foo", "bar", AppCommand::Help.into()),
+        );
+        assert_ne!(
+            literal("foo", "foo", AppCommand::About.into()),
+            literal("bar", "foo", AppCommand::About.into()),
+        );
+    }
+
+    #[test]
+    fn hash_test() {
+        let mut set = HashSet::with_capacity(2);
+
+        assert!(set.insert(literal("foo", "", AppCommand::About.into())));
+        assert!(set.insert(literal("bar", "", AppCommand::About.into())));
+        assert!(!set.insert(literal("foo", "", AppCommand::Help.into())));
+    }
+
+    #[test]
+    fn runnable_test() {
+        let about_alias = literal("about alias", "about summary", AppCommand::About.into());
+
+        let mut app_meta = AppMeta::new(NullDataStore::default());
+        app_meta.command_aliases.insert(about_alias.clone());
+        app_meta.command_aliases.insert(literal(
+            "help alias",
+            "help summary",
+            AppCommand::Help.into(),
+        ));
+
+        assert_eq!(
+            vec![("about alias".to_string(), "about summary".to_string())],
+            CommandAlias::autocomplete("a", &app_meta),
+        );
+
+        assert_eq!(
+            (None, Vec::new()),
+            CommandAlias::parse_input("blah", &app_meta),
+        );
+
+        {
+            let (parsed_exact, parsed_fuzzy) = CommandAlias::parse_input("about alias", &app_meta);
+
+            assert!(parsed_fuzzy.is_empty(), "{:?}", parsed_fuzzy);
+            assert_eq!(about_alias, parsed_exact.unwrap());
+        }
+
+        {
+            let (about_result, about_alias_result) = (
+                block_on(AppCommand::About.run("about alias", &mut app_meta)),
+                block_on(about_alias.run("about alias", &mut app_meta)),
+            );
+
+            assert!(about_result.is_ok(), "{:?}", about_result);
+            assert_eq!(about_result, about_alias_result);
+
+            assert!(!app_meta.command_aliases.is_empty());
+        }
+    }
+
+    fn literal(term: &str, summary: &str, command: Command) -> CommandAlias {
+        CommandAlias::Literal {
+            term: term.to_string(),
+            summary: summary.to_string(),
+            command: Box::new(command),
+        }
+    }
+}
