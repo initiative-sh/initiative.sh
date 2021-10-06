@@ -26,7 +26,7 @@ impl Runnable for TimeCommand {
         };
 
         if let Some(time) = time {
-            app_meta.command_aliases.insert(CommandAlias::new(
+            app_meta.command_aliases.insert(CommandAlias::literal(
                 "undo".to_string(),
                 format!("change time to {}", app_meta.get_time().display_short()),
                 match self {

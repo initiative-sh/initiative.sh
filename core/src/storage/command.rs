@@ -104,7 +104,7 @@ impl Runnable for StorageCommand {
                 let mut save_command = None;
                 let output = if let Some(thing) = thing {
                     if thing.uuid().is_none() && app_meta.data_store_enabled {
-                        save_command = Some(CommandAlias::new(
+                        save_command = Some(CommandAlias::literal(
                             "save".to_string(),
                             format!("save {}", name),
                             StorageCommand::Save {
