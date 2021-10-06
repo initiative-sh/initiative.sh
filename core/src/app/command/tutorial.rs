@@ -40,6 +40,10 @@ pub enum TutorialCommand {
         npc_gender: Gender,
         npc_name: String,
     },
+    Roll {
+        npc_gender: Gender,
+        npc_name: String,
+    },
 }
 
 #[async_trait(?Send)]
@@ -272,6 +276,23 @@ impl Runnable for TutorialCommand {
                         their = npc_gender.their(),
                         they_cap = npc_gender.they_cap(),
                         theyre = npc_gender.theyre(),
+                    ));
+                    output
+                }),
+                Some(Self::Roll {
+                    npc_gender: *npc_gender,
+                    npc_name: npc_name.clone(),
+                }),
+            ),
+            Self::Roll {
+                npc_gender,
+                npc_name,
+            } if input == "weapons" => (
+                input_command.run(input, app_meta).await.map(|mut output| {
+                    output.push_str(&format!(
+                        include_str!("../../../../data/tutorial/10-roll.md"),
+                        npc_name = npc_name,
+                        theyve = npc_gender.theyve(),
                     ));
                     output
                 }),

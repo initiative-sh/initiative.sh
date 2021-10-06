@@ -64,6 +64,24 @@ impl Gender {
         }
     }
 
+    pub fn theyve(&self) -> &'static str {
+        match self {
+            Self::Feminine => "she's",
+            Self::Masculine => "he's",
+            Self::Neuter => "it's",
+            Self::Trans => "they've",
+        }
+    }
+
+    pub fn theyve_cap(&self) -> &'static str {
+        match self {
+            Self::Feminine => "She's",
+            Self::Masculine => "He's",
+            Self::Neuter => "It's",
+            Self::Trans => "They've",
+        }
+    }
+
     pub fn them(&self) -> &'static str {
         match self {
             Self::Feminine => "her",
@@ -176,6 +194,15 @@ mod test {
         assert_eq!("It's", Gender::Neuter.theyre_cap());
         assert_eq!("they're", Gender::Trans.theyre());
         assert_eq!("They're", Gender::Trans.theyre_cap());
+
+        assert_eq!("she's", Gender::Feminine.theyve());
+        assert_eq!("She's", Gender::Feminine.theyve_cap());
+        assert_eq!("he's", Gender::Masculine.theyve());
+        assert_eq!("He's", Gender::Masculine.theyve_cap());
+        assert_eq!("it's", Gender::Neuter.theyve());
+        assert_eq!("It's", Gender::Neuter.theyve_cap());
+        assert_eq!("they've", Gender::Trans.theyve());
+        assert_eq!("They've", Gender::Trans.theyve_cap());
 
         assert_eq!("her", Gender::Feminine.them());
         assert_eq!("Her", Gender::Feminine.them_cap());
