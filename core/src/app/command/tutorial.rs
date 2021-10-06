@@ -20,6 +20,9 @@ pub enum TutorialCommand {
         npc_name: String,
         npc_gender: Gender,
     },
+    Journal {
+        npc_name: String,
+    },
 }
 
 #[async_trait(?Send)]
@@ -156,10 +159,29 @@ impl Runnable for TutorialCommand {
                         them = npc_gender.them(),
                     ));
 
-                    (Ok(output), None)
+                    (
+                        Ok(output),
+                        Some(Self::Journal {
+                            npc_name: npc_name.clone(),
+                        }),
+                    )
                 } else {
                     (command_output, Some(self.clone()))
                 }
+            }
+            Self::Journal { npc_name }
+                if input == "save"
+                    || (input.starts_with("save ")
+                        && input.ends_with(npc_name.as_str())
+                        && input.len() == "save ".len() + npc_name.len()) =>
+            {
+                (
+                    input_command.run(input, app_meta).await.map(|mut output| {
+                        output.push_str(include_str!("../../../../data/tutorial/06-journal.md"));
+                        output
+                    }),
+                    None,
+                )
             }
             _ => (
                 Ok(include_str!("../../../../data/tutorial/xx-still-active.md").to_string()),
