@@ -1,5 +1,6 @@
 use super::{Command, CommandAlias, Runnable};
 use crate::app::AppMeta;
+use crate::world::npc::Gender;
 use async_trait::async_trait;
 use std::fmt;
 
@@ -8,8 +9,17 @@ pub enum TutorialCommand {
     Introduction,
     Inn,
     Save,
-    Npc { inn_name: String },
-    NpcOther,
+    Npc {
+        inn_name: String,
+    },
+    NpcOther {
+        inn_name: String,
+    },
+    SaveByName {
+        inn_name: String,
+        npc_name: String,
+        npc_gender: Gender,
+    },
 }
 
 #[async_trait(?Send)]
@@ -66,10 +76,12 @@ impl Runnable for TutorialCommand {
                         output.push_str(include_str!("../../../../data/tutorial/03-npc.md"));
                         output
                     }),
-                    Some(Self::NpcOther),
+                    Some(Self::NpcOther {
+                        inn_name: inn_name.clone(),
+                    }),
                 )
             }
-            Self::NpcOther if input == "npc" => {
+            Self::NpcOther { inn_name } if input == "npc" => {
                 let command_output = input_command.run(input, app_meta).await;
 
                 if let Ok(mut output) = command_output {
@@ -109,10 +121,42 @@ impl Runnable for TutorialCommand {
                         );
                         output.push_str(&tutorial_output);
 
-                        (Ok(output), None)
+                        (
+                            Ok(output),
+                            Some(Self::SaveByName {
+                                inn_name: inn_name.clone(),
+                                npc_name,
+                                npc_gender,
+                            }),
+                        )
                     } else {
                         (Ok(output), Some(self.clone()))
                     }
+                } else {
+                    (command_output, Some(self.clone()))
+                }
+            }
+            Self::SaveByName {
+                inn_name,
+                npc_gender,
+                npc_name,
+            } if input == "1"
+                || input == npc_name
+                || (input.starts_with("load ")
+                    && input.ends_with(npc_name.as_str())
+                    && input.len() == "load ".len() + npc_name.len()) =>
+            {
+                let command_output = input_command.run(input, app_meta).await;
+
+                if let Ok(mut output) = command_output {
+                    output.push_str(&format!(
+                        include_str!("../../../../data/tutorial/05-save-by-name.md"),
+                        inn_name = inn_name,
+                        npc_name = npc_name,
+                        them = npc_gender.them(),
+                    ));
+
+                    (Ok(output), None)
                 } else {
                     (command_output, Some(self.clone()))
                 }
