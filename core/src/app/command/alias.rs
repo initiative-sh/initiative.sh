@@ -12,6 +12,9 @@ pub enum CommandAlias {
         summary: String,
         command: Box<Command>,
     },
+    StrictWildcard {
+        command: Box<Command>,
+    },
 }
 
 impl CommandAlias {
@@ -22,12 +25,19 @@ impl CommandAlias {
             command: Box::new(command),
         }
     }
+
+    pub fn strict_wildcard(command: Command) -> Self {
+        Self::StrictWildcard {
+            command: Box::new(command),
+        }
+    }
 }
 
 impl Hash for CommandAlias {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             Self::Literal { term, .. } => term.hash(state),
+            Self::StrictWildcard { .. } => {}
         }
     }
 }
@@ -41,6 +51,8 @@ impl PartialEq for CommandAlias {
                     term: other_term, ..
                 },
             ) => term == other_term,
+            (Self::StrictWildcard { .. }, Self::StrictWildcard { .. }) => true,
+            _ => false,
         }
     }
 }
@@ -68,6 +80,10 @@ impl Runnable for CommandAlias {
 
                 result
             }
+            Self::StrictWildcard { command } => {
+                app_meta.command_aliases.remove(self);
+                command.run(input, app_meta).await
+            }
         }
     }
 
@@ -76,8 +92,15 @@ impl Runnable for CommandAlias {
             app_meta
                 .command_aliases
                 .iter()
-                .find(|command| match command {
-                    Self::Literal { term, .. } => term == input,
+                .find(|c| matches!(c, Self::StrictWildcard { .. }))
+                .or_else(|| {
+                    app_meta
+                        .command_aliases
+                        .iter()
+                        .find(|command| match command {
+                            Self::Literal { term, .. } => term == input,
+                            Self::StrictWildcard { .. } => false,
+                        })
                 })
                 .cloned(),
             Vec::new(),
@@ -96,6 +119,7 @@ impl Runnable for CommandAlias {
                         None
                     }
                 }
+                Self::StrictWildcard { .. } => None,
             })
             .collect()
     }
@@ -104,8 +128,13 @@ impl Runnable for CommandAlias {
 impl fmt::Display for CommandAlias {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
-            Self::Literal { term, .. } => write!(f, "{}", term),
+            Self::Literal { term, .. } => {
+                write!(f, "{}", term)?;
+            }
+            Self::StrictWildcard { .. } => {}
         }
+
+        Ok(())
     }
 }
 
@@ -140,6 +169,17 @@ mod tests {
     }
 
     #[test]
+    fn wildcard_test() {
+        let alias = CommandAlias::strict_wildcard(AppCommand::About.into());
+
+        if let CommandAlias::StrictWildcard { command } = alias {
+            assert_eq!(Box::new(Command::from(AppCommand::About)), command);
+        } else {
+            panic!("{:?}", alias);
+        }
+    }
+
+    #[test]
     fn eq_test() {
         assert_eq!(
             literal("foo", "foo", AppCommand::About.into()),
@@ -149,6 +189,15 @@ mod tests {
             literal("foo", "foo", AppCommand::About.into()),
             literal("bar", "foo", AppCommand::About.into()),
         );
+
+        assert_eq!(
+            strict_wildcard(AppCommand::About.into()),
+            strict_wildcard(AppCommand::Help.into()),
+        );
+        assert_ne!(
+            literal("", "", AppCommand::About.into()),
+            strict_wildcard(AppCommand::About.into()),
+        );
     }
 
     #[test]
@@ -157,11 +206,13 @@ mod tests {
 
         assert!(set.insert(literal("foo", "", AppCommand::About.into())));
         assert!(set.insert(literal("bar", "", AppCommand::About.into())));
+        assert!(set.insert(strict_wildcard(AppCommand::About.into())));
         assert!(!set.insert(literal("foo", "", AppCommand::Help.into())));
+        assert!(!set.insert(strict_wildcard(AppCommand::Help.into())));
     }
 
     #[test]
-    fn runnable_test() {
+    fn runnable_test_literal() {
         let about_alias = literal("about alias", "about summary", AppCommand::About.into());
 
         let mut app_meta = AppMeta::new(NullDataStore::default());
@@ -202,10 +253,53 @@ mod tests {
         }
     }
 
+    #[test]
+    fn runnable_test_strict_wildcard() {
+        let about_alias = strict_wildcard(AppCommand::About.into());
+
+        let mut app_meta = AppMeta::new(NullDataStore::default());
+        app_meta.command_aliases.insert(about_alias.clone());
+        app_meta.command_aliases.insert(literal(
+            "literal alias",
+            "literally a summary",
+            AppCommand::Help.into(),
+        ));
+
+        {
+            // Should be caught by the wildcard, not the literal alias
+            let (parsed_exact, parsed_fuzzy) =
+                CommandAlias::parse_input("literal alias", &app_meta);
+
+            assert!(parsed_fuzzy.is_empty(), "{:?}", parsed_fuzzy);
+            assert_eq!(about_alias, parsed_exact.unwrap());
+        }
+
+        {
+            assert_eq!(2, app_meta.command_aliases.len());
+
+            let (about_result, about_alias_result) = (
+                block_on(
+                    AppCommand::About.run("about", &mut AppMeta::new(NullDataStore::default())),
+                ),
+                block_on(about_alias.run("about", &mut app_meta)),
+            );
+
+            assert!(about_result.is_ok(), "{:?}", about_result);
+            assert_eq!(about_result, about_alias_result);
+            assert!(app_meta.command_aliases.is_empty());
+        }
+    }
+
     fn literal(term: &str, summary: &str, command: Command) -> CommandAlias {
         CommandAlias::Literal {
             term: term.to_string(),
             summary: summary.to_string(),
+            command: Box::new(command),
+        }
+    }
+
+    fn strict_wildcard(command: Command) -> CommandAlias {
+        CommandAlias::StrictWildcard {
             command: Box::new(command),
         }
     }
