@@ -23,6 +23,9 @@ pub enum TutorialCommand {
     Journal {
         npc_name: String,
     },
+    LoadByName {
+        npc_name: String,
+    },
 }
 
 #[async_trait(?Send)]
@@ -180,9 +183,21 @@ impl Runnable for TutorialCommand {
                         output.push_str(include_str!("../../../../data/tutorial/06-journal.md"));
                         output
                     }),
-                    None,
+                    Some(Self::LoadByName {
+                        npc_name: npc_name.clone(),
+                    }),
                 )
             }
+            Self::LoadByName { npc_name } if input == "journal" => (
+                input_command.run(input, app_meta).await.map(|mut output| {
+                    output.push_str(&format!(
+                        include_str!("../../../../data/tutorial/07-load-by-name.md"),
+                        npc_name = npc_name,
+                    ));
+                    output
+                }),
+                None,
+            ),
             _ => (
                 Ok(include_str!("../../../../data/tutorial/xx-still-active.md").to_string()),
                 Some(self.clone()),
