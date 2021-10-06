@@ -1,10 +1,12 @@
 pub use alias::CommandAlias;
 pub use app::AppCommand;
 pub use runnable::{autocomplete_phrase, Runnable};
+pub use tutorial::TutorialCommand;
 
 mod alias;
 mod app;
 mod runnable;
+mod tutorial;
 
 use super::AppMeta;
 use crate::reference::ReferenceCommand;
@@ -42,6 +44,7 @@ impl Command {
             .union(ReferenceCommand::parse_input(input, app_meta).into())
             .union(StorageCommand::parse_input(input, app_meta).into())
             .union(TimeCommand::parse_input(input, app_meta).into())
+            .union(TutorialCommand::parse_input(input, app_meta).into())
             .union(WorldCommand::parse_input(input, app_meta).into())
     }
 }
@@ -120,6 +123,7 @@ impl Runnable for Command {
             .chain(ReferenceCommand::autocomplete(input, app_meta).drain(..))
             .chain(StorageCommand::autocomplete(input, app_meta).drain(..))
             .chain(TimeCommand::autocomplete(input, app_meta).drain(..))
+            .chain(TutorialCommand::autocomplete(input, app_meta).drain(..))
             .chain(WorldCommand::autocomplete(input, app_meta).drain(..))
             .collect()
     }
@@ -132,6 +136,7 @@ pub enum CommandType {
     Reference(ReferenceCommand),
     Storage(StorageCommand),
     Time(TimeCommand),
+    Tutorial(TutorialCommand),
     World(WorldCommand),
 }
 
@@ -147,6 +152,7 @@ impl CommandType {
             Self::Reference(c) => c.run(input, app_meta).await,
             Self::Storage(c) => c.run(input, app_meta).await,
             Self::Time(c) => c.run(input, app_meta).await,
+            Self::Tutorial(c) => c.run(input, app_meta).await,
             Self::World(c) => c.run(input, app_meta).await,
         }
     }
@@ -160,6 +166,7 @@ impl fmt::Display for CommandType {
             Self::Reference(c) => write!(f, "{}", c),
             Self::Storage(c) => write!(f, "{}", c),
             Self::Time(c) => write!(f, "{}", c),
+            Self::Tutorial(c) => write!(f, "{}", c),
             Self::World(c) => write!(f, "{}", c),
         }
     }
@@ -201,6 +208,12 @@ impl From<StorageCommand> for CommandType {
 impl From<TimeCommand> for CommandType {
     fn from(c: TimeCommand) -> CommandType {
         CommandType::Time(c)
+    }
+}
+
+impl From<TutorialCommand> for CommandType {
+    fn from(c: TutorialCommand) -> CommandType {
+        CommandType::Tutorial(c)
     }
 }
 
