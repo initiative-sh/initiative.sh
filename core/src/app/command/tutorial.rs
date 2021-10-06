@@ -48,6 +48,9 @@ pub enum TutorialCommand {
         npc_gender: Gender,
         npc_name: String,
     },
+    AdjustTime {
+        npc_name: String,
+    },
 }
 
 #[async_trait(?Send)]
@@ -318,8 +321,24 @@ impl Runnable for TutorialCommand {
                     ));
                     output
                 }),
-                None,
+                Some(Self::AdjustTime {
+                    npc_name: npc_name.clone(),
+                }),
             ),
+            Self::AdjustTime { npc_name }
+                if input.starts_with("delete ")
+                    && input.ends_with(npc_name.as_str())
+                    && input.len() == "delete ".len() + npc_name.len() =>
+            {
+                (
+                    input_command.run(input, app_meta).await.map(|mut output| {
+                        output
+                            .push_str(include_str!("../../../../data/tutorial/12-adjust-time.md"));
+                        output
+                    }),
+                    None,
+                )
+            }
             _ => (
                 Ok(include_str!("../../../../data/tutorial/xx-still-active.md").to_string()),
                 Some(self.clone()),
