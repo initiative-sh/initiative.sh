@@ -52,6 +52,7 @@ pub enum TutorialCommand {
         npc_name: String,
     },
     Time,
+    Conclusion,
 }
 
 #[async_trait(?Send)]
@@ -343,6 +344,13 @@ impl Runnable for TutorialCommand {
             Self::Time if input == "+30m" => (
                 input_command.run(input, app_meta).await.map(|mut output| {
                     output.push_str(include_str!("../../../../data/tutorial/13-time.md"));
+                    output
+                }),
+                Some(Self::Conclusion),
+            ),
+            Self::Conclusion if ["time", "date", "now"].contains(&input) => (
+                input_command.run(input, app_meta).await.map(|mut output| {
+                    output.push_str(include_str!("../../../../data/tutorial/99-conclusion.md"));
                     output
                 }),
                 None,
