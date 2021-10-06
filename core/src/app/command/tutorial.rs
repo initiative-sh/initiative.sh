@@ -21,14 +21,22 @@ pub enum TutorialCommand {
         npc_gender: Gender,
     },
     Journal {
+        inn_name: String,
         npc_gender: Gender,
         npc_name: String,
     },
     LoadByName {
+        inn_name: String,
         npc_gender: Gender,
         npc_name: String,
     },
     Spell {
+        inn_name: String,
+        npc_gender: Gender,
+        npc_name: String,
+    },
+    Weapons {
+        inn_name: String,
         npc_gender: Gender,
         npc_name: String,
     },
@@ -171,6 +179,7 @@ impl Runnable for TutorialCommand {
                     (
                         Ok(output),
                         Some(Self::Journal {
+                            inn_name: inn_name.clone(),
                             npc_gender: *npc_gender,
                             npc_name: npc_name.clone(),
                         }),
@@ -180,6 +189,7 @@ impl Runnable for TutorialCommand {
                 }
             }
             Self::Journal {
+                inn_name,
                 npc_gender,
                 npc_name,
             } if input == "save"
@@ -193,12 +203,14 @@ impl Runnable for TutorialCommand {
                         output
                     }),
                     Some(Self::LoadByName {
+                        inn_name: inn_name.clone(),
                         npc_gender: *npc_gender,
                         npc_name: npc_name.clone(),
                     }),
                 )
             }
             Self::LoadByName {
+                inn_name,
                 npc_gender,
                 npc_name,
             } if input == "journal" => (
@@ -210,17 +222,20 @@ impl Runnable for TutorialCommand {
                     output
                 }),
                 Some(Self::Spell {
+                    inn_name: inn_name.clone(),
                     npc_gender: *npc_gender,
                     npc_name: npc_name.clone(),
                 }),
             ),
             Self::Spell {
+                inn_name,
                 npc_gender,
                 npc_name,
             } if input == npc_name
                 || (input.starts_with("load ")
                     && input.ends_with(npc_name.as_str())
-                    && input.len() == "load ".len() + npc_name.len()) => {
+                    && input.len() == "load ".len() + npc_name.len()) =>
+            {
                 (
                     input_command.run(input, app_meta).await.map(|mut output| {
                         output.push_str(&format!(
@@ -232,9 +247,36 @@ impl Runnable for TutorialCommand {
                         ));
                         output
                     }),
-                    None,
+                    Some(Self::Weapons {
+                        inn_name: inn_name.clone(),
+                        npc_gender: *npc_gender,
+                        npc_name: npc_name.clone(),
+                    }),
                 )
             }
+            Self::Weapons {
+                inn_name,
+                npc_gender,
+                npc_name,
+            } if input == "Fireball" => (
+                input_command.run(input, app_meta).await.map(|mut output| {
+                    output.push_str(&format!(
+                        include_str!("../../../../data/tutorial/09-weapons.md"),
+                        inn_name = inn_name,
+                        npc_name = npc_name,
+                        pull = if npc_gender == &Gender::Trans {
+                            "pull"
+                        } else {
+                            "pulls"
+                        },
+                        their = npc_gender.their(),
+                        they_cap = npc_gender.they_cap(),
+                        theyre = npc_gender.theyre(),
+                    ));
+                    output
+                }),
+                None,
+            ),
             _ => (
                 Ok(include_str!("../../../../data/tutorial/xx-still-active.md").to_string()),
                 Some(self.clone()),
