@@ -51,6 +51,7 @@ pub enum TutorialCommand {
     AdjustTime {
         npc_name: String,
     },
+    Time,
 }
 
 #[async_trait(?Send)]
@@ -336,9 +337,16 @@ impl Runnable for TutorialCommand {
                             .push_str(include_str!("../../../../data/tutorial/12-adjust-time.md"));
                         output
                     }),
-                    None,
+                    Some(Self::Time),
                 )
             }
+            Self::Time if input == "+30m" => (
+                input_command.run(input, app_meta).await.map(|mut output| {
+                    output.push_str(include_str!("../../../../data/tutorial/13-time.md"));
+                    output
+                }),
+                None,
+            ),
             _ => (
                 Ok(include_str!("../../../../data/tutorial/xx-still-active.md").to_string()),
                 Some(self.clone()),
