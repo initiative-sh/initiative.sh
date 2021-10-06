@@ -47,7 +47,7 @@ impl StorageCommand {
 
 #[async_trait(?Send)]
 impl Runnable for StorageCommand {
-    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
             Self::Journal => {
                 if !app_meta.data_store_enabled {

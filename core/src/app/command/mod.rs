@@ -69,9 +69,9 @@ impl<T: Into<CommandType>> From<(Option<T>, Vec<T>)> for Command {
 
 #[async_trait(?Send)]
 impl Runnable for Command {
-    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         if let Some(command) = &self.exact_match {
-            let mut result = command.run(app_meta).await;
+            let mut result = command.run(input, app_meta).await;
             if !self.fuzzy_matches.is_empty() {
                 let f = |mut message: String| -> String {
                     message.push_str("\n\n! There are other possible interpretations of this command. Did you mean:\n");
@@ -94,7 +94,13 @@ impl Runnable for Command {
         } else {
             match self.fuzzy_matches.len() {
                 0 => Err(format!("Unknown command: \"{}\"", self.input)),
-                1 => self.fuzzy_matches.first().unwrap().run(app_meta).await,
+                1 => {
+                    self.fuzzy_matches
+                        .first()
+                        .unwrap()
+                        .run(input, app_meta)
+                        .await
+                }
                 _ => {
                     let mut message =
                         "There are several possible interpretations of this command. Did you mean:\n"
@@ -142,18 +148,18 @@ pub enum CommandType {
 }
 
 impl CommandType {
-    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         if !matches!(self, Self::Alias(_)) {
             app_meta.command_aliases.clear();
         }
 
         match self {
-            Self::Alias(c) => c.run(app_meta).await,
-            Self::App(c) => c.run(app_meta).await,
-            Self::Reference(c) => c.run(app_meta).await,
-            Self::Storage(c) => c.run(app_meta).await,
-            Self::Time(c) => c.run(app_meta).await,
-            Self::World(c) => c.run(app_meta).await,
+            Self::Alias(c) => c.run(input, app_meta).await,
+            Self::App(c) => c.run(input, app_meta).await,
+            Self::Reference(c) => c.run(input, app_meta).await,
+            Self::Storage(c) => c.run(input, app_meta).await,
+            Self::Time(c) => c.run(input, app_meta).await,
+            Self::World(c) => c.run(input, app_meta).await,
         }
     }
 }

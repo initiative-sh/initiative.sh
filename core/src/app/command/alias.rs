@@ -38,10 +38,10 @@ impl Eq for CommandAlias {}
 
 #[async_trait(?Send)]
 impl Runnable for CommandAlias {
-    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         let mut temp_aliases = mem::take(&mut app_meta.command_aliases);
 
-        let result = self.command.run(app_meta).await;
+        let result = self.command.run(input, app_meta).await;
 
         if app_meta.command_aliases.is_empty() {
             app_meta.command_aliases = temp_aliases;
