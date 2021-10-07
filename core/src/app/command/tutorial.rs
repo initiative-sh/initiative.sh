@@ -1,7 +1,7 @@
 use super::CommandType;
 use crate::app::{AppCommand, AppMeta, Command, CommandAlias, Runnable};
 use crate::reference::{ItemCategory, ReferenceCommand, Spell};
-use crate::storage::StorageCommand;
+use crate::storage::{repository, StorageCommand};
 use crate::time::TimeCommand;
 use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Gender;
@@ -52,19 +52,33 @@ pub enum TutorialCommand {
         npc_name: String,
     },
     Delete {
+        inn_name: String,
         npc_gender: Gender,
         npc_name: String,
     },
     AdjustTime {
+        inn_name: String,
         npc_gender: Gender,
         npc_name: String,
     },
-    Time,
-    Conclusion,
+    Time {
+        inn_name: String,
+        npc_name: String,
+    },
+    Conclusion {
+        inn_name: String,
+        npc_name: String,
+    },
 
-    Cancel,
+    Cancel {
+        inn_name: Option<String>,
+        npc_name: Option<String>,
+    },
     Resume,
-    Restart,
+    Restart {
+        inn_name: Option<String>,
+        npc_name: Option<String>,
+    },
 }
 
 impl TutorialCommand {
@@ -87,7 +101,7 @@ impl TutorialCommand {
         }
 
         match self {
-            Self::Introduction | Self::Cancel | Self::Resume | Self::Restart => {}
+            Self::Introduction | Self::Cancel { .. } | Self::Resume | Self::Restart { .. } => {}
             Self::Inn => {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "next".to_string(),
@@ -197,6 +211,7 @@ impl TutorialCommand {
             Self::Delete {
                 npc_gender,
                 npc_name,
+                ..
             } => output.push_str(&format!(
                 include_str!("../../../../data/tutorial/10-roll.md"),
                 npc_name = npc_name,
@@ -205,16 +220,17 @@ impl TutorialCommand {
             Self::AdjustTime {
                 npc_gender,
                 npc_name,
+                ..
             } => output.push_str(&format!(
                 include_str!("../../../../data/tutorial/11-delete.md"),
                 npc_name = npc_name,
                 them = npc_gender.them(),
                 they_cap = npc_gender.they_cap(),
             )),
-            Self::Time => {
+            Self::Time { .. } => {
                 output.push_str(include_str!("../../../../data/tutorial/12-adjust-time.md"))
             }
-            Self::Conclusion => {
+            Self::Conclusion { .. } => {
                 output.push_str(include_str!("../../../../data/tutorial/13-time.md"))
             }
         }
@@ -225,6 +241,55 @@ impl TutorialCommand {
             Err(output)
         }
     }
+
+    fn inn_name(&self) -> Option<String> {
+        match self {
+            Self::Introduction | Self::Inn | Self::Save | Self::Resume => None,
+
+            Self::Npc { inn_name }
+            | Self::NpcOther { inn_name }
+            | Self::SaveByName { inn_name, .. }
+            | Self::Journal { inn_name, .. }
+            | Self::LoadByName { inn_name, .. }
+            | Self::Spell { inn_name, .. }
+            | Self::Weapons { inn_name, .. }
+            | Self::Roll { inn_name, .. }
+            | Self::Delete { inn_name, .. }
+            | Self::AdjustTime { inn_name, .. }
+            | Self::Time { inn_name, .. }
+            | Self::Conclusion { inn_name, .. } => Some(inn_name.clone()),
+
+            Self::Cancel { inn_name, .. } | Self::Restart { inn_name, .. } => {
+                inn_name.as_ref().cloned()
+            }
+        }
+    }
+
+    fn npc_name(&self) -> Option<String> {
+        match self {
+            Self::Introduction
+            | Self::Inn
+            | Self::Save
+            | Self::Resume
+            | Self::Npc { .. }
+            | Self::NpcOther { .. } => None,
+
+            Self::SaveByName { npc_name, .. }
+            | Self::Journal { npc_name, .. }
+            | Self::LoadByName { npc_name, .. }
+            | Self::Spell { npc_name, .. }
+            | Self::Weapons { npc_name, .. }
+            | Self::Roll { npc_name, .. }
+            | Self::Delete { npc_name, .. }
+            | Self::AdjustTime { npc_name, .. }
+            | Self::Time { npc_name, .. }
+            | Self::Conclusion { npc_name, .. } => Some(npc_name.clone()),
+
+            Self::Cancel { npc_name, .. } | Self::Restart { npc_name, .. } => {
+                npc_name.as_ref().cloned()
+            }
+        }
+    }
 }
 
 #[async_trait(?Send)]
@@ -232,10 +297,27 @@ impl Runnable for TutorialCommand {
     async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         let input_command = Command::parse_input_irrefutable(input, app_meta);
 
+        if let Some(CommandType::Tutorial(TutorialCommand::Cancel { inn_name, npc_name }))
+        | Some(CommandType::Tutorial(TutorialCommand::Restart { inn_name, npc_name })) =
+            input_command.get_type()
+        {
+            if let Some(inn_name) = inn_name {
+                repository::delete_thing_by_name(app_meta, inn_name)
+                    .await
+                    .ok();
+            }
+
+            if let Some(npc_name) = npc_name {
+                repository::delete_thing_by_name(app_meta, npc_name)
+                    .await
+                    .ok();
+            }
+        }
+
         app_meta.command_aliases.clear();
 
         let (result, next_command) = match (self, input_command.get_type()) {
-            (_, Some(CommandType::Tutorial(TutorialCommand::Cancel))) => (
+            (_, Some(CommandType::Tutorial(TutorialCommand::Cancel { .. }))) => (
                 Ok(include_str!("../../../../data/tutorial/xx-cancelled.md").to_string()),
                 None,
             ),
@@ -243,7 +325,7 @@ impl Runnable for TutorialCommand {
                 (command.output(None, app_meta), Some(command.clone()))
             }
 
-            (Self::Introduction, _) | (_, Some(CommandType::Tutorial(Self::Restart))) => {
+            (Self::Introduction, _) | (_, Some(CommandType::Tutorial(Self::Restart { .. }))) => {
                 let next = Self::Inn;
                 (next.output(None, app_meta), Some(next))
             }
@@ -436,13 +518,14 @@ impl Runnable for TutorialCommand {
             }
             (
                 Self::Roll {
+                    inn_name,
                     npc_gender,
                     npc_name,
-                    ..
                 },
                 Some(CommandType::Reference(ReferenceCommand::ItemCategory(ItemCategory::Weapon))),
             ) => {
                 let next = Self::Delete {
+                    inn_name: inn_name.clone(),
                     npc_gender: *npc_gender,
                     npc_name: npc_name.clone(),
                 };
@@ -454,12 +537,14 @@ impl Runnable for TutorialCommand {
             }
             (
                 Self::Delete {
+                    inn_name,
                     npc_gender,
                     npc_name,
                 },
                 Some(CommandType::App(AppCommand::Roll(_))),
             ) => {
                 let next = Self::AdjustTime {
+                    inn_name: inn_name.clone(),
                     npc_gender: *npc_gender,
                     npc_name: npc_name.clone(),
                 };
@@ -470,30 +555,55 @@ impl Runnable for TutorialCommand {
                 )
             }
             (
-                Self::AdjustTime { npc_name, .. },
+                Self::AdjustTime {
+                    inn_name, npc_name, ..
+                },
                 Some(CommandType::Storage(StorageCommand::Delete { name })),
             ) if name == npc_name => {
-                let next = Self::Time;
+                let next = Self::Time {
+                    inn_name: inn_name.clone(),
+                    npc_name: npc_name.clone(),
+                };
+
                 (
                     next.output(Some(input_command.run(input, app_meta).await), app_meta),
                     Some(next),
                 )
             }
-            (Self::Time, Some(CommandType::Time(TimeCommand::Add { .. }))) => {
-                let next = Self::Conclusion;
+            (
+                Self::Time { inn_name, npc_name },
+                Some(CommandType::Time(TimeCommand::Add { .. })),
+            ) => {
+                let next = Self::Conclusion {
+                    inn_name: inn_name.clone(),
+                    npc_name: npc_name.clone(),
+                };
+
                 (
                     next.output(Some(input_command.run(input, app_meta).await), app_meta),
                     Some(next),
                 )
             }
-            (Self::Conclusion, Some(CommandType::Time(TimeCommand::Now))) => (
-                input_command.run(input, app_meta).await.map(|mut output| {
-                    output.push_str("\n\n#");
-                    output.push_str(include_str!("../../../../data/tutorial/99-conclusion.md"));
-                    output
-                }),
-                None,
-            ),
+            (
+                Self::Conclusion { inn_name, npc_name },
+                Some(CommandType::Time(TimeCommand::Now)),
+            ) => {
+                repository::delete_thing_by_name(app_meta, inn_name)
+                    .await
+                    .ok();
+                repository::delete_thing_by_name(app_meta, npc_name)
+                    .await
+                    .ok();
+
+                (
+                    input_command.run(input, app_meta).await.map(|mut output| {
+                        output.push_str("\n\n#");
+                        output.push_str(include_str!("../../../../data/tutorial/99-conclusion.md"));
+                        output
+                    }),
+                    None,
+                )
+            }
             _ => {
                 let result = {
                     let f = |mut s: String| {
@@ -523,7 +633,11 @@ impl Runnable for TutorialCommand {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "restart".to_string(),
                     "restart the tutorial".to_string(),
-                    Self::Restart.into(),
+                    Self::Restart {
+                        inn_name: self.inn_name(),
+                        npc_name: self.npc_name(),
+                    }
+                    .into(),
                 ));
 
                 (result, Some(self.clone()))
@@ -534,7 +648,11 @@ impl Runnable for TutorialCommand {
             app_meta.command_aliases.insert(CommandAlias::literal(
                 "cancel".to_string(),
                 "cancel the tutorial".to_string(),
-                Self::Cancel.into(),
+                Self::Cancel {
+                    inn_name: self.inn_name(),
+                    npc_name: self.npc_name(),
+                }
+                .into(),
             ));
 
             app_meta
