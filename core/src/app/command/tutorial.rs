@@ -63,10 +63,15 @@ pub enum TutorialCommand {
     Conclusion,
 
     Cancel,
+    Resume,
 }
 
 impl TutorialCommand {
-    fn output(&self, command_output: Option<Result<String, String>>) -> Result<String, String> {
+    fn output(
+        &self,
+        command_output: Option<Result<String, String>>,
+        app_meta: &mut AppMeta,
+    ) -> Result<String, String> {
         let is_ok = if let Some(r) = &command_output {
             r.is_ok()
         } else {
@@ -81,13 +86,32 @@ impl TutorialCommand {
         }
 
         match self {
-            Self::Introduction => {}
-            Self::Inn => output.push_str(include_str!("../../../../data/tutorial/00-intro.md")),
+            Self::Introduction | Self::Cancel | Self::Resume => {}
+            Self::Inn => {
+                app_meta.command_aliases.insert(CommandAlias::literal(
+                    "next".to_string(),
+                    "continue the tutorial".to_string(),
+                    Self::Inn.into(),
+                ));
+
+                output.push_str(include_str!("../../../../data/tutorial/00-intro.md"));
+            }
             Self::Save => output.push_str(include_str!("../../../../data/tutorial/01-inn.md")),
-            Self::Npc { inn_name } => output.push_str(&format!(
-                include_str!("../../../../data/tutorial/02-save.md"),
-                inn_name = inn_name,
-            )),
+            Self::Npc { inn_name } => {
+                app_meta.command_aliases.insert(CommandAlias::literal(
+                    "save".to_string(),
+                    format!("save {}", inn_name),
+                    StorageCommand::Save {
+                        name: inn_name.clone(),
+                    }
+                    .into(),
+                ));
+
+                output.push_str(&format!(
+                    include_str!("../../../../data/tutorial/02-save.md"),
+                    inn_name = inn_name,
+                ));
+            }
             Self::NpcOther { .. } => {
                 output.push_str(include_str!("../../../../data/tutorial/03-npc.md"))
             }
@@ -96,22 +120,44 @@ impl TutorialCommand {
                 npc_name,
                 other_npc_name,
                 ..
-            } => output.push_str(&format!(
-                include_str!("../../../../data/tutorial/04-npc-other.md"),
-                npc_name = npc_name,
-                other_npc_name = other_npc_name,
-                their = npc_gender.their(),
-            )),
+            } => {
+                app_meta.command_aliases.insert(CommandAlias::literal(
+                    "1".to_string(),
+                    format!("load {}", npc_name),
+                    StorageCommand::Load {
+                        name: npc_name.clone(),
+                    }
+                    .into(),
+                ));
+
+                output.push_str(&format!(
+                    include_str!("../../../../data/tutorial/04-npc-other.md"),
+                    npc_name = npc_name,
+                    other_npc_name = other_npc_name,
+                    their = npc_gender.their(),
+                ));
+            }
             Self::Journal {
                 inn_name,
                 npc_gender,
                 npc_name,
-            } => output.push_str(&format!(
-                include_str!("../../../../data/tutorial/05-save-by-name.md"),
-                inn_name = inn_name,
-                npc_name = npc_name,
-                them = npc_gender.them(),
-            )),
+            } => {
+                app_meta.command_aliases.insert(CommandAlias::literal(
+                    "save".to_string(),
+                    format!("save {}", npc_name),
+                    StorageCommand::Save {
+                        name: npc_name.clone(),
+                    }
+                    .into(),
+                ));
+
+                output.push_str(&format!(
+                    include_str!("../../../../data/tutorial/05-save-by-name.md"),
+                    inn_name = inn_name,
+                    npc_name = npc_name,
+                    them = npc_gender.them(),
+                ));
+            }
             Self::LoadByName { .. } => {
                 output.push_str(include_str!("../../../../data/tutorial/06-journal.md"))
             }
@@ -170,7 +216,6 @@ impl TutorialCommand {
             Self::Conclusion => {
                 output.push_str(include_str!("../../../../data/tutorial/13-time.md"))
             }
-            Self::Cancel => {}
         }
 
         if is_ok {
@@ -185,22 +230,23 @@ impl TutorialCommand {
 impl Runnable for TutorialCommand {
     async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         let input_command = Command::parse_input_irrefutable(input, app_meta);
-        let debug = format!("{:?}\n\n{:?}", self, input_command);
 
         let (result, next_command) = match (self, input_command.get_type()) {
-            (Self::Introduction, _) => {
-                app_meta.command_aliases.insert(CommandAlias::literal(
-                    "next".to_string(),
-                    "continue the tutorial".to_string(),
-                    Self::Inn.into(),
-                ));
+            (_, Some(CommandType::Tutorial(TutorialCommand::Cancel))) => (
+                Ok(include_str!("../../../../data/tutorial/xx-cancelled.md").to_string()),
+                None,
+            ),
+            (command, Some(CommandType::Tutorial(TutorialCommand::Resume))) => {
+                (command.output(None, app_meta), Some(command.clone()))
+            }
 
+            (Self::Introduction, _) => {
                 let next = Self::Inn;
-                (next.output(None), Some(next))
+                (next.output(None, app_meta), Some(next))
             }
             (Self::Inn, Some(CommandType::Tutorial(Self::Inn))) => {
                 let next = Self::Save;
-                (next.output(None), Some(next))
+                (next.output(None, app_meta), Some(next))
             }
             (
                 Self::Save,
@@ -219,7 +265,7 @@ impl Runnable for TutorialCommand {
                         .to_string();
 
                     let next = Self::Npc { inn_name };
-                    (next.output(Some(Ok(output))), Some(next))
+                    (next.output(Some(Ok(output)), app_meta), Some(next))
                 } else {
                     (command_output, Some(self.clone()))
                 }
@@ -232,7 +278,7 @@ impl Runnable for TutorialCommand {
                 };
 
                 (
-                    next.output(Some(input_command.run(input, app_meta).await)),
+                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
                     Some(next),
                 )
             }
@@ -278,7 +324,7 @@ impl Runnable for TutorialCommand {
                             other_npc_name,
                         };
 
-                        (next.output(Some(Ok(output))), Some(next))
+                        (next.output(Some(Ok(output)), app_meta), Some(next))
                     } else {
                         (Ok(output), Some(self.clone()))
                     }
@@ -304,7 +350,7 @@ impl Runnable for TutorialCommand {
                         npc_name: npc_name.clone(),
                     };
 
-                    (next.output(Some(Ok(output))), Some(next))
+                    (next.output(Some(Ok(output)), app_meta), Some(next))
                 } else {
                     (command_output, Some(self.clone()))
                 }
@@ -324,7 +370,7 @@ impl Runnable for TutorialCommand {
                 };
 
                 (
-                    next.output(Some(input_command.run(input, app_meta).await)),
+                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
                     Some(next),
                 )
             }
@@ -343,7 +389,7 @@ impl Runnable for TutorialCommand {
                 };
 
                 (
-                    next.output(Some(input_command.run(input, app_meta).await)),
+                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
                     Some(next),
                 )
             }
@@ -362,7 +408,7 @@ impl Runnable for TutorialCommand {
                 };
 
                 (
-                    next.output(Some(input_command.run(input, app_meta).await)),
+                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
                     Some(next),
                 )
             }
@@ -381,7 +427,7 @@ impl Runnable for TutorialCommand {
                 };
 
                 (
-                    next.output(Some(input_command.run(input, app_meta).await)),
+                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
                     Some(next),
                 )
             }
@@ -399,7 +445,7 @@ impl Runnable for TutorialCommand {
                 };
 
                 (
-                    next.output(Some(input_command.run(input, app_meta).await)),
+                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
                     Some(next),
                 )
             }
@@ -416,7 +462,7 @@ impl Runnable for TutorialCommand {
                 };
 
                 (
-                    next.output(Some(input_command.run(input, app_meta).await)),
+                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
                     Some(next),
                 )
             }
@@ -426,14 +472,14 @@ impl Runnable for TutorialCommand {
             ) if name == npc_name => {
                 let next = Self::Time;
                 (
-                    next.output(Some(input_command.run(input, app_meta).await)),
+                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
                     Some(next),
                 )
             }
             (Self::Time, Some(CommandType::Time(TimeCommand::Add { .. }))) => {
                 let next = Self::Conclusion;
                 (
-                    next.output(Some(input_command.run(input, app_meta).await)),
+                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
                     Some(next),
                 )
             }
@@ -459,7 +505,7 @@ impl Runnable for TutorialCommand {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "resume".to_string(),
                     "return to the tutorial".to_string(),
-                    self.clone().into(),
+                    Self::Resume.into(),
                 ));
 
                 app_meta.command_aliases.insert(CommandAlias::literal(
@@ -484,7 +530,7 @@ impl Runnable for TutorialCommand {
                 .insert(CommandAlias::strict_wildcard(command.into()));
         }
 
-        result.map(|s| format!("{}\n\n{}", s, debug)).map_err(|e| format!("{}\n\n{}", e, debug))
+        result
     }
 
     fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
