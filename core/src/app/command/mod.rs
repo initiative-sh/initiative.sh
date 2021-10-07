@@ -63,7 +63,12 @@ impl Runnable for Command {
     async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         if let Some(command) = &self.exact_match {
             let mut result = command.run(input, app_meta).await;
-            if !self.fuzzy_matches.is_empty() {
+            if !self.fuzzy_matches.is_empty()
+                && !matches!(
+                    command,
+                    CommandType::Alias(CommandAlias::StrictWildcard { .. })
+                )
+            {
                 let f = |mut message: String| -> String {
                     message.push_str("\n\n! There are other possible interpretations of this command. Did you mean:\n");
                     let mut lines: Vec<_> = self
