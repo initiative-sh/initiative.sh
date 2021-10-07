@@ -64,6 +64,7 @@ pub enum TutorialCommand {
 
     Cancel,
     Resume,
+    Restart,
 }
 
 impl TutorialCommand {
@@ -86,7 +87,7 @@ impl TutorialCommand {
         }
 
         match self {
-            Self::Introduction | Self::Cancel | Self::Resume => {}
+            Self::Introduction | Self::Cancel | Self::Resume | Self::Restart => {}
             Self::Inn => {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "next".to_string(),
@@ -231,6 +232,8 @@ impl Runnable for TutorialCommand {
     async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         let input_command = Command::parse_input_irrefutable(input, app_meta);
 
+        app_meta.command_aliases.clear();
+
         let (result, next_command) = match (self, input_command.get_type()) {
             (_, Some(CommandType::Tutorial(TutorialCommand::Cancel))) => (
                 Ok(include_str!("../../../../data/tutorial/xx-cancelled.md").to_string()),
@@ -240,7 +243,7 @@ impl Runnable for TutorialCommand {
                 (command.output(None, app_meta), Some(command.clone()))
             }
 
-            (Self::Introduction, _) => {
+            (Self::Introduction, _) | (_, Some(CommandType::Tutorial(Self::Restart))) => {
                 let next = Self::Inn;
                 (next.output(None, app_meta), Some(next))
             }
@@ -494,12 +497,21 @@ impl Runnable for TutorialCommand {
             _ => {
                 let result = {
                     let f = |mut s: String| {
-                        s.push_str("\n\n#");
+                        if !s.is_empty() {
+                            s.push_str("\n\n#");
+                        }
                         s.push_str(include_str!("../../../../data/tutorial/xx-still-active.md"));
                         s
                     };
 
-                    input_command.run(input, app_meta).await.map(f).map_err(f)
+                    if !matches!(
+                        input_command.get_type(),
+                        Some(CommandType::Tutorial(TutorialCommand::Introduction))
+                    ) {
+                        input_command.run(input, app_meta).await.map(f).map_err(f)
+                    } else {
+                        Ok(f(String::new()))
+                    }
                 };
 
                 app_meta.command_aliases.insert(CommandAlias::literal(
@@ -511,7 +523,7 @@ impl Runnable for TutorialCommand {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "restart".to_string(),
                     "restart the tutorial".to_string(),
-                    Self::Introduction.into(),
+                    Self::Restart.into(),
                 ));
 
                 (result, Some(self.clone()))
