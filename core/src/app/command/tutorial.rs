@@ -61,6 +61,8 @@ pub enum TutorialCommand {
     },
     Time,
     Conclusion,
+
+    Cancel,
 }
 
 impl TutorialCommand {
@@ -168,6 +170,7 @@ impl TutorialCommand {
             Self::Conclusion => {
                 output.push_str(include_str!("../../../../data/tutorial/13-time.md"))
             }
+            Self::Cancel => {}
         }
 
         if is_ok {
@@ -182,6 +185,7 @@ impl TutorialCommand {
 impl Runnable for TutorialCommand {
     async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         let input_command = Command::parse_input_irrefutable(input, app_meta);
+        let debug = format!("{:?}\n\n{:?}", self, input_command);
 
         let (result, next_command) = match (self, input_command.get_type()) {
             (Self::Introduction, _) => {
@@ -441,19 +445,46 @@ impl Runnable for TutorialCommand {
                 }),
                 None,
             ),
-            _ => (
-                Ok(include_str!("../../../../data/tutorial/xx-still-active.md").to_string()),
-                Some(self.clone()),
-            ),
+            _ => {
+                let result = {
+                    let f = |mut s: String| {
+                        s.push_str("\n\n#");
+                        s.push_str(include_str!("../../../../data/tutorial/xx-still-active.md"));
+                        s
+                    };
+
+                    input_command.run(input, app_meta).await.map(f).map_err(f)
+                };
+
+                app_meta.command_aliases.insert(CommandAlias::literal(
+                    "resume".to_string(),
+                    "return to the tutorial".to_string(),
+                    self.clone().into(),
+                ));
+
+                app_meta.command_aliases.insert(CommandAlias::literal(
+                    "restart".to_string(),
+                    "restart the tutorial".to_string(),
+                    Self::Introduction.into(),
+                ));
+
+                (result, Some(self.clone()))
+            }
         };
 
         if let Some(command) = next_command {
+            app_meta.command_aliases.insert(CommandAlias::literal(
+                "cancel".to_string(),
+                "cancel the tutorial".to_string(),
+                Self::Cancel.into(),
+            ));
+
             app_meta
                 .command_aliases
                 .insert(CommandAlias::strict_wildcard(command.into()));
         }
 
-        result
+        result.map(|s| format!("{}\n\n{}", s, debug)).map_err(|e| format!("{}\n\n{}", e, debug))
     }
 
     fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
