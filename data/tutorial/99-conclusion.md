@@ -1,6 +1,4 @@
-
-
-## Tutorial
+# Tutorial: Conclusion
 
 We have now covered the basics of initiative.sh. There's a lot more to discover,
 and development is ongoing, so I encourage you to experiment to discover more.

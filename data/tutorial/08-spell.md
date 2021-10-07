@@ -1,6 +1,4 @@
-
-
-## Tutorial
+# Tutorial: SRD Reference
 
 Notice that {their} profile no longer reminds you to save {them}. {theyre_cap}
 safely saved for next time the party passes through.

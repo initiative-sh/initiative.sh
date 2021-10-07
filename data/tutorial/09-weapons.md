@@ -1,6 +1,4 @@
-
-
-## Tutorial
+# Tutorial: SRD Reference Lists
 
 Yikes, that's a lot of dice. {inn_name} is on fire and {npc_name} isn't looking
 so good, but it's {their} bar and {theyre} not going down without a fight.

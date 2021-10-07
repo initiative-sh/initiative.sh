@@ -1,4 +1,4 @@
-# Tutorial
+# Tutorial: Generating Locations
 
 Yes, just like that!
 

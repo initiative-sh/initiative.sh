@@ -1,6 +1,4 @@
-
-
-## Tutorial
+# Tutorial: Loading From Journal
 
 Unless saved to your journal, only a limited number of generated things like
 inns and characters will be stored at a time. Furthermore, your journal is saved

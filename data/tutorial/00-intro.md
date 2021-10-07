@@ -1,4 +1,4 @@
-# Tutorial
+# Tutorial: Introduction
 
 This tutorial will walk you through the basics of initiative.sh and introduce
 you to its design principles.

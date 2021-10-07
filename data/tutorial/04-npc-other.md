@@ -1,6 +1,4 @@
-
-
-## Tutorial
+# Tutorial: Generating Alternatives
 
 {other_npc_name} isn't bad, but let's say `{npc_name}` works better in our game.
 You can look at {their} profile by typing {their} name. As you may notice, a

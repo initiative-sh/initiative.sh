@@ -17,8 +17,9 @@ pub enum TutorialCommand {
     },
     SaveByName {
         inn_name: String,
-        npc_name: String,
         npc_gender: Gender,
+        npc_name: String,
+        other_npc_name: String,
     },
     Journal {
         inn_name: String,
@@ -41,6 +42,7 @@ pub enum TutorialCommand {
         npc_name: String,
     },
     Roll {
+        inn_name: String,
         npc_gender: Gender,
         npc_name: String,
     },
@@ -49,10 +51,126 @@ pub enum TutorialCommand {
         npc_name: String,
     },
     AdjustTime {
+        npc_gender: Gender,
         npc_name: String,
     },
     Time,
     Conclusion,
+}
+
+impl TutorialCommand {
+    fn output(&self, command_output: Option<Result<String, String>>) -> Result<String, String> {
+        let is_ok = if let Some(r) = &command_output {
+            r.is_ok()
+        } else {
+            true
+        };
+
+        let mut output = command_output
+            .unwrap_or_else(|| Ok(String::new()))
+            .map_or_else(|e| e, |s| s);
+        if !output.is_empty() {
+            output.push_str("\n\n#");
+        }
+
+        match self {
+            Self::Introduction => {}
+            Self::Inn => output.push_str(include_str!("../../../../data/tutorial/00-intro.md")),
+            Self::Save => output.push_str(include_str!("../../../../data/tutorial/01-inn.md")),
+            Self::Npc { inn_name } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/02-save.md"),
+                inn_name = inn_name,
+            )),
+            Self::NpcOther { .. } => {
+                output.push_str(include_str!("../../../../data/tutorial/03-npc.md"))
+            }
+            Self::SaveByName {
+                npc_gender,
+                npc_name,
+                other_npc_name,
+                ..
+            } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/04-npc-other.md"),
+                npc_name = npc_name,
+                other_npc_name = other_npc_name,
+                their = npc_gender.their(),
+            )),
+            Self::Journal {
+                inn_name,
+                npc_gender,
+                npc_name,
+            } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/05-save-by-name.md"),
+                inn_name = inn_name,
+                npc_name = npc_name,
+                them = npc_gender.them(),
+            )),
+            Self::LoadByName { .. } => {
+                output.push_str(include_str!("../../../../data/tutorial/06-journal.md"))
+            }
+            Self::Spell { npc_name, .. } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/07-load-by-name.md"),
+                npc_name = npc_name,
+            )),
+            Self::Weapons {
+                npc_gender,
+                npc_name,
+                ..
+            } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/08-spell.md"),
+                npc_name = npc_name,
+                their = npc_gender.their(),
+                them = npc_gender.them(),
+                theyre_cap = npc_gender.theyre_cap(),
+            )),
+            Self::Roll {
+                inn_name,
+                npc_gender,
+                npc_name,
+            } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/09-weapons.md"),
+                inn_name = inn_name,
+                npc_name = npc_name,
+                pull = if npc_gender == &Gender::Trans {
+                    "pull"
+                } else {
+                    "pulls"
+                },
+                their = npc_gender.their(),
+                they_cap = npc_gender.they_cap(),
+                theyre = npc_gender.theyre(),
+            )),
+            Self::Delete {
+                npc_gender,
+                npc_name,
+            } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/10-roll.md"),
+                npc_name = npc_name,
+                theyve = npc_gender.theyve(),
+            )),
+            Self::AdjustTime {
+                npc_gender,
+                npc_name,
+            } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/11-delete.md"),
+                npc_name = npc_name,
+                them = npc_gender.them(),
+                they_cap = npc_gender.they_cap(),
+            )),
+            Self::Time => {
+                output.push_str(include_str!("../../../../data/tutorial/12-adjust-time.md"))
+            }
+            Self::Conclusion => {
+                output.push_str(include_str!("../../../../data/tutorial/13-time.md"))
+            }
+        }
+
+        if is_ok {
+            Ok(output)
+        } else {
+            Err(output)
+        }
+    }
 }
 
 #[async_trait(?Send)]
@@ -68,19 +186,17 @@ impl Runnable for TutorialCommand {
                     Self::Inn.into(),
                 ));
 
-                (
-                    Ok(include_str!("../../../../data/tutorial/00-intro.md").to_string()),
-                    Some(Self::Inn),
-                )
+                let next = Self::Inn;
+                (next.output(None), Some(next))
             }
-            Self::Inn if input == "next" => (
-                Ok(include_str!("../../../../data/tutorial/01-inn.md").to_string()),
-                Some(Self::Save),
-            ),
+            Self::Inn if input == "next" => {
+                let next = Self::Save;
+                (next.output(None), Some(next))
+            }
             Self::Save if input == "inn" => {
                 let command_output = input_command.run(input, app_meta).await;
 
-                if let Ok(mut output) = command_output {
+                if let Ok(output) = command_output {
                     let inn_name = output
                         .lines()
                         .next()
@@ -88,12 +204,8 @@ impl Runnable for TutorialCommand {
                         .trim_start_matches(&[' ', '#'][..])
                         .to_string();
 
-                    output.push_str(&format!(
-                        include_str!("../../../../data/tutorial/02-save.md"),
-                        inn_name = inn_name,
-                    ));
-
-                    (Ok(output), Some(Self::Npc { inn_name }))
+                    let next = Self::Npc { inn_name };
+                    (next.output(Some(Ok(output))), Some(next))
                 } else {
                     (command_output, Some(self.clone()))
                 }
@@ -104,26 +216,25 @@ impl Runnable for TutorialCommand {
                         && input.ends_with(inn_name.as_str())
                         && input.len() == "save ".len() + inn_name.len()) =>
             {
+                let next = Self::NpcOther {
+                    inn_name: inn_name.clone(),
+                };
+
                 (
-                    input_command.run(input, app_meta).await.map(|mut output| {
-                        output.push_str(include_str!("../../../../data/tutorial/03-npc.md"));
-                        output
-                    }),
-                    Some(Self::NpcOther {
-                        inn_name: inn_name.clone(),
-                    }),
+                    next.output(Some(input_command.run(input, app_meta).await)),
+                    Some(next),
                 )
             }
             Self::NpcOther { inn_name } if input == "npc" => {
                 let command_output = input_command.run(input, app_meta).await;
 
-                if let Ok(mut output) = command_output {
+                if let Ok(output) = command_output {
                     let (npc_name, other_npc_name, npc_gender) = {
                         let mut lines_iter = output.lines();
 
                         let other_npc_name = lines_iter
                             .next()
-                            .map(|s| s.trim_start_matches(&[' ', '#'][..]));
+                            .map(|s| s.trim_start_matches(&[' ', '#'][..]).to_string());
                         let npc_name = lines_iter
                             .find(|s| s.starts_with("~1~ "))
                             .and_then(|s| {
@@ -146,22 +257,14 @@ impl Runnable for TutorialCommand {
                     if let (Some(npc_name), Some(other_npc_name), Some(npc_gender)) =
                         (npc_name, other_npc_name, npc_gender)
                     {
-                        let tutorial_output = format!(
-                            include_str!("../../../../data/tutorial/04-npc-other.md"),
-                            other_npc_name = other_npc_name,
-                            npc_name = npc_name,
-                            their = npc_gender.their(),
-                        );
-                        output.push_str(&tutorial_output);
+                        let next = Self::SaveByName {
+                            inn_name: inn_name.clone(),
+                            npc_gender,
+                            npc_name,
+                            other_npc_name,
+                        };
 
-                        (
-                            Ok(output),
-                            Some(Self::SaveByName {
-                                inn_name: inn_name.clone(),
-                                npc_name,
-                                npc_gender,
-                            }),
-                        )
+                        (next.output(Some(Ok(output))), Some(next))
                     } else {
                         (Ok(output), Some(self.clone()))
                     }
@@ -173,6 +276,7 @@ impl Runnable for TutorialCommand {
                 inn_name,
                 npc_gender,
                 npc_name,
+                ..
             } if input == "1"
                 || input == npc_name
                 || (input.starts_with("load ")
@@ -181,22 +285,14 @@ impl Runnable for TutorialCommand {
             {
                 let command_output = input_command.run(input, app_meta).await;
 
-                if let Ok(mut output) = command_output {
-                    output.push_str(&format!(
-                        include_str!("../../../../data/tutorial/05-save-by-name.md"),
-                        inn_name = inn_name,
-                        npc_name = npc_name,
-                        them = npc_gender.them(),
-                    ));
+                if let Ok(output) = command_output {
+                    let next = Self::Journal {
+                        inn_name: inn_name.clone(),
+                        npc_gender: *npc_gender,
+                        npc_name: npc_name.clone(),
+                    };
 
-                    (
-                        Ok(output),
-                        Some(Self::Journal {
-                            inn_name: inn_name.clone(),
-                            npc_gender: *npc_gender,
-                            npc_name: npc_name.clone(),
-                        }),
-                    )
+                    (next.output(Some(Ok(output))), Some(next))
                 } else {
                     (command_output, Some(self.clone()))
                 }
@@ -210,36 +306,33 @@ impl Runnable for TutorialCommand {
                     && input.ends_with(npc_name.as_str())
                     && input.len() == "save ".len() + npc_name.len()) =>
             {
+                let next = Self::LoadByName {
+                    inn_name: inn_name.clone(),
+                    npc_gender: *npc_gender,
+                    npc_name: npc_name.clone(),
+                };
+
                 (
-                    input_command.run(input, app_meta).await.map(|mut output| {
-                        output.push_str(include_str!("../../../../data/tutorial/06-journal.md"));
-                        output
-                    }),
-                    Some(Self::LoadByName {
-                        inn_name: inn_name.clone(),
-                        npc_gender: *npc_gender,
-                        npc_name: npc_name.clone(),
-                    }),
+                    next.output(Some(input_command.run(input, app_meta).await)),
+                    Some(next),
                 )
             }
             Self::LoadByName {
                 inn_name,
                 npc_gender,
                 npc_name,
-            } if input == "journal" => (
-                input_command.run(input, app_meta).await.map(|mut output| {
-                    output.push_str(&format!(
-                        include_str!("../../../../data/tutorial/07-load-by-name.md"),
-                        npc_name = npc_name,
-                    ));
-                    output
-                }),
-                Some(Self::Spell {
+            } if input == "journal" => {
+                let next = Self::Spell {
                     inn_name: inn_name.clone(),
                     npc_gender: *npc_gender,
                     npc_name: npc_name.clone(),
-                }),
-            ),
+                };
+
+                (
+                    next.output(Some(input_command.run(input, app_meta).await)),
+                    Some(next),
+                )
+            }
             Self::Spell {
                 inn_name,
                 npc_gender,
@@ -249,107 +342,83 @@ impl Runnable for TutorialCommand {
                     && input.ends_with(npc_name.as_str())
                     && input.len() == "load ".len() + npc_name.len()) =>
             {
+                let next = Self::Weapons {
+                    inn_name: inn_name.clone(),
+                    npc_gender: *npc_gender,
+                    npc_name: npc_name.clone(),
+                };
+
                 (
-                    input_command.run(input, app_meta).await.map(|mut output| {
-                        output.push_str(&format!(
-                            include_str!("../../../../data/tutorial/08-spell.md"),
-                            npc_name = npc_name,
-                            their = npc_gender.their(),
-                            them = npc_gender.them(),
-                            theyre_cap = npc_gender.theyre_cap(),
-                        ));
-                        output
-                    }),
-                    Some(Self::Weapons {
-                        inn_name: inn_name.clone(),
-                        npc_gender: *npc_gender,
-                        npc_name: npc_name.clone(),
-                    }),
+                    next.output(Some(input_command.run(input, app_meta).await)),
+                    Some(next),
                 )
             }
             Self::Weapons {
                 inn_name,
                 npc_gender,
                 npc_name,
-            } if input == "Fireball" => (
-                input_command.run(input, app_meta).await.map(|mut output| {
-                    output.push_str(&format!(
-                        include_str!("../../../../data/tutorial/09-weapons.md"),
-                        inn_name = inn_name,
-                        npc_name = npc_name,
-                        pull = if npc_gender == &Gender::Trans {
-                            "pull"
-                        } else {
-                            "pulls"
-                        },
-                        their = npc_gender.their(),
-                        they_cap = npc_gender.they_cap(),
-                        theyre = npc_gender.theyre(),
-                    ));
-                    output
-                }),
-                Some(Self::Roll {
+            } if input == "Fireball" => {
+                let next = Self::Roll {
+                    inn_name: inn_name.clone(),
                     npc_gender: *npc_gender,
                     npc_name: npc_name.clone(),
-                }),
-            ),
+                };
+
+                (
+                    next.output(Some(input_command.run(input, app_meta).await)),
+                    Some(next),
+                )
+            }
             Self::Roll {
                 npc_gender,
                 npc_name,
-            } if input == "weapons" => (
-                input_command.run(input, app_meta).await.map(|mut output| {
-                    output.push_str(&format!(
-                        include_str!("../../../../data/tutorial/10-roll.md"),
-                        npc_name = npc_name,
-                        theyve = npc_gender.theyve(),
-                    ));
-                    output
-                }),
-                Some(Self::Delete {
+                ..
+            } if input == "weapons" => {
+                let next = Self::Delete {
                     npc_gender: *npc_gender,
                     npc_name: npc_name.clone(),
-                }),
-            ),
+                };
+
+                (
+                    next.output(Some(input_command.run(input, app_meta).await)),
+                    Some(next),
+                )
+            }
             Self::Delete {
                 npc_gender,
                 npc_name,
-            } if input == "d20+4" => (
-                input_command.run(input, app_meta).await.map(|mut output| {
-                    output.push_str(&format!(
-                        include_str!("../../../../data/tutorial/11-delete.md"),
-                        npc_name = npc_name,
-                        them = npc_gender.them(),
-                        they_cap = npc_gender.they_cap(),
-                    ));
-                    output
-                }),
-                Some(Self::AdjustTime {
+            } if input == "d20+4" => {
+                let next = Self::AdjustTime {
+                    npc_gender: *npc_gender,
                     npc_name: npc_name.clone(),
-                }),
-            ),
-            Self::AdjustTime { npc_name }
+                };
+
+                (
+                    next.output(Some(input_command.run(input, app_meta).await)),
+                    Some(next),
+                )
+            }
+            Self::AdjustTime { npc_name, .. }
                 if input.starts_with("delete ")
                     && input.ends_with(npc_name.as_str())
                     && input.len() == "delete ".len() + npc_name.len() =>
             {
+                let next = Self::Time;
                 (
-                    input_command.run(input, app_meta).await.map(|mut output| {
-                        output
-                            .push_str(include_str!("../../../../data/tutorial/12-adjust-time.md"));
-                        output
-                    }),
-                    Some(Self::Time),
+                    next.output(Some(input_command.run(input, app_meta).await)),
+                    Some(next),
                 )
             }
-            Self::Time if input == "+30m" => (
-                input_command.run(input, app_meta).await.map(|mut output| {
-                    output.push_str(include_str!("../../../../data/tutorial/13-time.md"));
-                    output
-                }),
-                Some(Self::Conclusion),
-            ),
+            Self::Time if input == "+30m" => {
+                let next = Self::Conclusion;
+                (
+                    next.output(Some(input_command.run(input, app_meta).await)),
+                    Some(next),
+                )
+            }
             Self::Conclusion if ["time", "date", "now"].contains(&input) => (
                 input_command.run(input, app_meta).await.map(|mut output| {
+                    output.push_str("\n\n#");
                     output.push_str(include_str!("../../../../data/tutorial/99-conclusion.md"));
                     output
                 }),

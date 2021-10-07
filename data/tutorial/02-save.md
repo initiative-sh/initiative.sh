@@ -1,6 +1,4 @@
-
-
-## Tutorial
+# Tutorial: Saving Locations
 
 Great! You'll notice that initiative.sh didn't limit itself to generating one
 inn - it also generated ten alternatives for you to choose from. For now, we'll
