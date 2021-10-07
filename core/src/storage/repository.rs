@@ -97,7 +97,7 @@ pub async fn save_thing_by_name(app_meta: &mut AppMeta, name: &str) -> Result<St
             .save_thing(&thing)
             .await
             .map_err(|_| format!("Couldn't save `{}`", thing.name()))
-            .map(|_| format!("Saving {}", thing.display_summary()));
+            .map(|_| format!("{} was successfully saved.", thing.display_summary()));
 
         if result.is_ok() {
             app_meta.cache.insert(*thing.uuid().unwrap(), thing);
