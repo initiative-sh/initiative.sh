@@ -1,5 +1,7 @@
 # Help
 
+_For a hands-on overview of these commands, why not try the `tutorial`?_
+
 Commands are intended to be typed, although underlined words are also clickable
 to make it easier to discover new commands. They're also intended to be as
 intuitive and succinct as possible.
