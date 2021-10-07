@@ -1,6 +1,11 @@
-use super::{Command, CommandAlias, Runnable};
-use crate::app::AppMeta;
+use super::CommandType;
+use crate::app::{AppCommand, AppMeta, Command, CommandAlias, Runnable};
+use crate::reference::{ItemCategory, ReferenceCommand, Spell};
+use crate::storage::StorageCommand;
+use crate::time::TimeCommand;
+use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Gender;
+use crate::world::WorldCommand;
 use async_trait::async_trait;
 use std::fmt;
 
@@ -178,8 +183,8 @@ impl Runnable for TutorialCommand {
     async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         let input_command = Command::parse_input_irrefutable(input, app_meta);
 
-        let (result, next_command) = match self {
-            Self::Introduction => {
+        let (result, next_command) = match (self, input_command.get_type()) {
+            (Self::Introduction, _) => {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "next".to_string(),
                     "continue the tutorial".to_string(),
@@ -189,11 +194,16 @@ impl Runnable for TutorialCommand {
                 let next = Self::Inn;
                 (next.output(None), Some(next))
             }
-            Self::Inn if input == "next" => {
+            (Self::Inn, Some(CommandType::Tutorial(Self::Inn))) => {
                 let next = Self::Save;
                 (next.output(None), Some(next))
             }
-            Self::Save if input == "inn" => {
+            (
+                Self::Save,
+                Some(CommandType::World(WorldCommand::Location {
+                    location_type: LocationType::Building(Some(BuildingType::Inn)),
+                })),
+            ) => {
                 let command_output = input_command.run(input, app_meta).await;
 
                 if let Ok(output) = command_output {
@@ -210,11 +220,8 @@ impl Runnable for TutorialCommand {
                     (command_output, Some(self.clone()))
                 }
             }
-            Self::Npc { inn_name }
-                if input == "save"
-                    || (input.starts_with("save ")
-                        && input.ends_with(inn_name.as_str())
-                        && input.len() == "save ".len() + inn_name.len()) =>
+            (Self::Npc { inn_name }, Some(CommandType::Storage(StorageCommand::Save { name })))
+                if name == inn_name =>
             {
                 let next = Self::NpcOther {
                     inn_name: inn_name.clone(),
@@ -225,7 +232,10 @@ impl Runnable for TutorialCommand {
                     Some(next),
                 )
             }
-            Self::NpcOther { inn_name } if input == "npc" => {
+            (
+                Self::NpcOther { inn_name },
+                Some(CommandType::World(WorldCommand::Npc { species: None })),
+            ) => {
                 let command_output = input_command.run(input, app_meta).await;
 
                 if let Ok(output) = command_output {
@@ -272,17 +282,15 @@ impl Runnable for TutorialCommand {
                     (command_output, Some(self.clone()))
                 }
             }
-            Self::SaveByName {
-                inn_name,
-                npc_gender,
-                npc_name,
-                ..
-            } if input == "1"
-                || input == npc_name
-                || (input.starts_with("load ")
-                    && input.ends_with(npc_name.as_str())
-                    && input.len() == "load ".len() + npc_name.len()) =>
-            {
+            (
+                Self::SaveByName {
+                    inn_name,
+                    npc_gender,
+                    npc_name,
+                    ..
+                },
+                Some(CommandType::Storage(StorageCommand::Load { name })),
+            ) if name == npc_name => {
                 let command_output = input_command.run(input, app_meta).await;
 
                 if let Ok(output) = command_output {
@@ -297,15 +305,14 @@ impl Runnable for TutorialCommand {
                     (command_output, Some(self.clone()))
                 }
             }
-            Self::Journal {
-                inn_name,
-                npc_gender,
-                npc_name,
-            } if input == "save"
-                || (input.starts_with("save ")
-                    && input.ends_with(npc_name.as_str())
-                    && input.len() == "save ".len() + npc_name.len()) =>
-            {
+            (
+                Self::Journal {
+                    inn_name,
+                    npc_gender,
+                    npc_name,
+                },
+                Some(CommandType::Storage(StorageCommand::Save { name })),
+            ) if name == npc_name => {
                 let next = Self::LoadByName {
                     inn_name: inn_name.clone(),
                     npc_gender: *npc_gender,
@@ -317,11 +324,14 @@ impl Runnable for TutorialCommand {
                     Some(next),
                 )
             }
-            Self::LoadByName {
-                inn_name,
-                npc_gender,
-                npc_name,
-            } if input == "journal" => {
+            (
+                Self::LoadByName {
+                    inn_name,
+                    npc_gender,
+                    npc_name,
+                },
+                Some(CommandType::Storage(StorageCommand::Journal)),
+            ) => {
                 let next = Self::Spell {
                     inn_name: inn_name.clone(),
                     npc_gender: *npc_gender,
@@ -333,15 +343,14 @@ impl Runnable for TutorialCommand {
                     Some(next),
                 )
             }
-            Self::Spell {
-                inn_name,
-                npc_gender,
-                npc_name,
-            } if input == npc_name
-                || (input.starts_with("load ")
-                    && input.ends_with(npc_name.as_str())
-                    && input.len() == "load ".len() + npc_name.len()) =>
-            {
+            (
+                Self::Spell {
+                    inn_name,
+                    npc_gender,
+                    npc_name,
+                },
+                Some(CommandType::Storage(StorageCommand::Load { name })),
+            ) if name == npc_name => {
                 let next = Self::Weapons {
                     inn_name: inn_name.clone(),
                     npc_gender: *npc_gender,
@@ -353,11 +362,14 @@ impl Runnable for TutorialCommand {
                     Some(next),
                 )
             }
-            Self::Weapons {
-                inn_name,
-                npc_gender,
-                npc_name,
-            } if input == "Fireball" => {
+            (
+                Self::Weapons {
+                    inn_name,
+                    npc_gender,
+                    npc_name,
+                },
+                Some(CommandType::Reference(ReferenceCommand::Spell(Spell::Fireball))),
+            ) => {
                 let next = Self::Roll {
                     inn_name: inn_name.clone(),
                     npc_gender: *npc_gender,
@@ -369,11 +381,14 @@ impl Runnable for TutorialCommand {
                     Some(next),
                 )
             }
-            Self::Roll {
-                npc_gender,
-                npc_name,
-                ..
-            } if input == "weapons" => {
+            (
+                Self::Roll {
+                    npc_gender,
+                    npc_name,
+                    ..
+                },
+                Some(CommandType::Reference(ReferenceCommand::ItemCategory(ItemCategory::Weapon))),
+            ) => {
                 let next = Self::Delete {
                     npc_gender: *npc_gender,
                     npc_name: npc_name.clone(),
@@ -384,10 +399,13 @@ impl Runnable for TutorialCommand {
                     Some(next),
                 )
             }
-            Self::Delete {
-                npc_gender,
-                npc_name,
-            } if input == "d20+4" => {
+            (
+                Self::Delete {
+                    npc_gender,
+                    npc_name,
+                },
+                Some(CommandType::App(AppCommand::Roll(_))),
+            ) => {
                 let next = Self::AdjustTime {
                     npc_gender: *npc_gender,
                     npc_name: npc_name.clone(),
@@ -398,25 +416,24 @@ impl Runnable for TutorialCommand {
                     Some(next),
                 )
             }
-            Self::AdjustTime { npc_name, .. }
-                if input.starts_with("delete ")
-                    && input.ends_with(npc_name.as_str())
-                    && input.len() == "delete ".len() + npc_name.len() =>
-            {
+            (
+                Self::AdjustTime { npc_name, .. },
+                Some(CommandType::Storage(StorageCommand::Delete { name })),
+            ) if name == npc_name => {
                 let next = Self::Time;
                 (
                     next.output(Some(input_command.run(input, app_meta).await)),
                     Some(next),
                 )
             }
-            Self::Time if input == "+30m" => {
+            (Self::Time, Some(CommandType::Time(TimeCommand::Add { .. }))) => {
                 let next = Self::Conclusion;
                 (
                     next.output(Some(input_command.run(input, app_meta).await)),
                     Some(next),
                 )
             }
-            Self::Conclusion if ["time", "date", "now"].contains(&input) => (
+            (Self::Conclusion, Some(CommandType::Time(TimeCommand::Now))) => (
                 input_command.run(input, app_meta).await.map(|mut output| {
                     output.push_str("\n\n#");
                     output.push_str(include_str!("../../../../data/tutorial/99-conclusion.md"));

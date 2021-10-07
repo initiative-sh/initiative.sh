@@ -37,6 +37,22 @@ impl Command {
         }
     }
 
+    pub fn get_type(&self) -> Option<&CommandType> {
+        let command_type = if let Some(command) = &self.exact_match {
+            Some(command)
+        } else if self.fuzzy_matches.len() == 1 {
+            self.fuzzy_matches.first()
+        } else {
+            None
+        };
+
+        if let Some(CommandType::Alias(alias)) = command_type {
+            alias.get_command().get_type()
+        } else {
+            command_type
+        }
+    }
+
     pub fn parse_input_irrefutable(input: &str, app_meta: &AppMeta) -> Self {
         Command::default()
             .union(CommandAlias::parse_input(input, app_meta).into())

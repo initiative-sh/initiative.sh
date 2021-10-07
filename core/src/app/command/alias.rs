@@ -31,6 +31,13 @@ impl CommandAlias {
             command: Box::new(command),
         }
     }
+
+    pub fn get_command(&self) -> &Command {
+        match self {
+            Self::Literal { command, .. } => command,
+            Self::StrictWildcard { command, .. } => command,
+        }
+    }
 }
 
 impl Hash for CommandAlias {
