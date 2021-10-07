@@ -50,5 +50,3 @@ Some examples to get you started:
 * `2d20k1+5: +5 attack roll with disadvantage` (k = keep low)
 * `2d20d1+5: +5 attack roll with advantage` (d = drop low)
 * `(d4+1)^3: magic missile` (rolls 3 times)
-* See [the documentation](https://github.com/Geobert/caith/blob/v4.2.0/README.md#syntax)
-  for more options.
