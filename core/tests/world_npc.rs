@@ -175,7 +175,7 @@ fn save_alias_exists_for_npcs() {
         let name = output.lines().next().unwrap().trim_start_matches("# ");
 
         let output = app.command("save").unwrap();
-        assert!(output.contains(&format!("Saving `{}`", name)), "{}", output);
+        assert!(output.contains("was successfully saved."), "{}", output);
 
         let output = app.command(&format!("load {}", name)).unwrap();
         assert!(!output.contains("has not yet been saved"), "{}", output);

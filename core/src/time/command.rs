@@ -13,7 +13,7 @@ pub enum TimeCommand {
 
 #[async_trait(?Send)]
 impl Runnable for TimeCommand {
-    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         let time = match self {
             Self::Add { interval } => app_meta.get_time().checked_add(interval),
             Self::Sub { interval } => app_meta.get_time().checked_sub(interval),
@@ -26,7 +26,7 @@ impl Runnable for TimeCommand {
         };
 
         if let Some(time) = time {
-            app_meta.command_aliases.insert(CommandAlias::new(
+            app_meta.command_aliases.insert(CommandAlias::literal(
                 "undo".to_string(),
                 format!("change time to {}", app_meta.get_time().display_short()),
                 match self {

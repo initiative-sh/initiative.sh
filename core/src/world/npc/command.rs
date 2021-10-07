@@ -22,7 +22,7 @@ pub fn command(species: &Option<Species>, app_meta: &mut AppMeta) -> String {
                 name,
                 npc.gender.value().unwrap_or(&Gender::Trans).them(),
             ));
-            app_meta.command_aliases.insert(CommandAlias::new(
+            app_meta.command_aliases.insert(CommandAlias::literal(
                 "save".to_string(),
                 format!("save {}", name),
                 StorageCommand::Save {
@@ -41,7 +41,7 @@ pub fn command(species: &Option<Species>, app_meta: &mut AppMeta) -> String {
         .map(|i| {
             let alt = Npc::generate(&mut app_meta.rng, &demographics);
             output.push_str(&format!("\\\n~{}~ {}", i, alt.display_summary()));
-            app_meta.command_aliases.insert(CommandAlias::new(
+            app_meta.command_aliases.insert(CommandAlias::literal(
                 i.to_string(),
                 format!("load {}", alt.name),
                 StorageCommand::Load {

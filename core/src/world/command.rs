@@ -33,7 +33,7 @@ impl WorldCommand {
 
 #[async_trait(?Send)]
 impl Runnable for WorldCommand {
-    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         Ok(match self {
             Self::Location { location_type } => location::command(location_type, app_meta),
             Self::Npc { species } => npc::command(species, app_meta),

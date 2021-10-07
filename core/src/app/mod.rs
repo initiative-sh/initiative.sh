@@ -29,7 +29,7 @@ impl App {
 
     pub async fn command(&mut self, input: &str) -> Result<String, String> {
         Command::parse_input_irrefutable(input, &self.meta)
-            .run(&mut self.meta)
+            .run(input, &mut self.meta)
             .await
     }
 

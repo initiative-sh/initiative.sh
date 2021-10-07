@@ -17,13 +17,7 @@ fn npc_is_saved_to_storage() {
 
     {
         let output = app.command(&format!("save {}", npc_name)).unwrap();
-        let start = format!("Saving `{}`", npc_name);
-        assert!(
-            output.starts_with(&start),
-            "\"{}\" should start with \"{}\"",
-            output,
-            start,
-        );
+        assert!(output.contains("was successfully saved."), "{}", output);
     }
 
     let things = data_store.things.borrow();

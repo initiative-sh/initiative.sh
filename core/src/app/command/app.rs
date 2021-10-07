@@ -27,7 +27,7 @@ impl AppCommand {
 
 #[async_trait(?Send)]
 impl Runnable for AppCommand {
-    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         Ok(match self {
             Self::About => include_str!("../../../../data/about.md")
                 .trim_end()

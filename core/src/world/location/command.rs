@@ -21,7 +21,7 @@ pub fn command(location_type: &LocationType, app_meta: &mut AppMeta) -> String {
                     "\n\n_{} has not yet been saved. Use ~save~ to save it to your `journal`._",
                     name,
                 ));
-                app_meta.command_aliases.insert(CommandAlias::new(
+                app_meta.command_aliases.insert(CommandAlias::literal(
                     "save".to_string(),
                     format!("save {}", name),
                     StorageCommand::Save {
@@ -42,7 +42,7 @@ pub fn command(location_type: &LocationType, app_meta: &mut AppMeta) -> String {
             let mut location = location.clone();
             location.regenerate(&mut app_meta.rng, &app_meta.demographics);
             output.push_str(&format!("\\\n~{}~ {}", i, location.display_summary()));
-            app_meta.command_aliases.insert(CommandAlias::new(
+            app_meta.command_aliases.insert(CommandAlias::literal(
                 i.to_string(),
                 format!("load {}", location.name),
                 StorageCommand::Load {

@@ -3,7 +3,7 @@ use async_trait::async_trait;
 
 #[async_trait(?Send)]
 pub trait Runnable: Sized {
-    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String>;
+    async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String>;
 
     fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>);
 

@@ -1,10 +1,12 @@
 pub use alias::CommandAlias;
 pub use app::AppCommand;
 pub use runnable::{autocomplete_phrase, Runnable};
+pub use tutorial::TutorialCommand;
 
 mod alias;
 mod app;
 mod runnable;
+mod tutorial;
 
 use super::AppMeta;
 use crate::reference::ReferenceCommand;
@@ -14,24 +16,14 @@ use crate::world::WorldCommand;
 use async_trait::async_trait;
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Command {
-    input: String,
     exact_match: Option<CommandType>,
     fuzzy_matches: Vec<CommandType>,
 }
 
 impl Command {
-    pub fn with_input(input: &str) -> Self {
-        Self {
-            input: input.to_string(),
-            exact_match: None,
-            fuzzy_matches: Vec::new(),
-        }
-    }
-
     fn union(mut self, mut other: Self) -> Self {
-        let input = self.input;
         let exact_match = self.exact_match.or(other.exact_match);
         let fuzzy_matches = self
             .fuzzy_matches
@@ -40,19 +32,35 @@ impl Command {
             .collect();
 
         Self {
-            input,
             exact_match,
             fuzzy_matches,
         }
     }
 
+    pub fn get_type(&self) -> Option<&CommandType> {
+        let command_type = if let Some(command) = &self.exact_match {
+            Some(command)
+        } else if self.fuzzy_matches.len() == 1 {
+            self.fuzzy_matches.first()
+        } else {
+            None
+        };
+
+        if let Some(CommandType::Alias(alias)) = command_type {
+            alias.get_command().get_type()
+        } else {
+            command_type
+        }
+    }
+
     pub fn parse_input_irrefutable(input: &str, app_meta: &AppMeta) -> Self {
-        Command::with_input(input)
+        Command::default()
             .union(CommandAlias::parse_input(input, app_meta).into())
             .union(AppCommand::parse_input(input, app_meta).into())
             .union(ReferenceCommand::parse_input(input, app_meta).into())
             .union(StorageCommand::parse_input(input, app_meta).into())
             .union(TimeCommand::parse_input(input, app_meta).into())
+            .union(TutorialCommand::parse_input(input, app_meta).into())
             .union(WorldCommand::parse_input(input, app_meta).into())
     }
 }
@@ -60,7 +68,6 @@ impl Command {
 impl<T: Into<CommandType>> From<(Option<T>, Vec<T>)> for Command {
     fn from(mut input: (Option<T>, Vec<T>)) -> Self {
         Self {
-            input: String::new(),
             exact_match: input.0.map(|c| c.into()),
             fuzzy_matches: input.1.drain(..).map(|c| c.into()).collect(),
         }
@@ -69,10 +76,15 @@ impl<T: Into<CommandType>> From<(Option<T>, Vec<T>)> for Command {
 
 #[async_trait(?Send)]
 impl Runnable for Command {
-    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         if let Some(command) = &self.exact_match {
-            let mut result = command.run(app_meta).await;
-            if !self.fuzzy_matches.is_empty() {
+            let mut result = command.run(input, app_meta).await;
+            if !self.fuzzy_matches.is_empty()
+                && !matches!(
+                    command,
+                    CommandType::Alias(CommandAlias::StrictWildcard { .. })
+                )
+            {
                 let f = |mut message: String| -> String {
                     message.push_str("\n\n! There are other possible interpretations of this command. Did you mean:\n");
                     let mut lines: Vec<_> = self
@@ -93,8 +105,14 @@ impl Runnable for Command {
             result
         } else {
             match self.fuzzy_matches.len() {
-                0 => Err(format!("Unknown command: \"{}\"", self.input)),
-                1 => self.fuzzy_matches.first().unwrap().run(app_meta).await,
+                0 => Err(format!("Unknown command: \"{}\"", input)),
+                1 => {
+                    self.fuzzy_matches
+                        .first()
+                        .unwrap()
+                        .run(input, app_meta)
+                        .await
+                }
                 _ => {
                     let mut message =
                         "There are several possible interpretations of this command. Did you mean:\n"
@@ -126,6 +144,7 @@ impl Runnable for Command {
             .chain(ReferenceCommand::autocomplete(input, app_meta).drain(..))
             .chain(StorageCommand::autocomplete(input, app_meta).drain(..))
             .chain(TimeCommand::autocomplete(input, app_meta).drain(..))
+            .chain(TutorialCommand::autocomplete(input, app_meta).drain(..))
             .chain(WorldCommand::autocomplete(input, app_meta).drain(..))
             .collect()
     }
@@ -138,22 +157,24 @@ pub enum CommandType {
     Reference(ReferenceCommand),
     Storage(StorageCommand),
     Time(TimeCommand),
+    Tutorial(TutorialCommand),
     World(WorldCommand),
 }
 
 impl CommandType {
-    async fn run(&self, app_meta: &mut AppMeta) -> Result<String, String> {
-        if !matches!(self, Self::Alias(_)) {
+    async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+        if !matches!(self, Self::Alias(_) | Self::Tutorial(_)) {
             app_meta.command_aliases.clear();
         }
 
         match self {
-            Self::Alias(c) => c.run(app_meta).await,
-            Self::App(c) => c.run(app_meta).await,
-            Self::Reference(c) => c.run(app_meta).await,
-            Self::Storage(c) => c.run(app_meta).await,
-            Self::Time(c) => c.run(app_meta).await,
-            Self::World(c) => c.run(app_meta).await,
+            Self::Alias(c) => c.run(input, app_meta).await,
+            Self::App(c) => c.run(input, app_meta).await,
+            Self::Reference(c) => c.run(input, app_meta).await,
+            Self::Storage(c) => c.run(input, app_meta).await,
+            Self::Time(c) => c.run(input, app_meta).await,
+            Self::Tutorial(c) => c.run(input, app_meta).await,
+            Self::World(c) => c.run(input, app_meta).await,
         }
     }
 }
@@ -166,6 +187,7 @@ impl fmt::Display for CommandType {
             Self::Reference(c) => write!(f, "{}", c),
             Self::Storage(c) => write!(f, "{}", c),
             Self::Time(c) => write!(f, "{}", c),
+            Self::Tutorial(c) => write!(f, "{}", c),
             Self::World(c) => write!(f, "{}", c),
         }
     }
@@ -174,7 +196,6 @@ impl fmt::Display for CommandType {
 impl<T: Into<CommandType>> From<T> for Command {
     fn from(c: T) -> Command {
         Command {
-            input: String::new(),
             exact_match: Some(c.into()),
             fuzzy_matches: Vec::new(),
         }
@@ -211,6 +232,12 @@ impl From<TimeCommand> for CommandType {
     }
 }
 
+impl From<TutorialCommand> for CommandType {
+    fn from(c: TutorialCommand) -> CommandType {
+        CommandType::Tutorial(c)
+    }
+}
+
 impl From<WorldCommand> for CommandType {
     fn from(c: WorldCommand) -> CommandType {
         CommandType::World(c)
@@ -229,7 +256,7 @@ mod test {
         assert_eq!(
             (
                 Some(
-                    Command::with_input("about")
+                    Command::default()
                         .union((Some(CommandType::App(AppCommand::About)), Vec::new()).into())
                 ),
                 Vec::new(),
@@ -240,7 +267,7 @@ mod test {
         assert_eq!(
             (
                 Some(
-                    Command::with_input("Open Game License").union(
+                    Command::default().union(
                         (
                             Some(CommandType::Reference(ReferenceCommand::OpenGameLicense)),
                             Vec::new(),
@@ -255,10 +282,7 @@ mod test {
 
         assert_eq!(
             (
-                Some(
-                    Command::with_input("Gandalf the Grey")
-                        .union((Option::<StorageCommand>::None, Vec::new()).into())
-                ),
+                Some(Command::default().union((Option::<StorageCommand>::None, Vec::new()).into())),
                 Vec::new(),
             ),
             Command::parse_input("Gandalf the Grey", &app_meta),
@@ -267,7 +291,7 @@ mod test {
         assert_eq!(
             (
                 Some(
-                    Command::with_input("npc").union(
+                    Command::default().union(
                         (
                             Some(CommandType::World(WorldCommand::Npc { species: None })),
                             Vec::new(),
