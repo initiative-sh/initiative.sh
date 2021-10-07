@@ -1,3 +1,6 @@
+* **New:** Added a `tutorial`! This will be updated very occasionally as new
+  features are added, but initiative.sh is now sufficiently complex and
+  feature-complete to be worth the effort.
 * **Enhancement:** On mobile, the keyboard will no longer pop up when clicking a
   link.
 * **Enhancement:** Input field is now focused whenever you click or tap anywhere
