@@ -1,5 +1,5 @@
 use super::{Item, ItemCategory, MagicItem, Spell};
-use crate::app::{autocomplete_phrase, AppMeta, Runnable};
+use crate::app::{autocomplete_phrase, AppMeta, Autocomplete, ContextAwareParse, Runnable};
 use async_trait::async_trait;
 use caith::Roller;
 use std::fmt;
@@ -49,7 +49,9 @@ impl Runnable for ReferenceCommand {
             name,
         ))
     }
+}
 
+impl ContextAwareParse for ReferenceCommand {
     fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut exact_match = None;
         let mut fuzzy_matches = Vec::new();
@@ -96,7 +98,9 @@ impl Runnable for ReferenceCommand {
 
         (exact_match, fuzzy_matches)
     }
+}
 
+impl Autocomplete for ReferenceCommand {
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         autocomplete_phrase(
             input,

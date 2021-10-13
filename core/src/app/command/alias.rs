@@ -1,4 +1,4 @@
-use super::{Command, Runnable};
+use super::{Autocomplete, Command, ContextAwareParse, Runnable};
 use crate::app::AppMeta;
 use async_trait::async_trait;
 use std::fmt;
@@ -93,7 +93,9 @@ impl Runnable for CommandAlias {
             }
         }
     }
+}
 
+impl ContextAwareParse for CommandAlias {
     fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         (
             app_meta
@@ -113,7 +115,9 @@ impl Runnable for CommandAlias {
             Vec::new(),
         )
     }
+}
 
+impl Autocomplete for CommandAlias {
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         app_meta
             .command_aliases

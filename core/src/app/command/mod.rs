@@ -1,6 +1,6 @@
 pub use alias::CommandAlias;
 pub use app::AppCommand;
-pub use runnable::{autocomplete_phrase, Runnable};
+pub use runnable::{autocomplete_phrase, Autocomplete, ContextAwareParse, Runnable};
 pub use tutorial::TutorialCommand;
 
 mod alias;
@@ -129,14 +129,18 @@ impl Runnable for Command {
             }
         }
     }
+}
 
+impl ContextAwareParse for Command {
     fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         (
             Some(Self::parse_input_irrefutable(input, app_meta)),
             Vec::new(),
         )
     }
+}
 
+impl Autocomplete for Command {
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         std::iter::empty()
             .chain(CommandAlias::autocomplete(input, app_meta).drain(..))

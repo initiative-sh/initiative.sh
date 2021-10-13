@@ -4,9 +4,13 @@ use async_trait::async_trait;
 #[async_trait(?Send)]
 pub trait Runnable: Sized {
     async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String>;
+}
 
+pub trait ContextAwareParse: Sized {
     fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>);
+}
 
+pub trait Autocomplete {
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)>;
 }
 

@@ -1,4 +1,7 @@
-pub use command::{autocomplete_phrase, AppCommand, Command, CommandAlias, Runnable};
+pub use command::{
+    autocomplete_phrase, AppCommand, Autocomplete, Command, CommandAlias, ContextAwareParse,
+    Runnable,
+};
 pub use meta::AppMeta;
 
 mod command;

@@ -1,5 +1,5 @@
 use super::Interval;
-use crate::app::{AppMeta, CommandAlias, Runnable};
+use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use async_trait::async_trait;
 use std::fmt;
 use std::iter;
@@ -61,7 +61,9 @@ impl Runnable for TimeCommand {
             }
         }
     }
+}
 
+impl ContextAwareParse for TimeCommand {
     fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut fuzzy_matches = Vec::new();
 
@@ -91,7 +93,9 @@ impl Runnable for TimeCommand {
             fuzzy_matches,
         )
     }
+}
 
+impl Autocomplete for TimeCommand {
     fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
         if input.starts_with(&['+', '-'][..]) {
             let suggest = |suffix: &str| -> Result<(String, String), ()> {

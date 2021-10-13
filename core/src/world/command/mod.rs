@@ -1,6 +1,6 @@
 use super::location;
 use super::npc;
-use crate::app::{autocomplete_phrase, AppMeta, Runnable};
+use crate::app::{autocomplete_phrase, AppMeta, Autocomplete, ContextAwareParse, Runnable};
 use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Species;
 use async_trait::async_trait;
@@ -39,7 +39,9 @@ impl Runnable for WorldCommand {
             Self::Npc { species } => npc::command(species, app_meta),
         })
     }
+}
 
+impl ContextAwareParse for WorldCommand {
     fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         (
             if let Ok(species) = input.parse() {
@@ -56,7 +58,9 @@ impl Runnable for WorldCommand {
             Vec::new(),
         )
     }
+}
 
+impl Autocomplete for WorldCommand {
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         autocomplete_phrase(
             input,
