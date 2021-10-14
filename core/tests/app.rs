@@ -14,9 +14,9 @@ fn autocomplete_command() {
         [
             ("date", "get the current time"),
             ("delete [name]", "remove an entry from journal"),
-            ("dragonborn", "generate NPC species"),
+            ("dragonborn", "create dragonborn"),
             ("druidic foci", "SRD item category"),
-            ("dwarf", "generate NPC species"),
+            ("dwarf", "create dwarf"),
         ]
         .iter()
         .map(|(a, b)| (a.to_string(), b.to_string()))

@@ -1,7 +1,9 @@
-use super::location;
-use super::npc;
-use crate::app::{autocomplete_phrase, AppMeta, Autocomplete, ContextAwareParse, Runnable};
-use crate::world::location::{BuildingType, LocationType};
+use super::Thing;
+use crate::app::{
+    autocomplete_phrase, AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable,
+};
+use crate::storage::StorageCommand;
+use crate::world::location::BuildingType;
 use crate::world::npc::Species;
 use async_trait::async_trait;
 use std::fmt;
@@ -10,25 +12,13 @@ mod parse;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum WorldCommand {
-    Location { location_type: LocationType },
-    Npc { species: Option<Species> },
-    //Region(RawCommand),
+    Create { thing: Thing },
 }
 
 impl WorldCommand {
-    fn summarize(&self) -> &str {
+    fn summarize(&self) -> String {
         match self {
-            Self::Npc { species } => {
-                if species.is_some() {
-                    "generate NPC species"
-                } else {
-                    "generate NPC"
-                }
-            }
-            Self::Location { location_type } => match location_type {
-                LocationType::Building(None) => "generate building",
-                LocationType::Building(Some(_)) => "generate building type",
-            },
+            Self::Create { thing } => format!("create {}", thing.display_summary()),
         }
     }
 }
@@ -37,8 +27,60 @@ impl WorldCommand {
 impl Runnable for WorldCommand {
     async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         Ok(match self {
-            Self::Location { location_type } => location::command(location_type, app_meta),
-            Self::Npc { species } => npc::command(species, app_meta),
+            Self::Create { thing } => {
+                let mut output = String::new();
+
+                {
+                    let mut thing = thing.clone();
+                    thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
+                    output.push_str(&format!("{}", thing.display_details()));
+
+                    if app_meta.data_store_enabled {
+                        if let Some(name) = thing.name().value() {
+                            output.push_str(&format!(
+                                "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`._",
+                                name = name,
+                                them = thing.gender().them(),
+                            ));
+                            app_meta.command_aliases.insert(CommandAlias::literal(
+                                "save".to_string(),
+                                format!("save {}", name),
+                                StorageCommand::Save {
+                                    name: name.to_string(),
+                                }
+                                .into(),
+                            ));
+                        }
+                    }
+
+                    app_meta.push_recent(thing);
+                }
+
+                if thing.name().is_none() {
+                    output.push_str("\n\n*Alternatives:* ");
+
+                    let recent = (0..10)
+                        .map(|i| {
+                            let mut thing = thing.clone();
+                            thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
+                            output.push_str(&format!("\\\n~{}~ {}", i, thing.display_summary()));
+                            app_meta.command_aliases.insert(CommandAlias::literal(
+                                i.to_string(),
+                                format!("load {}", thing.name()),
+                                StorageCommand::Load {
+                                    name: thing.name().to_string(),
+                                }
+                                .into(),
+                            ));
+                            thing
+                        })
+                        .collect();
+
+                    app_meta.batch_push_recent(recent);
+                }
+
+                output
+            }
         })
     }
 }
@@ -46,18 +88,16 @@ impl Runnable for WorldCommand {
 impl ContextAwareParse for WorldCommand {
     fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         (
-            if let Ok(species) = input.parse() {
-                Some(Self::Npc {
-                    species: Some(species),
-                })
-            } else if let Ok(location_type) = input.parse() {
-                Some(Self::Location { location_type })
-            } else if "npc" == input {
-                Some(Self::Npc { species: None })
+            if let Some(Ok(thing)) = input.strip_prefix("create ").map(|s| s.parse()) {
+                Some(Self::Create { thing })
             } else {
                 None
             },
-            Vec::new(),
+            if let Ok(thing) = input.parse() {
+                vec![Self::Create { thing }]
+            } else {
+                Vec::new()
+            },
         )
     }
 }
@@ -74,8 +114,9 @@ impl Autocomplete for WorldCommand {
         .drain(..)
         .filter_map(|s| {
             Self::parse_input(&s, app_meta)
-                .0
-                .map(|c| (s, c.summarize().to_string()))
+                .1
+                .first()
+                .map(|c| (s, c.summarize()))
         })
         .collect()
     }
@@ -84,11 +125,7 @@ impl Autocomplete for WorldCommand {
 impl fmt::Display for WorldCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
-            Self::Location { location_type } => write!(f, "{}", location_type),
-            Self::Npc {
-                species: Some(species),
-            } => write!(f, "{}", species),
-            Self::Npc { species: None } => write!(f, "npc"),
+            Self::Create { thing } => write!(f, "create {}", thing.display_summary()),
         }
     }
 }
@@ -97,34 +134,31 @@ impl fmt::Display for WorldCommand {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
+    use crate::world::location::LocationType;
+    use crate::world::{Location, Npc};
 
     #[test]
     fn summarize_test() {
         assert_eq!(
-            "generate building",
-            WorldCommand::Location {
-                location_type: LocationType::Building(None),
+            "create building",
+            WorldCommand::Create {
+                thing: Location {
+                    subtype: LocationType::Building(None).into(),
+                    ..Default::default()
+                }
+                .into()
             }
             .summarize(),
         );
 
         assert_eq!(
-            "generate building type",
-            WorldCommand::Location {
-                location_type: LocationType::Building(Some(BuildingType::Inn)),
-            }
-            .summarize(),
-        );
-
-        assert_eq!(
-            "generate NPC",
-            WorldCommand::Npc { species: None }.summarize(),
-        );
-
-        assert_eq!(
-            "generate NPC species",
-            WorldCommand::Npc {
-                species: Some(Species::Human)
+            "create inn",
+            WorldCommand::Create {
+                thing: Location {
+                    subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
+                    ..Default::default()
+                }
+                .into()
             }
             .summarize(),
         );
@@ -136,25 +170,48 @@ mod test {
 
         assert_eq!(
             (
-                Some(WorldCommand::Location {
-                    location_type: LocationType::Building(None)
-                }),
-                Vec::new(),
+                None,
+                vec![WorldCommand::Create {
+                    thing: Location {
+                        subtype: LocationType::Building(None).into(),
+                        ..Default::default()
+                    }
+                    .into()
+                }],
             ),
             WorldCommand::parse_input("building", &app_meta),
         );
 
         assert_eq!(
-            (Some(WorldCommand::Npc { species: None }), Vec::new()),
+            (
+                None,
+                vec![WorldCommand::Create {
+                    thing: Npc::default().into()
+                }],
+            ),
             WorldCommand::parse_input("npc", &app_meta),
         );
 
         assert_eq!(
             (
-                Some(WorldCommand::Npc {
-                    species: Some(Species::Elf)
+                Some(WorldCommand::Create {
+                    thing: Npc::default().into()
                 }),
                 Vec::new(),
+            ),
+            WorldCommand::parse_input("create npc", &app_meta),
+        );
+
+        assert_eq!(
+            (
+                None,
+                vec![WorldCommand::Create {
+                    thing: Npc {
+                        species: Species::Elf.into(),
+                        ..Default::default()
+                    }
+                    .into()
+                }],
             ),
             WorldCommand::parse_input("elf", &app_meta),
         );
@@ -170,20 +227,20 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         vec![
-            ("building", "generate building"),
-            ("npc", "generate NPC"),
+            ("building", "create building"),
+            ("npc", "create person"),
             // Species
-            ("dragonborn", "generate NPC species"),
-            ("dwarf", "generate NPC species"),
-            ("elf", "generate NPC species"),
-            ("gnome", "generate NPC species"),
-            ("half-elf", "generate NPC species"),
-            ("half-orc", "generate NPC species"),
-            ("halfling", "generate NPC species"),
-            ("human", "generate NPC species"),
-            ("tiefling", "generate NPC species"),
+            ("dragonborn", "create dragonborn"),
+            ("dwarf", "create dwarf"),
+            ("elf", "create elf"),
+            ("gnome", "create gnome"),
+            ("half-elf", "create half-elf"),
+            ("half-orc", "create half-orc"),
+            ("halfling", "create halfling"),
+            ("human", "create human"),
+            ("tiefling", "create tiefling"),
             // BuildingType
-            ("inn", "generate building type"),
+            ("inn", "create inn"),
         ]
         .drain(..)
         .for_each(|(word, summary)| {
@@ -194,7 +251,7 @@ mod test {
         });
 
         assert_eq!(
-            vec![("building".to_string(), "generate building".to_string())],
+            vec![("building".to_string(), "create building".to_string())],
             WorldCommand::autocomplete("b", &app_meta),
         );
     }
@@ -204,15 +261,29 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         vec![
-            WorldCommand::Location {
-                location_type: LocationType::Building(None),
+            WorldCommand::Create {
+                thing: Location {
+                    subtype: LocationType::Building(None).into(),
+                    ..Default::default()
+                }
+                .into(),
             },
-            WorldCommand::Location {
-                location_type: LocationType::Building(Some(BuildingType::Inn)),
+            WorldCommand::Create {
+                thing: Location {
+                    subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
+                    ..Default::default()
+                }
+                .into(),
             },
-            WorldCommand::Npc { species: None },
-            WorldCommand::Npc {
-                species: Some(Species::Elf),
+            WorldCommand::Create {
+                thing: Npc::default().into(),
+            },
+            WorldCommand::Create {
+                thing: Npc {
+                    species: Some(Species::Elf).into(),
+                    ..Default::default()
+                }
+                .into(),
             },
         ]
         .drain(..)

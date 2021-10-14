@@ -1,5 +1,4 @@
 pub use age::Age;
-pub use command::command;
 pub use ethnicity::Ethnicity;
 pub use gender::Gender;
 pub use size::Size;
@@ -7,7 +6,6 @@ pub use species::Species;
 pub use view::{DescriptionView, DetailsView, SummaryView};
 
 mod age;
-mod command;
 mod ethnicity;
 mod gender;
 mod size;
@@ -20,8 +18,7 @@ use serde::{Deserialize, Serialize};
 
 initiative_macros::uuid!();
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(PartialEq))]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Npc {
     pub uuid: Option<Uuid>,
     pub name: Field<String>,
@@ -63,10 +60,29 @@ impl Npc {
 
 impl Generate for Npc {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
-        if self.species.is_unlocked() && self.ethnicity.is_unlocked() {
-            let (species, ethnicity) = demographics.gen_species_ethnicity(rng);
-            self.ethnicity.replace(ethnicity);
-            self.species.replace(species);
+        match (self.species.is_locked(), self.ethnicity.is_locked()) {
+            (false, false) => {
+                let (species, ethnicity) = demographics.gen_species_ethnicity(rng);
+                self.ethnicity.replace(ethnicity);
+                self.species.replace(species);
+            }
+            (false, true) => {
+                self.species.replace(
+                    demographics
+                        .only_ethnicity(self.ethnicity.value().unwrap())
+                        .gen_species_ethnicity(rng)
+                        .0,
+                );
+            }
+            (true, false) => {
+                self.ethnicity.replace(
+                    demographics
+                        .only_species(self.species.value().unwrap())
+                        .gen_species_ethnicity(rng)
+                        .1,
+                );
+            }
+            (true, true) => {}
         }
 
         species::regenerate(rng, self);

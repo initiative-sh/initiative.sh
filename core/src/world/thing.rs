@@ -1,10 +1,12 @@
 use super::npc::Gender;
-use super::{Field, Location, Npc, Region};
+use super::{Demographics, Field, Generate, Location, Npc, Region};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::str::FromStr;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Thing {
     Location(Location),
@@ -46,6 +48,14 @@ impl Thing {
             Thing::Region(region) => {
                 region.uuid.get_or_insert(uuid.into());
             }
+        }
+    }
+
+    pub fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
+        match self {
+            Thing::Location(location) => location.regenerate(rng, demographics),
+            Thing::Npc(npc) => npc.regenerate(rng, demographics),
+            Thing::Region(_) => {}
         }
     }
 
@@ -109,6 +119,18 @@ impl From<Npc> for Thing {
 impl From<Region> for Thing {
     fn from(region: Region) -> Thing {
         Thing::Region(region)
+    }
+}
+
+impl FromStr for Thing {
+    type Err = ();
+
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        match (raw.parse(), raw.parse()) {
+            (Ok(npc), Err(())) => Ok(Thing::Npc(npc)),
+            (Err(()), Ok(location)) => Ok(Thing::Location(location)),
+            _ => Err(()),
+        }
     }
 }
 

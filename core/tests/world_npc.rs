@@ -29,13 +29,6 @@ fn generated_content_is_limited_by_species() {
         let output = sync_app().command(species).unwrap();
         assert!(output.matches(species).count() >= 12, "{}", output);
     });
-
-    [("half elf", "half-elf"), ("half orc", "half-orc")]
-        .iter()
-        .for_each(|(input, species)| {
-            let output = sync_app().command(input).unwrap();
-            assert!(output.matches(species).count() >= 12, "{}", output);
-        });
 }
 
 #[test]

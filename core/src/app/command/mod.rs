@@ -252,6 +252,7 @@ impl From<WorldCommand> for CommandType {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
+    use crate::world::Npc;
 
     #[test]
     fn parse_input_test() {
@@ -297,7 +298,9 @@ mod test {
                 Some(
                     Command::default().union(
                         (
-                            Some(CommandType::World(WorldCommand::Npc { species: None })),
+                            Some(CommandType::World(WorldCommand::Create {
+                                thing: Npc::default().into()
+                            })),
                             Vec::new(),
                         )
                             .into()
@@ -305,7 +308,7 @@ mod test {
                 ),
                 Vec::new(),
             ),
-            Command::parse_input("npc", &app_meta),
+            Command::parse_input("create npc", &app_meta),
         );
     }
 
@@ -316,8 +319,8 @@ mod test {
                 ("druidic foci", "SRD item category"),
                 ("delete [name]", "remove an entry from journal"),
                 ("date", "get the current time"),
-                ("dragonborn", "generate NPC species"),
-                ("dwarf", "generate NPC species"),
+                ("dragonborn", "create dragonborn"),
+                ("dwarf", "create dwarf"),
             ]
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
@@ -344,8 +347,13 @@ mod test {
         );
 
         assert_eq!(
-            CommandType::World(WorldCommand::Npc { species: None }),
-            WorldCommand::Npc { species: None }.into(),
+            CommandType::World(WorldCommand::Create {
+                thing: Npc::default().into()
+            }),
+            WorldCommand::Create {
+                thing: Npc::default().into()
+            }
+            .into(),
         );
     }
 }

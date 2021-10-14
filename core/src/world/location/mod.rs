@@ -1,8 +1,6 @@
 pub use building::*;
-pub use command::command;
 
 mod building;
-mod command;
 mod view;
 
 use super::region::Uuid as RegionUuid;
@@ -15,8 +13,7 @@ use view::{DescriptionView, DetailsView, SummaryView};
 
 initiative_macros::uuid!();
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[cfg_attr(test, derive(PartialEq))]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Location {
     pub uuid: Option<Uuid>,
     pub parent_uuid: Option<RegionUuid>,
