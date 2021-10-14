@@ -17,6 +17,19 @@ impl Generate for Species {
         rng.gen_range(0..=79)
     }
 
+    fn gen_years_from_age(rng: &mut impl Rng, age: &Age) -> u16 {
+        rng.gen_range(match age {
+            Age::Infant => return 0,
+            Age::Child => 0..=2,
+            Age::Adolescent => 3..=14,
+            Age::YoungAdult => 15..=24,
+            Age::Adult => 25..=39,
+            Age::MiddleAged => 40..=59,
+            Age::Elderly => 60..=69,
+            Age::Geriatric => 70..=79,
+        })
+    }
+
     fn age_from_years(years: u16) -> Age {
         match years {
             i if i < 3 => Age::Child,
@@ -73,6 +86,31 @@ mod test_generate_for_species {
                 Species::gen_age_years(&mut rng),
             ],
         );
+    }
+
+    #[test]
+    fn gen_years_from_age_test() {
+        let mut rng = SmallRng::seed_from_u64(0);
+
+        let ages = [
+            // Age::Infant,
+            Age::Child,
+            Age::Adolescent,
+            Age::YoungAdult,
+            Age::Adult,
+            Age::MiddleAged,
+            Age::Elderly,
+            Age::Geriatric,
+        ];
+
+        for age in ages {
+            for _ in 0..10 {
+                let age_years = Species::gen_years_from_age(&mut rng, &age);
+                assert_eq!(age, Species::age_from_years(age_years));
+            }
+        }
+
+        assert_eq!(0, Species::gen_years_from_age(&mut rng, &Age::Infant));
     }
 
     #[test]

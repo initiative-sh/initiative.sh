@@ -56,6 +56,8 @@ trait Generate {
 
     fn gen_age_years(rng: &mut impl Rng) -> u16;
 
+    fn gen_years_from_age(rng: &mut impl Rng, age: &Age) -> u16;
+
     fn age_from_years(years: u16) -> Age;
 
     fn gen_size(rng: &mut impl Rng, age_years: u16, gender: &Gender) -> Size;
