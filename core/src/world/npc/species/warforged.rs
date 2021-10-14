@@ -14,8 +14,12 @@ impl Generate for Species {
         }
     }
 
-    fn gen_age(rng: &mut impl Rng) -> Age {
-        Age::Adult(rng.gen_range(2..=30))
+    fn gen_age_years(rng: &mut impl Rng) -> u16 {
+        rng.gen_range(2..=30)
+    }
+
+    fn age_from_years(_years: &u16) -> Age {
+        Age::Adult
     }
 
     fn gen_size(rng: &mut impl Rng, _age: &Age, _gender: &Gender) -> Size {
@@ -50,31 +54,31 @@ mod test_generate_for_species {
     }
 
     #[test]
-    fn gen_age_test() {
+    fn gen_age_years_test() {
         let mut rng = SmallRng::seed_from_u64(0);
 
         assert_eq!(
+            [2, 27, 23, 19, 15],
             [
-                Age::Adult(2),
-                Age::Adult(27),
-                Age::Adult(23),
-                Age::Adult(19),
-                Age::Adult(15),
-            ],
-            [
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
             ],
         );
     }
 
     #[test]
+    fn age_from_years_test() {
+        assert_eq!(Age::Adult, Species::age_from_years(0));
+        assert_eq!(Age::Adult, Species::age_from_years(u16::MAX));
+    }
+
+    #[test]
     fn gen_size_test() {
         let mut rng = SmallRng::seed_from_u64(0);
-        let age = Age::Adult(0);
+        let age = Age::Adult;
         let t = Gender::NonBinaryThey;
 
         let size = |height, weight| Size::Medium { height, weight };

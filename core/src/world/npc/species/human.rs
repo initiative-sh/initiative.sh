@@ -3,21 +3,6 @@ use rand::prelude::*;
 
 pub struct Species;
 
-impl Species {
-    fn age(years: u16) -> Age {
-        match years {
-            y if y < 2 => Age::Infant(y),
-            y if y < 10 => Age::Child(y),
-            y if y < 20 => Age::Adolescent(y),
-            y if y < 30 => Age::YoungAdult(y),
-            y if y < 40 => Age::Adult(y),
-            y if y < 60 => Age::MiddleAged(y),
-            y if y < 70 => Age::Elderly(y),
-            y => Age::Geriatric(y),
-        }
-    }
-}
-
 impl Generate for Species {
     fn gen_gender(rng: &mut impl Rng) -> Gender {
         match rng.gen_range(1..=101) {
@@ -28,40 +13,53 @@ impl Generate for Species {
         }
     }
 
-    fn gen_age(rng: &mut impl Rng) -> Age {
-        Self::age(rng.gen_range(0..=79))
+    fn gen_age_years(rng: &mut impl Rng) -> u16 {
+        rng.gen_range(0..=79)
     }
 
-    fn gen_size(rng: &mut impl Rng, age: &Age, gender: &Gender) -> Size {
+    fn age_from_years(years: u16) -> Age {
+        match years {
+            i if i < 2 => Age::Infant,
+            i if i < 10 => Age::Child,
+            i if i < 20 => Age::Adolescent,
+            i if i < 30 => Age::YoungAdult,
+            i if i < 40 => Age::Adult,
+            i if i < 60 => Age::MiddleAged,
+            i if i < 70 => Age::Elderly,
+            _ => Age::Geriatric,
+        }
+    }
+
+    fn gen_size(rng: &mut impl Rng, age_years: u16, gender: &Gender) -> Size {
         let is_female = match gender {
             Gender::Masculine => rng.gen_bool(0.01),
             Gender::Feminine => rng.gen_bool(0.99),
             _ => rng.gen_bool(0.5),
         };
 
-        match (age, is_female) {
-            (Age::Infant(0), _) => {
+        match (age_years, is_female) {
+            (0, _) => {
                 let size = rng.gen_range(0..=30);
                 Size::Tiny {
                     height: 20 + size / 3,
                     weight: 7 + size / 2,
                 }
             }
-            (Age::Infant(_), _) => {
+            (1, _) => {
                 let size = rng.gen_range(0..=5);
                 Size::Tiny {
                     height: 30 + size,
                     weight: 22 + size,
                 }
             }
-            (Age::Child(i), _) => {
-                let y = (*i - 2) as f32 / 8.;
+            (2..=9, _) => {
+                let y = (age_years - 2) as f32 / 8.;
                 let (height, weight) =
                     super::gen_height_weight(rng, (33. + y * 18.)..=(35. + y * 22.), 14.0..=17.0);
                 Size::Small { height, weight }
             }
-            (Age::Adolescent(i), true) => {
-                let y = (*i - 10) as f32;
+            (10..=19, true) => {
+                let y = (age_years - 10) as f32;
                 let (height, weight) = super::gen_height_weight(
                     rng,
                     (51. + y * 2.).min(61.)..=(65. + y * 2.).min(67.),
@@ -69,8 +67,8 @@ impl Generate for Species {
                 );
                 Size::Medium { height, weight }
             }
-            (Age::Adolescent(i), false) => {
-                let y = (*i - 10) as f32 / 5.;
+            (10..=19, false) => {
+                let y = (age_years - 10) as f32 / 5.;
                 let (height, weight) = super::gen_height_weight(
                     rng,
                     (51. + y * 12.).min(66.)..=(57. + y * 13.).min(72.),
@@ -96,15 +94,46 @@ mod test_generate_for_species {
     use std::collections::HashMap;
 
     #[test]
-    fn age_test() {
-        assert_eq!(Age::Infant(0), Species::age(0));
-        assert_eq!(Age::Child(2), Species::age(2));
-        assert_eq!(Age::Adolescent(10), Species::age(10));
-        assert_eq!(Age::YoungAdult(20), Species::age(20));
-        assert_eq!(Age::Adult(30), Species::age(30));
-        assert_eq!(Age::MiddleAged(40), Species::age(40));
-        assert_eq!(Age::Elderly(60), Species::age(60));
-        assert_eq!(Age::Geriatric(70), Species::age(70));
+    fn gen_age_years_test() {
+        let mut rng = SmallRng::seed_from_u64(0);
+
+        assert_eq!(
+            [35, 35, 78, 36, 71],
+            [
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
+            ],
+        );
+    }
+
+    #[test]
+    fn age_from_years_test() {
+        assert_eq!(Age::Infant, Species::age_from_years(0));
+        assert_eq!(Age::Infant, Species::age_from_years(1));
+
+        assert_eq!(Age::Child, Species::age_from_years(2));
+        assert_eq!(Age::Child, Species::age_from_years(9));
+
+        assert_eq!(Age::Adolescent, Species::age_from_years(10));
+        assert_eq!(Age::Adolescent, Species::age_from_years(19));
+
+        assert_eq!(Age::YoungAdult, Species::age_from_years(20));
+        assert_eq!(Age::YoungAdult, Species::age_from_years(29));
+
+        assert_eq!(Age::Adult, Species::age_from_years(30));
+        assert_eq!(Age::Adult, Species::age_from_years(39));
+
+        assert_eq!(Age::MiddleAged, Species::age_from_years(40));
+        assert_eq!(Age::MiddleAged, Species::age_from_years(59));
+
+        assert_eq!(Age::Elderly, Species::age_from_years(60));
+        assert_eq!(Age::Elderly, Species::age_from_years(69));
+
+        assert_eq!(Age::Geriatric, Species::age_from_years(70));
+        assert_eq!(Age::Geriatric, Species::age_from_years(u16::MAX));
     }
 
     #[test]
@@ -121,28 +150,6 @@ mod test_generate_for_species {
         assert_eq!(Some(&3), genders.get("non-binary (they/them)"));
         assert_eq!(Some(&233), genders.get("feminine (she/her)"));
         assert_eq!(Some(&264), genders.get("masculine (he/him)"));
-    }
-
-    #[test]
-    fn gen_age_test() {
-        let mut rng = SmallRng::seed_from_u64(0);
-
-        assert_eq!(
-            [
-                Age::Adult(35),
-                Age::Adult(35),
-                Age::Geriatric(78),
-                Age::Adult(36),
-                Age::Geriatric(71),
-            ],
-            [
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
-            ],
-        );
     }
 
     #[test]
@@ -176,8 +183,7 @@ mod test_generate_for_species {
             ],
             (0u16..=20)
                 .map(move |y| {
-                    let age = Species::age(y);
-                    let size = Species::gen_size(&mut rng, &age, &Gender::Masculine);
+                    let size = Species::gen_size(&mut rng, y, &Gender::Masculine);
                     (y, size.name(), size.height(), size.weight())
                 })
                 .collect::<Vec<_>>(),
@@ -215,8 +221,7 @@ mod test_generate_for_species {
             ],
             (0u16..=20)
                 .map(move |y| {
-                    let age = Species::age(y);
-                    let size = Species::gen_size(&mut rng, &age, &Gender::Feminine);
+                    let size = Species::gen_size(&mut rng, y, &Gender::Feminine);
                     (y, size.name(), size.height(), size.weight())
                 })
                 .collect::<Vec<_>>(),

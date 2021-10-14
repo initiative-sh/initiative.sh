@@ -428,7 +428,7 @@ mod test {
                 name: "Potato Johnson".into(),
                 species: Species::Elf.into(),
                 gender: Gender::NonBinaryThey.into(),
-                age: Age::Adult(0).into(),
+                age: Age::Adult.into(),
                 ..Default::default()
             }
             .into(),

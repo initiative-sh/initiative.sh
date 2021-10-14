@@ -34,7 +34,7 @@ mod test_generate_for_ethnicity {
     #[test]
     fn gen_name_test() {
         let mut rng = SmallRng::seed_from_u64(0);
-        let age = Age::Adult(0);
+        let age = Age::Adult;
         let m = Gender::Masculine;
 
         assert_eq!(

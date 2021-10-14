@@ -27,6 +27,7 @@ pub struct Npc {
     pub name: Field<String>,
     pub gender: Field<Gender>,
     pub age: Field<Age>,
+    pub age_years: Field<u16>,
     pub size: Field<Size>,
     pub species: Field<Species>,
     pub ethnicity: Field<Ethnicity>,
@@ -104,7 +105,8 @@ mod test {
             uuid: Some(uuid::Uuid::nil().into()),
             name: "Gandalf the Grey".into(),
             gender: Gender::Neuter.into(),
-            age: Age::Geriatric(u16::MAX).into(),
+            age: Age::Geriatric.into(),
+            age_years: u16::MAX.into(),
             size: Size::Medium {
                 height: 72,
                 weight: 200,
@@ -115,11 +117,11 @@ mod test {
         };
 
         assert_eq!(
-            r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"Neuter","age":{"type":"Geriatric","value":65535},"size":{"type":"Medium","height":72,"weight":200},"species":"Human","ethnicity":"Human"}"#,
+            r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"Neuter","age":"Geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"Human","ethnicity":"Human"}"#,
             serde_json::to_string(&npc).unwrap()
         );
 
-        let value: Npc = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"Neuter","age":{"type":"Geriatric","value":65535},"size":{"type":"Medium","height":72,"weight":200},"species":"Human","ethnicity":"Human"}"#).unwrap();
+        let value: Npc = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"Neuter","age":"Geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"Human","ethnicity":"Human"}"#).unwrap();
 
         assert_eq!(npc, value);
     }

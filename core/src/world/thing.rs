@@ -199,7 +199,7 @@ mod test {
     fn serialize_deserialize_test_npc() {
         let thing = npc();
         assert_eq!(
-            r#"{"type":"Npc","uuid":null,"name":null,"gender":null,"age":null,"size":null,"species":null,"ethnicity":null}"#,
+            r#"{"type":"Npc","uuid":null,"name":null,"gender":null,"age":null,"age_years":null,"size":null,"species":null,"ethnicity":null}"#,
             serde_json::to_string(&thing).unwrap(),
         );
     }

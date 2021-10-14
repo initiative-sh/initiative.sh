@@ -38,18 +38,27 @@ pub enum Species {
 trait Generate {
     fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
         npc.gender.replace_with(|_| Self::gen_gender(rng));
-        npc.age.replace_with(|_| Self::gen_age(rng));
+        npc.age_years.replace_with(|_| Self::gen_age_years(rng));
 
-        if let (Some(gender), Some(age)) = (npc.gender.value(), npc.age.value()) {
-            npc.size.replace_with(|_| Self::gen_size(rng, age, gender));
+        if let Some(years) = npc.age_years.value() {
+            npc.age.replace_with(|_| Self::age_from_years(*years));
+        } else {
+            npc.age.clear();
+        }
+
+        if let (Some(gender), Some(age_years)) = (npc.gender.value(), npc.age_years.value()) {
+            npc.size
+                .replace_with(|_| Self::gen_size(rng, *age_years, gender));
         }
     }
 
     fn gen_gender(rng: &mut impl Rng) -> Gender;
 
-    fn gen_age(rng: &mut impl Rng) -> Age;
+    fn gen_age_years(rng: &mut impl Rng) -> u16;
 
-    fn gen_size(rng: &mut impl Rng, age: &Age, gender: &Gender) -> Size;
+    fn age_from_years(years: u16) -> Age;
+
+    fn gen_size(rng: &mut impl Rng, age_years: u16, gender: &Gender) -> Size;
 }
 
 pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
@@ -145,6 +154,7 @@ mod test {
         regenerate(&mut rng, &mut npc);
 
         assert!(npc.age.is_some());
+        assert!(npc.age_years.is_some());
         assert!(npc.gender.is_some());
         assert!(npc.size.is_some());
     }
@@ -152,8 +162,9 @@ mod test {
     #[test]
     fn regenerate_test_locked() {
         let mut npc = Npc::default();
-        npc.species = Field::new_generated(Species::Human);
-        npc.age = Field::Locked(Age::Adult(u16::MAX));
+        npc.species = Field::Locked(Species::Human);
+        npc.age = Field::Locked(Age::Adult);
+        npc.age_years = Field::Locked(u16::MAX);
         npc.gender = Field::Locked(Gender::Neuter);
         npc.size = Field::Locked(Size::Tiny {
             height: u16::MAX,
@@ -164,7 +175,8 @@ mod test {
 
         regenerate(&mut rng, &mut npc);
 
-        assert_eq!(Some(&Age::Adult(u16::MAX)), npc.age.value());
+        assert_eq!(Some(&Age::Adult), npc.age.value());
+        assert_eq!(Some(&u16::MAX), npc.age_years.value());
         assert_eq!(Some(&Gender::Neuter), npc.gender.value());
         assert_eq!(
             Some(&Size::Tiny {
@@ -173,6 +185,19 @@ mod test {
             }),
             npc.size.value(),
         );
+    }
+
+    #[test]
+    fn regenerate_test_age_years_provided() {
+        let mut npc = Npc::default();
+        npc.species = Field::Locked(Species::Human);
+        npc.age_years = Field::Locked(u16::MAX);
+
+        let mut rng = SmallRng::seed_from_u64(0);
+
+        regenerate(&mut rng, &mut npc);
+
+        assert_eq!(Some(&Age::Geriatric), npc.age.value());
     }
 
     #[test]

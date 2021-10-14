@@ -9,21 +9,25 @@ impl Generate for Species {
         Human::gen_gender(rng)
     }
 
-    fn gen_age(rng: &mut impl Rng) -> Age {
-        match rng.gen_range(0..=200) {
-            i if i < 2 => Age::Infant(i),
-            i if i < 10 => Age::Child(i),
-            i if i < 20 => Age::Adolescent(i),
-            i if i < 30 => Age::YoungAdult(i),
-            i if i < 80 => Age::Adult(i),
-            i if i < 140 => Age::MiddleAged(i),
-            i if i < 180 => Age::Elderly(i),
-            i => Age::Geriatric(i),
+    fn gen_age_years(rng: &mut impl Rng) -> u16 {
+        rng.gen_range(0..=200)
+    }
+
+    fn age_from_years(years: u16) -> Age {
+        match years {
+            i if i < 2 => Age::Infant,
+            i if i < 10 => Age::Child,
+            i if i < 20 => Age::Adolescent,
+            i if i < 30 => Age::YoungAdult,
+            i if i < 80 => Age::Adult,
+            i if i < 140 => Age::MiddleAged,
+            i if i < 180 => Age::Elderly,
+            _ => Age::Geriatric,
         }
     }
 
-    fn gen_size(rng: &mut impl Rng, age: &Age, gender: &Gender) -> Size {
-        Human::gen_size(rng, age, gender)
+    fn gen_size(rng: &mut impl Rng, age_years: u16, gender: &Gender) -> Size {
+        Human::gen_size(rng, age_years, gender)
     }
 }
 
@@ -41,25 +45,46 @@ mod test_generate_for_species {
     }
 
     #[test]
-    fn gen_age_test() {
+    fn gen_age_years_test() {
         let mut rng = SmallRng::seed_from_u64(0);
 
         assert_eq!(
+            [89, 88, 196, 92, 180],
             [
-                Age::MiddleAged(89),
-                Age::MiddleAged(88),
-                Age::Geriatric(196),
-                Age::MiddleAged(92),
-                Age::Geriatric(180),
-            ],
-            [
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
             ],
         );
+    }
+
+    #[test]
+    fn age_from_years_test() {
+        assert_eq!(Age::Infant, Species::age_from_years(0));
+        assert_eq!(Age::Infant, Species::age_from_years(1));
+
+        assert_eq!(Age::Child, Species::age_from_years(2));
+        assert_eq!(Age::Child, Species::age_from_years(9));
+
+        assert_eq!(Age::Adolescent, Species::age_from_years(10));
+        assert_eq!(Age::Adolescent, Species::age_from_years(19));
+
+        assert_eq!(Age::YoungAdult, Species::age_from_years(20));
+        assert_eq!(Age::YoungAdult, Species::age_from_years(29));
+
+        assert_eq!(Age::Adult, Species::age_from_years(30));
+        assert_eq!(Age::Adult, Species::age_from_years(79));
+
+        assert_eq!(Age::MiddleAged, Species::age_from_years(80));
+        assert_eq!(Age::MiddleAged, Species::age_from_years(139));
+
+        assert_eq!(Age::Elderly, Species::age_from_years(140));
+        assert_eq!(Age::Elderly, Species::age_from_years(179));
+
+        assert_eq!(Age::Geriatric, Species::age_from_years(180));
+        assert_eq!(Age::Geriatric, Species::age_from_years(u16::MAX));
     }
 
     #[test]
@@ -68,8 +93,8 @@ mod test_generate_for_species {
 
         for _ in 0..10 {
             assert_eq!(
-                Species::gen_size(&mut rng1, &Age::Adult(0), &Gender::NonBinaryThey),
-                Human::gen_size(&mut rng2, &Age::Adult(0), &Gender::NonBinaryThey),
+                Species::gen_size(&mut rng1, 0, &Gender::NonBinaryThey),
+                Human::gen_size(&mut rng2, 0, &Gender::NonBinaryThey),
             );
         }
     }

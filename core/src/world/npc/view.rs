@@ -98,9 +98,9 @@ impl<'a> fmt::Display for DetailsView<'a> {
             .value()
             .map(|gender| write!(f, "\\\n**Gender:** {}", gender.name()))
             .transpose()?;
-        npc.age
+        npc.age_years
             .value()
-            .map(|age| write!(f, "\\\n**Age:** {} years", age.years()))
+            .map(|age_years| write!(f, "\\\n**Age:** {} years", age_years))
             .transpose()?;
         npc.size
             .value()
@@ -183,7 +183,8 @@ mod test_display_for_npc_details_view {
         npc.species.replace(Species::Human);
         npc.ethnicity.replace(Ethnicity::Elvish);
         npc.gender.replace(Gender::NonBinaryThey);
-        npc.age.replace(Age::Adult(30));
+        npc.age.replace(Age::Adult);
+        npc.age_years.replace(30);
         npc.size.replace(Size::Medium {
             height: 71,
             weight: 140,
@@ -244,7 +245,8 @@ mod test_display_for_npc_details_view {
             npc.name = Field::new_generated("Potato Johnson".to_string());
         }
         if bitmask & 0b10 > 0 {
-            npc.age = Field::new_generated(Age::Adult(40));
+            npc.age = Field::new_generated(Age::Adult);
+            npc.age_years = Field::new_generated(40);
         }
         if bitmask & 0b100 > 0 {
             npc.species = Field::new_generated(Species::Human);

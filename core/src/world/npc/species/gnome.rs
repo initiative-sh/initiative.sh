@@ -13,20 +13,24 @@ impl Generate for Species {
         }
     }
 
-    fn gen_age(rng: &mut impl Rng) -> Age {
-        match rng.gen_range(0..=500) {
-            i if i < 2 => Age::Infant(i),
-            i if i < 10 => Age::Child(i),
-            i if i < 20 => Age::Adolescent(i),
-            i if i < 30 => Age::YoungAdult(i),
-            i if i < 100 => Age::Adult(i),
-            i if i < 250 => Age::MiddleAged(i),
-            i if i < 400 => Age::Elderly(i),
-            i => Age::Geriatric(i),
+    fn gen_age_years(rng: &mut impl Rng) -> u16 {
+        rng.gen_range(0..=500)
+    }
+
+    fn age_from_years(years: u16) -> Age {
+        match years {
+            i if i < 2 => Age::Infant,
+            i if i < 10 => Age::Child,
+            i if i < 20 => Age::Adolescent,
+            i if i < 30 => Age::YoungAdult,
+            i if i < 100 => Age::Adult,
+            i if i < 250 => Age::MiddleAged,
+            i if i < 400 => Age::Elderly,
+            _ => Age::Geriatric,
         }
     }
 
-    fn gen_size(rng: &mut impl Rng, _age: &Age, _gender: &Gender) -> Size {
+    fn gen_size(rng: &mut impl Rng, _age_years: u16, _gender: &Gender) -> Size {
         let size = rng.gen_range(1..=4) + rng.gen_range(1..=4);
         Size::Small {
             height: 36 + size,
@@ -57,31 +61,51 @@ mod test_generate_for_species {
     }
 
     #[test]
-    fn gen_age_test() {
+    fn gen_age_years_test() {
         let mut rng = SmallRng::seed_from_u64(0);
 
         assert_eq!(
+            [224, 220, 490, 231, 449],
             [
-                Age::MiddleAged(224),
-                Age::MiddleAged(220),
-                Age::Geriatric(490),
-                Age::MiddleAged(231),
-                Age::Geriatric(449),
-            ],
-            [
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
-                Species::gen_age(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
+                Species::gen_age_years(&mut rng),
             ],
         );
     }
 
     #[test]
+    fn age_from_years_test() {
+        assert_eq!(Age::Infant, Species::age_from_years(0));
+        assert_eq!(Age::Infant, Species::age_from_years(1));
+
+        assert_eq!(Age::Child, Species::age_from_years(2));
+        assert_eq!(Age::Child, Species::age_from_years(9));
+
+        assert_eq!(Age::Adolescent, Species::age_from_years(10));
+        assert_eq!(Age::Adolescent, Species::age_from_years(19));
+
+        assert_eq!(Age::YoungAdult, Species::age_from_years(20));
+        assert_eq!(Age::YoungAdult, Species::age_from_years(29));
+
+        assert_eq!(Age::Adult, Species::age_from_years(30));
+        assert_eq!(Age::Adult, Species::age_from_years(99));
+
+        assert_eq!(Age::MiddleAged, Species::age_from_years(100));
+        assert_eq!(Age::MiddleAged, Species::age_from_years(249));
+
+        assert_eq!(Age::Elderly, Species::age_from_years(250));
+        assert_eq!(Age::Elderly, Species::age_from_years(399));
+
+        assert_eq!(Age::Geriatric, Species::age_from_years(400));
+        assert_eq!(Age::Geriatric, Species::age_from_years(u16::MAX));
+    }
+
+    #[test]
     fn gen_size_test() {
         let mut rng = SmallRng::seed_from_u64(0);
-        let age = Age::Adult(0);
         let t = Gender::NonBinaryThey;
 
         let size = |height, weight| Size::Small { height, weight };
@@ -95,11 +119,11 @@ mod test_generate_for_species {
                 size(42, 44),
             ],
             [
-                Species::gen_size(&mut rng, &age, &t),
-                Species::gen_size(&mut rng, &age, &t),
-                Species::gen_size(&mut rng, &age, &t),
-                Species::gen_size(&mut rng, &age, &t),
-                Species::gen_size(&mut rng, &age, &t),
+                Species::gen_size(&mut rng, 0, &t),
+                Species::gen_size(&mut rng, 0, &t),
+                Species::gen_size(&mut rng, 0, &t),
+                Species::gen_size(&mut rng, 0, &t),
+                Species::gen_size(&mut rng, 0, &t),
             ]
         );
     }
