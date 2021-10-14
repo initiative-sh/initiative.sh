@@ -153,6 +153,14 @@ impl Gender {
             Self::Trans => "Themself",
         }
     }
+
+    pub fn conjugate<'a>(&self, singular_form: &'a str, plural_form: &'a str) -> &'a str {
+        if self == &Self::Trans {
+            plural_form
+        } else {
+            singular_form
+        }
+    }
 }
 
 impl fmt::Display for Gender {
@@ -172,73 +180,85 @@ mod test {
 
     #[test]
     fn pronouns_test() {
-        assert_eq!("she/her", Gender::Feminine.pronouns());
-        assert_eq!("he/him", Gender::Masculine.pronouns());
-        assert_eq!("it", Gender::Neuter.pronouns());
-        assert_eq!("they/them", Gender::Trans.pronouns());
+        let [f, m, n, t] = variants();
 
-        assert_eq!("she", Gender::Feminine.they());
-        assert_eq!("She", Gender::Feminine.they_cap());
-        assert_eq!("he", Gender::Masculine.they());
-        assert_eq!("He", Gender::Masculine.they_cap());
-        assert_eq!("it", Gender::Neuter.they());
-        assert_eq!("It", Gender::Neuter.they_cap());
-        assert_eq!("they", Gender::Trans.they());
-        assert_eq!("They", Gender::Trans.they_cap());
+        assert_eq!("she/her", f.pronouns());
+        assert_eq!("he/him", m.pronouns());
+        assert_eq!("it", n.pronouns());
+        assert_eq!("they/them", t.pronouns());
 
-        assert_eq!("she's", Gender::Feminine.theyre());
-        assert_eq!("She's", Gender::Feminine.theyre_cap());
-        assert_eq!("he's", Gender::Masculine.theyre());
-        assert_eq!("He's", Gender::Masculine.theyre_cap());
-        assert_eq!("it's", Gender::Neuter.theyre());
-        assert_eq!("It's", Gender::Neuter.theyre_cap());
-        assert_eq!("they're", Gender::Trans.theyre());
-        assert_eq!("They're", Gender::Trans.theyre_cap());
+        assert_eq!("she", f.they());
+        assert_eq!("She", f.they_cap());
+        assert_eq!("he", m.they());
+        assert_eq!("He", m.they_cap());
+        assert_eq!("it", n.they());
+        assert_eq!("It", n.they_cap());
+        assert_eq!("they", t.they());
+        assert_eq!("They", t.they_cap());
 
-        assert_eq!("she's", Gender::Feminine.theyve());
-        assert_eq!("She's", Gender::Feminine.theyve_cap());
-        assert_eq!("he's", Gender::Masculine.theyve());
-        assert_eq!("He's", Gender::Masculine.theyve_cap());
-        assert_eq!("it's", Gender::Neuter.theyve());
-        assert_eq!("It's", Gender::Neuter.theyve_cap());
-        assert_eq!("they've", Gender::Trans.theyve());
-        assert_eq!("They've", Gender::Trans.theyve_cap());
+        assert_eq!("she's", f.theyre());
+        assert_eq!("She's", f.theyre_cap());
+        assert_eq!("he's", m.theyre());
+        assert_eq!("He's", m.theyre_cap());
+        assert_eq!("it's", n.theyre());
+        assert_eq!("It's", n.theyre_cap());
+        assert_eq!("they're", t.theyre());
+        assert_eq!("They're", t.theyre_cap());
 
-        assert_eq!("her", Gender::Feminine.them());
-        assert_eq!("Her", Gender::Feminine.them_cap());
-        assert_eq!("him", Gender::Masculine.them());
-        assert_eq!("Him", Gender::Masculine.them_cap());
-        assert_eq!("it", Gender::Neuter.them());
-        assert_eq!("It", Gender::Neuter.them_cap());
-        assert_eq!("them", Gender::Trans.them());
-        assert_eq!("Them", Gender::Trans.them_cap());
+        assert_eq!("she's", f.theyve());
+        assert_eq!("She's", f.theyve_cap());
+        assert_eq!("he's", m.theyve());
+        assert_eq!("He's", m.theyve_cap());
+        assert_eq!("it's", n.theyve());
+        assert_eq!("It's", n.theyve_cap());
+        assert_eq!("they've", t.theyve());
+        assert_eq!("They've", t.theyve_cap());
 
-        assert_eq!("her", Gender::Feminine.their());
-        assert_eq!("Her", Gender::Feminine.their_cap());
-        assert_eq!("his", Gender::Masculine.their());
-        assert_eq!("His", Gender::Masculine.their_cap());
-        assert_eq!("its", Gender::Neuter.their());
-        assert_eq!("Its", Gender::Neuter.their_cap());
-        assert_eq!("their", Gender::Trans.their());
-        assert_eq!("Their", Gender::Trans.their_cap());
+        assert_eq!("her", f.them());
+        assert_eq!("Her", f.them_cap());
+        assert_eq!("him", m.them());
+        assert_eq!("Him", m.them_cap());
+        assert_eq!("it", n.them());
+        assert_eq!("It", n.them_cap());
+        assert_eq!("them", t.them());
+        assert_eq!("Them", t.them_cap());
 
-        assert_eq!("hers", Gender::Feminine.theirs());
-        assert_eq!("Hers", Gender::Feminine.theirs_cap());
-        assert_eq!("his", Gender::Masculine.theirs());
-        assert_eq!("His", Gender::Masculine.theirs_cap());
-        assert_eq!("its", Gender::Neuter.theirs());
-        assert_eq!("Its", Gender::Neuter.theirs_cap());
-        assert_eq!("theirs", Gender::Trans.theirs());
-        assert_eq!("Theirs", Gender::Trans.theirs_cap());
+        assert_eq!("her", f.their());
+        assert_eq!("Her", f.their_cap());
+        assert_eq!("his", m.their());
+        assert_eq!("His", m.their_cap());
+        assert_eq!("its", n.their());
+        assert_eq!("Its", n.their_cap());
+        assert_eq!("their", t.their());
+        assert_eq!("Their", t.their_cap());
 
-        assert_eq!("herself", Gender::Feminine.themself());
-        assert_eq!("Herself", Gender::Feminine.themself_cap());
-        assert_eq!("himself", Gender::Masculine.themself());
-        assert_eq!("Himself", Gender::Masculine.themself_cap());
-        assert_eq!("itself", Gender::Neuter.themself());
-        assert_eq!("Itself", Gender::Neuter.themself_cap());
-        assert_eq!("themself", Gender::Trans.themself());
-        assert_eq!("Themself", Gender::Trans.themself_cap());
+        assert_eq!("hers", f.theirs());
+        assert_eq!("Hers", f.theirs_cap());
+        assert_eq!("his", m.theirs());
+        assert_eq!("His", m.theirs_cap());
+        assert_eq!("its", n.theirs());
+        assert_eq!("Its", n.theirs_cap());
+        assert_eq!("theirs", t.theirs());
+        assert_eq!("Theirs", t.theirs_cap());
+
+        assert_eq!("herself", f.themself());
+        assert_eq!("Herself", f.themself_cap());
+        assert_eq!("himself", m.themself());
+        assert_eq!("Himself", m.themself_cap());
+        assert_eq!("itself", n.themself());
+        assert_eq!("Itself", n.themself_cap());
+        assert_eq!("themself", t.themself());
+        assert_eq!("Themself", t.themself_cap());
+    }
+
+    #[test]
+    fn conjugate_test() {
+        let [f, m, n, t] = variants();
+
+        assert_eq!("conjugate", m.conjugate("conjugate", "conjugates"));
+        assert_eq!("conjugate", f.conjugate("conjugate", "conjugates"));
+        assert_eq!("conjugates", t.conjugate("conjugate", "conjugates"));
+        assert_eq!("conjugate", n.conjugate("conjugate", "conjugates"));
     }
 
     #[test]
@@ -251,9 +271,32 @@ mod test {
 
     #[test]
     fn serialize_deserialize_test() {
-        assert_eq!("\"Trans\"", serde_json::to_string(&Gender::Trans).unwrap());
+        let [f, m, n, t] = variants();
+
+        assert_eq!("\"Feminine\"", serde_json::to_string(&f).unwrap());
+        assert_eq!("\"Masculine\"", serde_json::to_string(&m).unwrap());
+        assert_eq!("\"Neuter\"", serde_json::to_string(&n).unwrap());
+        assert_eq!("\"Trans\"", serde_json::to_string(&t).unwrap());
+
+        let value: Gender = serde_json::from_str("\"Feminine\"").unwrap();
+        assert_eq!(f, value);
+
+        let value: Gender = serde_json::from_str("\"Masculine\"").unwrap();
+        assert_eq!(m, value);
+
+        let value: Gender = serde_json::from_str("\"Neuter\"").unwrap();
+        assert_eq!(n, value);
 
         let value: Gender = serde_json::from_str("\"Trans\"").unwrap();
-        assert_eq!(Gender::Trans, value);
+        assert_eq!(t, value);
+    }
+
+    fn variants() -> [Gender; 4] {
+        [
+            Gender::Feminine,
+            Gender::Masculine,
+            Gender::Neuter,
+            Gender::Trans,
+        ]
     }
 }
