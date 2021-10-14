@@ -199,11 +199,7 @@ impl TutorialCommand {
                 include_str!("../../../../data/tutorial/09-weapons.md"),
                 inn_name = inn_name,
                 npc_name = npc_name,
-                pull = if npc_gender == &Gender::Trans {
-                    "pull"
-                } else {
-                    "pulls"
-                },
+                pull = npc_gender.conjugate("pulls", "pull"),
                 their = npc_gender.their(),
                 they_cap = npc_gender.they_cap(),
                 theyre = npc_gender.theyre(),
@@ -218,14 +214,15 @@ impl TutorialCommand {
                 theyve = npc_gender.theyve(),
             )),
             Self::AdjustTime {
+                inn_name,
                 npc_gender,
                 npc_name,
-                ..
             } => output.push_str(&format!(
                 include_str!("../../../../data/tutorial/11-delete.md"),
+                inn_name = inn_name,
                 npc_name = npc_name,
-                them = npc_gender.them(),
-                they_cap = npc_gender.they_cap(),
+                slip = npc_gender.conjugate("slips", "slip"),
+                they = npc_gender.they(),
             )),
             Self::Time { .. } => {
                 output.push_str(include_str!("../../../../data/tutorial/12-adjust-time.md"))
@@ -559,7 +556,7 @@ impl Runnable for TutorialCommand {
                     inn_name, npc_name, ..
                 },
                 Some(CommandType::Storage(StorageCommand::Delete { name })),
-            ) if name == npc_name => {
+            ) if name == inn_name => {
                 let next = Self::Time {
                     inn_name: inn_name.clone(),
                     npc_name: npc_name.clone(),

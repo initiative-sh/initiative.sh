@@ -1,5 +1,8 @@
 # Tutorial: Deleting Things
 
-The fight didn't go so well for poor {npc_name}. The party leaves {them}
-unconscious in a burning inn. {they_cap} won't be showing up again in this
-campaign. You can delete {them} from your journal with `delete {npc_name}`.
+{npc_name} fought valiantly, but is no match for our intrepid band of "heroes".
+Rather than defend {inn_name} to the death, {they} {slip} out the back door.
+The players may have made a new enemy today, but {inn_name} is left to burn to
+the ground. No chance of a repeat visit in this campaign after all.
+
+You can delete {inn_name} from your journal with `delete {inn_name}`.

@@ -1,3 +1,6 @@
+* **Enhancement:** The `tutorial` is now rather less brutal. Instead of killing
+  the poor bartender, our hypothetical murderhobos just let the inn burn to the
+  ground and delete that instead. (Spoilers, BTW.)
 * **New:** Added a `tutorial`! This will be updated very occasionally as new
   features are added, but initiative.sh is now sufficiently complex and
   feature-complete to be worth the effort.
