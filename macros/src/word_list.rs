@@ -16,7 +16,7 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
 
         data_enum.variants.iter().try_for_each(|variant| {
             let ident = &variant.ident;
-            let word: String = ident
+            let mut term: String = ident
                 .to_string()
                 .chars()
                 .enumerate()
@@ -33,10 +33,6 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
                 })
                 .collect();
 
-            words.push(quote! { #word, });
-            variants_to_words.push(quote! { #name::#ident => #word, });
-            words_to_variants.push(quote! { #word => Ok(#name::#ident), });
-
             for attribute in &variant.attrs {
                 match attribute.parse_meta().map_err(|e| format!("{}", e))? {
                     syn::Meta::NameValue(name_value) if name_value.path.is_ident("alias") => {
@@ -44,9 +40,20 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
                         words.push(quote! { #lit, });
                         words_to_variants.push(quote! { #lit => Ok(#name::#ident), });
                     }
+                    syn::Meta::NameValue(name_value) if name_value.path.is_ident("term") => {
+                        if let syn::Lit::Str(lit_str) = name_value.lit {
+                            term = lit_str.value();
+                        } else {
+                            return Err("Unexpected value for \"term\" helper.".to_string());
+                        }
+                    }
                     _ => {}
                 }
             }
+
+            words.push(quote! { #term, });
+            variants_to_words.push(quote! { #name::#ident => #term, });
+            words_to_variants.push(quote! { #term => Ok(#name::#ident), });
 
             Result::<(), String>::Ok(())
         })?;

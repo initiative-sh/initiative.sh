@@ -26,7 +26,7 @@ pub fn uuid(input: TokenStream) -> TokenStream {
     uuid::run(input).unwrap()
 }
 
-#[proc_macro_derive(WordList, attributes(alias))]
+#[proc_macro_derive(WordList, attributes(alias, term))]
 pub fn word_list(input: TokenStream) -> TokenStream {
     word_list::run(input).unwrap()
 }

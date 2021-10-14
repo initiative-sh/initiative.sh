@@ -1,12 +1,25 @@
+use initiative_macros::WordList;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, WordList, Serialize, Deserialize)]
 pub enum Gender {
-    Masculine,
+    #[alias = "female"]
+    #[alias = "woman"]
+    #[alias = "girl"]
     Feminine,
-    NonBinaryThey,
+
+    #[alias = "male"]
+    #[alias = "man"]
+    #[alias = "boy"]
+    Masculine,
+
     Neuter,
+
+    #[term = "non-binary"]
+    #[alias = "enby"]
+    #[alias = "nb"]
+    NonBinaryThey,
 }
 
 impl Gender {
@@ -166,10 +179,10 @@ impl Gender {
 impl fmt::Display for Gender {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Masculine => write!(f, "masculine (he/him)"),
             Self::Feminine => write!(f, "feminine (she/her)"),
-            Self::NonBinaryThey => write!(f, "non-binary (they/them)"),
+            Self::Masculine => write!(f, "masculine (he/him)"),
             Self::Neuter => write!(f, "neuter (it)"),
+            Self::NonBinaryThey => write!(f, "non-binary (they/them)"),
         }
     }
 }
