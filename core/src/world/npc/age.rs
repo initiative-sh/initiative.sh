@@ -1,16 +1,37 @@
 use super::Species;
+use initiative_macros::WordList;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
 pub enum Age {
+    #[alias = "baby"]
     Infant,
+
+    #[alias = "boy"]
+    #[alias = "girl"]
     Child,
+
+    #[alias = "teenage"]
+    #[alias = "teenager"]
     Adolescent,
+
+    #[alias = "young adult"]
     YoungAdult,
+
+    #[alias = "man"]
+    #[alias = "woman"]
     Adult,
+
+    #[alias = "middle aged"]
     MiddleAged,
+
+    #[alias = "old"]
     Elderly,
+
+    #[alias = "feeble"]
+    #[alias = "ancient"]
+    #[alias = "wizened"]
     Geriatric,
 }
 
@@ -26,7 +47,10 @@ impl Age {
                 _ => write!(f, "{} {}", self, species),
             }
         } else {
-            write!(f, "{}", self)
+            match self {
+                Age::MiddleAged | Age::Elderly | Age::Geriatric => write!(f, "{} person", self),
+                _ => write!(f, "{}", self),
+            }
         }
     }
 }
@@ -52,14 +76,53 @@ mod test {
 
     #[test]
     fn display_test() {
-        assert_eq!("infant", format!("{}", Age::Infant));
-        assert_eq!("child", format!("{}", Age::Child));
-        assert_eq!("adolescent", format!("{}", Age::Adolescent));
-        assert_eq!("young adult", format!("{}", Age::YoungAdult));
-        assert_eq!("adult", format!("{}", Age::Adult));
-        assert_eq!("middle-aged", format!("{}", Age::MiddleAged));
-        assert_eq!("elderly", format!("{}", Age::Elderly));
-        assert_eq!("geriatric", format!("{}", Age::Geriatric));
+        let cases = [
+            ("infant", Age::Infant),
+            ("child", Age::Child),
+            ("adolescent", Age::Adolescent),
+            ("young adult", Age::YoungAdult),
+            ("adult", Age::Adult),
+            ("middle-aged", Age::MiddleAged),
+            ("elderly", Age::Elderly),
+            ("geriatric", Age::Geriatric),
+        ];
+
+        for (age_str, age) in cases {
+            assert_eq!(age_str, format!("{}", age));
+            assert_eq!(Ok(age), format!("{}", age).parse::<Age>());
+        }
+    }
+
+    #[test]
+    fn from_str_test() {
+        assert_eq!(Ok(Age::Infant), "infant".parse::<Age>());
+        assert_eq!(Ok(Age::Infant), "baby".parse::<Age>());
+
+        assert_eq!(Ok(Age::Child), "child".parse::<Age>());
+        assert_eq!(Ok(Age::Child), "boy".parse::<Age>());
+        assert_eq!(Ok(Age::Child), "girl".parse::<Age>());
+
+        assert_eq!(Ok(Age::Adolescent), "adolescent".parse::<Age>());
+        assert_eq!(Ok(Age::Adolescent), "teenage".parse::<Age>());
+        assert_eq!(Ok(Age::Adolescent), "teenager".parse::<Age>());
+
+        assert_eq!(Ok(Age::YoungAdult), "young adult".parse::<Age>());
+        assert_eq!(Ok(Age::YoungAdult), "young-adult".parse::<Age>());
+
+        assert_eq!(Ok(Age::Adult), "adult".parse::<Age>());
+
+        assert_eq!(Ok(Age::MiddleAged), "middle aged".parse::<Age>());
+        assert_eq!(Ok(Age::MiddleAged), "middle-aged".parse::<Age>());
+
+        assert_eq!(Ok(Age::Elderly), "elderly".parse::<Age>());
+        assert_eq!(Ok(Age::Elderly), "old".parse::<Age>());
+
+        assert_eq!(Ok(Age::Geriatric), "geriatric".parse::<Age>());
+        assert_eq!(Ok(Age::Geriatric), "feeble".parse::<Age>());
+        assert_eq!(Ok(Age::Geriatric), "ancient".parse::<Age>());
+        assert_eq!(Ok(Age::Geriatric), "wizened".parse::<Age>());
+
+        assert_eq!(Err(()), "potato".parse::<Age>());
     }
 
     #[test]
