@@ -187,3 +187,34 @@ fn npc_save_alias_does_not_exist_with_invalid_data_store() {
         app.command("save").unwrap_err(),
     );
 }
+
+#[test]
+fn create_npc_with_custom_attributes() {
+    let mut app = sync_app();
+
+    {
+        let output = app.command("Sue, a young enby dwarvish elf").unwrap();
+        assert!(
+            output.starts_with("# Sue\n*young adult elf, they/them*"),
+            "{}",
+            output,
+        );
+        assert!(output.contains("has not yet been saved"), "{}", output);
+        assert!(!output.contains("Alternatives"), "{}", output);
+    }
+
+    {
+        let output = app.command("Sue").unwrap();
+        assert!(
+            output.starts_with("# Sue\n*young adult elf, they/them*"),
+            "{}",
+            output,
+        );
+        assert!(output.contains("has not yet been saved"), "{}", output);
+    }
+
+    {
+        let output = app.command("a boy named sue").unwrap_err();
+        assert_eq!("Couldn't create a unique child, he/him name.", output);
+    }
+}
