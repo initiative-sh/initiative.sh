@@ -12,11 +12,12 @@ mod warforged;
 
 use super::{Age, Gender, Npc, Species};
 use crate::world::weighted_index_from_tuple;
+use initiative_macros::WordList;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, WordList, Serialize, Deserialize)]
 pub enum Ethnicity {
     Dragonborn,
     Dwarvish,
