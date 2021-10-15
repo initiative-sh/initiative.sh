@@ -17,6 +17,7 @@ fn autocomplete_command() {
             ("dragonborn", "create dragonborn"),
             ("druidic foci", "SRD item category"),
             ("dwarf", "create dwarf"),
+            ("dwarvish", "create dwarvish person"),
         ]
         .iter()
         .map(|(a, b)| (a.to_string(), b.to_string()))

@@ -1,9 +1,6 @@
-use super::{Location, Thing};
-use crate::app::{
-    autocomplete_phrase, AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable,
-};
+use super::{Location, Npc, Thing};
+use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use crate::storage::{Change, RepositoryError, StorageCommand};
-use crate::world::npc::Species;
 use async_trait::async_trait;
 use std::fmt;
 
@@ -13,14 +10,6 @@ mod parse;
 #[derive(Clone, Debug, PartialEq)]
 pub enum WorldCommand {
     Create { thing: Thing },
-}
-
-impl WorldCommand {
-    fn summarize(&self) -> String {
-        match self {
-            Self::Create { thing } => format!("create {}", thing.display_summary()),
-        }
-    }
 }
 
 #[async_trait(?Send)]
@@ -147,20 +136,10 @@ impl ContextAwareParse for WorldCommand {
 
 impl Autocomplete for WorldCommand {
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
-        let mut suggestions: Vec<(String, String)> = autocomplete_phrase(
-            input,
-            &mut ["npc"].iter().chain(Species::get_words().iter()),
-        )
-        .drain(..)
-        .filter_map(|s| {
-            Self::parse_input(&s, app_meta)
-                .1
-                .first()
-                .map(|c| (s, c.summarize()))
-        })
-        .collect();
+        let mut suggestions = Vec::new();
 
         suggestions.append(&mut Location::autocomplete(input, app_meta));
+        suggestions.append(&mut Npc::autocomplete(input, app_meta));
 
         suggestions
     }
@@ -180,7 +159,6 @@ mod test {
     use crate::storage::NullDataStore;
     use crate::world::location::{BuildingType, LocationType};
     use crate::world::npc::Species;
-    use crate::world::Npc;
 
     #[test]
     fn parse_input_test() {
@@ -231,17 +209,17 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         vec![
-            //("npc", "create person"),
+            ("npc", "create person"),
             // Species
-            //("dragonborn", "create dragonborn"),
-            //("dwarf", "create dwarf"),
-            //("elf", "create elf"),
-            //("gnome", "create gnome"),
-            //("half-elf", "create half-elf"),
-            //("half-orc", "create half-orc"),
-            //("halfling", "create halfling"),
-            //("human", "create human"),
-            //("tiefling", "create tiefling"),
+            ("dragonborn", "create dragonborn"),
+            ("dwarf", "create dwarf"),
+            ("elf", "create elf"),
+            ("gnome", "create gnome"),
+            ("half-elf", "create half-elf"),
+            ("half-orc", "create half-orc"),
+            ("halfling", "create halfling"),
+            ("human", "create human"),
+            ("tiefling", "create tiefling"),
             // BuildingType
             ("inn", "create inn"),
         ]
@@ -254,7 +232,11 @@ mod test {
         });
 
         {
-            let expected = vec![("bar".to_string(), "create inn".to_string())];
+            let expected = vec![
+                ("baby".to_string(), "create infant".to_string()),
+                ("bar".to_string(), "create inn".to_string()),
+                ("boy".to_string(), "create child, he/him".to_string()),
+            ];
 
             let mut actual = WorldCommand::autocomplete("b", &app_meta);
             actual.sort();

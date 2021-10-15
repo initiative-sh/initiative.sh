@@ -314,19 +314,22 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        assert_eq!(
-            [
-                ("druidic foci", "SRD item category"),
-                ("delete [name]", "remove an entry from journal"),
-                ("date", "get the current time"),
-                ("dragonborn", "create dragonborn"),
-                ("dwarf", "create dwarf"),
-            ]
-            .iter()
-            .map(|(a, b)| (a.to_string(), b.to_string()))
-            .collect::<Vec<_>>(),
-            Command::autocomplete("d", &AppMeta::new(NullDataStore::default())),
-        );
+        let expected = [
+            ("date", "get the current time"),
+            ("delete [name]", "remove an entry from journal"),
+            ("dragonborn", "create dragonborn"),
+            ("druidic foci", "SRD item category"),
+            ("dwarf", "create dwarf"),
+            ("dwarvish", "create dwarvish person"),
+        ]
+        .iter()
+        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .collect::<Vec<_>>();
+
+        let mut actual = Command::autocomplete("d", &AppMeta::new(NullDataStore::default()));
+        actual.sort();
+
+        assert_eq!(expected, actual);
     }
 
     #[test]

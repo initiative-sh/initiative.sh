@@ -1,6 +1,7 @@
 use crate::app::{AppMeta, Autocomplete};
 use crate::utils::quoted_words;
 use crate::world::location::{BuildingType, Location};
+use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
 use crate::world::Thing;
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -225,6 +226,52 @@ impl Autocomplete for Location {
     }
 }
 
+impl Autocomplete for Npc {
+    fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
+        if let Some(word) = quoted_words(input).last().filter(|w| {
+            let s = w.as_str();
+            s.starts_with(|c: char| c.is_ascii_digit())
+                && "-year-old".starts_with(s.trim_start_matches(|c: char| c.is_ascii_digit()))
+        }) {
+            let suggestion = {
+                let word_str = word.as_str();
+                format!(
+                    "{}{}-year-old",
+                    &input[..word.range().start],
+                    &word_str[..word_str
+                        .find(|c: char| !c.is_ascii_digit())
+                        .unwrap_or(word_str.len())]
+                )
+            };
+
+            if let Ok(npc) = suggestion.parse::<Npc>() {
+                vec![(suggestion, format!("create {}", npc.display_summary()))]
+            } else {
+                Vec::new()
+            }
+        } else {
+            autocomplete_terms::<Npc>(
+                input,
+                &["character", "npc", "person"],
+                &[
+                    ("age", "specify an age (eg. \"elderly\")", Age::get_words()),
+                    (
+                        "ethnicity",
+                        "specify an ethnicity (eg. \"elvish\")",
+                        Ethnicity::get_words(),
+                    ),
+                    ("gender", "specify a gender", Gender::get_words()),
+                    (
+                        "species",
+                        "specify a species (eg. \"dwarf\")",
+                        Species::get_words(),
+                    ),
+                ],
+            )
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -372,6 +419,43 @@ mod test {
                     &input[..i],
                 );
             }
+        }
+    }
+
+    #[test]
+    fn autocomplete_test_npc() {
+        assert_autocomplete(
+            &[
+                ("elf [age]", "specify an age (eg. \"elderly\")"),
+                ("elf [ethnicity]", "specify an ethnicity (eg. \"elvish\")"),
+                ("elf [gender]", "specify a gender"),
+                ("elf named [name]", "specify a name"),
+            ][..],
+            Npc::autocomplete("elf ", &app_meta()),
+        );
+
+        assert_autocomplete(
+            &[
+                ("human [age]", "specify an age (eg. \"elderly\")"),
+                ("human [gender]", "specify a gender"),
+                ("human named [name]", "specify a name"),
+            ][..],
+            Npc::autocomplete("human ", &app_meta()),
+        );
+    }
+
+    #[test]
+    fn npc_autocomplete_test_typing() {
+        let input = "an elderly elvish dwarf woman named Tiramisu";
+        let app_meta = app_meta();
+
+        for i in 3..input.len() {
+            assert_ne!(
+                Vec::<(String, String)>::new(),
+                Npc::autocomplete(&input[..i], &app_meta),
+                "Input: {}",
+                &input[..i],
+            );
         }
     }
 
