@@ -9,17 +9,17 @@ pub struct DetailsView<'a>(&'a Npc);
 
 fn write_summary_details(npc: &Npc, f: &mut fmt::Formatter) -> fmt::Result {
     if let Some(age) = npc.age.value() {
-        age.fmt_with_species(npc.species.value(), f)?;
+        age.fmt_with_species_ethnicity(npc.species.value(), npc.ethnicity.value(), f)?;
     } else if let Some(species) = npc.species.value() {
         write!(f, "{}", species)?;
+    } else if let Some(ethnicity) = npc.ethnicity.value() {
+        write!(f, "{} person", ethnicity)?;
+    } else {
+        write!(f, "person")?;
     }
 
     if let Some(gender) = npc.gender.value() {
-        if npc.age.is_some() || npc.species.is_some() {
-            write!(f, ", ")?;
-        }
-
-        write!(f, "{}", gender.pronouns())?;
+        write!(f, ", {}", gender.pronouns())?;
     }
 
     Ok(())
@@ -46,20 +46,21 @@ impl<'a> DetailsView<'a> {
 impl<'a> fmt::Display for SummaryView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let npc = self.0;
-        let has_details = npc.age.is_some() || npc.species.is_some() || npc.gender.is_some();
+        let has_details = npc.age.is_some()
+            || npc.ethnicity.is_some()
+            || npc.gender.is_some()
+            || npc.species.is_some();
 
         if let Some(name) = npc.name.value() {
             if has_details {
                 write!(f, "`{}` (", name)?;
+                write_summary_details(npc, f)?;
+                write!(f, ")")?;
             } else {
                 write!(f, "`{}`", name)?;
             }
-        }
-
-        write_summary_details(npc, f)?;
-
-        if npc.name.is_some() && has_details {
-            write!(f, ")")?;
+        } else {
+            write_summary_details(npc, f)?;
         }
 
         Ok(())
@@ -117,63 +118,59 @@ mod test_display_for_npc_details_view {
     use crate::world::npc::{Age, Ethnicity, Gender, Size, Species};
     use crate::world::Field;
 
+    const NAME: u8 = 0b1;
+    const AGE: u8 = 0b10;
+    const SPECIES: u8 = 0b100;
+    const GENDER: u8 = 0b1000;
+    const ETHNICITY: u8 = 0b10000;
+
     #[test]
     fn summary_view_test() {
-        assert_eq!("", format!("{}", gen_npc(0b0000).display_summary()));
-        assert_eq!(
+        let (expected, actual): (Vec<String>, Vec<String>) = [
+            "person",
             "`Potato Johnson`",
-            format!("{}", gen_npc(0b0001).display_summary()),
-        );
-        assert_eq!("adult", format!("{}", gen_npc(0b0010).display_summary()));
-        assert_eq!(
+            "adult",
             "`Potato Johnson` (adult)",
-            format!("{}", gen_npc(0b0011).display_summary()),
-        );
-        assert_eq!("human", format!("{}", gen_npc(0b0100).display_summary()));
-        assert_eq!(
+            "human",
             "`Potato Johnson` (human)",
-            format!("{}", gen_npc(0b0101).display_summary()),
-        );
-        assert_eq!(
             "adult human",
-            format!("{}", gen_npc(0b0110).display_summary()),
-        );
-        assert_eq!(
             "`Potato Johnson` (adult human)",
-            format!("{}", gen_npc(0b0111).display_summary()),
-        );
-        assert_eq!(
-            "they/them",
-            format!("{}", gen_npc(0b1000).display_summary()),
-        );
-        assert_eq!(
-            "`Potato Johnson` (they/them)",
-            format!("{}", gen_npc(0b1001).display_summary()),
-        );
-        assert_eq!(
+            "person, they/them",
+            "`Potato Johnson` (person, they/them)",
             "adult, they/them",
-            format!("{}", gen_npc(0b1010).display_summary()),
-        );
-        assert_eq!(
             "`Potato Johnson` (adult, they/them)",
-            format!("{}", gen_npc(0b1011).display_summary()),
-        );
-        assert_eq!(
             "human, they/them",
-            format!("{}", gen_npc(0b1100).display_summary()),
-        );
-        assert_eq!(
             "`Potato Johnson` (human, they/them)",
-            format!("{}", gen_npc(0b1101).display_summary()),
-        );
-        assert_eq!(
             "adult human, they/them",
-            format!("{}", gen_npc(0b1110).display_summary()),
-        );
-        assert_eq!(
             "`Potato Johnson` (adult human, they/them)",
-            format!("{}", gen_npc(0b1111).display_summary()),
-        );
+            "elvish person",
+            "`Potato Johnson` (elvish person)",
+            "elvish adult",
+            "`Potato Johnson` (elvish adult)",
+            "human",
+            "`Potato Johnson` (human)",
+            "adult human",
+            "`Potato Johnson` (adult human)",
+            "elvish person, they/them",
+            "`Potato Johnson` (elvish person, they/them)",
+            "elvish adult, they/them",
+            "`Potato Johnson` (elvish adult, they/them)",
+            "human, they/them",
+            "`Potato Johnson` (human, they/them)",
+            "adult human, they/them",
+            "`Potato Johnson` (adult human, they/them)",
+        ]
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            (
+                s.to_string(),
+                format!("{}", gen_npc(i as u8).display_summary()),
+            )
+        })
+        .unzip();
+
+        assert_eq!(expected, actual);
     }
 
     #[test]
@@ -195,7 +192,7 @@ mod test_display_for_npc_details_view {
 # Potato Johnson
 *adult human, they/them*
 
-**Species:** human (Elvish)\\
+**Species:** human (elvish)\\
 **Gender:** non-binary\\
 **Age:** 30 years\\
 **Size:** 5'11\", 140 lbs (medium)",
@@ -205,35 +202,24 @@ mod test_display_for_npc_details_view {
 
     #[test]
     fn details_view_test_species_ethnicity() {
-        let npc = |b: u8| {
-            let mut npc = Npc::default();
-            if b & 0b1 != 0 {
-                npc.species.replace(Species::Human);
-            }
-            if b & 0b10 != 0 {
-                npc.ethnicity.replace(Ethnicity::Elvish);
-            }
-            npc
-        };
-
         assert_eq!(
             "# Unnamed NPC\n*human*\n\n**Species:** human",
-            format!("{}", npc(0b1).display_details())
+            format!("{}", gen_npc(SPECIES).display_details())
         );
         assert_eq!(
-            "# Unnamed NPC\n**\n\n**Ethnicity:** Elvish",
-            format!("{}", npc(0b10).display_details())
+            "# Unnamed NPC\n*elvish person*\n\n**Ethnicity:** elvish",
+            format!("{}", gen_npc(ETHNICITY).display_details())
         );
         assert_eq!(
-            "# Unnamed NPC\n*human*\n\n**Species:** human (Elvish)",
-            format!("{}", npc(0b11).display_details())
+            "# Unnamed NPC\n*human*\n\n**Species:** human (elvish)",
+            format!("{}", gen_npc(ETHNICITY | SPECIES).display_details())
         );
     }
 
     #[test]
     fn details_view_test_empty() {
         assert_eq!(
-            "# Unnamed NPC\n**\n\n**Species:** N/A",
+            "# Unnamed NPC\n*person*\n\n**Species:** N/A",
             format!("{}", &Npc::default().display_details())
         );
     }
@@ -241,18 +227,21 @@ mod test_display_for_npc_details_view {
     fn gen_npc(bitmask: u8) -> Npc {
         let mut npc = Npc::default();
 
-        if bitmask & 0b1 > 0 {
+        if bitmask & NAME > 0 {
             npc.name = Field::new_generated("Potato Johnson".to_string());
         }
-        if bitmask & 0b10 > 0 {
+        if bitmask & AGE > 0 {
             npc.age = Field::new_generated(Age::Adult);
             npc.age_years = Field::new_generated(40);
         }
-        if bitmask & 0b100 > 0 {
+        if bitmask & SPECIES > 0 {
             npc.species = Field::new_generated(Species::Human);
         }
-        if bitmask & 0b1000 > 0 {
+        if bitmask & GENDER > 0 {
             npc.gender = Field::new_generated(Gender::NonBinaryThey);
+        }
+        if bitmask & ETHNICITY > 0 {
+            npc.ethnicity = Field::new_generated(Ethnicity::Elvish);
         }
 
         npc

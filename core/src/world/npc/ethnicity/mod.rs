@@ -141,14 +141,14 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
 impl fmt::Display for Ethnicity {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Dragonborn => write!(f, "Dragonborn"),
-            Self::Dwarvish => write!(f, "Dwarvish"),
-            Self::Elvish => write!(f, "Elvish"),
-            Self::Gnomish => write!(f, "Gnomish"),
-            Self::Orcish => write!(f, "Orcish"),
-            Self::Halfling => write!(f, "Halfling"),
-            Self::Human => write!(f, "Human"),
-            Self::Tiefling => write!(f, "Tiefling"),
+            Self::Dragonborn => write!(f, "dragonborn"),
+            Self::Dwarvish => write!(f, "dwarvish"),
+            Self::Elvish => write!(f, "elvish"),
+            Self::Gnomish => write!(f, "gnomish"),
+            Self::Orcish => write!(f, "orcish"),
+            Self::Halfling => write!(f, "halfling"),
+            Self::Human => write!(f, "human"),
+            Self::Tiefling => write!(f, "tiefling"),
 
             #[cfg(feature = "eberron")]
             Self::Warforged => write!(f, "warforged"),

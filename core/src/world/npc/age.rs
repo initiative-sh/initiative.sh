@@ -1,4 +1,4 @@
-use super::Species;
+use super::{Ethnicity, Species};
 use initiative_macros::WordList;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -36,15 +36,23 @@ pub enum Age {
 }
 
 impl Age {
-    pub fn fmt_with_species(
+    pub fn fmt_with_species_ethnicity(
         &self,
         species: Option<&Species>,
+        ethnicity: Option<&Ethnicity>,
         f: &mut fmt::Formatter,
     ) -> fmt::Result {
         if let Some(species) = species {
             match self {
                 Age::Infant | Age::Child => write!(f, "{} {}", species, self),
                 _ => write!(f, "{} {}", self, species),
+            }
+        } else if let Some(ethnicity) = ethnicity {
+            match self {
+                Age::MiddleAged | Age::Elderly | Age::Geriatric => {
+                    write!(f, "{} {} person", self, ethnicity)
+                }
+                _ => write!(f, "{} {}", ethnicity, self),
             }
         } else {
             match self {
@@ -127,46 +135,95 @@ mod test {
 
     #[test]
     fn fmt_with_species_test_some_species() {
-        let r = Species::Human;
+        let s = Species::Elf;
 
         assert_eq!(
-            "human infant",
-            format!("{}", TestWrapper(&Age::Infant, Some(&r))),
+            "elf infant",
+            format!("{}", TestWrapper(&Age::Infant, Some(&s), None)),
         );
         assert_eq!(
-            "human child",
-            format!("{}", TestWrapper(&Age::Child, Some(&r))),
+            "elf child",
+            format!("{}", TestWrapper(&Age::Child, Some(&s), None)),
         );
         assert_eq!(
-            "adolescent human",
-            format!("{}", TestWrapper(&Age::Adolescent, Some(&r))),
+            "adolescent elf",
+            format!("{}", TestWrapper(&Age::Adolescent, Some(&s), None)),
         );
         assert_eq!(
-            "young adult human",
-            format!("{}", TestWrapper(&Age::YoungAdult, Some(&r))),
+            "young adult elf",
+            format!("{}", TestWrapper(&Age::YoungAdult, Some(&s), None)),
         );
         assert_eq!(
-            "adult human",
-            format!("{}", TestWrapper(&Age::Adult, Some(&r))),
+            "adult elf",
+            format!("{}", TestWrapper(&Age::Adult, Some(&s), None)),
         );
         assert_eq!(
-            "middle-aged human",
-            format!("{}", TestWrapper(&Age::MiddleAged, Some(&r))),
+            "middle-aged elf",
+            format!("{}", TestWrapper(&Age::MiddleAged, Some(&s), None)),
         );
         assert_eq!(
-            "elderly human",
-            format!("{}", TestWrapper(&Age::Elderly, Some(&r))),
+            "elderly elf",
+            format!("{}", TestWrapper(&Age::Elderly, Some(&s), None)),
         );
         assert_eq!(
-            "geriatric human",
-            format!("{}", TestWrapper(&Age::Geriatric, Some(&r))),
+            "geriatric elf",
+            format!("{}", TestWrapper(&Age::Geriatric, Some(&s), None)),
+        );
+    }
+
+    #[test]
+    fn fmt_with_species_test_some_ethnicity() {
+        let e = Ethnicity::Elvish;
+
+        assert_eq!(
+            "elvish infant",
+            format!("{}", TestWrapper(&Age::Infant, None, Some(&e))),
+        );
+        assert_eq!(
+            "elvish child",
+            format!("{}", TestWrapper(&Age::Child, None, Some(&e))),
+        );
+        assert_eq!(
+            "elvish adolescent",
+            format!("{}", TestWrapper(&Age::Adolescent, None, Some(&e))),
+        );
+        assert_eq!(
+            "elvish young adult",
+            format!("{}", TestWrapper(&Age::YoungAdult, None, Some(&e))),
+        );
+        assert_eq!(
+            "elvish adult",
+            format!("{}", TestWrapper(&Age::Adult, None, Some(&e))),
+        );
+        assert_eq!(
+            "middle-aged elvish person",
+            format!("{}", TestWrapper(&Age::MiddleAged, None, Some(&e))),
+        );
+        assert_eq!(
+            "elderly elvish person",
+            format!("{}", TestWrapper(&Age::Elderly, None, Some(&e))),
+        );
+        assert_eq!(
+            "geriatric elvish person",
+            format!("{}", TestWrapper(&Age::Geriatric, None, Some(&e))),
         );
     }
 
     #[test]
     fn fmt_with_species_test_none() {
-        assert_eq!("infant", format!("{}", TestWrapper(&Age::Infant, None)));
-        assert_eq!("adult", format!("{}", TestWrapper(&Age::Adult, None)));
+        assert_eq!(
+            "elf infant",
+            format!(
+                "{}",
+                TestWrapper(&Age::Infant, Some(&Species::Elf), Some(&Ethnicity::Human)),
+            ),
+        );
+
+        assert_eq!(
+            "infant",
+            format!("{}", TestWrapper(&Age::Infant, None, None)),
+        );
+        assert_eq!("adult", format!("{}", TestWrapper(&Age::Adult, None, None)));
     }
 
     #[test]
@@ -177,11 +234,11 @@ mod test {
         assert_eq!(Age::Adult, value);
     }
 
-    struct TestWrapper<'a>(&'a Age, Option<&'a Species>);
+    struct TestWrapper<'a>(&'a Age, Option<&'a Species>, Option<&'a Ethnicity>);
 
     impl<'a> fmt::Display for TestWrapper<'a> {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            self.0.fmt_with_species(self.1, f)
+            self.0.fmt_with_species_ethnicity(self.1, self.2, f)
         }
     }
 }
