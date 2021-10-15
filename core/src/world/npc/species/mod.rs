@@ -25,7 +25,11 @@ pub enum Species {
     Dwarf,
     Elf,
     Gnome,
+
+    #[alias = "half elf"]
     HalfElf,
+
+    #[alias = "half orc"]
     HalfOrc,
     Halfling,
     Human,

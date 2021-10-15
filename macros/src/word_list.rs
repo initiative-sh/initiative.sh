@@ -14,7 +14,7 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
         let mut variants_to_words = Vec::new();
         let mut words = Vec::new();
 
-        data_enum.variants.iter().for_each(|variant| {
+        data_enum.variants.iter().try_for_each(|variant| {
             let ident = &variant.ident;
             let word: String = ident
                 .to_string()
@@ -35,19 +35,21 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
 
             words.push(quote! { #word, });
             variants_to_words.push(quote! { #name::#ident => #word, });
-            words_to_variants.push(quote! { #word => Ok(#name::#ident),});
+            words_to_variants.push(quote! { #word => Ok(#name::#ident), });
 
-            if word.contains('-') {
-                let alt_word: String = word
-                    .chars()
-                    .map(|c| if c == '-' { ' ' } else { c })
-                    .collect();
-
-                words_to_variants.push(quote! {
-                    #alt_word => Ok(#name::#ident),
-                });
+            for attribute in &variant.attrs {
+                match attribute.parse_meta().map_err(|e| format!("{}", e))? {
+                    syn::Meta::NameValue(name_value) if name_value.path.is_ident("alias") => {
+                        let lit = name_value.lit;
+                        words.push(quote! { #lit, });
+                        words_to_variants.push(quote! { #lit => Ok(#name::#ident), });
+                    }
+                    _ => {}
+                }
             }
-        });
+
+            Result::<(), String>::Ok(())
+        })?;
 
         let gen = quote! {
             impl #name {
