@@ -19,8 +19,9 @@ pub fn capitalize(input: &str) -> String {
 }
 
 pub struct Word<'a> {
-    slice: &'a str,
-    range: Range<usize>,
+    phrase: &'a str,
+    inner_range: Range<usize>,
+    outer_range: Range<usize>,
 }
 
 pub struct QuotedWordIterator<'a> {
@@ -30,16 +31,24 @@ pub struct QuotedWordIterator<'a> {
 }
 
 impl<'a> Word<'a> {
-    fn new(slice: &'a str, range: Range<usize>) -> Self {
-        Self { slice, range }
+    fn new(phrase: &'a str, inner_range: Range<usize>, outer_range: Range<usize>) -> Self {
+        Self {
+            phrase,
+            inner_range,
+            outer_range,
+        }
     }
 
     pub fn as_str(&'a self) -> &'a str {
-        self.slice
+        &self.phrase[self.inner_range.clone()]
+    }
+
+    pub fn as_own_str<'b>(&'a self, phrase: &'b str) -> &'b str {
+        &phrase[self.inner_range.clone()]
     }
 
     pub fn range(&'a self) -> &'a Range<usize> {
-        &self.range
+        &self.outer_range
     }
 }
 
@@ -63,7 +72,8 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
             if let Some((i, c)) = self.char_iter.next() {
                 if c == '"' {
                     return Some(Word::new(
-                        &self.phrase[i..i],
+                        self.phrase,
+                        i..i,
                         i - quote_len..i + c.len_utf8(),
                     ));
                 } else {
@@ -71,7 +81,8 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                 }
             } else {
                 return Some(Word::new(
-                    &self.phrase[self.phrase.len()..self.phrase.len()],
+                    self.phrase,
+                    self.phrase.len()..self.phrase.len(),
                     self.phrase.len() - quote_len..self.phrase.len(),
                 ));
             }
@@ -91,7 +102,8 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                     if c == '"' {
                         // Empty quotes = yield empty string
                         return Some(Word::new(
-                            &self.phrase[i..i],
+                            self.phrase,
+                            i..i,
                             i - first_char.len_utf8()..i + c.len_utf8(),
                         ));
                     } else {
@@ -99,7 +111,8 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                     }
                 } else {
                     return Some(Word::new(
-                        &self.phrase[self.phrase.len()..self.phrase.len()],
+                        self.phrase,
+                        self.phrase.len()..self.phrase.len(),
                         first_index..self.phrase.len(),
                     ));
                 }
@@ -113,7 +126,8 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                 if let Some(quote_char) = quote_char {
                     if c == '"' {
                         return Some(Word::new(
-                            &self.phrase[first_index..i],
+                            self.phrase,
+                            first_index..i,
                             first_index - quote_char.len_utf8()..i + c.len_utf8(),
                         ));
                     }
@@ -125,7 +139,8 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                 }
             } else if let Some(quote_char) = quote_char {
                 return Some(Word::new(
-                    &self.phrase[first_index..self.phrase.len()],
+                    self.phrase,
+                    first_index..self.phrase.len(),
                     first_index - quote_char.len_utf8()..self.phrase.len(),
                 ));
             } else {
@@ -134,7 +149,8 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
         };
 
         Some(Word::new(
-            &self.phrase[first_index..last_index],
+            self.phrase,
+            first_index..last_index,
             first_index..last_index,
         ))
     }
@@ -278,5 +294,11 @@ mod test {
         assert_eq!(0..4, *word.range());
 
         assert!(input_iter.next().is_none());
+    }
+
+    #[test]
+    fn quoted_word_iter_test_empty() {
+        assert!(quoted_words("").next().is_none());
+        assert!(quoted_words(" ").next().is_none());
     }
 }

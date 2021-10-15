@@ -50,6 +50,10 @@ impl Location {
     pub fn display_details(&self) -> DetailsView {
         DetailsView::new(self)
     }
+
+    pub fn get_words() -> &'static [&'static str] {
+        &["location"][..]
+    }
 }
 
 impl Generate for Location {
@@ -86,6 +90,10 @@ impl LocationType {
             Self::Building(None) => "building",
             Self::Building(Some(building)) => building.as_str(),
         }
+    }
+
+    pub fn get_words() -> &'static [&'static str] {
+        &["building"][..]
     }
 }
 

@@ -1,13 +1,13 @@
-use super::Thing;
+use super::{Location, Thing};
 use crate::app::{
     autocomplete_phrase, AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable,
 };
 use crate::storage::{Change, RepositoryError, StorageCommand};
-use crate::world::location::BuildingType;
 use crate::world::npc::Species;
 use async_trait::async_trait;
 use std::fmt;
 
+mod autocomplete;
 mod parse;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -147,12 +147,9 @@ impl ContextAwareParse for WorldCommand {
 
 impl Autocomplete for WorldCommand {
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
-        autocomplete_phrase(
+        let mut suggestions: Vec<(String, String)> = autocomplete_phrase(
             input,
-            &mut ["npc", "building"]
-                .iter()
-                .chain(Species::get_words().iter())
-                .chain(BuildingType::get_words().iter()),
+            &mut ["npc"].iter().chain(Species::get_words().iter()),
         )
         .drain(..)
         .filter_map(|s| {
@@ -161,7 +158,11 @@ impl Autocomplete for WorldCommand {
                 .first()
                 .map(|c| (s, c.summarize()))
         })
-        .collect()
+        .collect();
+
+        suggestions.append(&mut Location::autocomplete(input, app_meta));
+
+        suggestions
     }
 }
 
@@ -177,53 +178,13 @@ impl fmt::Display for WorldCommand {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
-    use crate::world::location::LocationType;
-    use crate::world::{Location, Npc};
-
-    #[test]
-    fn summarize_test() {
-        assert_eq!(
-            "create building",
-            WorldCommand::Create {
-                thing: Location {
-                    subtype: LocationType::Building(None).into(),
-                    ..Default::default()
-                }
-                .into()
-            }
-            .summarize(),
-        );
-
-        assert_eq!(
-            "create inn",
-            WorldCommand::Create {
-                thing: Location {
-                    subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
-                    ..Default::default()
-                }
-                .into()
-            }
-            .summarize(),
-        );
-    }
+    use crate::world::location::{BuildingType, LocationType};
+    use crate::world::npc::Species;
+    use crate::world::Npc;
 
     #[test]
     fn parse_input_test() {
         let app_meta = AppMeta::new(NullDataStore::default());
-
-        assert_eq!(
-            (
-                None,
-                vec![WorldCommand::Create {
-                    thing: Location {
-                        subtype: LocationType::Building(None).into(),
-                        ..Default::default()
-                    }
-                    .into()
-                }],
-            ),
-            WorldCommand::parse_input("building", &app_meta),
-        );
 
         assert_eq!(
             (
@@ -270,18 +231,17 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         vec![
-            ("building", "create building"),
-            ("npc", "create person"),
+            //("npc", "create person"),
             // Species
-            ("dragonborn", "create dragonborn"),
-            ("dwarf", "create dwarf"),
-            ("elf", "create elf"),
-            ("gnome", "create gnome"),
-            ("half-elf", "create half-elf"),
-            ("half-orc", "create half-orc"),
-            ("halfling", "create halfling"),
-            ("human", "create human"),
-            ("tiefling", "create tiefling"),
+            //("dragonborn", "create dragonborn"),
+            //("dwarf", "create dwarf"),
+            //("elf", "create elf"),
+            //("gnome", "create gnome"),
+            //("half-elf", "create half-elf"),
+            //("half-orc", "create half-orc"),
+            //("halfling", "create halfling"),
+            //("human", "create human"),
+            //("tiefling", "create tiefling"),
             // BuildingType
             ("inn", "create inn"),
         ]
@@ -293,10 +253,14 @@ mod test {
             )
         });
 
-        assert_eq!(
-            vec![("building".to_string(), "create building".to_string())],
-            WorldCommand::autocomplete("b", &app_meta),
-        );
+        {
+            let expected = vec![("bar".to_string(), "create inn".to_string())];
+
+            let mut actual = WorldCommand::autocomplete("b", &app_meta);
+            actual.sort();
+
+            assert_eq!(expected, actual);
+        }
     }
 
     #[test]
