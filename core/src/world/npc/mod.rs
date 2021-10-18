@@ -53,7 +53,10 @@ impl Npc {
     }
 
     pub fn gender(&self) -> Gender {
-        self.gender.value().copied().unwrap_or(Gender::Trans)
+        self.gender
+            .value()
+            .copied()
+            .unwrap_or(Gender::NonBinaryThey)
     }
 }
 
@@ -89,7 +92,7 @@ mod test {
     #[test]
     fn gender_test() {
         let mut npc = Npc::default();
-        assert_eq!(Gender::Trans, npc.gender());
+        assert_eq!(Gender::NonBinaryThey, npc.gender());
 
         npc.gender.replace(Gender::Feminine);
         assert_eq!(Gender::Feminine, npc.gender());

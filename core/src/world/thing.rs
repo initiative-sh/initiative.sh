@@ -293,7 +293,7 @@ mod test {
     fn gender_test() {
         assert_eq!(Gender::Neuter, location().gender());
         assert_eq!(Gender::Neuter, region().gender());
-        assert_eq!(Gender::Trans, npc().gender());
+        assert_eq!(Gender::NonBinaryThey, npc().gender());
 
         let npc = Thing::Npc(Npc {
             gender: Gender::Feminine.into(),

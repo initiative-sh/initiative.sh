@@ -5,7 +5,7 @@ use std::fmt;
 pub enum Gender {
     Masculine,
     Feminine,
-    Trans,
+    NonBinaryThey,
     Neuter,
 }
 
@@ -15,7 +15,7 @@ impl Gender {
             Self::Feminine => "feminine",
             Self::Masculine => "masculine",
             Self::Neuter => "neuter",
-            Self::Trans => "trans",
+            Self::NonBinaryThey => "non-binary",
         }
     }
 
@@ -24,7 +24,7 @@ impl Gender {
             Self::Feminine => "she/her",
             Self::Masculine => "he/him",
             Self::Neuter => "it",
-            Self::Trans => "they/them",
+            Self::NonBinaryThey => "they/them",
         }
     }
 
@@ -33,7 +33,7 @@ impl Gender {
             Self::Feminine => "she",
             Self::Masculine => "he",
             Self::Neuter => "it",
-            Self::Trans => "they",
+            Self::NonBinaryThey => "they",
         }
     }
 
@@ -42,7 +42,7 @@ impl Gender {
             Self::Feminine => "She",
             Self::Masculine => "He",
             Self::Neuter => "It",
-            Self::Trans => "They",
+            Self::NonBinaryThey => "They",
         }
     }
 
@@ -51,7 +51,7 @@ impl Gender {
             Self::Feminine => "she's",
             Self::Masculine => "he's",
             Self::Neuter => "it's",
-            Self::Trans => "they're",
+            Self::NonBinaryThey => "they're",
         }
     }
 
@@ -60,7 +60,7 @@ impl Gender {
             Self::Feminine => "She's",
             Self::Masculine => "He's",
             Self::Neuter => "It's",
-            Self::Trans => "They're",
+            Self::NonBinaryThey => "They're",
         }
     }
 
@@ -69,7 +69,7 @@ impl Gender {
             Self::Feminine => "she's",
             Self::Masculine => "he's",
             Self::Neuter => "it's",
-            Self::Trans => "they've",
+            Self::NonBinaryThey => "they've",
         }
     }
 
@@ -78,7 +78,7 @@ impl Gender {
             Self::Feminine => "She's",
             Self::Masculine => "He's",
             Self::Neuter => "It's",
-            Self::Trans => "They've",
+            Self::NonBinaryThey => "They've",
         }
     }
 
@@ -87,7 +87,7 @@ impl Gender {
             Self::Feminine => "her",
             Self::Masculine => "him",
             Self::Neuter => "it",
-            Self::Trans => "them",
+            Self::NonBinaryThey => "them",
         }
     }
 
@@ -96,7 +96,7 @@ impl Gender {
             Self::Feminine => "Her",
             Self::Masculine => "Him",
             Self::Neuter => "It",
-            Self::Trans => "Them",
+            Self::NonBinaryThey => "Them",
         }
     }
 
@@ -105,7 +105,7 @@ impl Gender {
             Self::Feminine => "her",
             Self::Masculine => "his",
             Self::Neuter => "its",
-            Self::Trans => "their",
+            Self::NonBinaryThey => "their",
         }
     }
 
@@ -114,7 +114,7 @@ impl Gender {
             Self::Feminine => "Her",
             Self::Masculine => "His",
             Self::Neuter => "Its",
-            Self::Trans => "Their",
+            Self::NonBinaryThey => "Their",
         }
     }
 
@@ -123,7 +123,7 @@ impl Gender {
             Self::Feminine => "hers",
             Self::Masculine => "his",
             Self::Neuter => "its",
-            Self::Trans => "theirs",
+            Self::NonBinaryThey => "theirs",
         }
     }
 
@@ -132,7 +132,7 @@ impl Gender {
             Self::Feminine => "Hers",
             Self::Masculine => "His",
             Self::Neuter => "Its",
-            Self::Trans => "Theirs",
+            Self::NonBinaryThey => "Theirs",
         }
     }
 
@@ -141,7 +141,7 @@ impl Gender {
             Self::Feminine => "herself",
             Self::Masculine => "himself",
             Self::Neuter => "itself",
-            Self::Trans => "themself",
+            Self::NonBinaryThey => "themself",
         }
     }
 
@@ -150,12 +150,12 @@ impl Gender {
             Self::Feminine => "Herself",
             Self::Masculine => "Himself",
             Self::Neuter => "Itself",
-            Self::Trans => "Themself",
+            Self::NonBinaryThey => "Themself",
         }
     }
 
     pub fn conjugate<'a>(&self, singular_form: &'a str, plural_form: &'a str) -> &'a str {
-        if self == &Self::Trans {
+        if self == &Self::NonBinaryThey {
             plural_form
         } else {
             singular_form
@@ -168,7 +168,7 @@ impl fmt::Display for Gender {
         match self {
             Self::Masculine => write!(f, "masculine (he/him)"),
             Self::Feminine => write!(f, "feminine (she/her)"),
-            Self::Trans => write!(f, "trans (they/them)"),
+            Self::NonBinaryThey => write!(f, "non-binary (they/them)"),
             Self::Neuter => write!(f, "neuter (it)"),
         }
     }
@@ -265,7 +265,10 @@ mod test {
     fn fmt_test() {
         assert_eq!("masculine (he/him)", format!("{}", Gender::Masculine));
         assert_eq!("feminine (she/her)", format!("{}", Gender::Feminine));
-        assert_eq!("trans (they/them)", format!("{}", Gender::Trans));
+        assert_eq!(
+            "non-binary (they/them)",
+            format!("{}", Gender::NonBinaryThey)
+        );
         assert_eq!("neuter (it)", format!("{}", Gender::Neuter));
     }
 
@@ -276,7 +279,7 @@ mod test {
         assert_eq!("\"Feminine\"", serde_json::to_string(&f).unwrap());
         assert_eq!("\"Masculine\"", serde_json::to_string(&m).unwrap());
         assert_eq!("\"Neuter\"", serde_json::to_string(&n).unwrap());
-        assert_eq!("\"Trans\"", serde_json::to_string(&t).unwrap());
+        assert_eq!("\"NonBinaryThey\"", serde_json::to_string(&t).unwrap());
 
         let value: Gender = serde_json::from_str("\"Feminine\"").unwrap();
         assert_eq!(f, value);
@@ -287,7 +290,7 @@ mod test {
         let value: Gender = serde_json::from_str("\"Neuter\"").unwrap();
         assert_eq!(n, value);
 
-        let value: Gender = serde_json::from_str("\"Trans\"").unwrap();
+        let value: Gender = serde_json::from_str("\"NonBinaryThey\"").unwrap();
         assert_eq!(t, value);
     }
 
@@ -296,7 +299,7 @@ mod test {
             Gender::Feminine,
             Gender::Masculine,
             Gender::Neuter,
-            Gender::Trans,
+            Gender::NonBinaryThey,
         ]
     }
 }

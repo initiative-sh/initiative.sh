@@ -2,9 +2,26 @@ import Dexie from "dexie"
 
 const dexie = new Dexie("initiative")
 
+dexie.version(3).stores({
+  things: "&uuid, name, type",
+  keyValue: "&key",
+}).upgrade((tx) => {
+  return tx.table("things").toCollection().modify((thing) => {
+    if (thing.type === "Npc") {
+      if (thing.gender == "Trans") {
+        thing.gender = "NonBinaryThey"
+      }
+    }
+  })
+})
+
 dexie.version(2).stores({
   things: "&uuid, name, type",
   keyValue: "&key",
+})
+
+dexie.version(1).stores({
+  things: "&uuid, name, type",
 })
 
 const delete_thing_by_uuid = async (uuid) => {

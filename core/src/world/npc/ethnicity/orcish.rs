@@ -174,7 +174,7 @@ mod test_generate_for_ethnicity {
         let age = Age::Adult(0);
         let m = Gender::Masculine;
         let f = Gender::Feminine;
-        let t = Gender::Trans;
+        let t = Gender::NonBinaryThey;
 
         assert_eq!(
             [
