@@ -427,7 +427,7 @@ mod test {
             Npc {
                 name: "Potato Johnson".into(),
                 species: Species::Elf.into(),
-                gender: Gender::Trans.into(),
+                gender: Gender::NonBinaryThey.into(),
                 age: Age::Adult(0).into(),
                 ..Default::default()
             }

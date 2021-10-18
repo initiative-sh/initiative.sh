@@ -68,8 +68,8 @@ mod test_generate_for_species {
 
         for _ in 0..10 {
             assert_eq!(
-                Species::gen_size(&mut rng1, &Age::Adult(0), &Gender::Trans),
-                Human::gen_size(&mut rng2, &Age::Adult(0), &Gender::Trans),
+                Species::gen_size(&mut rng1, &Age::Adult(0), &Gender::NonBinaryThey),
+                Human::gen_size(&mut rng2, &Age::Adult(0), &Gender::NonBinaryThey),
             );
         }
     }

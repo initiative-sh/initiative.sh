@@ -9,7 +9,7 @@ impl Generate for Species {
             1..=60 => Gender::Neuter,
             61..=75 => Gender::Masculine,
             76..=90 => Gender::Feminine,
-            91..=100 => Gender::Trans,
+            91..=100 => Gender::NonBinaryThey,
             _ => unreachable!(),
         }
     }
@@ -46,7 +46,7 @@ mod test_generate_for_species {
         assert_eq!(Some(&59), genders.get("neuter (it)"));
         assert_eq!(Some(&15), genders.get("feminine (she/her)"));
         assert_eq!(Some(&16), genders.get("masculine (he/him)"));
-        assert_eq!(Some(&10), genders.get("trans (they/them)"));
+        assert_eq!(Some(&10), genders.get("non-binary (they/them)"));
     }
 
     #[test]
@@ -75,7 +75,7 @@ mod test_generate_for_species {
     fn gen_size_test() {
         let mut rng = SmallRng::seed_from_u64(0);
         let age = Age::Adult(0);
-        let t = Gender::Trans;
+        let t = Gender::NonBinaryThey;
 
         let size = |height, weight| Size::Medium { height, weight };
 

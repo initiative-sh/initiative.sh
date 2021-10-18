@@ -20,7 +20,7 @@ pub fn command(species: &Option<Species>, app_meta: &mut AppMeta) -> String {
             output.push_str(&format!(
                 "\n\n_{} has not yet been saved. Use ~save~ to save {} to your `journal`._",
                 name,
-                npc.gender.value().unwrap_or(&Gender::Trans).them(),
+                npc.gender.value().unwrap_or(&Gender::NonBinaryThey).them(),
             ));
             app_meta.command_aliases.insert(CommandAlias::literal(
                 "save".to_string(),

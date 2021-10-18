@@ -182,7 +182,7 @@ mod test_display_for_npc_details_view {
         npc.name.replace("Potato Johnson".to_string());
         npc.species.replace(Species::Human);
         npc.ethnicity.replace(Ethnicity::Elvish);
-        npc.gender.replace(Gender::Trans);
+        npc.gender.replace(Gender::NonBinaryThey);
         npc.age.replace(Age::Adult(30));
         npc.size.replace(Size::Medium {
             height: 71,
@@ -195,7 +195,7 @@ mod test_display_for_npc_details_view {
 *adult human, they/them*
 
 **Species:** human (Elvish)\\
-**Gender:** trans\\
+**Gender:** non-binary\\
 **Age:** 30 years\\
 **Size:** 5'11\", 140 lbs (medium)",
             format!("{}", npc.display_details())
@@ -250,7 +250,7 @@ mod test_display_for_npc_details_view {
             npc.species = Field::new_generated(Species::Human);
         }
         if bitmask & 0b1000 > 0 {
-            npc.gender = Field::new_generated(Gender::Trans);
+            npc.gender = Field::new_generated(Gender::NonBinaryThey);
         }
 
         npc

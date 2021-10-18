@@ -1,3 +1,5 @@
+* **Enhancement:** Corrected terminology so that NPCs using "they/them" pronouns
+  will be referred to as "non-binary" rather than "trans".
 * **Enhancement:** The `tutorial` is now rather less brutal. Instead of killing
   the poor bartender, our hypothetical murderhobos just let the inn burn to the
   ground and delete that instead. (Spoilers, BTW.)
