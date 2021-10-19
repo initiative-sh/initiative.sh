@@ -5,9 +5,7 @@ use crate::app::{
 use crate::reference::{ItemCategory, ReferenceCommand, Spell};
 use crate::storage::{repository, StorageCommand};
 use crate::time::TimeCommand;
-use crate::world::location::{BuildingType, LocationType};
 use crate::world::npc::Gender;
-use crate::world::WorldCommand;
 use async_trait::async_trait;
 use std::fmt;
 
@@ -332,12 +330,7 @@ impl Runnable for TutorialCommand {
                 let next = Self::Save;
                 (next.output(None, app_meta), Some(next))
             }
-            (
-                Self::Save,
-                Some(CommandType::World(WorldCommand::Location {
-                    location_type: LocationType::Building(Some(BuildingType::Inn)),
-                })),
-            ) => {
+            (Self::Save, _) if input == "inn" => {
                 let command_output = input_command.run(input, app_meta).await;
 
                 if let Ok(output) = command_output {
@@ -366,10 +359,7 @@ impl Runnable for TutorialCommand {
                     Some(next),
                 )
             }
-            (
-                Self::NpcOther { inn_name },
-                Some(CommandType::World(WorldCommand::Npc { species: None })),
-            ) => {
+            (Self::NpcOther { inn_name }, _) if input == "npc" => {
                 let command_output = input_command.run(input, app_meta).await;
 
                 if let Ok(output) = command_output {

@@ -42,7 +42,23 @@ pub enum Species {
 trait Generate {
     fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
         npc.gender.replace_with(|_| Self::gen_gender(rng));
-        npc.age_years.replace_with(|_| Self::gen_age_years(rng));
+
+        match (npc.age.is_locked(), npc.age_years.is_locked()) {
+            (false, false) => {
+                let age_years = Self::gen_age_years(rng);
+                npc.age_years.replace(age_years);
+                npc.age.replace_with(|_| Self::age_from_years(age_years));
+            }
+            (false, true) => {
+                npc.age
+                    .replace(Self::age_from_years(*npc.age_years.value().unwrap()));
+            }
+            (true, false) => {
+                npc.age_years
+                    .replace(Self::gen_years_from_age(rng, npc.age.value().unwrap()));
+            }
+            (true, true) => {}
+        }
 
         if let Some(years) = npc.age_years.value() {
             npc.age.replace_with(|_| Self::age_from_years(*years));
