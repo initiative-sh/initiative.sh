@@ -59,24 +59,20 @@ impl Runnable for WorldCommand {
                 if thing.name().is_none() {
                     output.push_str("\n\n*Alternatives:* ");
 
-                    let recent = (0..10)
-                        .map(|i| {
-                            let mut thing = thing.clone();
-                            thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
-                            output.push_str(&format!("\\\n~{}~ {}", i, thing.display_summary()));
-                            app_meta.command_aliases.insert(CommandAlias::literal(
-                                i.to_string(),
-                                format!("load {}", thing.name()),
-                                StorageCommand::Load {
-                                    name: thing.name().to_string(),
-                                }
-                                .into(),
-                            ));
-                            thing
-                        })
-                        .collect();
-
-                    app_meta.batch_push_recent(recent);
+                    for i in 0..10 {
+                        let mut thing = thing.clone();
+                        thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
+                        output.push_str(&format!("\\\n~{}~ {}", i, thing.display_summary()));
+                        app_meta.command_aliases.insert(CommandAlias::literal(
+                            i.to_string(),
+                            format!("load {}", thing.name()),
+                            StorageCommand::Load {
+                                name: thing.name().to_string(),
+                            }
+                            .into(),
+                        ));
+                        app_meta.push_recent(thing);
+                    }
                 }
 
                 output

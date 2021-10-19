@@ -3,7 +3,7 @@ use crate::storage::DataStore;
 use crate::time::Time;
 use crate::world;
 use rand::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use uuid::Uuid;
 
@@ -17,7 +17,7 @@ pub struct AppMeta {
     pub demographics: world::Demographics,
     pub rng: SmallRng,
 
-    recent: Vec<world::Thing>,
+    recent: VecDeque<world::Thing>,
     time: Time,
 }
 
@@ -29,31 +29,18 @@ impl AppMeta {
             data_store: Box::new(data_store),
             data_store_enabled: false,
             demographics: world::Demographics::default(),
-            recent: Vec::default(),
+            recent: VecDeque::default(),
             rng: SmallRng::from_entropy(),
             time: Time::try_new(1, 8, 0, 0).unwrap(),
         }
     }
 
-    pub fn batch_push_recent(&mut self, mut things: Vec<world::Thing>) {
-        if things.len() > RECENT_MAX_LEN {
-            things.drain(..(things.len() - RECENT_MAX_LEN));
-        }
-
-        if self.recent.len() + things.len() > RECENT_MAX_LEN {
-            self.recent
-                .drain(..(self.recent.len() + things.len() - RECENT_MAX_LEN));
-        }
-
-        self.recent.append(&mut things);
-    }
-
     pub fn push_recent(&mut self, thing: world::Thing) {
-        if self.recent.len() >= RECENT_MAX_LEN {
-            self.recent.remove(0);
+        while self.recent.len() >= RECENT_MAX_LEN {
+            self.recent.pop_front();
         }
 
-        self.recent.push(thing);
+        self.recent.push_back(thing);
     }
 
     pub fn take_recent<F>(&mut self, f: F) -> Option<world::Thing>
@@ -66,14 +53,14 @@ impl AppMeta {
                 .enumerate()
                 .find_map(|(i, t)| if f(t) { Some(i) } else { None })
         {
-            Some(self.recent.remove(index))
+            self.recent.remove(index)
         } else {
             None
         }
     }
 
     pub fn recent(&self) -> &[world::Thing] {
-        self.recent.as_ref()
+        self.recent.as_slices().0
     }
 
     pub async fn set_time(&mut self, time: Time) {
@@ -110,9 +97,13 @@ mod test {
         let mut app_meta = AppMeta::new(NullDataStore::default());
 
         (0..RECENT_MAX_LEN).for_each(|i| {
-            let mut npc = world::Npc::default();
-            npc.name.replace(format!("Thing {}", i));
-            app_meta.push_recent(world::Thing::Npc(npc));
+            app_meta.push_recent(
+                world::Npc {
+                    name: format!("Thing {}", i).into(),
+                    ..Default::default()
+                }
+                .into(),
+            );
             assert_eq!(i + 1, app_meta.recent.len());
         });
 
@@ -120,21 +111,25 @@ mod test {
             Some(&"Thing 0".to_string()),
             app_meta
                 .recent
-                .first()
+                .front()
                 .map(|thing| thing.name().value())
                 .flatten()
         );
 
-        let mut npc = world::Npc::default();
-        npc.name.replace("The Cat in the Hat".to_string());
-        app_meta.push_recent(world::Thing::Npc(npc));
+        app_meta.push_recent(
+            world::Npc {
+                name: "The Cat in the Hat".into(),
+                ..Default::default()
+            }
+            .into(),
+        );
         assert_eq!(RECENT_MAX_LEN, app_meta.recent.len());
 
         assert_eq!(
             Some(&"Thing 1".to_string()),
             app_meta
                 .recent
-                .first()
+                .front()
                 .map(|thing| thing.name().value())
                 .flatten()
         );
@@ -143,95 +138,7 @@ mod test {
             Some(&"The Cat in the Hat".to_string()),
             app_meta
                 .recent
-                .last()
-                .map(|thing| thing.name().value())
-                .flatten()
-        );
-    }
-
-    #[test]
-    fn batch_push_recent_test() {
-        let mut app_meta = AppMeta::new(NullDataStore::default());
-
-        app_meta.batch_push_recent(Vec::new());
-        assert_eq!(0, app_meta.recent.len());
-
-        app_meta.batch_push_recent(
-            (0..50)
-                .map(|i| {
-                    let mut npc = world::Npc::default();
-                    npc.name.replace(format!("Thing {}", i));
-                    world::Thing::Npc(npc)
-                })
-                .collect(),
-        );
-        assert_eq!(50, app_meta.recent.len());
-
-        app_meta.batch_push_recent(
-            (50..RECENT_MAX_LEN)
-                .map(|i| {
-                    let mut npc = world::Npc::default();
-                    npc.name.replace(format!("Thing {}", i));
-                    world::Thing::Npc(npc)
-                })
-                .collect(),
-        );
-        assert_eq!(RECENT_MAX_LEN, app_meta.recent.len());
-
-        assert_eq!(
-            Some(&"Thing 0".to_string()),
-            app_meta
-                .recent
-                .first()
-                .map(|thing| thing.name().value())
-                .flatten()
-        );
-
-        assert_eq!(
-            Some(&format!("Thing {}", RECENT_MAX_LEN - 1)),
-            app_meta
-                .recent
-                .last()
-                .map(|thing| thing.name().value())
-                .flatten()
-        );
-
-        app_meta.batch_push_recent(
-            (0..50)
-                .map(|i| {
-                    let mut npc = world::Npc::default();
-                    npc.name.replace(format!("Thang {}", i));
-                    world::Thing::Npc(npc)
-                })
-                .collect(),
-        );
-        assert_eq!(RECENT_MAX_LEN, app_meta.recent.len());
-
-        assert_eq!(
-            Some(&"Thing 50".to_string()),
-            app_meta
-                .recent
-                .first()
-                .map(|thing| thing.name().value())
-                .flatten()
-        );
-
-        app_meta.batch_push_recent(
-            (0..(RECENT_MAX_LEN * 2))
-                .map(|i| {
-                    let mut npc = world::Npc::default();
-                    npc.name.replace(format!("Oobleck {}", i));
-                    world::Thing::Npc(npc)
-                })
-                .collect(),
-        );
-        assert_eq!(RECENT_MAX_LEN, app_meta.recent.len());
-
-        assert_eq!(
-            Some(&format!("Oobleck {}", RECENT_MAX_LEN)),
-            app_meta
-                .recent
-                .first()
+                .back()
                 .map(|thing| thing.name().value())
                 .flatten()
         );
