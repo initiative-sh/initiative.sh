@@ -1,5 +1,7 @@
 use super::CommandType;
-use crate::app::{AppCommand, AppMeta, Command, CommandAlias, Runnable};
+use crate::app::{
+    AppCommand, AppMeta, Autocomplete, Command, CommandAlias, ContextAwareParse, Runnable,
+};
 use crate::reference::{ItemCategory, ReferenceCommand, Spell};
 use crate::storage::{repository, StorageCommand};
 use crate::time::TimeCommand;
@@ -659,7 +661,9 @@ impl Runnable for TutorialCommand {
 
         result
     }
+}
 
+impl ContextAwareParse for TutorialCommand {
     fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         (
             if input == "tutorial" {
@@ -670,7 +674,9 @@ impl Runnable for TutorialCommand {
             Vec::new(),
         )
     }
+}
 
+impl Autocomplete for TutorialCommand {
     fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
         if "tutorial".starts_with(input) {
             vec![("tutorial".to_string(), "feature walkthrough".to_string())]

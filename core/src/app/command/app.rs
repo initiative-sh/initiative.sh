@@ -1,4 +1,4 @@
-use crate::app::{autocomplete_phrase, AppMeta, Runnable};
+use crate::app::{autocomplete_phrase, AppMeta, Autocomplete, ContextAwareParse, Runnable};
 use async_trait::async_trait;
 use caith::Roller;
 use initiative_macros::changelog;
@@ -56,7 +56,9 @@ impl Runnable for AppCommand {
                 })?,
         })
     }
+}
 
+impl ContextAwareParse for AppCommand {
     fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut fuzzy_matches = Vec::new();
 
@@ -78,7 +80,9 @@ impl Runnable for AppCommand {
             fuzzy_matches,
         )
     }
+}
 
+impl Autocomplete for AppCommand {
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         if input.is_empty() {
             return Vec::new();

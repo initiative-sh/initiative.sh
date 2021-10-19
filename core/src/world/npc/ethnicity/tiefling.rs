@@ -141,7 +141,7 @@ mod test_generate_for_ethnicity {
     #[test]
     fn gen_name_test() {
         let mut rng = SmallRng::seed_from_u64(0);
-        let adult = Age::Adult(0);
+        let adult = Age::Adult;
         let m = Gender::Masculine;
         let f = Gender::Feminine;
         let t = Gender::NonBinaryThey;
@@ -160,10 +160,10 @@ mod test_generate_for_ethnicity {
                 "Goroth Alegtos",
             ],
             [
-                gen_name(&mut rng, &Age::Infant(0), &m),
-                gen_name(&mut rng, &Age::Child(0), &f),
-                gen_name(&mut rng, &Age::Adolescent(0), &m),
-                gen_name(&mut rng, &Age::YoungAdult(0), &f),
+                gen_name(&mut rng, &Age::Infant, &m),
+                gen_name(&mut rng, &Age::Child, &f),
+                gen_name(&mut rng, &Age::Adolescent, &m),
+                gen_name(&mut rng, &Age::YoungAdult, &f),
                 gen_name(&mut rng, &adult, &m),
                 gen_name(&mut rng, &adult, &m),
                 gen_name(&mut rng, &adult, &f),

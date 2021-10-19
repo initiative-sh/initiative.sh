@@ -1,5 +1,5 @@
 use super::repository;
-use crate::app::{AppMeta, CommandAlias, Runnable};
+use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use crate::world::Thing;
 use async_trait::async_trait;
 use std::fmt;
@@ -135,7 +135,9 @@ impl Runnable for StorageCommand {
             Self::Save { name } => repository::save_thing_by_name(app_meta, name).await,
         }
     }
+}
 
+impl ContextAwareParse for StorageCommand {
     fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut fuzzy_matches = Vec::new();
 
@@ -167,7 +169,9 @@ impl Runnable for StorageCommand {
             fuzzy_matches,
         )
     }
+}
 
+impl Autocomplete for StorageCommand {
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         if input.is_empty() {
             return Vec::new();
@@ -428,7 +432,7 @@ mod test {
                 name: "Potato Johnson".into(),
                 species: Species::Elf.into(),
                 gender: Gender::NonBinaryThey.into(),
-                age: Age::Adult(0).into(),
+                age: Age::Adult.into(),
                 ..Default::default()
             }
             .into(),

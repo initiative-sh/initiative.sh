@@ -1,66 +1,80 @@
-use super::Species;
+use super::{Ethnicity, Species};
+use initiative_macros::WordList;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", content = "value")]
+#[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
 pub enum Age {
-    Infant(u16),
-    Child(u16),
-    Adolescent(u16),
-    YoungAdult(u16),
-    Adult(u16),
-    MiddleAged(u16),
-    Elderly(u16),
-    Geriatric(u16),
+    #[alias = "baby"]
+    Infant,
+
+    #[alias = "boy"]
+    #[alias = "girl"]
+    Child,
+
+    #[alias = "teenage"]
+    #[alias = "teenager"]
+    Adolescent,
+
+    #[alias = "young adult"]
+    YoungAdult,
+
+    #[alias = "man"]
+    #[alias = "woman"]
+    Adult,
+
+    #[alias = "middle aged"]
+    MiddleAged,
+
+    #[alias = "old"]
+    Elderly,
+
+    #[alias = "feeble"]
+    #[alias = "ancient"]
+    #[alias = "wizened"]
+    Geriatric,
 }
 
 impl Age {
-    pub fn years(&self) -> u16 {
-        match self {
-            Self::Infant(i) => *i,
-            Self::Child(i) => *i,
-            Self::Adolescent(i) => *i,
-            Self::YoungAdult(i) => *i,
-            Self::Adult(i) => *i,
-            Self::MiddleAged(i) => *i,
-            Self::Elderly(i) => *i,
-            Self::Geriatric(i) => *i,
-        }
-    }
-
-    pub fn category(&self) -> &'static str {
-        match self {
-            Self::Infant(_) => "infant",
-            Self::Child(_) => "child",
-            Self::Adolescent(_) => "adolescent",
-            Self::YoungAdult(_) => "young adult",
-            Self::Adult(_) => "adult",
-            Self::MiddleAged(_) => "middle-aged",
-            Self::Elderly(_) => "elderly",
-            Self::Geriatric(_) => "geriatric",
-        }
-    }
-
-    pub fn fmt_with_species(
+    pub fn fmt_with_species_ethnicity(
         &self,
         species: Option<&Species>,
+        ethnicity: Option<&Ethnicity>,
         f: &mut fmt::Formatter,
     ) -> fmt::Result {
         if let Some(species) = species {
             match self {
-                Age::Infant(_) | Age::Child(_) => write!(f, "{} {}", species, self.category()),
-                _ => write!(f, "{} {}", self.category(), species),
+                Age::Infant | Age::Child => write!(f, "{} {}", species, self),
+                _ => write!(f, "{} {}", self, species),
+            }
+        } else if let Some(ethnicity) = ethnicity {
+            match self {
+                Age::MiddleAged | Age::Elderly | Age::Geriatric => {
+                    write!(f, "{} {} person", self, ethnicity)
+                }
+                _ => write!(f, "{} {}", ethnicity, self),
             }
         } else {
-            write!(f, "{}", self.category())
+            match self {
+                Age::MiddleAged | Age::Elderly | Age::Geriatric => write!(f, "{} person", self),
+                _ => write!(f, "{}", self),
+            }
         }
     }
 }
 
 impl fmt::Display for Age {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} ({} years)", self.category(), self.years())
+        match self {
+            Self::Infant => write!(f, "infant"),
+            Self::Child => write!(f, "child"),
+            Self::Adolescent => write!(f, "adolescent"),
+            Self::YoungAdult => write!(f, "young adult"),
+            Self::Adult => write!(f, "adult"),
+            Self::MiddleAged => write!(f, "middle-aged"),
+            Self::Elderly => write!(f, "elderly"),
+            Self::Geriatric => write!(f, "geriatric"),
+        }
     }
 }
 
@@ -69,95 +83,162 @@ mod test {
     use super::*;
 
     #[test]
-    fn years_test() {
-        assert_eq!(1, Age::Infant(1).years());
-        assert_eq!(2, Age::Child(2).years());
-        assert_eq!(3, Age::Adolescent(3).years());
-        assert_eq!(4, Age::YoungAdult(4).years());
-        assert_eq!(5, Age::Adult(5).years());
-        assert_eq!(6, Age::MiddleAged(6).years());
-        assert_eq!(7, Age::Elderly(7).years());
-        assert_eq!(8, Age::Geriatric(8).years());
+    fn display_test() {
+        let cases = [
+            ("infant", Age::Infant),
+            ("child", Age::Child),
+            ("adolescent", Age::Adolescent),
+            ("young adult", Age::YoungAdult),
+            ("adult", Age::Adult),
+            ("middle-aged", Age::MiddleAged),
+            ("elderly", Age::Elderly),
+            ("geriatric", Age::Geriatric),
+        ];
+
+        for (age_str, age) in cases {
+            assert_eq!(age_str, format!("{}", age));
+            assert_eq!(Ok(age), format!("{}", age).parse::<Age>());
+        }
     }
 
     #[test]
-    fn category_test() {
-        assert_eq!("infant", Age::Infant(1).category());
-        assert_eq!("child", Age::Child(2).category());
-        assert_eq!("adolescent", Age::Adolescent(3).category());
-        assert_eq!("young adult", Age::YoungAdult(4).category());
-        assert_eq!("adult", Age::Adult(5).category());
-        assert_eq!("middle-aged", Age::MiddleAged(6).category());
-        assert_eq!("elderly", Age::Elderly(7).category());
-        assert_eq!("geriatric", Age::Geriatric(8).category());
+    fn from_str_test() {
+        assert_eq!(Ok(Age::Infant), "infant".parse::<Age>());
+        assert_eq!(Ok(Age::Infant), "baby".parse::<Age>());
+
+        assert_eq!(Ok(Age::Child), "child".parse::<Age>());
+        assert_eq!(Ok(Age::Child), "boy".parse::<Age>());
+        assert_eq!(Ok(Age::Child), "girl".parse::<Age>());
+
+        assert_eq!(Ok(Age::Adolescent), "adolescent".parse::<Age>());
+        assert_eq!(Ok(Age::Adolescent), "teenage".parse::<Age>());
+        assert_eq!(Ok(Age::Adolescent), "teenager".parse::<Age>());
+
+        assert_eq!(Ok(Age::YoungAdult), "young adult".parse::<Age>());
+        assert_eq!(Ok(Age::YoungAdult), "young-adult".parse::<Age>());
+
+        assert_eq!(Ok(Age::Adult), "adult".parse::<Age>());
+
+        assert_eq!(Ok(Age::MiddleAged), "middle aged".parse::<Age>());
+        assert_eq!(Ok(Age::MiddleAged), "middle-aged".parse::<Age>());
+
+        assert_eq!(Ok(Age::Elderly), "elderly".parse::<Age>());
+        assert_eq!(Ok(Age::Elderly), "old".parse::<Age>());
+
+        assert_eq!(Ok(Age::Geriatric), "geriatric".parse::<Age>());
+        assert_eq!(Ok(Age::Geriatric), "feeble".parse::<Age>());
+        assert_eq!(Ok(Age::Geriatric), "ancient".parse::<Age>());
+        assert_eq!(Ok(Age::Geriatric), "wizened".parse::<Age>());
+
+        assert_eq!(Err(()), "potato".parse::<Age>());
     }
 
     #[test]
     fn fmt_with_species_test_some_species() {
-        let r = Species::Human;
+        let s = Species::Elf;
 
         assert_eq!(
-            "human infant",
-            format!("{}", TestWrapper(&Age::Infant(1), Some(&r))),
+            "elf infant",
+            format!("{}", TestWrapper(&Age::Infant, Some(&s), None)),
         );
         assert_eq!(
-            "human child",
-            format!("{}", TestWrapper(&Age::Child(2), Some(&r))),
+            "elf child",
+            format!("{}", TestWrapper(&Age::Child, Some(&s), None)),
         );
         assert_eq!(
-            "adolescent human",
-            format!("{}", TestWrapper(&Age::Adolescent(3), Some(&r))),
+            "adolescent elf",
+            format!("{}", TestWrapper(&Age::Adolescent, Some(&s), None)),
         );
         assert_eq!(
-            "young adult human",
-            format!("{}", TestWrapper(&Age::YoungAdult(4), Some(&r))),
+            "young adult elf",
+            format!("{}", TestWrapper(&Age::YoungAdult, Some(&s), None)),
         );
         assert_eq!(
-            "adult human",
-            format!("{}", TestWrapper(&Age::Adult(5), Some(&r))),
+            "adult elf",
+            format!("{}", TestWrapper(&Age::Adult, Some(&s), None)),
         );
         assert_eq!(
-            "middle-aged human",
-            format!("{}", TestWrapper(&Age::MiddleAged(6), Some(&r))),
+            "middle-aged elf",
+            format!("{}", TestWrapper(&Age::MiddleAged, Some(&s), None)),
         );
         assert_eq!(
-            "elderly human",
-            format!("{}", TestWrapper(&Age::Elderly(7), Some(&r))),
+            "elderly elf",
+            format!("{}", TestWrapper(&Age::Elderly, Some(&s), None)),
         );
         assert_eq!(
-            "geriatric human",
-            format!("{}", TestWrapper(&Age::Geriatric(8), Some(&r))),
+            "geriatric elf",
+            format!("{}", TestWrapper(&Age::Geriatric, Some(&s), None)),
+        );
+    }
+
+    #[test]
+    fn fmt_with_species_test_some_ethnicity() {
+        let e = Ethnicity::Elvish;
+
+        assert_eq!(
+            "elvish infant",
+            format!("{}", TestWrapper(&Age::Infant, None, Some(&e))),
+        );
+        assert_eq!(
+            "elvish child",
+            format!("{}", TestWrapper(&Age::Child, None, Some(&e))),
+        );
+        assert_eq!(
+            "elvish adolescent",
+            format!("{}", TestWrapper(&Age::Adolescent, None, Some(&e))),
+        );
+        assert_eq!(
+            "elvish young adult",
+            format!("{}", TestWrapper(&Age::YoungAdult, None, Some(&e))),
+        );
+        assert_eq!(
+            "elvish adult",
+            format!("{}", TestWrapper(&Age::Adult, None, Some(&e))),
+        );
+        assert_eq!(
+            "middle-aged elvish person",
+            format!("{}", TestWrapper(&Age::MiddleAged, None, Some(&e))),
+        );
+        assert_eq!(
+            "elderly elvish person",
+            format!("{}", TestWrapper(&Age::Elderly, None, Some(&e))),
+        );
+        assert_eq!(
+            "geriatric elvish person",
+            format!("{}", TestWrapper(&Age::Geriatric, None, Some(&e))),
         );
     }
 
     #[test]
     fn fmt_with_species_test_none() {
-        assert_eq!("infant", format!("{}", TestWrapper(&Age::Infant(1), None)));
-        assert_eq!("adult", format!("{}", TestWrapper(&Age::Adult(5), None)));
-    }
+        assert_eq!(
+            "elf infant",
+            format!(
+                "{}",
+                TestWrapper(&Age::Infant, Some(&Species::Elf), Some(&Ethnicity::Human)),
+            ),
+        );
 
-    #[test]
-    fn fmt_test() {
-        assert_eq!("infant (1 years)", format!("{}", Age::Infant(1)));
-        assert_eq!("adult (30 years)", format!("{}", Age::Adult(30)));
+        assert_eq!(
+            "infant",
+            format!("{}", TestWrapper(&Age::Infant, None, None)),
+        );
+        assert_eq!("adult", format!("{}", TestWrapper(&Age::Adult, None, None)));
     }
 
     #[test]
     fn serialize_deserialize_test() {
-        assert_eq!(
-            r#"{"type":"Adult","value":5}"#,
-            serde_json::to_string(&Age::Adult(5)).unwrap(),
-        );
+        assert_eq!(r#""Adult""#, serde_json::to_string(&Age::Adult).unwrap(),);
 
-        let value: Age = serde_json::from_str(r#"{"type":"Adult","value":5}"#).unwrap();
-        assert_eq!(Age::Adult(5), value);
+        let value: Age = serde_json::from_str(r#""Adult""#).unwrap();
+        assert_eq!(Age::Adult, value);
     }
 
-    struct TestWrapper<'a>(&'a Age, Option<&'a Species>);
+    struct TestWrapper<'a>(&'a Age, Option<&'a Species>, Option<&'a Ethnicity>);
 
     impl<'a> fmt::Display for TestWrapper<'a> {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            self.0.fmt_with_species(self.1, f)
+            self.0.fmt_with_species_ethnicity(self.1, self.2, f)
         }
     }
 }

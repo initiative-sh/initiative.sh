@@ -2,6 +2,25 @@ import Dexie from "dexie"
 
 const dexie = new Dexie("initiative")
 
+dexie.version(4).stores({
+  things: "&uuid, name, type",
+  keyValue: "&key",
+}).upgrade((tx) => {
+  return tx.table("things").toCollection().modify((thing) => {
+    if (thing.type === "Npc") {
+      console.log("before", thing)
+      if (thing.age && thing.age.value) {
+        thing.age_years = thing.age.value
+      }
+
+      if (thing.age && thing.age.type) {
+        thing.age = thing.age.type
+      }
+    }
+    console.log("after", thing)
+  })
+})
+
 dexie.version(3).stores({
   things: "&uuid, name, type",
   keyValue: "&key",
