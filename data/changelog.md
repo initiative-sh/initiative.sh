@@ -1,3 +1,7 @@
+* **New:** Substantially improved the process of creating NPCs and locations.
+  Rather than being limited to simple terms like `inn` or `tiefling`, you can
+  now generate `The Prancing Poodle, an inn`, an `old elvish woman`, or `a boy
+  named Sue`. (Editing of existing things is coming next.)
 * **Enhancement:** Things are now automatically saved upon creation if you
   include a name as one of the parameters. This should streamline the process of
   importing multiple things in sequence.
