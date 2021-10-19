@@ -6,6 +6,8 @@ use crate::world::npc::Species;
 use async_trait::async_trait;
 use std::fmt;
 
+mod parse;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum WorldCommand {
     Location { location_type: LocationType },
