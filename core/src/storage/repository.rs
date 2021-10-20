@@ -106,7 +106,10 @@ impl Repository {
                     .delete_thing_by_name(&name)
                     .await
                     .map_err(|e| (Change::Delete { id: Id::Name(name) }, e)),
-                Id::Uuid(_) => unimplemented!(),
+                Id::Uuid(uuid) => self
+                    .delete_thing_by_uuid(&uuid)
+                    .await
+                    .map_err(|e| (Change::Delete { id: Id::Uuid(uuid) }, e)),
             },
             Change::Save { name } => self
                 .save_thing_by_name(&name.to_lowercase())
@@ -194,16 +197,7 @@ impl Repository {
         };
 
         if let Some(uuid) = cached_uuid {
-            let (store_delete_success, cache_delete_success) = (
-                self.data_store.delete_thing_by_uuid(&uuid).await.is_ok(),
-                self.cache.remove(&uuid).is_some(),
-            );
-
-            if store_delete_success || cache_delete_success {
-                Ok(())
-            } else {
-                Err(Error::DataStoreFailed)
-            }
+            self.delete_thing_by_uuid(&uuid).await
         } else if self
             .take_recent(|t| t.name().value().map_or(false, name_matches))
             .is_some()
@@ -211,6 +205,19 @@ impl Repository {
             Ok(())
         } else {
             Err(Error::NotFound)
+        }
+    }
+
+    async fn delete_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<(), Error> {
+        let (store_delete_success, cache_delete_success) = (
+            self.data_store.delete_thing_by_uuid(uuid).await.is_ok(),
+            self.cache.remove(uuid).is_some(),
+        );
+
+        match (store_delete_success, cache_delete_success) {
+            (true, _) => Ok(()),
+            (false, true) => Err(Error::DataStoreFailed),
+            (false, false) => Err(Error::NotFound),
         }
     }
 
@@ -413,12 +420,41 @@ mod test {
     }
 
     #[test]
-    #[should_panic = "not implemented"]
-    fn change_test_delete_by_uuid() {
-        block_on(repo().modify(Change::Delete {
+    fn change_test_delete_by_uuid_success() {
+        let (mut repo, data_store) = repo_data_store();
+        let change = Change::Delete {
             id: TEST_UUID.into(),
-        }))
-        .unwrap();
+        };
+
+        let result = block_on(repo.modify(change)).unwrap();
+
+        assert_eq!((), result);
+        assert_eq!(0, repo.journal().count());
+        assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+    }
+
+    #[test]
+    fn change_test_delete_by_uuid_not_found() {
+        let change = Change::Delete {
+            id: Uuid::nil().into(),
+        };
+
+        let result = block_on(repo().modify(change.clone())).unwrap_err();
+
+        assert_eq!((change, Error::NotFound), result);
+    }
+
+    #[test]
+    fn change_test_delete_by_uuid_data_store_failed() {
+        let (mut repo, mut data_store) = repo_data_store();
+        block_on(data_store.delete_thing_by_uuid(&TEST_UUID)).unwrap();
+        let change = Change::Delete {
+            id: TEST_UUID.into(),
+        };
+
+        let result = block_on(repo.modify(change.clone())).unwrap_err();
+
+        assert_eq!((change, Error::DataStoreFailed), result);
     }
 
     #[test]
