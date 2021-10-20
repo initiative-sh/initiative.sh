@@ -390,7 +390,6 @@ impl Runnable for TutorialCommand {
                         let npc_gender = app_meta
                             .repository
                             .recent()
-                            .iter()
                             .find(|t| t.name().value() == npc_name.as_ref())
                             .map(|t| t.gender());
 

@@ -7,7 +7,7 @@ use std::fmt;
 const RECENT_MAX_LEN: usize = 100;
 
 pub struct Repository {
-    pub cache: HashMap<Uuid, Thing>,
+    cache: HashMap<Uuid, Thing>,
     data_store: Box<dyn DataStore>,
     pub data_store_enabled: bool,
     recent: VecDeque<Thing>,
@@ -69,6 +69,14 @@ impl Repository {
         }
     }
 
+    pub fn all(&self) -> impl Iterator<Item = &Thing> {
+        self.journal().chain(self.recent())
+    }
+
+    pub fn recent(&self) -> impl Iterator<Item = &Thing> {
+        self.recent.as_slices().0.iter()
+    }
+
     pub fn journal(&self) -> impl Iterator<Item = &Thing> {
         self.cache.values()
     }
@@ -109,10 +117,6 @@ impl Repository {
         } else {
             None
         }
-    }
-
-    pub fn recent(&self) -> &[Thing] {
-        self.recent.as_slices().0
     }
 
     pub async fn set_time(&mut self, time: Time) {
@@ -166,7 +170,7 @@ impl Repository {
 
     fn load_thing_by_name<'a>(&'a self, name: &str) -> Option<&'a Thing> {
         let lowercase_name = name.to_lowercase();
-        self.cache.values().chain(self.recent().iter()).find(|t| {
+        self.all().find(|t| {
             t.name()
                 .value()
                 .map_or(false, |s| s.to_lowercase() == lowercase_name)
@@ -262,7 +266,7 @@ mod test {
             Some(&"Thing 0".to_string()),
             repository
                 .recent()
-                .first()
+                .next()
                 .and_then(|thing| thing.name().value()),
         );
 
@@ -279,7 +283,7 @@ mod test {
             Some(&"Thing 1".to_string()),
             repository
                 .recent()
-                .first()
+                .next()
                 .and_then(|thing| thing.name().value()),
         );
 
@@ -290,6 +294,14 @@ mod test {
                 .last()
                 .and_then(|thing| thing.name().value()),
         );
+    }
+
+    #[test]
+    fn all_journal_test() {
+        let repo = repo();
+        assert_eq!(1, repo.recent().count());
+        assert_eq!(1, repo.journal().count());
+        assert_eq!(2, repo.all().count());
     }
 
     #[test]
@@ -348,7 +360,7 @@ mod test {
                 }))
                 .unwrap(),
             );
-        assert_eq!(0, repo.recent().len());
+        assert_eq!(0, repo.recent().count());
     }
 
     #[test]
@@ -386,7 +398,7 @@ mod test {
             }))
             .unwrap()
         );
-        assert_eq!(1, repo.recent().len());
+        assert_eq!(1, repo.recent().count());
 
         assert_eq!(
             "",
@@ -395,7 +407,7 @@ mod test {
             }))
             .unwrap()
         );
-        assert_eq!(2, repo.recent().len());
+        assert_eq!(2, repo.recent().count());
     }
 
     #[test]
@@ -403,7 +415,7 @@ mod test {
         let mut repo = repo();
 
         assert_eq!(1, repo.journal().count());
-        assert_eq!(1, repo.recent().len());
+        assert_eq!(1, repo.recent().count());
 
         assert_eq!(
             "`Odysseus` was successfully saved.",
@@ -414,7 +426,7 @@ mod test {
         );
 
         assert_eq!(2, repo.journal().count());
-        assert_eq!(0, repo.recent().len());
+        assert_eq!(0, repo.recent().count());
     }
 
     #[test]
@@ -433,7 +445,7 @@ mod test {
         .unwrap();
 
         assert_eq!(0, repo.journal().count());
-        assert_eq!(1, repo.recent().len());
+        assert_eq!(1, repo.recent().count());
 
         assert_eq!(
             "Couldn't save `Odysseus`.",
@@ -444,7 +456,7 @@ mod test {
         );
 
         assert_eq!(0, repo.journal().count());
-        assert_eq!(1, repo.recent().len());
+        assert_eq!(1, repo.recent().count());
     }
 
     #[test]

@@ -223,9 +223,7 @@ impl Autocomplete for StorageCommand {
 
         app_meta
             .repository
-            .cache
-            .values()
-            .chain(app_meta.repository.recent().iter())
+            .all()
             .filter_map(|thing| {
                 thing
                     .name()
@@ -470,24 +468,11 @@ mod test {
         )
         .unwrap();
 
-        {
-            let uuid = Uuid::new_v4();
-            app_meta.repository.cache.insert(
-                uuid,
-                Location {
-                    name: "Potato & Meat".into(),
-                    uuid: Some(uuid.into()),
-                    subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
-                    ..Default::default()
-                }
-                .into(),
-            );
-        }
-
         block_on(
             app_meta.repository.modify(Change::Create {
                 thing: Location {
-                    name: "Spud Stop".into(),
+                    name: "Potato & Meat".into(),
+                    subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
                     ..Default::default()
                 }
                 .into(),
@@ -497,8 +482,8 @@ mod test {
 
         assert_eq!(
             [
-                ("Potato & Meat", "inn"),
                 ("Potato Johnson", "adult elf, they/them (unsaved)"),
+                ("Potato & Meat", "inn (unsaved)"),
             ]
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
@@ -507,10 +492,7 @@ mod test {
         );
 
         assert_eq!(
-            [("delete Potato & Meat", "remove location from journal")]
-                .iter()
-                .map(|(a, b)| (a.to_string(), b.to_string()))
-                .collect::<Vec<_>>(),
+            Vec::<(String, String)>::new(),
             StorageCommand::autocomplete("delete P", &app_meta),
         );
 
@@ -518,7 +500,7 @@ mod test {
             [
                 ("save Potato Johnson", "save NPC to journal"),
                 ("save potato should be capitalized", "save NPC to journal"),
-                ("save Spud Stop", "save location to journal"),
+                ("save Potato & Meat", "save location to journal"),
             ]
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
@@ -528,8 +510,8 @@ mod test {
 
         assert_eq!(
             [
-                ("load Potato & Meat", "inn"),
                 ("load Potato Johnson", "adult elf, they/them (unsaved)"),
+                ("load Potato & Meat", "inn (unsaved)"),
             ]
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
