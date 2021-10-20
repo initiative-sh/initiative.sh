@@ -165,7 +165,7 @@ fn npc_can_be_deleted_from_temp() {
     );
 
     assert_eq!(
-        format!("There is no entity named {}.", npc_name),
+        format!("There is no entity named \"{}\".", npc_name),
         app.command(&format!("delete {}", npc_name)).unwrap_err(),
     );
 }
@@ -190,7 +190,7 @@ fn npc_can_be_deleted_from_data_store() {
     );
 
     assert_eq!(
-        format!("There is no entity named {}.", npc_name),
+        format!("There is no entity named \"{}\".", npc_name),
         app.command(&format!("delete {}", npc_name)).unwrap_err(),
     );
 }

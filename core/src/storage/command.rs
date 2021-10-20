@@ -1,4 +1,5 @@
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
+use crate::storage::Change;
 use crate::world::Thing;
 use async_trait::async_trait;
 use std::fmt;
@@ -98,7 +99,12 @@ impl Runnable for StorageCommand {
                     return Err("The journal is not supported by your browser.".to_string());
                 }
 
-                app_meta.repository.delete_thing_by_name(name).await
+                app_meta
+                    .repository
+                    .modify(Change::Delete {
+                        id: name.clone().into(),
+                    })
+                    .await
             }
             Self::Load { name } => {
                 let thing = app_meta.repository.load_thing_by_name(name);

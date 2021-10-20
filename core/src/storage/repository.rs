@@ -14,6 +14,17 @@ pub struct Repository {
     time: Time,
 }
 
+#[derive(Clone, Debug)]
+pub enum Change {
+    Delete { id: Id },
+}
+
+#[derive(Clone, Debug)]
+pub enum Id {
+    Name(String),
+    Uuid(Uuid),
+}
+
 impl Repository {
     pub fn new(data_store: impl DataStore + 'static) -> Self {
         Self {
@@ -46,6 +57,15 @@ impl Repository {
             if let Ok(time) = time_str.parse() {
                 self.set_time(time).await;
             }
+        }
+    }
+
+    pub async fn modify(&mut self, change: Change) -> Result<String, String> {
+        match change {
+            Change::Delete { id } => match id {
+                Id::Name(name) => self.delete_thing_by_name(&name).await,
+                Id::Uuid(_) => unimplemented!(),
+            },
         }
     }
 
@@ -89,7 +109,7 @@ impl Repository {
         &self.time
     }
 
-    pub async fn delete_thing_by_name(&mut self, name: &str) -> Result<String, String> {
+    async fn delete_thing_by_name(&mut self, name: &str) -> Result<String, String> {
         let lowercase_name = name.to_lowercase();
         let name_matches = |s: &String| s.to_lowercase() == lowercase_name;
 
@@ -122,7 +142,7 @@ impl Repository {
             thing.name(),
         ))
         } else {
-            Err(format!("There is no entity named {}.", name))
+            Err(format!("There is no entity named \"{}\".", name))
         }
     }
 
@@ -178,6 +198,18 @@ impl Repository {
     }
 }
 
+impl From<Uuid> for Id {
+    fn from(input: Uuid) -> Self {
+        Id::Uuid(input)
+    }
+}
+
+impl From<String> for Id {
+    fn from(input: String) -> Self {
+        Id::Name(input)
+    }
+}
+
 impl fmt::Debug for Repository {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -191,12 +223,15 @@ impl fmt::Debug for Repository {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::storage::NullDataStore;
-    use crate::world::Npc;
+    use crate::storage::data_store::MemoryDataStore;
+    use crate::world::{Location, Npc};
+    use tokio_test::block_on;
+
+    const TEST_UUID: Uuid = Uuid::from_u128(u128::MAX);
 
     #[test]
     fn recent_test() {
-        let mut repository = Repository::new(NullDataStore::default());
+        let mut repository = empty_repo();
 
         (0..RECENT_MAX_LEN).for_each(|i| {
             repository.push_recent(
@@ -244,10 +279,88 @@ mod test {
     }
 
     #[test]
+    fn change_test_delete_from_journal_by_name() {
+        let mut repo = repo();
+        assert_eq!(
+            "Olympus was successfully deleted.",
+            block_on(repo.modify(Change::Delete {
+                id: "olympus".to_string().into(),
+            }))
+            .unwrap(),
+        );
+        assert!(repo.cache.is_empty(), "{:?}", repo.cache);
+    }
+
+    #[test]
+    fn change_test_delete_from_recent_by_name() {
+        let mut repo = repo();
+        assert_eq!(
+                "Odysseus deleted from recent entries. This isn't normally necessary as recent entries aren't automatically saved from one session to another.",
+                block_on(repo.modify(Change::Delete {
+                    id: "odysseus".to_string().into(),
+                }))
+                .unwrap(),
+            );
+        assert!(repo.recent.is_empty(), "{:?}", repo.cache);
+    }
+
+    #[test]
+    fn change_test_delete_by_name_not_found() {
+        assert_eq!(
+            "There is no entity named \"Invisible Inc.\".",
+            block_on(repo().modify(Change::Delete {
+                id: "Invisible Inc.".to_string().into(),
+            }))
+            .unwrap_err(),
+        );
+    }
+
+    #[test]
+    #[should_panic = "not implemented"]
+    fn change_test_delete_by_uuid() {
+        block_on(repo().modify(Change::Delete {
+            id: TEST_UUID.into(),
+        }))
+        .unwrap();
+    }
+
+    #[test]
     fn debug_test() {
         assert_eq!(
             "Repository { cache: {}, data_store_enabled: false, recent: [], time: Time { days: 1, hours: 8, minutes: 0, seconds: 0 } }",
-            format!("{:?}", Repository::new(NullDataStore::default())),
+            format!("{:?}", empty_repo()),
         );
+    }
+
+    fn repo() -> Repository {
+        let mut data_store = MemoryDataStore::default();
+        block_on(
+            data_store.save_thing(
+                &Location {
+                    uuid: Some(TEST_UUID.into()),
+                    name: "Olympus".into(),
+                    ..Default::default()
+                }
+                .into(),
+            ),
+        )
+        .unwrap();
+
+        let mut repo = Repository::new(data_store);
+        block_on(repo.init());
+
+        repo.recent.push_back(
+            Npc {
+                name: "Odysseus".into(),
+                ..Default::default()
+            }
+            .into(),
+        );
+
+        repo
+    }
+
+    fn empty_repo() -> Repository {
+        Repository::new(MemoryDataStore::default())
     }
 }

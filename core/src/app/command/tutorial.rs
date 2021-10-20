@@ -3,7 +3,7 @@ use crate::app::{
     AppCommand, AppMeta, Autocomplete, Command, CommandAlias, ContextAwareParse, Runnable,
 };
 use crate::reference::{ItemCategory, ReferenceCommand, Spell};
-use crate::storage::StorageCommand;
+use crate::storage::{Change, StorageCommand};
 use crate::time::TimeCommand;
 use crate::world::npc::Gender;
 use async_trait::async_trait;
@@ -301,7 +301,9 @@ impl Runnable for TutorialCommand {
             if let Some(inn_name) = inn_name {
                 app_meta
                     .repository
-                    .delete_thing_by_name(inn_name)
+                    .modify(Change::Delete {
+                        id: inn_name.clone().into(),
+                    })
                     .await
                     .ok();
             }
@@ -309,7 +311,9 @@ impl Runnable for TutorialCommand {
             if let Some(npc_name) = npc_name {
                 app_meta
                     .repository
-                    .delete_thing_by_name(npc_name)
+                    .modify(Change::Delete {
+                        id: npc_name.clone().into(),
+                    })
                     .await
                     .ok();
             }
@@ -584,12 +588,16 @@ impl Runnable for TutorialCommand {
             ) => {
                 app_meta
                     .repository
-                    .delete_thing_by_name(inn_name)
+                    .modify(Change::Delete {
+                        id: inn_name.clone().into(),
+                    })
                     .await
                     .ok();
                 app_meta
                     .repository
-                    .delete_thing_by_name(npc_name)
+                    .modify(Change::Delete {
+                        id: npc_name.clone().into(),
+                    })
                     .await
                     .ok();
 
