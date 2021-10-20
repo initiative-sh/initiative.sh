@@ -2,7 +2,7 @@ use super::Thing;
 use crate::app::{
     autocomplete_phrase, AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable,
 };
-use crate::storage::StorageCommand;
+use crate::storage::{Change, StorageCommand};
 use crate::world::location::BuildingType;
 use crate::world::npc::Species;
 use async_trait::async_trait;
@@ -53,7 +53,11 @@ impl Runnable for WorldCommand {
                         }
                     }
 
-                    app_meta.repository.push_recent(thing);
+                    app_meta
+                        .repository
+                        .modify(Change::Create { thing })
+                        .await
+                        .unwrap();
                 }
 
                 if thing.name().is_none() {
@@ -71,7 +75,11 @@ impl Runnable for WorldCommand {
                             }
                             .into(),
                         ));
-                        app_meta.repository.push_recent(thing);
+                        app_meta
+                            .repository
+                            .modify(Change::Create { thing })
+                            .await
+                            .unwrap();
                     }
                 }
 

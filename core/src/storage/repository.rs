@@ -16,6 +16,7 @@ pub struct Repository {
 
 #[derive(Clone, Debug)]
 pub enum Change {
+    Create { thing: Thing },
     Delete { id: Id },
 }
 
@@ -62,6 +63,10 @@ impl Repository {
 
     pub async fn modify(&mut self, change: Change) -> Result<String, String> {
         match change {
+            Change::Create { thing } => {
+                self.push_recent(thing);
+                Ok(String::new())
+            }
             Change::Delete { id } => match id {
                 Id::Name(name) => self.delete_thing_by_name(&name).await,
                 Id::Uuid(_) => unimplemented!(),
@@ -69,7 +74,7 @@ impl Repository {
         }
     }
 
-    pub fn push_recent(&mut self, thing: Thing) {
+    fn push_recent(&mut self, thing: Thing) {
         while self.recent.len() >= RECENT_MAX_LEN {
             self.recent.pop_front();
         }
@@ -297,7 +302,7 @@ mod test {
         assert_eq!(
                 "Odysseus deleted from recent entries. This isn't normally necessary as recent entries aren't automatically saved from one session to another.",
                 block_on(repo.modify(Change::Delete {
-                    id: "odysseus".to_string().into(),
+                    id: "ODYSSEUS".to_string().into(),
                 }))
                 .unwrap(),
             );
@@ -307,9 +312,9 @@ mod test {
     #[test]
     fn change_test_delete_by_name_not_found() {
         assert_eq!(
-            "There is no entity named \"Invisible Inc.\".",
+            "There is no entity named \"NOBODY\".",
             block_on(repo().modify(Change::Delete {
-                id: "Invisible Inc.".to_string().into(),
+                id: "NOBODY".to_string().into(),
             }))
             .unwrap_err(),
         );
@@ -322,6 +327,33 @@ mod test {
             id: TEST_UUID.into(),
         }))
         .unwrap();
+    }
+
+    #[test]
+    fn change_test_create() {
+        let mut repo = empty_repo();
+        let odysseus = Npc {
+            name: "Odysseus".to_string().into(),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            "",
+            block_on(repo.modify(Change::Create {
+                thing: odysseus.clone().into()
+            }))
+            .unwrap()
+        );
+        assert_eq!(1, repo.recent().len());
+
+        assert_eq!(
+            "",
+            block_on(repo.modify(Change::Create {
+                thing: odysseus.clone().into()
+            }))
+            .unwrap()
+        );
+        assert_eq!(2, repo.recent().len());
     }
 
     #[test]

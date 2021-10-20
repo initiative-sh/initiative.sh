@@ -270,6 +270,7 @@ mod test {
     use crate::world::location::{BuildingType, Location, LocationType};
     use crate::world::npc::{Age, Gender, Npc, Species};
     use crate::world::Thing;
+    use tokio_test::block_on;
     use uuid::Uuid;
 
     #[test]
@@ -435,24 +436,30 @@ mod test {
     fn autocomplete_test() {
         let mut app_meta = AppMeta::new(NullDataStore::default());
 
-        app_meta.repository.push_recent(
-            Npc {
-                name: "Potato Johnson".into(),
-                species: Species::Elf.into(),
-                gender: Gender::NonBinaryThey.into(),
-                age: Age::Adult.into(),
-                ..Default::default()
-            }
-            .into(),
-        );
+        block_on(
+            app_meta.repository.modify(Change::Create {
+                thing: Npc {
+                    name: "Potato Johnson".into(),
+                    species: Species::Elf.into(),
+                    gender: Gender::NonBinaryThey.into(),
+                    age: Age::Adult.into(),
+                    ..Default::default()
+                }
+                .into(),
+            }),
+        )
+        .unwrap();
 
-        app_meta.repository.push_recent(
-            Npc {
-                name: "potato should be capitalized".into(),
-                ..Default::default()
-            }
-            .into(),
-        );
+        block_on(
+            app_meta.repository.modify(Change::Create {
+                thing: Npc {
+                    name: "potato should be capitalized".into(),
+                    ..Default::default()
+                }
+                .into(),
+            }),
+        )
+        .unwrap();
 
         {
             let uuid = Uuid::new_v4();
@@ -468,13 +475,16 @@ mod test {
             );
         }
 
-        app_meta.repository.push_recent(
-            Location {
-                name: "Spud Stop".into(),
-                ..Default::default()
-            }
-            .into(),
-        );
+        block_on(
+            app_meta.repository.modify(Change::Create {
+                thing: Location {
+                    name: "Spud Stop".into(),
+                    ..Default::default()
+                }
+                .into(),
+            }),
+        )
+        .unwrap();
 
         assert_eq!(
             [
