@@ -1,4 +1,3 @@
-use super::repository;
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use crate::world::Thing;
 use async_trait::async_trait;
@@ -50,14 +49,16 @@ impl Runnable for StorageCommand {
     async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
             Self::Journal => {
-                if !app_meta.data_store_enabled {
+                if !app_meta.repository.data_store_enabled {
                     return Err("The journal is not supported by your browser.".to_string());
                 }
 
                 let mut output = "# Journal".to_string();
                 let [mut npcs, mut locations, mut regions] = [Vec::new(), Vec::new(), Vec::new()];
 
-                let record_count = repository::load_all_the_things(app_meta)
+                let record_count = app_meta
+                    .repository
+                    .load_all_the_things()
                     .map(|thing| match thing {
                         Thing::Npc(_) => npcs.push(thing),
                         Thing::Location(_) => locations.push(thing),
@@ -93,17 +94,17 @@ impl Runnable for StorageCommand {
                 Ok(output)
             }
             Self::Delete { name } => {
-                if !app_meta.data_store_enabled {
+                if !app_meta.repository.data_store_enabled {
                     return Err("The journal is not supported by your browser.".to_string());
                 }
 
-                repository::delete_thing_by_name(app_meta, name).await
+                app_meta.repository.delete_thing_by_name(name).await
             }
             Self::Load { name } => {
-                let thing = repository::load_thing_by_name(app_meta, name);
+                let thing = app_meta.repository.load_thing_by_name(name);
                 let mut save_command = None;
                 let output = if let Some(thing) = thing {
-                    if thing.uuid().is_none() && app_meta.data_store_enabled {
+                    if thing.uuid().is_none() && app_meta.repository.data_store_enabled {
                         save_command = Some(CommandAlias::literal(
                             "save".to_string(),
                             format!("save {}", name),
@@ -132,7 +133,7 @@ impl Runnable for StorageCommand {
 
                 output
             }
-            Self::Save { name } => repository::save_thing_by_name(app_meta, name).await,
+            Self::Save { name } => app_meta.repository.save_thing_by_name(name).await,
         }
     }
 }
@@ -143,7 +144,7 @@ impl ContextAwareParse for StorageCommand {
 
         (
             if input.starts_with(char::is_uppercase) {
-                if repository::load_thing_by_name(app_meta, input).is_some() {
+                if app_meta.repository.load_thing_by_name(input).is_some() {
                     fuzzy_matches.push(Self::Load {
                         name: input.to_string(),
                     });
@@ -206,9 +207,10 @@ impl Autocomplete for StorageCommand {
         };
 
         app_meta
+            .repository
             .cache
             .values()
-            .chain(app_meta.recent().iter())
+            .chain(app_meta.repository.recent().iter())
             .filter_map(|thing| {
                 thing
                     .name()
@@ -427,7 +429,7 @@ mod test {
     fn autocomplete_test() {
         let mut app_meta = AppMeta::new(NullDataStore::default());
 
-        app_meta.push_recent(
+        app_meta.repository.push_recent(
             Npc {
                 name: "Potato Johnson".into(),
                 species: Species::Elf.into(),
@@ -438,7 +440,7 @@ mod test {
             .into(),
         );
 
-        app_meta.push_recent(
+        app_meta.repository.push_recent(
             Npc {
                 name: "potato should be capitalized".into(),
                 ..Default::default()
@@ -448,7 +450,7 @@ mod test {
 
         {
             let uuid = Uuid::new_v4();
-            app_meta.cache.insert(
+            app_meta.repository.cache.insert(
                 uuid,
                 Location {
                     name: "Potato & Meat".into(),
@@ -460,7 +462,7 @@ mod test {
             );
         }
 
-        app_meta.push_recent(
+        app_meta.repository.push_recent(
             Location {
                 name: "Spud Stop".into(),
                 ..Default::default()

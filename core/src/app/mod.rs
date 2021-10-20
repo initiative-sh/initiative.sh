@@ -7,7 +7,6 @@ pub use meta::AppMeta;
 mod command;
 mod meta;
 
-use crate::storage::repository;
 use initiative_macros::motd;
 
 pub struct App {
@@ -20,10 +19,10 @@ impl App {
     }
 
     pub async fn init(&mut self) -> &'static str {
-        repository::init_cache(&mut self.meta).await;
+        self.meta.repository.init().await;
         let (motd, motd_len) = motd!("! Local storage is not available in your browser. You will be able to use initiative.sh, but saving and loading won't work.");
 
-        if self.meta.data_store_enabled {
+        if self.meta.repository.data_store_enabled {
             &motd[..motd_len]
         } else {
             motd

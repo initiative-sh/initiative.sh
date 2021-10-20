@@ -3,7 +3,7 @@ use crate::app::{
     AppCommand, AppMeta, Autocomplete, Command, CommandAlias, ContextAwareParse, Runnable,
 };
 use crate::reference::{ItemCategory, ReferenceCommand, Spell};
-use crate::storage::{repository, StorageCommand};
+use crate::storage::StorageCommand;
 use crate::time::TimeCommand;
 use crate::world::npc::Gender;
 use async_trait::async_trait;
@@ -299,13 +299,17 @@ impl Runnable for TutorialCommand {
             input_command.get_type()
         {
             if let Some(inn_name) = inn_name {
-                repository::delete_thing_by_name(app_meta, inn_name)
+                app_meta
+                    .repository
+                    .delete_thing_by_name(inn_name)
                     .await
                     .ok();
             }
 
             if let Some(npc_name) = npc_name {
-                repository::delete_thing_by_name(app_meta, npc_name)
+                app_meta
+                    .repository
+                    .delete_thing_by_name(npc_name)
                     .await
                     .ok();
             }
@@ -380,6 +384,7 @@ impl Runnable for TutorialCommand {
                             })
                             .map(|s| s.to_string());
                         let npc_gender = app_meta
+                            .repository
                             .recent()
                             .iter()
                             .find(|t| t.name().value() == npc_name.as_ref())
@@ -577,10 +582,14 @@ impl Runnable for TutorialCommand {
                 Self::Conclusion { inn_name, npc_name },
                 Some(CommandType::Time(TimeCommand::Now)),
             ) => {
-                repository::delete_thing_by_name(app_meta, inn_name)
+                app_meta
+                    .repository
+                    .delete_thing_by_name(inn_name)
                     .await
                     .ok();
-                repository::delete_thing_by_name(app_meta, npc_name)
+                app_meta
+                    .repository
+                    .delete_thing_by_name(npc_name)
                     .await
                     .ok();
 
