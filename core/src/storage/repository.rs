@@ -27,6 +27,12 @@ pub enum Id {
     Uuid(Uuid),
 }
 
+#[derive(Debug, PartialEq)]
+pub enum Error {
+    DataStoreFailed,
+    NotFound,
+}
+
 impl Repository {
     pub fn new(data_store: impl DataStore + 'static) -> Self {
         Self {
@@ -81,11 +87,11 @@ impl Repository {
         self.cache.values()
     }
 
-    pub async fn modify(&mut self, change: Change) -> Result<String, String> {
+    pub async fn modify(&mut self, change: Change) -> Result<(), Error> {
         match change {
             Change::Create { thing } => {
                 self.push_recent(thing);
-                Ok(String::new())
+                Ok(())
             }
             Change::Delete { id } => match id {
                 Id::Name(name) => self.delete_thing_by_name(&name).await,
@@ -135,40 +141,38 @@ impl Repository {
         }
     }
 
-    async fn delete_thing_by_name(&mut self, name: &str) -> Result<String, String> {
+    async fn delete_thing_by_name(&mut self, name: &str) -> Result<(), Error> {
         let lowercase_name = name.to_lowercase();
         let name_matches = |s: &String| s.to_lowercase() == lowercase_name;
 
-        let cached_thing = if let Some((uuid, thing)) = self
+        let cached_uuid = if let Some((uuid, _)) = self
             .cache
             .iter()
             .find(|(_, t)| t.name().value().map_or(false, name_matches))
         {
-            Some((*uuid, thing.name().to_string()))
+            Some(*uuid)
         } else {
             None
         };
 
-        if let Some((uuid, thing_name)) = cached_thing {
+        if let Some(uuid) = cached_uuid {
             let (store_delete_success, cache_delete_success) = (
                 self.data_store.delete_thing_by_uuid(&uuid).await.is_ok(),
                 self.cache.remove(&uuid).is_some(),
             );
 
             if store_delete_success || cache_delete_success {
-                Ok(format!("{} was successfully deleted.", thing_name))
+                Ok(())
             } else {
-                Err(format!("Could not delete {}.", thing_name))
+                Err(Error::DataStoreFailed)
             }
-        } else if let Some(thing) =
-            self.take_recent(|t| t.name().value().map_or(false, name_matches))
+        } else if self
+            .take_recent(|t| t.name().value().map_or(false, name_matches))
+            .is_some()
         {
-            Ok(format!(
-            "{} deleted from recent entries. This isn't normally necessary as recent entries aren't automatically saved from one session to another.",
-            thing.name(),
-        ))
+            Ok(())
         } else {
-            Err(format!("There is no entity named \"{}\".", name))
+            Err(Error::NotFound)
         }
     }
 
@@ -181,7 +185,7 @@ impl Repository {
         })
     }
 
-    async fn save_thing_by_name(&mut self, name: &str) -> Result<String, String> {
+    async fn save_thing_by_name(&mut self, name: &str) -> Result<(), Error> {
         let lowercase_name = name.to_lowercase();
         if let Some(mut thing) = self.take_recent(|t| {
             t.name()
@@ -194,8 +198,7 @@ impl Repository {
                 .data_store
                 .save_thing(&thing)
                 .await
-                .map_err(|_| format!("Couldn't save `{}`.", thing.name()))
-                .map(|_| format!("{} was successfully saved.", thing.display_summary()));
+                .map_err(|_| Error::DataStoreFailed);
 
             if result.is_ok() {
                 self.cache.insert(*thing.uuid().unwrap(), thing);
@@ -205,17 +208,8 @@ impl Repository {
             }
 
             result
-        } else if let Some(thing) = self.cache.values().find(|t| {
-            t.name()
-                .value()
-                .map_or(false, |s| s.to_lowercase() == lowercase_name)
-        }) {
-            Err(format!(
-                "`{}` has already been saved to your `journal`.",
-                thing.name(),
-            ))
         } else {
-            Err(format!("No matches for \"{}\".", name))
+            Err(Error::NotFound)
         }
     }
 }
@@ -345,11 +339,10 @@ mod test {
     fn change_test_delete_from_journal_by_name() {
         let mut repo = repo();
         assert_eq!(
-            "Olympus was successfully deleted.",
+            Ok(()),
             block_on(repo.modify(Change::Delete {
                 id: "olympus".to_string().into(),
-            }))
-            .unwrap(),
+            })),
         );
         assert_eq!(0, repo.journal().count());
     }
@@ -358,23 +351,21 @@ mod test {
     fn change_test_delete_from_recent_by_name() {
         let mut repo = repo();
         assert_eq!(
-                "Odysseus deleted from recent entries. This isn't normally necessary as recent entries aren't automatically saved from one session to another.",
-                block_on(repo.modify(Change::Delete {
-                    id: "ODYSSEUS".to_string().into(),
-                }))
-                .unwrap(),
-            );
+            Ok(()),
+            block_on(repo.modify(Change::Delete {
+                id: "ODYSSEUS".to_string().into(),
+            })),
+        );
         assert_eq!(0, repo.recent().count());
     }
 
     #[test]
     fn change_test_delete_by_name_not_found() {
         assert_eq!(
-            "There is no entity named \"NOBODY\".",
+            Err(Error::NotFound),
             block_on(repo().modify(Change::Delete {
                 id: "NOBODY".to_string().into(),
-            }))
-            .unwrap_err(),
+            })),
         );
     }
 
@@ -396,20 +387,18 @@ mod test {
         };
 
         assert_eq!(
-            "",
+            Ok(()),
             block_on(repo.modify(Change::Create {
                 thing: odysseus.clone().into()
-            }))
-            .unwrap()
+            })),
         );
         assert_eq!(1, repo.recent().count());
 
         assert_eq!(
-            "",
+            Ok(()),
             block_on(repo.modify(Change::Create {
                 thing: odysseus.clone().into()
-            }))
-            .unwrap()
+            })),
         );
         assert_eq!(2, repo.recent().count());
     }
@@ -422,11 +411,10 @@ mod test {
         assert_eq!(1, repo.recent().count());
 
         assert_eq!(
-            "`Odysseus` was successfully saved.",
+            Ok(()),
             block_on(repo.modify(Change::Save {
                 name: "ODYSSEUS".to_string()
-            }))
-            .unwrap(),
+            })),
         );
 
         assert_eq!(2, repo.journal().count());
@@ -452,11 +440,10 @@ mod test {
         assert_eq!(1, repo.recent().count());
 
         assert_eq!(
-            "Couldn't save `Odysseus`.",
+            Err(Error::DataStoreFailed),
             block_on(repo.modify(Change::Save {
                 name: "ODYSSEUS".to_string()
-            }))
-            .unwrap_err(),
+            })),
         );
 
         assert_eq!(0, repo.journal().count());
@@ -468,11 +455,10 @@ mod test {
         let mut repo = repo();
 
         assert_eq!(
-            "`Olympus` has already been saved to your `journal`.",
+            Err(Error::NotFound),
             block_on(repo.modify(Change::Save {
                 name: "OLYMPUS".to_string()
-            }))
-            .unwrap_err(),
+            })),
         );
     }
 
@@ -481,11 +467,10 @@ mod test {
         let mut repo = repo();
 
         assert_eq!(
-            "No matches for \"NOBODY\".",
+            Err(Error::NotFound),
             block_on(repo.modify(Change::Save {
                 name: "NOBODY".to_string()
-            }))
-            .unwrap_err(),
+            })),
         );
     }
 

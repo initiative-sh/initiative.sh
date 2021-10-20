@@ -157,10 +157,7 @@ fn npc_can_be_deleted_from_temp() {
         .to_string();
 
     assert_eq!(
-        format!(
-            "{} deleted from recent entries. This isn't normally necessary as recent entries aren't automatically saved from one session to another.",
-            npc_name,
-        ),
+        format!("{} was successfully deleted.", npc_name,),
         app.command(&format!("delete {}", npc_name)).unwrap(),
     );
 

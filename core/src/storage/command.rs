@@ -1,5 +1,5 @@
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
-use crate::storage::Change;
+use crate::storage::repository::{Change, Error as RepositoryError};
 use crate::world::Thing;
 use async_trait::async_trait;
 use std::fmt;
@@ -105,6 +105,13 @@ impl Runnable for StorageCommand {
                         id: name.clone().into(),
                     })
                     .await
+                    .map(|_| format!("{} was successfully deleted.", name))
+                    .map_err(|e| match e {
+                        RepositoryError::NotFound => {
+                            format!("There is no entity named \"{}\".", name)
+                        }
+                        RepositoryError::DataStoreFailed => format!("Couldn't delete `{}`.", name),
+                    })
             }
             Self::Load { name } => {
                 let thing = app_meta.repository.load(&name.to_string().into());
@@ -139,12 +146,15 @@ impl Runnable for StorageCommand {
 
                 output
             }
-            Self::Save { name } => {
-                app_meta
-                    .repository
-                    .modify(Change::Save { name: name.clone() })
-                    .await
-            }
+            Self::Save { name } => app_meta
+                .repository
+                .modify(Change::Save { name: name.clone() })
+                .await
+                .map(|_| format!("{} was successfully saved.", name))
+                .map_err(|e| match e {
+                    RepositoryError::NotFound => format!("There is no entity named {}.", name),
+                    RepositoryError::DataStoreFailed => format!("Couldn't save `{}`.", name),
+                }),
         }
     }
 }
