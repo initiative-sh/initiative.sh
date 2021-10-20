@@ -59,7 +59,7 @@ impl Runnable for StorageCommand {
 
                 let record_count = app_meta
                     .repository
-                    .load_all_the_things()
+                    .journal()
                     .map(|thing| match thing {
                         Thing::Npc(_) => npcs.push(thing),
                         Thing::Location(_) => locations.push(thing),

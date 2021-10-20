@@ -69,6 +69,10 @@ impl Repository {
         }
     }
 
+    pub fn journal(&self) -> impl Iterator<Item = &Thing> {
+        self.cache.values()
+    }
+
     pub async fn modify(&mut self, change: Change) -> Result<String, String> {
         match change {
             Change::Create { thing } => {
@@ -167,10 +171,6 @@ impl Repository {
                 .value()
                 .map_or(false, |s| s.to_lowercase() == lowercase_name)
         })
-    }
-
-    pub fn load_all_the_things(&self) -> impl Iterator<Item = &Thing> {
-        self.cache.values()
     }
 
     async fn save_thing_by_name(&mut self, name: &str) -> Result<String, String> {
@@ -335,7 +335,7 @@ mod test {
             }))
             .unwrap(),
         );
-        assert!(repo.cache.is_empty(), "{:?}", repo.cache);
+        assert_eq!(0, repo.journal().count());
     }
 
     #[test]
@@ -348,7 +348,7 @@ mod test {
                 }))
                 .unwrap(),
             );
-        assert!(repo.recent.is_empty(), "{:?}", repo.cache);
+        assert_eq!(0, repo.recent().len());
     }
 
     #[test]
@@ -402,7 +402,7 @@ mod test {
     fn change_test_save_success() {
         let mut repo = repo();
 
-        assert_eq!(1, repo.cache.len());
+        assert_eq!(1, repo.journal().count());
         assert_eq!(1, repo.recent().len());
 
         assert_eq!(
@@ -413,7 +413,7 @@ mod test {
             .unwrap(),
         );
 
-        assert_eq!(2, repo.cache.len());
+        assert_eq!(2, repo.journal().count());
         assert_eq!(0, repo.recent().len());
     }
 
@@ -432,7 +432,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(0, repo.cache.len());
+        assert_eq!(0, repo.journal().count());
         assert_eq!(1, repo.recent().len());
 
         assert_eq!(
@@ -443,7 +443,7 @@ mod test {
             .unwrap_err(),
         );
 
-        assert_eq!(0, repo.cache.len());
+        assert_eq!(0, repo.journal().count());
         assert_eq!(1, repo.recent().len());
     }
 
