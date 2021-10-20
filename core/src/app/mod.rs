@@ -22,7 +22,7 @@ impl App {
         self.meta.repository.init().await;
         let (motd, motd_len) = motd!("! Local storage is not available in your browser. You will be able to use initiative.sh, but saving and loading won't work.");
 
-        if self.meta.repository.data_store_enabled {
+        if self.meta.repository.data_store_enabled() {
             &motd[..motd_len]
         } else {
             motd

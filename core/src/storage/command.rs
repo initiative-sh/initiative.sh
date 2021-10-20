@@ -50,7 +50,7 @@ impl Runnable for StorageCommand {
     async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
             Self::Journal => {
-                if !app_meta.repository.data_store_enabled {
+                if !app_meta.repository.data_store_enabled() {
                     return Err("The journal is not supported by your browser.".to_string());
                 }
 
@@ -95,7 +95,7 @@ impl Runnable for StorageCommand {
                 Ok(output)
             }
             Self::Delete { name } => {
-                if !app_meta.repository.data_store_enabled {
+                if !app_meta.repository.data_store_enabled() {
                     return Err("The journal is not supported by your browser.".to_string());
                 }
 
@@ -110,7 +110,7 @@ impl Runnable for StorageCommand {
                 let thing = app_meta.repository.load(&name.to_string().into());
                 let mut save_command = None;
                 let output = if let Some(thing) = thing {
-                    if thing.uuid().is_none() && app_meta.repository.data_store_enabled {
+                    if thing.uuid().is_none() && app_meta.repository.data_store_enabled() {
                         save_command = Some(CommandAlias::literal(
                             "save".to_string(),
                             format!("save {}", name),

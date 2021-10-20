@@ -9,7 +9,7 @@ const RECENT_MAX_LEN: usize = 100;
 pub struct Repository {
     cache: HashMap<Uuid, Thing>,
     data_store: Box<dyn DataStore>,
-    pub data_store_enabled: bool,
+    data_store_enabled: bool,
     recent: VecDeque<Thing>,
     time: Time,
 }
@@ -95,6 +95,22 @@ impl Repository {
         }
     }
 
+    pub async fn set_time(&mut self, time: Time) {
+        self.data_store
+            .set_value("time", &time.display_short().to_string())
+            .await
+            .ok();
+        self.time = time;
+    }
+
+    pub fn get_time(&self) -> &Time {
+        &self.time
+    }
+
+    pub fn data_store_enabled(&self) -> bool {
+        self.data_store_enabled
+    }
+
     fn push_recent(&mut self, thing: Thing) {
         while self.recent.len() >= RECENT_MAX_LEN {
             self.recent.pop_front();
@@ -117,18 +133,6 @@ impl Repository {
         } else {
             None
         }
-    }
-
-    pub async fn set_time(&mut self, time: Time) {
-        self.data_store
-            .set_value("time", &time.display_short().to_string())
-            .await
-            .ok();
-        self.time = time;
-    }
-
-    pub fn get_time(&self) -> &Time {
-        &self.time
     }
 
     async fn delete_thing_by_name(&mut self, name: &str) -> Result<String, String> {
@@ -491,6 +495,20 @@ mod test {
             "Repository { cache: {}, data_store_enabled: false, recent: [], time: Time { days: 1, hours: 8, minutes: 0, seconds: 0 } }",
             format!("{:?}", empty_repo()),
         );
+    }
+
+    #[test]
+    fn data_store_enabled_test_success() {
+        let mut repo = Repository::new(MemoryDataStore::default());
+        block_on(repo.init());
+        assert_eq!(true, repo.data_store_enabled());
+    }
+
+    #[test]
+    fn data_store_enabled_test_failure() {
+        let mut repo = Repository::new(NullDataStore::default());
+        block_on(repo.init());
+        assert_eq!(false, repo.data_store_enabled());
     }
 
     fn repo() -> Repository {

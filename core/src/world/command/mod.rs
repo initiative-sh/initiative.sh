@@ -35,7 +35,7 @@ impl Runnable for WorldCommand {
                     thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
                     output.push_str(&format!("{}", thing.display_details()));
 
-                    if app_meta.repository.data_store_enabled {
+                    if app_meta.repository.data_store_enabled() {
                         if let Some(name) = thing.name().value() {
                             output.push_str(&format!(
                                 "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`._",
