@@ -56,7 +56,7 @@ fn npc_cannot_be_saved_with_invalid_data_store() {
         .trim_start_matches("# ");
 
     assert_eq!(
-        format!("Couldn't save `{}`", npc_name),
+        format!("Couldn't save `{}`.", npc_name),
         app.command(&format!("save {}", npc_name)).unwrap_err(),
     );
 

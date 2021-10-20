@@ -18,6 +18,7 @@ pub struct Repository {
 pub enum Change {
     Create { thing: Thing },
     Delete { id: Id },
+    Save { name: String },
 }
 
 #[derive(Clone, Debug)]
@@ -71,6 +72,7 @@ impl Repository {
                 Id::Name(name) => self.delete_thing_by_name(&name).await,
                 Id::Uuid(_) => unimplemented!(),
             },
+            Change::Save { name } => self.save_thing_by_name(&name).await,
         }
     }
 
@@ -164,7 +166,7 @@ impl Repository {
         self.cache.values()
     }
 
-    pub async fn save_thing_by_name(&mut self, name: &str) -> Result<String, String> {
+    async fn save_thing_by_name(&mut self, name: &str) -> Result<String, String> {
         let lowercase_name = name.to_lowercase();
         if let Some(mut thing) = self.take_recent(|t| {
             t.name()
@@ -177,7 +179,7 @@ impl Repository {
                 .data_store
                 .save_thing(&thing)
                 .await
-                .map_err(|_| format!("Couldn't save `{}`", thing.name()))
+                .map_err(|_| format!("Couldn't save `{}`.", thing.name()))
                 .map(|_| format!("{} was successfully saved.", thing.display_summary()));
 
             if result.is_ok() {
@@ -188,17 +190,17 @@ impl Repository {
             }
 
             result
-        } else if self.cache.values().any(|t| {
+        } else if let Some(thing) = self.cache.values().find(|t| {
             t.name()
                 .value()
                 .map_or(false, |s| s.to_lowercase() == lowercase_name)
         }) {
             Err(format!(
-                "`{}` has already been saved to your `journal`",
-                name,
+                "`{}` has already been saved to your `journal`.",
+                thing.name(),
             ))
         } else {
-            Err(format!("No matches for \"{}\"", name))
+            Err(format!("No matches for \"{}\".", name))
         }
     }
 }
@@ -228,7 +230,7 @@ impl fmt::Debug for Repository {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::storage::data_store::MemoryDataStore;
+    use crate::storage::data_store::{MemoryDataStore, NullDataStore};
     use crate::world::{Location, Npc};
     use tokio_test::block_on;
 
@@ -354,6 +356,81 @@ mod test {
             .unwrap()
         );
         assert_eq!(2, repo.recent().len());
+    }
+
+    #[test]
+    fn change_test_save_success() {
+        let mut repo = repo();
+
+        assert_eq!(1, repo.cache.len());
+        assert_eq!(1, repo.recent().len());
+
+        assert_eq!(
+            "`Odysseus` was successfully saved.",
+            block_on(repo.modify(Change::Save {
+                name: "ODYSSEUS".to_string()
+            }))
+            .unwrap(),
+        );
+
+        assert_eq!(2, repo.cache.len());
+        assert_eq!(0, repo.recent().len());
+    }
+
+    #[test]
+    fn change_test_save_data_store_failed() {
+        let mut repo = Repository::new(NullDataStore::default());
+
+        block_on(
+            repo.modify(Change::Create {
+                thing: Location {
+                    name: "Odysseus".into(),
+                    ..Default::default()
+                }
+                .into(),
+            }),
+        )
+        .unwrap();
+
+        assert_eq!(0, repo.cache.len());
+        assert_eq!(1, repo.recent().len());
+
+        assert_eq!(
+            "Couldn't save `Odysseus`.",
+            block_on(repo.modify(Change::Save {
+                name: "ODYSSEUS".to_string()
+            }))
+            .unwrap_err(),
+        );
+
+        assert_eq!(0, repo.cache.len());
+        assert_eq!(1, repo.recent().len());
+    }
+
+    #[test]
+    fn change_test_save_already_saved() {
+        let mut repo = repo();
+
+        assert_eq!(
+            "`Olympus` has already been saved to your `journal`.",
+            block_on(repo.modify(Change::Save {
+                name: "OLYMPUS".to_string()
+            }))
+            .unwrap_err(),
+        );
+    }
+
+    #[test]
+    fn change_test_save_not_found() {
+        let mut repo = repo();
+
+        assert_eq!(
+            "No matches for \"NOBODY\".",
+            block_on(repo.modify(Change::Save {
+                name: "NOBODY".to_string()
+            }))
+            .unwrap_err(),
+        );
     }
 
     #[test]

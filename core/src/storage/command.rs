@@ -139,7 +139,12 @@ impl Runnable for StorageCommand {
 
                 output
             }
-            Self::Save { name } => app_meta.repository.save_thing_by_name(name).await,
+            Self::Save { name } => {
+                app_meta
+                    .repository
+                    .modify(Change::Save { name: name.clone() })
+                    .await
+            }
         }
     }
 }
