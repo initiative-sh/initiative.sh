@@ -107,7 +107,7 @@ impl Runnable for StorageCommand {
                     .await
             }
             Self::Load { name } => {
-                let thing = app_meta.repository.load_thing_by_name(name);
+                let thing = app_meta.repository.load(&name.to_string().into());
                 let mut save_command = None;
                 let output = if let Some(thing) = thing {
                     if thing.uuid().is_none() && app_meta.repository.data_store_enabled {
@@ -155,7 +155,11 @@ impl ContextAwareParse for StorageCommand {
 
         (
             if input.starts_with(char::is_uppercase) {
-                if app_meta.repository.load_thing_by_name(input).is_some() {
+                if app_meta
+                    .repository
+                    .load(&input.to_string().into())
+                    .is_some()
+                {
                     fuzzy_matches.push(Self::Load {
                         name: input.to_string(),
                     });

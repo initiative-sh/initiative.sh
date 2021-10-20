@@ -62,6 +62,13 @@ impl Repository {
         }
     }
 
+    pub fn load(&self, id: &Id) -> Option<&Thing> {
+        match id {
+            Id::Name(name) => self.load_thing_by_name(name),
+            Id::Uuid(_) => unimplemented!(),
+        }
+    }
+
     pub async fn modify(&mut self, change: Change) -> Result<String, String> {
         match change {
             Change::Create { thing } => {
@@ -153,7 +160,7 @@ impl Repository {
         }
     }
 
-    pub fn load_thing_by_name<'a>(&'a self, name: &str) -> Option<&'a Thing> {
+    fn load_thing_by_name<'a>(&'a self, name: &str) -> Option<&'a Thing> {
         let lowercase_name = name.to_lowercase();
         self.cache.values().chain(self.recent().iter()).find(|t| {
             t.name()
@@ -283,6 +290,39 @@ mod test {
                 .last()
                 .and_then(|thing| thing.name().value()),
         );
+    }
+
+    #[test]
+    fn load_test_from_recent_by_name() {
+        assert_eq!(
+            "Odysseus",
+            repo()
+                .load(&"ODYSSEUS".to_string().into())
+                .and_then(|thing| thing.name().value())
+                .unwrap(),
+        );
+    }
+
+    #[test]
+    fn load_test_from_journal_by_name() {
+        assert_eq!(
+            "Olympus",
+            repo()
+                .load(&"OLYMPUS".to_string().into())
+                .and_then(|thing| thing.name().value())
+                .unwrap(),
+        );
+    }
+
+    #[test]
+    fn load_test_not_found() {
+        assert!(repo().load(&"NOBODY".to_string().into()).is_none());
+    }
+
+    #[test]
+    #[should_panic = "not implemented"]
+    fn load_test_by_uuid() {
+        repo().load(&TEST_UUID.into());
     }
 
     #[test]
