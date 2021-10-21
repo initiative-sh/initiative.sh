@@ -2,7 +2,7 @@ use super::Thing;
 use crate::app::{
     autocomplete_phrase, AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable,
 };
-use crate::storage::StorageCommand;
+use crate::storage::{Change, RepositoryError, StorageCommand};
 use crate::world::location::BuildingType;
 use crate::world::npc::Species;
 use async_trait::async_trait;
@@ -28,21 +28,23 @@ impl Runnable for WorldCommand {
     async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         Ok(match self {
             Self::Create { thing } => {
-                let mut output = String::new();
+                let mut thing_output = None;
 
-                {
+                for _ in 0..10 {
                     let mut thing = thing.clone();
                     thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
-                    output.push_str(&format!("{}", thing.display_details()));
+                    let mut temp_thing_output = format!("{}", thing.display_details());
+                    let mut command_alias = None;
 
-                    if app_meta.data_store_enabled {
+                    if app_meta.repository.data_store_enabled() {
                         if let Some(name) = thing.name().value() {
-                            output.push_str(&format!(
+                            temp_thing_output.push_str(&format!(
                                 "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`._",
                                 name = name,
                                 them = thing.gender().them(),
                             ));
-                            app_meta.command_aliases.insert(CommandAlias::literal(
+
+                            command_alias = Some(CommandAlias::literal(
                                 "save".to_string(),
                                 format!("save {}", name),
                                 StorageCommand::Save {
@@ -53,30 +55,71 @@ impl Runnable for WorldCommand {
                         }
                     }
 
-                    app_meta.push_recent(thing);
+                    match app_meta.repository.modify(Change::Create { thing }).await {
+                        Ok(()) => {
+                            thing_output = Some(temp_thing_output);
+
+                            if let Some(command_alias) = command_alias {
+                                app_meta.command_aliases.insert(command_alias);
+                            }
+
+                            break;
+                        }
+                        Err(RepositoryError::NameAlreadyExists) => {}
+                        Err(_) => return Err("An error occurred.".to_string()),
+                    }
                 }
 
-                if thing.name().is_none() {
-                    output.push_str("\n\n*Alternatives:* ");
+                let mut output = if let Some(thing_output) = thing_output {
+                    thing_output
+                } else {
+                    return Err(format!(
+                        "Couldn't create a unique {} name.",
+                        thing.display_description(),
+                    ));
+                };
 
-                    let recent = (0..10)
-                        .map(|i| {
+                if thing.name().is_none() {
+                    for i in 1..=10 {
+                        let mut thing_output = None;
+
+                        for _ in 0..10 {
                             let mut thing = thing.clone();
                             thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
-                            output.push_str(&format!("\\\n~{}~ {}", i, thing.display_summary()));
-                            app_meta.command_aliases.insert(CommandAlias::literal(
-                                i.to_string(),
+                            let temp_thing_output =
+                                format!("\\\n~{}~ {}", i % 10, thing.display_summary());
+                            let command_alias = CommandAlias::literal(
+                                (i % 10).to_string(),
                                 format!("load {}", thing.name()),
                                 StorageCommand::Load {
                                     name: thing.name().to_string(),
                                 }
                                 .into(),
-                            ));
-                            thing
-                        })
-                        .collect();
+                            );
 
-                    app_meta.batch_push_recent(recent);
+                            match app_meta.repository.modify(Change::Create { thing }).await {
+                                Ok(()) => {
+                                    app_meta.command_aliases.insert(command_alias);
+                                    thing_output = Some(temp_thing_output);
+                                    break;
+                                }
+                                Err(RepositoryError::NameAlreadyExists) => {}
+                                Err(_) => return Err("An error occurred.".to_string()),
+                            }
+                        }
+
+                        if let Some(thing_output) = thing_output {
+                            if i == 1 {
+                                output.push_str("\n\n*Alternatives:* ");
+                            }
+
+                            output.push_str(&thing_output);
+                        } else {
+                            output
+                                .push_str("\n\n! An error occurred generating additional results.");
+                            break;
+                        }
+                    }
                 }
 
                 output

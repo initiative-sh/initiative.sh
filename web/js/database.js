@@ -2,6 +2,11 @@ import Dexie from "dexie"
 
 const dexie = new Dexie("initiative")
 
+dexie.version(5).stores({
+  things: "&uuid, &name, type",
+  keyValue: "&key",
+})
+
 dexie.version(4).stores({
   things: "&uuid, name, type",
   keyValue: "&key",

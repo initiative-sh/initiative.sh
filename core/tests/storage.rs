@@ -56,7 +56,7 @@ fn npc_cannot_be_saved_with_invalid_data_store() {
         .trim_start_matches("# ");
 
     assert_eq!(
-        format!("Couldn't save `{}`", npc_name),
+        format!("Couldn't save `{}`.", npc_name),
         app.command(&format!("save {}", npc_name)).unwrap_err(),
     );
 
@@ -157,15 +157,12 @@ fn npc_can_be_deleted_from_temp() {
         .to_string();
 
     assert_eq!(
-        format!(
-            "{} deleted from recent entries. This isn't normally necessary as recent entries aren't automatically saved from one session to another.",
-            npc_name,
-        ),
+        format!("{} was successfully deleted.", npc_name,),
         app.command(&format!("delete {}", npc_name)).unwrap(),
     );
 
     assert_eq!(
-        format!("There is no entity named {}.", npc_name),
+        format!("There is no entity named \"{}\".", npc_name),
         app.command(&format!("delete {}", npc_name)).unwrap_err(),
     );
 }
@@ -190,7 +187,7 @@ fn npc_can_be_deleted_from_data_store() {
     );
 
     assert_eq!(
-        format!("There is no entity named {}.", npc_name),
+        format!("There is no entity named \"{}\".", npc_name),
         app.command(&format!("delete {}", npc_name)).unwrap_err(),
     );
 }

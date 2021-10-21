@@ -1,5 +1,5 @@
-use super::repository;
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
+use crate::storage::repository::{Change, Error as RepositoryError};
 use crate::world::Thing;
 use async_trait::async_trait;
 use std::fmt;
@@ -50,14 +50,16 @@ impl Runnable for StorageCommand {
     async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
             Self::Journal => {
-                if !app_meta.data_store_enabled {
+                if !app_meta.repository.data_store_enabled() {
                     return Err("The journal is not supported by your browser.".to_string());
                 }
 
                 let mut output = "# Journal".to_string();
                 let [mut npcs, mut locations, mut regions] = [Vec::new(), Vec::new(), Vec::new()];
 
-                let record_count = repository::load_all_the_things(app_meta)
+                let record_count = app_meta
+                    .repository
+                    .journal()
                     .map(|thing| match thing {
                         Thing::Npc(_) => npcs.push(thing),
                         Thing::Location(_) => locations.push(thing),
@@ -93,17 +95,33 @@ impl Runnable for StorageCommand {
                 Ok(output)
             }
             Self::Delete { name } => {
-                if !app_meta.data_store_enabled {
+                if !app_meta.repository.data_store_enabled() {
                     return Err("The journal is not supported by your browser.".to_string());
                 }
 
-                repository::delete_thing_by_name(app_meta, name).await
+                app_meta
+                    .repository
+                    .modify(Change::Delete {
+                        id: name.clone().into(),
+                    })
+                    .await
+                    .map(|_| format!("{} was successfully deleted.", name))
+                    .map_err(|e| match e {
+                        RepositoryError::NotFound => {
+                            format!("There is no entity named \"{}\".", name)
+                        }
+                        RepositoryError::DataStoreFailed
+                        | RepositoryError::MissingName
+                        | RepositoryError::NameAlreadyExists => {
+                            format!("Couldn't delete `{}`.", name)
+                        }
+                    })
             }
             Self::Load { name } => {
-                let thing = repository::load_thing_by_name(app_meta, name);
+                let thing = app_meta.repository.load(&name.to_string().into());
                 let mut save_command = None;
                 let output = if let Some(thing) = thing {
-                    if thing.uuid().is_none() && app_meta.data_store_enabled {
+                    if thing.uuid().is_none() && app_meta.repository.data_store_enabled() {
                         save_command = Some(CommandAlias::literal(
                             "save".to_string(),
                             format!("save {}", name),
@@ -132,7 +150,17 @@ impl Runnable for StorageCommand {
 
                 output
             }
-            Self::Save { name } => repository::save_thing_by_name(app_meta, name).await,
+            Self::Save { name } => app_meta
+                .repository
+                .modify(Change::Save { name: name.clone() })
+                .await
+                .map(|_| format!("{} was successfully saved.", name))
+                .map_err(|e| match e {
+                    RepositoryError::NotFound => format!("There is no entity named {}.", name),
+                    RepositoryError::DataStoreFailed
+                    | RepositoryError::MissingName
+                    | RepositoryError::NameAlreadyExists => format!("Couldn't save `{}`.", name),
+                }),
         }
     }
 }
@@ -143,7 +171,11 @@ impl ContextAwareParse for StorageCommand {
 
         (
             if input.starts_with(char::is_uppercase) {
-                if repository::load_thing_by_name(app_meta, input).is_some() {
+                if app_meta
+                    .repository
+                    .load(&input.to_string().into())
+                    .is_some()
+                {
                     fuzzy_matches.push(Self::Load {
                         name: input.to_string(),
                     });
@@ -206,9 +238,8 @@ impl Autocomplete for StorageCommand {
         };
 
         app_meta
-            .cache
-            .values()
-            .chain(app_meta.recent().iter())
+            .repository
+            .all()
             .filter_map(|thing| {
                 thing
                     .name()
@@ -262,6 +293,7 @@ mod test {
     use crate::world::location::{BuildingType, Location, LocationType};
     use crate::world::npc::{Age, Gender, Npc, Species};
     use crate::world::Thing;
+    use tokio_test::block_on;
     use uuid::Uuid;
 
     #[test]
@@ -427,51 +459,47 @@ mod test {
     fn autocomplete_test() {
         let mut app_meta = AppMeta::new(NullDataStore::default());
 
-        app_meta.push_recent(
-            Npc {
-                name: "Potato Johnson".into(),
-                species: Species::Elf.into(),
-                gender: Gender::NonBinaryThey.into(),
-                age: Age::Adult.into(),
-                ..Default::default()
-            }
-            .into(),
-        );
+        block_on(
+            app_meta.repository.modify(Change::Create {
+                thing: Npc {
+                    name: "Potato Johnson".into(),
+                    species: Species::Elf.into(),
+                    gender: Gender::NonBinaryThey.into(),
+                    age: Age::Adult.into(),
+                    ..Default::default()
+                }
+                .into(),
+            }),
+        )
+        .unwrap();
 
-        app_meta.push_recent(
-            Npc {
-                name: "potato should be capitalized".into(),
-                ..Default::default()
-            }
-            .into(),
-        );
+        block_on(
+            app_meta.repository.modify(Change::Create {
+                thing: Npc {
+                    name: "potato should be capitalized".into(),
+                    ..Default::default()
+                }
+                .into(),
+            }),
+        )
+        .unwrap();
 
-        {
-            let uuid = Uuid::new_v4();
-            app_meta.cache.insert(
-                uuid,
-                Location {
+        block_on(
+            app_meta.repository.modify(Change::Create {
+                thing: Location {
                     name: "Potato & Meat".into(),
-                    uuid: Some(uuid.into()),
                     subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
                     ..Default::default()
                 }
                 .into(),
-            );
-        }
-
-        app_meta.push_recent(
-            Location {
-                name: "Spud Stop".into(),
-                ..Default::default()
-            }
-            .into(),
-        );
+            }),
+        )
+        .unwrap();
 
         assert_eq!(
             [
-                ("Potato & Meat", "inn"),
                 ("Potato Johnson", "adult elf, they/them (unsaved)"),
+                ("Potato & Meat", "inn (unsaved)"),
             ]
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
@@ -480,10 +508,7 @@ mod test {
         );
 
         assert_eq!(
-            [("delete Potato & Meat", "remove location from journal")]
-                .iter()
-                .map(|(a, b)| (a.to_string(), b.to_string()))
-                .collect::<Vec<_>>(),
+            Vec::<(String, String)>::new(),
             StorageCommand::autocomplete("delete P", &app_meta),
         );
 
@@ -491,7 +516,7 @@ mod test {
             [
                 ("save Potato Johnson", "save NPC to journal"),
                 ("save potato should be capitalized", "save NPC to journal"),
-                ("save Spud Stop", "save location to journal"),
+                ("save Potato & Meat", "save location to journal"),
             ]
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
@@ -501,8 +526,8 @@ mod test {
 
         assert_eq!(
             [
-                ("load Potato & Meat", "inn"),
                 ("load Potato Johnson", "adult elf, they/them (unsaved)"),
+                ("load Potato & Meat", "inn (unsaved)"),
             ]
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
