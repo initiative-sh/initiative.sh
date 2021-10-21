@@ -215,6 +215,9 @@ fn create_npc_with_custom_attributes() {
 
     {
         let output = app.command("a boy named sue").unwrap_err();
-        assert_eq!("Couldn't create a unique child, he/him name.", output);
+        assert_eq!(
+            "That name is already in use by `Sue` (young adult elf, they/them).",
+            output,
+        );
     }
 }

@@ -206,6 +206,9 @@ fn create_location_with_custom_attributes() {
         let output = app
             .command("a location named the prancing pony")
             .unwrap_err();
-        assert_eq!("Couldn't create a unique location name.", output);
+        assert_eq!(
+            "That name is already in use by `The Prancing Pony`, an inn.",
+            output,
+        );
     }
 }

@@ -54,7 +54,21 @@ impl Runnable for WorldCommand {
 
                             break;
                         }
-                        Err((_, RepositoryError::NameAlreadyExists)) => {}
+                        Err((Change::Create { thing }, RepositoryError::NameAlreadyExists)) => {
+                            if thing.name().is_locked() {
+                                if let Some(other_thing) = app_meta
+                                    .repository
+                                    .load(&thing.name().value().unwrap().into())
+                                {
+                                    return Err(format!(
+                                        "That name is already in use by {}.",
+                                        other_thing.display_summary(),
+                                    ));
+                                } else {
+                                    return Err("That name is already in use.".to_string());
+                                }
+                            }
+                        }
                         Err(_) => return Err("An error occurred.".to_string()),
                     }
                 }
