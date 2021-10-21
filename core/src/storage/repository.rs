@@ -96,7 +96,7 @@ impl Repository {
                 Id::Name(name) => self.delete_thing_by_name(&name).await,
                 Id::Uuid(_) => unimplemented!(),
             },
-            Change::Save { name } => self.save_thing_by_name(&name).await,
+            Change::Save { name } => self.save_thing_by_name(&name.to_lowercase()).await,
         }
     }
 
@@ -142,7 +142,7 @@ impl Repository {
 
     fn create_thing(&mut self, thing: Thing) -> Result<(), Error> {
         if let Some(name) = thing.name().value() {
-            if self.load_thing_by_name(name).is_some() {
+            if self.load_thing_by_name(&name.to_lowercase()).is_some() {
                 Err(Error::NameAlreadyExists)
             } else {
                 self.push_recent(thing);
@@ -154,8 +154,7 @@ impl Repository {
     }
 
     async fn delete_thing_by_name(&mut self, name: &str) -> Result<(), Error> {
-        let lowercase_name = name.to_lowercase();
-        let name_matches = |s: &String| s.to_lowercase() == lowercase_name;
+        let name_matches = |s: &String| s.to_lowercase() == name;
 
         let cached_uuid = if let Some((uuid, _)) = self
             .cache
@@ -189,21 +188,14 @@ impl Repository {
     }
 
     fn load_thing_by_name<'a>(&'a self, name: &str) -> Option<&'a Thing> {
-        let lowercase_name = name.to_lowercase();
-        self.all().find(|t| {
-            t.name()
-                .value()
-                .map_or(false, |s| s.to_lowercase() == lowercase_name)
-        })
+        self.all()
+            .find(|t| t.name().value().map_or(false, |s| s.to_lowercase() == name))
     }
 
     async fn save_thing_by_name(&mut self, name: &str) -> Result<(), Error> {
-        let lowercase_name = name.to_lowercase();
-        if let Some(mut thing) = self.take_recent(|t| {
-            t.name()
-                .value()
-                .map_or(false, |s| s.to_lowercase() == lowercase_name)
-        }) {
+        if let Some(mut thing) =
+            self.take_recent(|t| t.name().value().map_or(false, |s| s.to_lowercase() == name))
+        {
             thing.set_uuid(Uuid::new_v4());
 
             let result = self
@@ -232,9 +224,15 @@ impl From<Uuid> for Id {
     }
 }
 
-impl From<String> for Id {
-    fn from(input: String) -> Self {
-        Id::Name(input)
+impl From<&String> for Id {
+    fn from(input: &String) -> Self {
+        input.as_str().into()
+    }
+}
+
+impl From<&str> for Id {
+    fn from(input: &str) -> Self {
+        Id::Name(input.to_lowercase())
     }
 }
 
@@ -319,7 +317,7 @@ mod test {
         assert_eq!(
             "Odysseus",
             repo()
-                .load(&"ODYSSEUS".to_string().into())
+                .load(&"ODYSSEUS".into())
                 .and_then(|thing| thing.name().value())
                 .unwrap(),
         );
@@ -330,7 +328,7 @@ mod test {
         assert_eq!(
             "Olympus",
             repo()
-                .load(&"OLYMPUS".to_string().into())
+                .load(&"OLYMPUS".into())
                 .and_then(|thing| thing.name().value())
                 .unwrap(),
         );
@@ -338,7 +336,7 @@ mod test {
 
     #[test]
     fn load_test_not_found() {
-        assert!(repo().load(&"NOBODY".to_string().into()).is_none());
+        assert!(repo().load(&"NOBODY".into()).is_none());
     }
 
     #[test]
@@ -353,7 +351,7 @@ mod test {
         assert_eq!(
             Ok(()),
             block_on(repo.modify(Change::Delete {
-                id: "olympus".to_string().into(),
+                id: "olympus".into(),
             })),
         );
         assert_eq!(0, repo.journal().count());
@@ -365,7 +363,7 @@ mod test {
         assert_eq!(
             Ok(()),
             block_on(repo.modify(Change::Delete {
-                id: "ODYSSEUS".to_string().into(),
+                id: "ODYSSEUS".into(),
             })),
         );
         assert_eq!(0, repo.recent().count());
@@ -376,7 +374,7 @@ mod test {
         assert_eq!(
             Err(Error::NotFound),
             block_on(repo().modify(Change::Delete {
-                id: "NOBODY".to_string().into(),
+                id: "NOBODY".into(),
             })),
         );
     }
@@ -398,7 +396,7 @@ mod test {
             block_on(
                 repo.modify(Change::Create {
                     thing: Npc {
-                        name: "Odysseus".to_string().into(),
+                        name: "Odysseus".into(),
                         ..Default::default()
                     }
                     .clone()
@@ -417,7 +415,7 @@ mod test {
             block_on(
                 repo.modify(Change::Create {
                     thing: Npc {
-                        name: "Olympus".to_string().into(),
+                        name: "Olympus".into(),
                         ..Default::default()
                     }
                     .clone()
@@ -436,7 +434,7 @@ mod test {
             block_on(
                 repo.modify(Change::Create {
                     thing: Location {
-                        name: "Odysseus".to_string().into(),
+                        name: "Odysseus".into(),
                         ..Default::default()
                     }
                     .clone()
