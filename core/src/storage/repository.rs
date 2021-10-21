@@ -30,6 +30,8 @@ pub enum Id {
 #[derive(Debug, PartialEq)]
 pub enum Error {
     DataStoreFailed,
+    MissingName,
+    NameAlreadyExists,
     NotFound,
 }
 
@@ -89,10 +91,7 @@ impl Repository {
 
     pub async fn modify(&mut self, change: Change) -> Result<(), Error> {
         match change {
-            Change::Create { thing } => {
-                self.push_recent(thing);
-                Ok(())
-            }
+            Change::Create { thing } => self.create_thing(thing),
             Change::Delete { id } => match id {
                 Id::Name(name) => self.delete_thing_by_name(&name).await,
                 Id::Uuid(_) => unimplemented!(),
@@ -138,6 +137,19 @@ impl Repository {
             self.recent.remove(index)
         } else {
             None
+        }
+    }
+
+    fn create_thing(&mut self, thing: Thing) -> Result<(), Error> {
+        if let Some(name) = thing.name().value() {
+            if self.load_thing_by_name(name).is_some() {
+                Err(Error::NameAlreadyExists)
+            } else {
+                self.push_recent(thing);
+                Ok(())
+            }
+        } else {
+            Err(Error::MissingName)
         }
     }
 
@@ -379,28 +391,60 @@ mod test {
     }
 
     #[test]
-    fn change_test_create() {
+    fn change_test_create_success() {
         let mut repo = empty_repo();
-        let odysseus = Npc {
-            name: "Odysseus".to_string().into(),
-            ..Default::default()
-        };
-
         assert_eq!(
             Ok(()),
-            block_on(repo.modify(Change::Create {
-                thing: odysseus.clone().into()
-            })),
+            block_on(
+                repo.modify(Change::Create {
+                    thing: Npc {
+                        name: "Odysseus".to_string().into(),
+                        ..Default::default()
+                    }
+                    .clone()
+                    .into()
+                })
+            ),
         );
         assert_eq!(1, repo.recent().count());
+    }
 
+    #[test]
+    fn change_test_create_already_exists_in_journal() {
+        let mut repo = repo();
         assert_eq!(
-            Ok(()),
-            block_on(repo.modify(Change::Create {
-                thing: odysseus.clone().into()
-            })),
+            Err(Error::NameAlreadyExists),
+            block_on(
+                repo.modify(Change::Create {
+                    thing: Npc {
+                        name: "Olympus".to_string().into(),
+                        ..Default::default()
+                    }
+                    .clone()
+                    .into()
+                })
+            ),
         );
-        assert_eq!(2, repo.recent().count());
+        assert_eq!(1, repo.recent().count());
+    }
+
+    #[test]
+    fn change_test_create_already_exists_in_recent() {
+        let mut repo = repo();
+        assert_eq!(
+            Err(Error::NameAlreadyExists),
+            block_on(
+                repo.modify(Change::Create {
+                    thing: Location {
+                        name: "Odysseus".to_string().into(),
+                        ..Default::default()
+                    }
+                    .clone()
+                    .into()
+                })
+            ),
+        );
+        assert_eq!(1, repo.recent().count());
     }
 
     #[test]

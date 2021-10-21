@@ -110,7 +110,11 @@ impl Runnable for StorageCommand {
                         RepositoryError::NotFound => {
                             format!("There is no entity named \"{}\".", name)
                         }
-                        RepositoryError::DataStoreFailed => format!("Couldn't delete `{}`.", name),
+                        RepositoryError::DataStoreFailed
+                        | RepositoryError::MissingName
+                        | RepositoryError::NameAlreadyExists => {
+                            format!("Couldn't delete `{}`.", name)
+                        }
                     })
             }
             Self::Load { name } => {
@@ -153,7 +157,9 @@ impl Runnable for StorageCommand {
                 .map(|_| format!("{} was successfully saved.", name))
                 .map_err(|e| match e {
                     RepositoryError::NotFound => format!("There is no entity named {}.", name),
-                    RepositoryError::DataStoreFailed => format!("Couldn't save `{}`.", name),
+                    RepositoryError::DataStoreFailed
+                    | RepositoryError::MissingName
+                    | RepositoryError::NameAlreadyExists => format!("Couldn't save `{}`.", name),
                 }),
         }
     }

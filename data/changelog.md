@@ -1,3 +1,8 @@
+* **Enhancement:** NPCs, locations, etc. can no longer have the same names as
+  one another, and the random generator should never suggest a thing with the
+  same name as one that already exists. Sounds anticlimactic, but this is a
+  substantial change under the hood, and an important stepping stone to creating
+  and editing your own journal entries.
 * **Enhancement:** Corrected terminology so that NPCs using "they/them" pronouns
   will be referred to as "non-binary" rather than "trans".
 * **Enhancement:** The `tutorial` is now rather less brutal. Instead of killing
