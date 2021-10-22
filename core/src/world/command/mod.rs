@@ -1,4 +1,4 @@
-use super::{Location, Npc, Thing};
+use super::{Field, Location, Npc, Thing};
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use crate::storage::{Change, RepositoryError, StorageCommand};
 use async_trait::async_trait;
@@ -25,26 +25,51 @@ impl Runnable for WorldCommand {
                     let mut temp_thing_output = format!("{}", thing.display_details());
                     let mut command_alias = None;
 
-                    if app_meta.repository.data_store_enabled() {
-                        if let Some(name) = thing.name().value() {
-                            temp_thing_output.push_str(&format!(
-                                "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`._",
-                                name = name,
-                                them = thing.gender().them(),
-                            ));
+                    let change = if app_meta.repository.data_store_enabled() {
+                        match thing.name() {
+                            Field::Locked(name) => {
+                                temp_thing_output.push_str(&format!(
+                                    "\n\n_Because you specified a name, {name} has been automatically added to your `journal`. Use ~delete~ to remove {them}._",
+                                    name = name,
+                                    them = thing.gender().them(),
+                                ));
 
-                            command_alias = Some(CommandAlias::literal(
-                                "save".to_string(),
-                                format!("save {}", name),
-                                StorageCommand::Save {
-                                    name: name.to_string(),
-                                }
-                                .into(),
-                            ));
+                                command_alias = Some(CommandAlias::literal(
+                                    "delete".to_string(),
+                                    format!("delete {}", name),
+                                    StorageCommand::Delete {
+                                        name: name.to_string(),
+                                    }
+                                    .into(),
+                                ));
+
+                                Change::CreateAndSave { thing }
+                            }
+                            Field::Unlocked(name) => {
+                                temp_thing_output.push_str(&format!(
+                                    "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`._",
+                                    name = name,
+                                    them = thing.gender().them(),
+                                ));
+
+                                command_alias = Some(CommandAlias::literal(
+                                    "save".to_string(),
+                                    format!("save {}", name),
+                                    StorageCommand::Save {
+                                        name: name.to_string(),
+                                    }
+                                    .into(),
+                                ));
+
+                                Change::Create { thing }
+                            }
+                            Field::Empty => Change::Create { thing },
                         }
-                    }
+                    } else {
+                        Change::Create { thing }
+                    };
 
-                    match app_meta.repository.modify(Change::Create { thing }).await {
+                    match app_meta.repository.modify(change).await {
                         Ok(()) => {
                             thing_output = Some(temp_thing_output);
 
@@ -54,7 +79,11 @@ impl Runnable for WorldCommand {
 
                             break;
                         }
-                        Err((Change::Create { thing }, RepositoryError::NameAlreadyExists)) => {
+                        Err((Change::Create { thing }, RepositoryError::NameAlreadyExists))
+                        | Err((
+                            Change::CreateAndSave { thing },
+                            RepositoryError::NameAlreadyExists,
+                        )) => {
                             if thing.name().is_locked() {
                                 if let Some(other_thing) = app_meta
                                     .repository

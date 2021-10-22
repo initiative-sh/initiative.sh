@@ -1,3 +1,6 @@
+* **Enhancement:** Things are now automatically saved upon creation if you
+  include a name as one of the parameters. This should streamline the process of
+  importing multiple things in sequence.
 * **Enhancement:** NPCs, locations, etc. can no longer have the same names as
   one another, and the random generator should never suggest a thing with the
   same name as one that already exists. Sounds anticlimactic, but this is a

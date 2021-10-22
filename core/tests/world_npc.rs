@@ -199,18 +199,18 @@ fn create_npc_with_custom_attributes() {
             "{}",
             output,
         );
-        assert!(output.contains("has not yet been saved"), "{}", output);
+        assert!(
+            output.contains("has been automatically added to your `journal`."),
+            "{}",
+            output,
+        );
+        assert!(!output.contains("has not yet been saved"), "{}", output);
         assert!(!output.contains("Alternatives"), "{}", output);
     }
 
     {
-        let output = app.command("Sue").unwrap();
-        assert!(
-            output.starts_with("# Sue\n*young adult elf, they/them*"),
-            "{}",
-            output,
-        );
-        assert!(output.contains("has not yet been saved"), "{}", output);
+        let output = app.command("journal").unwrap();
+        assert!(output.contains("Sue"), "{}", output);
     }
 
     {

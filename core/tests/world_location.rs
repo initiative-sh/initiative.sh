@@ -188,18 +188,18 @@ fn create_location_with_custom_attributes() {
             "{}",
             output,
         );
-        assert!(output.contains("has not yet been saved"), "{}", output);
+        assert!(
+            output.contains("has been automatically added to your `journal`."),
+            "{}",
+            output,
+        );
+        assert!(!output.contains("has not yet been saved"), "{}", output);
         assert!(!output.contains("Alternatives"), "{}", output);
     }
 
     {
-        let output = app.command("The Prancing Pony").unwrap();
-        assert!(
-            output.starts_with("# The Prancing Pony\n*inn*"),
-            "{}",
-            output,
-        );
-        assert!(output.contains("has not yet been saved"), "{}", output);
+        let output = app.command("journal").unwrap();
+        assert!(output.contains("The Prancing Pony"), "{}", output);
     }
 
     {
