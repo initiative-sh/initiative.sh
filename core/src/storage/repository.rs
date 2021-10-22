@@ -18,6 +18,7 @@ pub struct Repository {
 #[cfg_attr(test, derive(PartialEq))]
 pub enum Change {
     Create { thing: Thing },
+    CreateAndSave { thing: Thing },
     Delete { id: Id },
     Save { name: String },
 }
@@ -96,6 +97,10 @@ impl Repository {
             Change::Create { thing } => self
                 .create_thing(thing)
                 .map_err(|(thing, e)| (Change::Create { thing }, e)),
+            Change::CreateAndSave { thing } => self
+                .create_and_save_thing(thing)
+                .await
+                .map_err(|(thing, e)| (Change::CreateAndSave { thing }, e)),
             Change::Delete { id } => match id {
                 Id::Name(name) => self
                     .delete_thing_by_name(&name)
@@ -163,6 +168,18 @@ impl Repository {
         }
     }
 
+    async fn create_and_save_thing(&mut self, thing: Thing) -> Result<(), (Thing, Error)> {
+        if let Some(name) = thing.name().value() {
+            if self.load_thing_by_name(&name.to_lowercase()).is_some() {
+                Err((thing, Error::NameAlreadyExists))
+            } else {
+                self.save_thing(thing).await
+            }
+        } else {
+            Err((thing, Error::MissingName))
+        }
+    }
+
     async fn delete_thing_by_name(&mut self, name: &str) -> Result<(), Error> {
         let name_matches = |s: &String| s.to_lowercase() == name;
 
@@ -203,27 +220,30 @@ impl Repository {
     }
 
     async fn save_thing_by_name(&mut self, name: &str) -> Result<(), Error> {
-        if let Some(mut thing) =
+        if let Some(thing) =
             self.take_recent(|t| t.name().value().map_or(false, |s| s.to_lowercase() == name))
         {
-            thing.set_uuid(Uuid::new_v4());
-
-            let result = self
-                .data_store
-                .save_thing(&thing)
-                .await
-                .map_err(|_| Error::DataStoreFailed);
-
-            if result.is_ok() {
-                self.cache.insert(*thing.uuid().unwrap(), thing);
-            } else {
-                // Oops, better put it back where we found it.
+            self.save_thing(thing).await.map_err(|(thing, e)| {
                 self.push_recent(thing);
-            }
-
-            result
+                e
+            })
         } else {
             Err(Error::NotFound)
+        }
+    }
+
+    async fn save_thing(&mut self, mut thing: Thing) -> Result<(), (Thing, Error)> {
+        thing.set_uuid(Uuid::new_v4());
+
+        match self.data_store.save_thing(&thing).await {
+            Ok(()) => {
+                self.cache.insert(*thing.uuid().unwrap(), thing);
+                Ok(())
+            }
+            Err(()) => {
+                thing.clear_uuid();
+                Err((thing, Error::DataStoreFailed))
+            }
         }
     }
 }
@@ -529,6 +549,87 @@ mod test {
             block_on(repo.modify(change.clone())),
             Err((change, Error::NotFound)),
         );
+    }
+
+    #[test]
+    fn change_test_create_and_save_success() {
+        let mut repo = empty_repo();
+        assert_eq!(
+            Ok(()),
+            block_on(
+                repo.modify(Change::CreateAndSave {
+                    thing: Npc {
+                        name: "Odysseus".into(),
+                        ..Default::default()
+                    }
+                    .clone()
+                    .into()
+                })
+            ),
+        );
+        assert_eq!(1, repo.journal().count());
+        assert!(repo
+            .journal()
+            .next()
+            .and_then(|thing| thing.uuid())
+            .is_some());
+    }
+
+    #[test]
+    fn change_test_create_and_save_already_exists_in_journal() {
+        let mut repo = repo();
+        let change = Change::CreateAndSave {
+            thing: Location {
+                name: "Odysseus".into(),
+                ..Default::default()
+            }
+            .clone()
+            .into(),
+        };
+
+        assert_eq!(
+            block_on(repo.modify(change.clone())),
+            Err((change, Error::NameAlreadyExists)),
+        );
+        assert_eq!(1, repo.journal().count());
+    }
+
+    #[test]
+    fn change_test_create_and_save_already_exists_in_recent() {
+        let mut repo = repo();
+        let change = Change::CreateAndSave {
+            thing: Npc {
+                name: "Olympus".into(),
+                ..Default::default()
+            }
+            .clone()
+            .into(),
+        };
+
+        assert_eq!(
+            block_on(repo.modify(change.clone())),
+            Err((change, Error::NameAlreadyExists)),
+        );
+        assert_eq!(1, repo.journal().count());
+    }
+
+    #[test]
+    fn change_test_create_and_save_data_store_failed() {
+        let mut repo = Repository::new(NullDataStore::default());
+
+        let change = Change::CreateAndSave {
+            thing: Location {
+                name: "Odysseus".into(),
+                ..Default::default()
+            }
+            .into(),
+        };
+
+        assert_eq!(
+            block_on(repo.modify(change.clone())),
+            Err((change, Error::DataStoreFailed)),
+        );
+        assert_eq!(0, repo.journal().count());
     }
 
     #[test]
