@@ -29,32 +29,31 @@ impl<'a> fmt::Display for SummaryView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let location = self.0;
 
-        match (
-            location.subtype.is_some(),
-            location.name.is_some(),
-            location.description.is_some(),
-        ) {
-            (true, true, _) => {
-                let subtype = format!("{}", location.subtype);
-                if subtype.starts_with(&['a', 'e', 'i', 'o', 'u'][..]) {
-                    write!(f, "`{}`, an {}", location.name, subtype)
+        match (location.subtype.value(), location.name.value()) {
+            (Some(subtype), Some(name)) => {
+                if subtype
+                    .as_str()
+                    .starts_with(&['a', 'e', 'i', 'o', 'u', 'y'][..])
+                {
+                    write!(f, "`{}`, an {}", name, subtype)
                 } else {
-                    write!(f, "`{}`, a {}", location.name, subtype)
+                    write!(f, "`{}`, a {}", name, subtype)
                 }
             }
-            (true, false, true) => write!(f, "{} ({})", location.subtype, location.description),
-            (true, false, false) => write!(f, "{}", location.subtype),
-            (false, true, true) => write!(f, "`{}` ({})", location.name, location.description),
-            (false, true, false) => write!(f, "`{}`", location.name),
-            (false, false, true) => write!(f, "{}", location.description),
-            (false, false, false) => Ok(()),
+            (Some(subtype), None) => write!(f, "{}", subtype),
+            (None, Some(name)) => write!(f, "`{}`, a location", name),
+            (None, None) => write!(f, "location"),
         }
     }
 }
 
 impl<'a> fmt::Display for DescriptionView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.subtype)
+        if let Some(subtype) = self.0.subtype.value() {
+            write!(f, "{}", subtype)
+        } else {
+            write!(f, "location")
+        }
     }
 }
 
@@ -66,89 +65,147 @@ impl<'a> fmt::Display for DetailsView<'a> {
             .name
             .value()
             .map(|name| write!(f, "# {}", name))
-            .unwrap_or_else(|| {
-                if let Some(subtype) = location.subtype.value() {
-                    write!(f, "# Unnamed {}", subtype)
-                } else {
-                    write!(f, "# Unnamed building")
-                }
-            })?;
-        location
-            .subtype
-            .value()
-            .map(|subtype| write!(f, "\n*{}*", subtype))
-            .transpose()?;
+            .unwrap_or_else(|| write!(f, "# Unnamed {}", location.display_description()))?;
+
+        write!(f, "\n*{}*", location.display_description())?;
+
         location
             .description
             .value()
             .map(|description| write!(f, "\n\n{}", description))
             .transpose()?;
+
         Ok(())
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::Location;
-
+    use super::*;
     use crate::world::location::{BuildingType, LocationType};
-    use crate::world::Field;
 
     #[test]
-    fn summary_view_test() {
-        let mut location = Location::default();
-        location.subtype = LocationType::from(BuildingType::Inn).into();
-        location.name = "Oaken Mermaid Inn".into();
-        location.description = "I am Mordenkainen".into();
-
+    fn view_test_empty() {
+        let location = Location::default();
+        assert_eq!("location", format!("{}", location.display_summary()));
+        assert_eq!("location", format!("{}", location.display_description()));
         assert_eq!(
-            "`Oaken Mermaid Inn`, an inn",
-            format!("{}", location.display_summary()),
-        );
-
-        location.name = Field::default();
-        assert_eq!(
-            "inn (I am Mordenkainen)",
-            format!("{}", location.display_summary()),
-        );
-
-        location.description = Field::default();
-        assert_eq!("inn", format!("{}", location.display_summary()));
-
-        location.subtype = Field::default();
-        assert_eq!("", format!("{}", location.display_summary()));
-
-        location.name = "The Invulnerable Vagrant".into();
-        assert_eq!(
-            "`The Invulnerable Vagrant`",
-            format!("{}", location.display_summary()),
-        );
-
-        location.description = "Come in and see me, and me, and me!".into();
-        assert_eq!(
-            "`The Invulnerable Vagrant` (Come in and see me, and me, and me!)",
-            format!("{}", location.display_summary()),
-        );
-
-        location.name = Field::default();
-        assert_eq!(
-            "Come in and see me, and me, and me!",
-            format!("{}", location.display_summary()),
+            "# Unnamed location\n*location*",
+            format!("{}", location.display_details()),
         );
     }
 
     #[test]
-    fn details_view_test() {
-        let mut location = Location::default();
-        location.subtype = LocationType::from(BuildingType::Inn).into();
-        location.name = "Oaken Mermaid Inn".into();
-        location.description = "I am Mordenkainen".into();
+    fn view_test_name_only() {
+        let location = Location {
+            name: "The Invulnerable Vagrant".into(),
+            ..Default::default()
+        };
         assert_eq!(
-            "\
-# Oaken Mermaid Inn
-*inn*
+            "`The Invulnerable Vagrant`, a location",
+            format!("{}", location.display_summary()),
+        );
+        assert_eq!("location", format!("{}", location.display_description()));
+        assert_eq!(
+            "# The Invulnerable Vagrant\n*location*",
+            format!("{}", location.display_details()),
+        );
+    }
 
-I am Mordenkainen",
+    #[test]
+    fn view_test_subtype_only() {
+        let location = Location {
+            subtype: LocationType::from(BuildingType::Inn).into(),
+            ..Default::default()
+        };
+        assert_eq!("inn", format!("{}", location.display_summary()));
+        assert_eq!("inn", format!("{}", location.display_description()));
+        assert_eq!(
+            "# Unnamed inn\n*inn*",
+            format!("{}", location.display_details()),
+        );
+    }
+
+    #[test]
+    fn view_test_description_only() {
+        let location = Location {
+            description: "A street with no name.".into(),
+            ..Default::default()
+        };
+        assert_eq!("location", format!("{}", location.display_summary()));
+        assert_eq!("location", format!("{}", location.display_description()));
+        assert_eq!(
+            "# Unnamed location\n*location*\n\nA street with no name.",
+            format!("{}", location.display_details()),
+        );
+    }
+
+    #[test]
+    fn view_test_name_subtype() {
+        let location = Location {
+            subtype: LocationType::from(BuildingType::Inn).into(),
+            name: "Oaken Mermaid Inn".into(),
+            ..Default::default()
+        };
+        assert_eq!(
+            "`Oaken Mermaid Inn`, an inn",
+            format!("{}", location.display_summary()),
+        );
+        assert_eq!("inn", format!("{}", location.display_description()));
+        assert_eq!(
+            "# Oaken Mermaid Inn\n*inn*",
+            format!("{}", location.display_details()),
+        );
+    }
+
+    #[test]
+    fn view_test_name_description() {
+        let location = Location {
+            name: "The Invulnerable Vagrant".into(),
+            description: "Come in and see me, and me, and me!".into(),
+            ..Default::default()
+        };
+        assert_eq!(
+            "`The Invulnerable Vagrant`, a location",
+            format!("{}", location.display_summary()),
+        );
+        assert_eq!("location", format!("{}", location.display_description()));
+        assert_eq!(
+            "# The Invulnerable Vagrant\n*location*\n\nCome in and see me, and me, and me!",
+            format!("{}", location.display_details()),
+        );
+    }
+
+    #[test]
+    fn view_test_subtype_description() {
+        let location = Location {
+            subtype: LocationType::from(BuildingType::Inn).into(),
+            description: "You can check out any time you like.".into(),
+            ..Default::default()
+        };
+        assert_eq!("inn", format!("{}", location.display_summary()));
+        assert_eq!("inn", format!("{}", location.display_description()));
+        assert_eq!(
+            "# Unnamed inn\n*inn*\n\nYou can check out any time you like.",
+            format!("{}", location.display_details()),
+        );
+    }
+
+    #[test]
+    fn view_test_name_subtype_description() {
+        let location = Location {
+            subtype: LocationType::from(BuildingType::Inn).into(),
+            name: "Oaken Mermaid Inn".into(),
+            description: "I am Mordenkainen.".into(),
+            ..Default::default()
+        };
+        assert_eq!(
+            "`Oaken Mermaid Inn`, an inn",
+            format!("{}", location.display_summary()),
+        );
+        assert_eq!("inn", format!("{}", location.display_description()));
+        assert_eq!(
+            "# Oaken Mermaid Inn\n*inn*\n\nI am Mordenkainen.",
             format!("{}", location.display_details()),
         );
     }

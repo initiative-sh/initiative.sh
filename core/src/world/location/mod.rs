@@ -80,6 +80,15 @@ impl Generate for Location {
     }
 }
 
+impl LocationType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Building(None) => "building",
+            Self::Building(Some(building)) => building.as_str(),
+        }
+    }
+}
+
 impl Default for LocationType {
     fn default() -> Self {
         Self::Building(Default::default())
@@ -94,10 +103,7 @@ impl Generate for LocationType {
 
 impl fmt::Display for LocationType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Building(Some(building_type)) => write!(f, "{}", building_type),
-            Self::Building(None) => write!(f, "building"),
-        }
+        write!(f, "{}", self.as_str())
     }
 }
 
