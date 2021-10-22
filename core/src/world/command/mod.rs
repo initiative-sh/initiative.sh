@@ -65,7 +65,7 @@ impl Runnable for WorldCommand {
 
                             break;
                         }
-                        Err(RepositoryError::NameAlreadyExists) => {}
+                        Err((_, RepositoryError::NameAlreadyExists)) => {}
                         Err(_) => return Err("An error occurred.".to_string()),
                     }
                 }
@@ -103,7 +103,7 @@ impl Runnable for WorldCommand {
                                     thing_output = Some(temp_thing_output);
                                     break;
                                 }
-                                Err(RepositoryError::NameAlreadyExists) => {}
+                                Err((_, RepositoryError::NameAlreadyExists)) => {}
                                 Err(_) => return Err("An error occurred.".to_string()),
                             }
                         }

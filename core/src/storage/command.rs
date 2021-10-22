@@ -104,7 +104,7 @@ impl Runnable for StorageCommand {
                     .modify(Change::Delete { id: name.into() })
                     .await
                     .map(|_| format!("{} was successfully deleted.", name))
-                    .map_err(|e| match e {
+                    .map_err(|(_, e)| match e {
                         RepositoryError::NotFound => {
                             format!("There is no entity named \"{}\".", name)
                         }
@@ -153,7 +153,7 @@ impl Runnable for StorageCommand {
                 .modify(Change::Save { name: name.clone() })
                 .await
                 .map(|_| format!("{} was successfully saved.", name))
-                .map_err(|e| match e {
+                .map_err(|(_, e)| match e {
                     RepositoryError::NotFound => format!("There is no entity named {}.", name),
                     RepositoryError::DataStoreFailed
                     | RepositoryError::MissingName
