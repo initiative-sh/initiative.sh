@@ -1,26 +1,15 @@
-use super::Thing;
-use crate::app::{
-    autocomplete_phrase, AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable,
-};
+use super::{Field, Location, Npc, Thing};
+use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use crate::storage::{Change, RepositoryError, StorageCommand};
-use crate::world::location::BuildingType;
-use crate::world::npc::Species;
 use async_trait::async_trait;
 use std::fmt;
 
+mod autocomplete;
 mod parse;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum WorldCommand {
     Create { thing: Thing },
-}
-
-impl WorldCommand {
-    fn summarize(&self) -> String {
-        match self {
-            Self::Create { thing } => format!("create {}", thing.display_summary()),
-        }
-    }
 }
 
 #[async_trait(?Send)]
@@ -36,26 +25,51 @@ impl Runnable for WorldCommand {
                     let mut temp_thing_output = format!("{}", thing.display_details());
                     let mut command_alias = None;
 
-                    if app_meta.repository.data_store_enabled() {
-                        if let Some(name) = thing.name().value() {
-                            temp_thing_output.push_str(&format!(
-                                "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`._",
-                                name = name,
-                                them = thing.gender().them(),
-                            ));
+                    let change = if app_meta.repository.data_store_enabled() {
+                        match thing.name() {
+                            Field::Locked(name) => {
+                                temp_thing_output.push_str(&format!(
+                                    "\n\n_Because you specified a name, {name} has been automatically added to your `journal`. Use ~delete~ to remove {them}._",
+                                    name = name,
+                                    them = thing.gender().them(),
+                                ));
 
-                            command_alias = Some(CommandAlias::literal(
-                                "save".to_string(),
-                                format!("save {}", name),
-                                StorageCommand::Save {
-                                    name: name.to_string(),
-                                }
-                                .into(),
-                            ));
+                                command_alias = Some(CommandAlias::literal(
+                                    "delete".to_string(),
+                                    format!("delete {}", name),
+                                    StorageCommand::Delete {
+                                        name: name.to_string(),
+                                    }
+                                    .into(),
+                                ));
+
+                                Change::CreateAndSave { thing }
+                            }
+                            Field::Unlocked(name) => {
+                                temp_thing_output.push_str(&format!(
+                                    "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`._",
+                                    name = name,
+                                    them = thing.gender().them(),
+                                ));
+
+                                command_alias = Some(CommandAlias::literal(
+                                    "save".to_string(),
+                                    format!("save {}", name),
+                                    StorageCommand::Save {
+                                        name: name.to_string(),
+                                    }
+                                    .into(),
+                                ));
+
+                                Change::Create { thing }
+                            }
+                            Field::Empty => Change::Create { thing },
                         }
-                    }
+                    } else {
+                        Change::Create { thing }
+                    };
 
-                    match app_meta.repository.modify(Change::Create { thing }).await {
+                    match app_meta.repository.modify(change).await {
                         Ok(()) => {
                             thing_output = Some(temp_thing_output);
 
@@ -65,7 +79,25 @@ impl Runnable for WorldCommand {
 
                             break;
                         }
-                        Err(RepositoryError::NameAlreadyExists) => {}
+                        Err((Change::Create { thing }, RepositoryError::NameAlreadyExists))
+                        | Err((
+                            Change::CreateAndSave { thing },
+                            RepositoryError::NameAlreadyExists,
+                        )) => {
+                            if thing.name().is_locked() {
+                                if let Some(other_thing) = app_meta
+                                    .repository
+                                    .load(&thing.name().value().unwrap().into())
+                                {
+                                    return Err(format!(
+                                        "That name is already in use by {}.",
+                                        other_thing.display_summary(),
+                                    ));
+                                } else {
+                                    return Err("That name is already in use.".to_string());
+                                }
+                            }
+                        }
                         Err(_) => return Err("An error occurred.".to_string()),
                     }
                 }
@@ -103,7 +135,7 @@ impl Runnable for WorldCommand {
                                     thing_output = Some(temp_thing_output);
                                     break;
                                 }
-                                Err(RepositoryError::NameAlreadyExists) => {}
+                                Err((_, RepositoryError::NameAlreadyExists)) => {}
                                 Err(_) => return Err("An error occurred.".to_string()),
                             }
                         }
@@ -147,21 +179,12 @@ impl ContextAwareParse for WorldCommand {
 
 impl Autocomplete for WorldCommand {
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
-        autocomplete_phrase(
-            input,
-            &mut ["npc", "building"]
-                .iter()
-                .chain(Species::get_words().iter())
-                .chain(BuildingType::get_words().iter()),
-        )
-        .drain(..)
-        .filter_map(|s| {
-            Self::parse_input(&s, app_meta)
-                .1
-                .first()
-                .map(|c| (s, c.summarize()))
-        })
-        .collect()
+        let mut suggestions = Vec::new();
+
+        suggestions.append(&mut Location::autocomplete(input, app_meta));
+        suggestions.append(&mut Npc::autocomplete(input, app_meta));
+
+        suggestions
     }
 }
 
@@ -177,53 +200,12 @@ impl fmt::Display for WorldCommand {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
-    use crate::world::location::LocationType;
-    use crate::world::{Location, Npc};
-
-    #[test]
-    fn summarize_test() {
-        assert_eq!(
-            "create building",
-            WorldCommand::Create {
-                thing: Location {
-                    subtype: LocationType::Building(None).into(),
-                    ..Default::default()
-                }
-                .into()
-            }
-            .summarize(),
-        );
-
-        assert_eq!(
-            "create inn",
-            WorldCommand::Create {
-                thing: Location {
-                    subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
-                    ..Default::default()
-                }
-                .into()
-            }
-            .summarize(),
-        );
-    }
+    use crate::world::location::{BuildingType, LocationType};
+    use crate::world::npc::Species;
 
     #[test]
     fn parse_input_test() {
         let app_meta = AppMeta::new(NullDataStore::default());
-
-        assert_eq!(
-            (
-                None,
-                vec![WorldCommand::Create {
-                    thing: Location {
-                        subtype: LocationType::Building(None).into(),
-                        ..Default::default()
-                    }
-                    .into()
-                }],
-            ),
-            WorldCommand::parse_input("building", &app_meta),
-        );
 
         assert_eq!(
             (
@@ -270,7 +252,6 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         vec![
-            ("building", "create building"),
             ("npc", "create person"),
             // Species
             ("dragonborn", "create dragonborn"),
@@ -293,10 +274,18 @@ mod test {
             )
         });
 
-        assert_eq!(
-            vec![("building".to_string(), "create building".to_string())],
-            WorldCommand::autocomplete("b", &app_meta),
-        );
+        {
+            let expected = vec![
+                ("baby".to_string(), "create infant".to_string()),
+                ("bar".to_string(), "create inn".to_string()),
+                ("boy".to_string(), "create child, he/him".to_string()),
+            ];
+
+            let mut actual = WorldCommand::autocomplete("b", &app_meta);
+            actual.sort();
+
+            assert_eq!(expected, actual);
+        }
     }
 
     #[test]

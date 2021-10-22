@@ -28,7 +28,6 @@ impl<T> Field<T> {
         !self.is_locked()
     }
 
-    #[cfg(test)]
     pub fn lock(&mut self) {
         *self = match mem::take(self) {
             Self::Unlocked(value) => Self::Locked(value),
@@ -42,7 +41,6 @@ impl<T> Field<T> {
         self
     }
 
-    #[cfg(test)]
     pub fn unlock(&mut self) {
         *self = match mem::take(self) {
             Self::Locked(value) => Self::Unlocked(value),

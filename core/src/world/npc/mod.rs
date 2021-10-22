@@ -56,6 +56,10 @@ impl Npc {
             .copied()
             .unwrap_or(Gender::NonBinaryThey)
     }
+
+    pub fn get_words() -> &'static [&'static str] {
+        &["character", "npc"][..]
+    }
 }
 
 impl Generate for Npc {

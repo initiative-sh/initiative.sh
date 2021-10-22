@@ -51,6 +51,14 @@ impl Thing {
         }
     }
 
+    pub fn clear_uuid(&mut self) {
+        match self {
+            Thing::Location(location) => location.uuid = None,
+            Thing::Npc(npc) => npc.uuid = None,
+            Thing::Region(region) => region.uuid = None,
+        }
+    }
+
     pub fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
         match self {
             Thing::Location(location) => location.regenerate(rng, demographics),
@@ -279,6 +287,9 @@ mod test {
             uuid.to_string(),
             thing.location().unwrap().uuid.as_ref().unwrap().to_string(),
         );
+
+        thing.clear_uuid();
+        assert_eq!(None, thing.uuid());
     }
 
     #[test]
@@ -294,6 +305,9 @@ mod test {
             uuid.to_string(),
             thing.npc().unwrap().uuid.as_ref().unwrap().to_string(),
         );
+
+        thing.clear_uuid();
+        assert_eq!(None, thing.uuid());
     }
 
     #[test]
@@ -309,6 +323,9 @@ mod test {
             uuid.to_string(),
             thing.region().unwrap().uuid.as_ref().unwrap().to_string(),
         );
+
+        thing.clear_uuid();
+        assert_eq!(None, thing.uuid());
     }
 
     #[test]

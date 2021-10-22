@@ -15,13 +15,16 @@ pub struct Repository {
 }
 
 #[derive(Clone, Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub enum Change {
     Create { thing: Thing },
+    CreateAndSave { thing: Thing },
     Delete { id: Id },
     Save { name: String },
 }
 
 #[derive(Clone, Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub enum Id {
     Name(String),
     Uuid(Uuid),
@@ -89,14 +92,26 @@ impl Repository {
         self.cache.values()
     }
 
-    pub async fn modify(&mut self, change: Change) -> Result<(), Error> {
+    pub async fn modify(&mut self, change: Change) -> Result<(), (Change, Error)> {
         match change {
-            Change::Create { thing } => self.create_thing(thing),
+            Change::Create { thing } => self
+                .create_thing(thing)
+                .map_err(|(thing, e)| (Change::Create { thing }, e)),
+            Change::CreateAndSave { thing } => self
+                .create_and_save_thing(thing)
+                .await
+                .map_err(|(thing, e)| (Change::CreateAndSave { thing }, e)),
             Change::Delete { id } => match id {
-                Id::Name(name) => self.delete_thing_by_name(&name).await,
+                Id::Name(name) => self
+                    .delete_thing_by_name(&name)
+                    .await
+                    .map_err(|e| (Change::Delete { id: Id::Name(name) }, e)),
                 Id::Uuid(_) => unimplemented!(),
             },
-            Change::Save { name } => self.save_thing_by_name(&name).await,
+            Change::Save { name } => self
+                .save_thing_by_name(&name.to_lowercase())
+                .await
+                .map_err(|e| (Change::Save { name }, e)),
         }
     }
 
@@ -140,22 +155,33 @@ impl Repository {
         }
     }
 
-    fn create_thing(&mut self, thing: Thing) -> Result<(), Error> {
+    fn create_thing(&mut self, thing: Thing) -> Result<(), (Thing, Error)> {
         if let Some(name) = thing.name().value() {
-            if self.load_thing_by_name(name).is_some() {
-                Err(Error::NameAlreadyExists)
+            if self.load_thing_by_name(&name.to_lowercase()).is_some() {
+                Err((thing, Error::NameAlreadyExists))
             } else {
                 self.push_recent(thing);
                 Ok(())
             }
         } else {
-            Err(Error::MissingName)
+            Err((thing, Error::MissingName))
+        }
+    }
+
+    async fn create_and_save_thing(&mut self, thing: Thing) -> Result<(), (Thing, Error)> {
+        if let Some(name) = thing.name().value() {
+            if self.load_thing_by_name(&name.to_lowercase()).is_some() {
+                Err((thing, Error::NameAlreadyExists))
+            } else {
+                self.save_thing(thing).await
+            }
+        } else {
+            Err((thing, Error::MissingName))
         }
     }
 
     async fn delete_thing_by_name(&mut self, name: &str) -> Result<(), Error> {
-        let lowercase_name = name.to_lowercase();
-        let name_matches = |s: &String| s.to_lowercase() == lowercase_name;
+        let name_matches = |s: &String| s.to_lowercase() == name;
 
         let cached_uuid = if let Some((uuid, _)) = self
             .cache
@@ -189,39 +215,35 @@ impl Repository {
     }
 
     fn load_thing_by_name<'a>(&'a self, name: &str) -> Option<&'a Thing> {
-        let lowercase_name = name.to_lowercase();
-        self.all().find(|t| {
-            t.name()
-                .value()
-                .map_or(false, |s| s.to_lowercase() == lowercase_name)
-        })
+        self.all()
+            .find(|t| t.name().value().map_or(false, |s| s.to_lowercase() == name))
     }
 
     async fn save_thing_by_name(&mut self, name: &str) -> Result<(), Error> {
-        let lowercase_name = name.to_lowercase();
-        if let Some(mut thing) = self.take_recent(|t| {
-            t.name()
-                .value()
-                .map_or(false, |s| s.to_lowercase() == lowercase_name)
-        }) {
-            thing.set_uuid(Uuid::new_v4());
-
-            let result = self
-                .data_store
-                .save_thing(&thing)
-                .await
-                .map_err(|_| Error::DataStoreFailed);
-
-            if result.is_ok() {
-                self.cache.insert(*thing.uuid().unwrap(), thing);
-            } else {
-                // Oops, better put it back where we found it.
+        if let Some(thing) =
+            self.take_recent(|t| t.name().value().map_or(false, |s| s.to_lowercase() == name))
+        {
+            self.save_thing(thing).await.map_err(|(thing, e)| {
                 self.push_recent(thing);
-            }
-
-            result
+                e
+            })
         } else {
             Err(Error::NotFound)
+        }
+    }
+
+    async fn save_thing(&mut self, mut thing: Thing) -> Result<(), (Thing, Error)> {
+        thing.set_uuid(Uuid::new_v4());
+
+        match self.data_store.save_thing(&thing).await {
+            Ok(()) => {
+                self.cache.insert(*thing.uuid().unwrap(), thing);
+                Ok(())
+            }
+            Err(()) => {
+                thing.clear_uuid();
+                Err((thing, Error::DataStoreFailed))
+            }
         }
     }
 }
@@ -232,9 +254,15 @@ impl From<Uuid> for Id {
     }
 }
 
-impl From<String> for Id {
-    fn from(input: String) -> Self {
-        Id::Name(input)
+impl From<&String> for Id {
+    fn from(input: &String) -> Self {
+        input.as_str().into()
+    }
+}
+
+impl From<&str> for Id {
+    fn from(input: &str) -> Self {
+        Id::Name(input.to_lowercase())
     }
 }
 
@@ -319,7 +347,7 @@ mod test {
         assert_eq!(
             "Odysseus",
             repo()
-                .load(&"ODYSSEUS".to_string().into())
+                .load(&"ODYSSEUS".into())
                 .and_then(|thing| thing.name().value())
                 .unwrap(),
         );
@@ -330,7 +358,7 @@ mod test {
         assert_eq!(
             "Olympus",
             repo()
-                .load(&"OLYMPUS".to_string().into())
+                .load(&"OLYMPUS".into())
                 .and_then(|thing| thing.name().value())
                 .unwrap(),
         );
@@ -338,7 +366,7 @@ mod test {
 
     #[test]
     fn load_test_not_found() {
-        assert!(repo().load(&"NOBODY".to_string().into()).is_none());
+        assert!(repo().load(&"NOBODY".into()).is_none());
     }
 
     #[test]
@@ -353,7 +381,7 @@ mod test {
         assert_eq!(
             Ok(()),
             block_on(repo.modify(Change::Delete {
-                id: "olympus".to_string().into(),
+                id: "olympus".into(),
             })),
         );
         assert_eq!(0, repo.journal().count());
@@ -365,7 +393,7 @@ mod test {
         assert_eq!(
             Ok(()),
             block_on(repo.modify(Change::Delete {
-                id: "ODYSSEUS".to_string().into(),
+                id: "ODYSSEUS".into(),
             })),
         );
         assert_eq!(0, repo.recent().count());
@@ -373,11 +401,13 @@ mod test {
 
     #[test]
     fn change_test_delete_by_name_not_found() {
+        let change = Change::Delete {
+            id: "NOBODY".into(),
+        };
+
         assert_eq!(
-            Err(Error::NotFound),
-            block_on(repo().modify(Change::Delete {
-                id: "NOBODY".to_string().into(),
-            })),
+            block_on(repo().modify(change.clone())),
+            Err((change, Error::NotFound)),
         );
     }
 
@@ -398,7 +428,7 @@ mod test {
             block_on(
                 repo.modify(Change::Create {
                     thing: Npc {
-                        name: "Odysseus".to_string().into(),
+                        name: "Odysseus".into(),
                         ..Default::default()
                     }
                     .clone()
@@ -412,18 +442,18 @@ mod test {
     #[test]
     fn change_test_create_already_exists_in_journal() {
         let mut repo = repo();
+        let change = Change::Create {
+            thing: Npc {
+                name: "Olympus".into(),
+                ..Default::default()
+            }
+            .clone()
+            .into(),
+        };
+
         assert_eq!(
-            Err(Error::NameAlreadyExists),
-            block_on(
-                repo.modify(Change::Create {
-                    thing: Npc {
-                        name: "Olympus".to_string().into(),
-                        ..Default::default()
-                    }
-                    .clone()
-                    .into()
-                })
-            ),
+            block_on(repo.modify(change.clone())),
+            Err((change, Error::NameAlreadyExists)),
         );
         assert_eq!(1, repo.recent().count());
     }
@@ -431,18 +461,18 @@ mod test {
     #[test]
     fn change_test_create_already_exists_in_recent() {
         let mut repo = repo();
+        let change = Change::Create {
+            thing: Location {
+                name: "Odysseus".into(),
+                ..Default::default()
+            }
+            .clone()
+            .into(),
+        };
+
         assert_eq!(
-            Err(Error::NameAlreadyExists),
-            block_on(
-                repo.modify(Change::Create {
-                    thing: Location {
-                        name: "Odysseus".to_string().into(),
-                        ..Default::default()
-                    }
-                    .clone()
-                    .into()
-                })
-            ),
+            block_on(repo.modify(change.clone())),
+            Err((change, Error::NameAlreadyExists)),
         );
         assert_eq!(1, repo.recent().count());
     }
@@ -483,11 +513,12 @@ mod test {
         assert_eq!(0, repo.journal().count());
         assert_eq!(1, repo.recent().count());
 
+        let change = Change::Save {
+            name: "ODYSSEUS".to_string(),
+        };
         assert_eq!(
-            Err(Error::DataStoreFailed),
-            block_on(repo.modify(Change::Save {
-                name: "ODYSSEUS".to_string()
-            })),
+            block_on(repo.modify(change.clone())),
+            Err((change, Error::DataStoreFailed)),
         );
 
         assert_eq!(0, repo.journal().count());
@@ -498,24 +529,107 @@ mod test {
     fn change_test_save_already_saved() {
         let mut repo = repo();
 
+        let change = Change::Save {
+            name: "OLYMPUS".to_string(),
+        };
         assert_eq!(
-            Err(Error::NotFound),
-            block_on(repo.modify(Change::Save {
-                name: "OLYMPUS".to_string()
-            })),
+            block_on(repo.modify(change.clone())),
+            Err((change, Error::NotFound)),
         );
     }
 
     #[test]
     fn change_test_save_not_found() {
         let mut repo = repo();
+        let change = Change::Save {
+            name: "NOBODY".to_string(),
+        };
 
         assert_eq!(
-            Err(Error::NotFound),
-            block_on(repo.modify(Change::Save {
-                name: "NOBODY".to_string()
-            })),
+            block_on(repo.modify(change.clone())),
+            Err((change, Error::NotFound)),
         );
+    }
+
+    #[test]
+    fn change_test_create_and_save_success() {
+        let mut repo = empty_repo();
+        assert_eq!(
+            Ok(()),
+            block_on(
+                repo.modify(Change::CreateAndSave {
+                    thing: Npc {
+                        name: "Odysseus".into(),
+                        ..Default::default()
+                    }
+                    .clone()
+                    .into()
+                })
+            ),
+        );
+        assert_eq!(1, repo.journal().count());
+        assert!(repo
+            .journal()
+            .next()
+            .and_then(|thing| thing.uuid())
+            .is_some());
+    }
+
+    #[test]
+    fn change_test_create_and_save_already_exists_in_journal() {
+        let mut repo = repo();
+        let change = Change::CreateAndSave {
+            thing: Location {
+                name: "Odysseus".into(),
+                ..Default::default()
+            }
+            .clone()
+            .into(),
+        };
+
+        assert_eq!(
+            block_on(repo.modify(change.clone())),
+            Err((change, Error::NameAlreadyExists)),
+        );
+        assert_eq!(1, repo.journal().count());
+    }
+
+    #[test]
+    fn change_test_create_and_save_already_exists_in_recent() {
+        let mut repo = repo();
+        let change = Change::CreateAndSave {
+            thing: Npc {
+                name: "Olympus".into(),
+                ..Default::default()
+            }
+            .clone()
+            .into(),
+        };
+
+        assert_eq!(
+            block_on(repo.modify(change.clone())),
+            Err((change, Error::NameAlreadyExists)),
+        );
+        assert_eq!(1, repo.journal().count());
+    }
+
+    #[test]
+    fn change_test_create_and_save_data_store_failed() {
+        let mut repo = Repository::new(NullDataStore::default());
+
+        let change = Change::CreateAndSave {
+            thing: Location {
+                name: "Odysseus".into(),
+                ..Default::default()
+            }
+            .into(),
+        };
+
+        assert_eq!(
+            block_on(repo.modify(change.clone())),
+            Err((change, Error::DataStoreFailed)),
+        );
+        assert_eq!(0, repo.journal().count());
     }
 
     #[test]

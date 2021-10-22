@@ -101,12 +101,10 @@ impl Runnable for StorageCommand {
 
                 app_meta
                     .repository
-                    .modify(Change::Delete {
-                        id: name.clone().into(),
-                    })
+                    .modify(Change::Delete { id: name.into() })
                     .await
                     .map(|_| format!("{} was successfully deleted.", name))
-                    .map_err(|e| match e {
+                    .map_err(|(_, e)| match e {
                         RepositoryError::NotFound => {
                             format!("There is no entity named \"{}\".", name)
                         }
@@ -118,7 +116,7 @@ impl Runnable for StorageCommand {
                     })
             }
             Self::Load { name } => {
-                let thing = app_meta.repository.load(&name.to_string().into());
+                let thing = app_meta.repository.load(&name.into());
                 let mut save_command = None;
                 let output = if let Some(thing) = thing {
                     if thing.uuid().is_none() && app_meta.repository.data_store_enabled() {
@@ -155,7 +153,7 @@ impl Runnable for StorageCommand {
                 .modify(Change::Save { name: name.clone() })
                 .await
                 .map(|_| format!("{} was successfully saved.", name))
-                .map_err(|e| match e {
+                .map_err(|(_, e)| match e {
                     RepositoryError::NotFound => format!("There is no entity named {}.", name),
                     RepositoryError::DataStoreFailed
                     | RepositoryError::MissingName
@@ -171,11 +169,7 @@ impl ContextAwareParse for StorageCommand {
 
         (
             if input.starts_with(char::is_uppercase) {
-                if app_meta
-                    .repository
-                    .load(&input.to_string().into())
-                    .is_some()
-                {
+                if app_meta.repository.load(&input.into()).is_some() {
                     fuzzy_matches.push(Self::Load {
                         name: input.to_string(),
                     });

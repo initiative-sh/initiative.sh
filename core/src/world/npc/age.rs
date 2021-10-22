@@ -16,6 +16,7 @@ pub enum Age {
     #[alias = "teenager"]
     Adolescent,
 
+    #[alias = "young"]
     #[alias = "young adult"]
     YoungAdult,
 
@@ -114,6 +115,7 @@ mod test {
         assert_eq!(Ok(Age::Adolescent), "teenage".parse::<Age>());
         assert_eq!(Ok(Age::Adolescent), "teenager".parse::<Age>());
 
+        assert_eq!(Ok(Age::YoungAdult), "young".parse::<Age>());
         assert_eq!(Ok(Age::YoungAdult), "young adult".parse::<Age>());
         assert_eq!(Ok(Age::YoungAdult), "young-adult".parse::<Age>());
 

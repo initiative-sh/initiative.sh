@@ -176,3 +176,39 @@ fn location_save_alias_does_not_exist_with_invalid_data_store() {
         app.command("save").unwrap_err(),
     );
 }
+
+#[test]
+fn create_location_with_custom_attributes() {
+    let mut app = sync_app();
+
+    {
+        let output = app.command("an inn called The Prancing Pony").unwrap();
+        assert!(
+            output.starts_with("# The Prancing Pony\n*inn*"),
+            "{}",
+            output,
+        );
+        assert!(
+            output.contains("has been automatically added to your `journal`."),
+            "{}",
+            output,
+        );
+        assert!(!output.contains("has not yet been saved"), "{}", output);
+        assert!(!output.contains("Alternatives"), "{}", output);
+    }
+
+    {
+        let output = app.command("journal").unwrap();
+        assert!(output.contains("The Prancing Pony"), "{}", output);
+    }
+
+    {
+        let output = app
+            .command("a location named the prancing pony")
+            .unwrap_err();
+        assert_eq!(
+            "That name is already in use by `The Prancing Pony`, an inn.",
+            output,
+        );
+    }
+}

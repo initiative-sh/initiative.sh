@@ -302,7 +302,7 @@ impl Runnable for TutorialCommand {
                 app_meta
                     .repository
                     .modify(Change::Delete {
-                        id: inn_name.clone().into(),
+                        id: inn_name.into(),
                     })
                     .await
                     .ok();
@@ -312,7 +312,7 @@ impl Runnable for TutorialCommand {
                 app_meta
                     .repository
                     .modify(Change::Delete {
-                        id: npc_name.clone().into(),
+                        id: npc_name.into(),
                     })
                     .await
                     .ok();
@@ -588,14 +588,14 @@ impl Runnable for TutorialCommand {
                 app_meta
                     .repository
                     .modify(Change::Delete {
-                        id: inn_name.clone().into(),
+                        id: inn_name.into(),
                     })
                     .await
                     .ok();
                 app_meta
                     .repository
                     .modify(Change::Delete {
-                        id: npc_name.clone().into(),
+                        id: npc_name.into(),
                     })
                     .await
                     .ok();

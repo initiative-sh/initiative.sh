@@ -10,6 +10,9 @@ use std::fmt;
 
 #[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
 pub enum BuildingType {
+    #[alias = "bar"]
+    #[alias = "pub"]
+    #[alias = "tavern"]
     Inn,
 }
 

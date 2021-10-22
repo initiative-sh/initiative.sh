@@ -8,6 +8,7 @@ pub use world::Thing;
 mod reference;
 mod storage;
 mod time;
+mod utils;
 mod world;
 
 pub fn app(data_store: impl DataStore + 'static) -> app::App {
