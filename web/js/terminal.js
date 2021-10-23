@@ -58,10 +58,36 @@ function initialize(elementId, autocompleteCallback) {
     ],
   })
 
+  let lastQuery = ""
   const autoCompleteJS = new autoComplete({
     data: {
       keys: ["suggestion"],
-      src: autocompleteCallback,
+      src: async (query) => {
+        let results = await autocompleteCallback(query)
+
+        if (
+          results.length === 1
+          && results[0].suggestion.substr(0, promptElement.value.length).toLowerCase() === promptElement.value.toLowerCase()
+          && query.length > lastQuery.length
+        ) {
+          const suggestion = results[0].suggestion
+          const existingLen = promptElement.value.length
+          promptElement.value = promptElement.value + suggestion.substr(promptElement.value.length)
+
+          if (suggestion.indexOf("[") > -1) {
+            promptElement.setSelectionRange(
+              Math.min(existingLen, suggestion.indexOf("[")),
+              suggestion.length,
+            )
+          } else {
+            promptElement.setSelectionRange(existingLen, suggestion.length)
+          }
+        }
+
+        lastQuery = query
+
+        return results
+      }
     },
     events: {
       input: {
@@ -93,7 +119,13 @@ function initialize(elementId, autocompleteCallback) {
         },
       },
     },
-    query: (input) => input.split("[")[0],
+    query: (query) => {
+      if (promptElement.selectionEnd > promptElement.selectionStart) {
+        return promptElement.value.substr(0, promptElement.selectionStart)
+      } else {
+        return query.split("[")[0]
+      }
+    },
     resultsList: {
       class: "autocomplete-list",
     },
@@ -165,21 +197,22 @@ function initialize(elementId, autocompleteCallback) {
     promptElement.value = command
 
     const match = /\[[^\]]+\]/.exec(command)
-    if (!match) {
+    if (match) {
+      promptElement.focus()
+      promptElement.setSelectionRange(
+        match.index,
+        match.index + match[0].length,
+      )
+
+      if (!autoCompleteJS.isOpen) {
+        autoCompleteJS.start()
+      }
+
+      return true
+    } else {
+      promptElement.setSelectionRange(command.length, command.length)
       return false
     }
-
-    promptElement.focus()
-    promptElement.setSelectionRange(
-      match.index,
-      match.index + match[0].length,
-    )
-
-    if (!autoCompleteJS.isOpen) {
-      autoCompleteJS.start()
-    }
-
-    return true
   }
 
   async function runCommand(command) {

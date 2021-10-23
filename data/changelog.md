@@ -1,3 +1,6 @@
+* **Enhancement:** The input field will now automatically complete when only one
+  suggestion is available in the autofill popup, so it is no longer necessary to
+  finish typing before pressing enter.
 * **Enhancement:** (?) Reverted past macro work. Macros seem to have done
   nothing but add complexity, with no simplification in sight. Perhaps something
   to take another swing at in the future.
