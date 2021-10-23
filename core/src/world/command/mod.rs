@@ -70,7 +70,7 @@ impl Runnable for WorldCommand {
                     };
 
                     match app_meta.repository.modify(change).await {
-                        Ok(()) => {
+                        Ok(_) => {
                             thing_output = Some(temp_thing_output);
 
                             if let Some(command_alias) = command_alias {
@@ -130,7 +130,7 @@ impl Runnable for WorldCommand {
                             );
 
                             match app_meta.repository.modify(Change::Create { thing }).await {
-                                Ok(()) => {
+                                Ok(_) => {
                                     app_meta.command_aliases.insert(command_alias);
                                     thing_output = Some(temp_thing_output);
                                     break;
