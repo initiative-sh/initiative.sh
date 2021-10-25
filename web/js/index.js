@@ -112,18 +112,30 @@ const selectBracketedExpression = (command) => {
 
 const runCommand = async (command) => {
   if (!selectBracketedExpression(command)) {
-    output("\\> " + command + "\n\n" + await wasm.command(command))
+    let commandElement = document.createElement("div")
+    commandElement.className = "command"
+    commandElement.insertAdjacentText("beforeend", command)
+    outputElement.insertAdjacentElement("beforeend", commandElement)
+
+    promptElement.value = ""
+    autoCompleteJS.close()
+
+    window.scroll({
+      left: 0,
+      top: document.body.clientHeight,
+      behavior: reducedMotion ? "auto" : "smooth",
+    })
+
+    output(await wasm.command(command))
   }
 }
 
 const output = (text) => {
-  outputElement.insertAdjacentHTML(
-    "beforeend",
-    marked(text)
-  )
+  let outputBlock = document.createElement("div")
+  outputBlock.className = "output-block"
+  outputBlock.insertAdjacentHTML("beforeend", marked(text))
+  outputElement.insertAdjacentElement("beforeend", outputBlock)
 
-  promptElement.value = ""
-  autoCompleteJS.close()
   window.scroll({
     left: 0,
     top: document.body.clientHeight,
