@@ -287,6 +287,75 @@ impl TutorialCommand {
             }
         }
     }
+
+    fn is_correct_command(&self, input: &str, command: Option<&CommandType>) -> bool {
+        match self {
+            Self::Cancel { .. } | Self::Resume => false,
+            Self::Introduction | Self::Restart { .. } => true,
+            Self::Inn => matches!(command, Some(CommandType::Tutorial(Self::Inn))),
+            Self::Save => input == "inn",
+            Self::Npc { inn_name } => {
+                if let Some(CommandType::Storage(StorageCommand::Save { name })) = command {
+                    name == inn_name
+                } else {
+                    false
+                }
+            }
+            Self::NpcOther { .. } => input == "npc",
+            Self::SaveByName { npc_name, .. } => {
+                if let Some(CommandType::Storage(StorageCommand::Load { name })) = command {
+                    name == npc_name
+                } else {
+                    false
+                }
+            }
+            Self::Journal { npc_name, .. } => {
+                if let Some(CommandType::Storage(StorageCommand::Save { name })) = command {
+                    name == npc_name
+                } else {
+                    false
+                }
+            }
+            Self::LoadByName { .. } => {
+                matches!(command, Some(CommandType::Storage(StorageCommand::Journal)))
+            }
+            Self::Spell { npc_name, .. } => {
+                if let Some(CommandType::Storage(StorageCommand::Load { name })) = command {
+                    name == npc_name
+                } else {
+                    false
+                }
+            }
+            Self::Weapons { .. } => {
+                matches!(
+                    command,
+                    Some(CommandType::Reference(ReferenceCommand::Spell(
+                        Spell::Fireball
+                    ))),
+                )
+            }
+            Self::Roll { .. } => {
+                matches!(
+                    command,
+                    Some(CommandType::Reference(ReferenceCommand::ItemCategory(
+                        ItemCategory::Weapon
+                    ))),
+                )
+            }
+            Self::Delete { .. } => matches!(command, Some(CommandType::App(AppCommand::Roll(_)))),
+            Self::AdjustTime { inn_name, .. } => {
+                if let Some(CommandType::Storage(StorageCommand::Delete { name })) = command {
+                    name == inn_name
+                } else {
+                    false
+                }
+            }
+            Self::Time { .. } => {
+                matches!(command, Some(CommandType::Time(TimeCommand::Add { .. })))
+            }
+            Self::Conclusion { .. } => matches!(command, Some(CommandType::Time(TimeCommand::Now))),
+        }
+    }
 }
 
 #[async_trait(?Send)]
@@ -323,334 +392,309 @@ impl Runnable for TutorialCommand {
 
         app_meta.command_aliases.clear();
 
-        let (result, next_command) = match (self, input_command.get_type()) {
-            (_, Some(CommandType::Tutorial(TutorialCommand::Cancel { .. }))) => (
-                Ok(include_str!("../../../../data/tutorial/xx-cancelled.md").to_string()),
-                None,
-            ),
-            (command, Some(CommandType::Tutorial(TutorialCommand::Resume))) => {
-                (command.output(None, app_meta), Some(command.clone()))
-            }
-
-            (Self::Introduction, _) | (_, Some(CommandType::Tutorial(Self::Restart { .. }))) => {
-                let next = Self::Inn;
-                (next.output(None, app_meta), Some(next))
-            }
-            (Self::Inn, Some(CommandType::Tutorial(Self::Inn))) => {
-                let next = Self::Save;
-                (next.output(None, app_meta), Some(next))
-            }
-            (Self::Save, _) if input == "inn" => {
-                let command_output = input_command.run(input, app_meta).await;
-
-                if let Ok(output) = command_output {
-                    let inn_name = output
-                        .lines()
-                        .next()
-                        .unwrap()
-                        .trim_start_matches(&[' ', '#'][..])
-                        .to_string();
-
-                    let next = Self::Npc { inn_name };
-                    (next.output(Some(Ok(output)), app_meta), Some(next))
-                } else {
-                    (command_output, Some(self.clone()))
+        let (result, next_command) = if self.is_correct_command(input, input_command.get_type()) {
+            match self {
+                Self::Cancel { .. } | Self::Resume => unreachable!(),
+                Self::Introduction | Self::Restart { .. } => {
+                    let next = Self::Inn;
+                    (next.output(None, app_meta), Some(next))
                 }
-            }
-            (Self::Npc { inn_name }, Some(CommandType::Storage(StorageCommand::Save { name })))
-                if name == inn_name =>
-            {
-                let next = Self::NpcOther {
-                    inn_name: inn_name.clone(),
-                };
+                Self::Inn => {
+                    let next = Self::Save;
+                    (next.output(None, app_meta), Some(next))
+                }
+                Self::Save => {
+                    let command_output = input_command.run(input, app_meta).await;
 
-                (
-                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
-                    Some(next),
-                )
-            }
-            (Self::NpcOther { inn_name }, _) if input == "npc" => {
-                let command_output = input_command.run(input, app_meta).await;
-
-                if let Ok(output) = command_output {
-                    let (npc_name, other_npc_name, npc_gender) = {
-                        let mut lines_iter = output.lines();
-
-                        let other_npc_name = lines_iter
+                    if let Ok(output) = command_output {
+                        let inn_name = output
+                            .lines()
                             .next()
-                            .map(|s| s.trim_start_matches(&[' ', '#'][..]).to_string());
-                        let npc_name = lines_iter
-                            .find(|s| s.starts_with("~1~ "))
-                            .and_then(|s| {
-                                if let (Some(a), Some(b)) = (s.find('`'), s.rfind('`')) {
-                                    s.get(a + 1..b)
-                                } else {
-                                    None
-                                }
-                            })
-                            .map(|s| s.to_string());
-                        let npc_gender = app_meta
-                            .repository
-                            .recent()
-                            .find(|t| t.name().value() == npc_name.as_ref())
-                            .map(|t| t.gender());
+                            .unwrap()
+                            .trim_start_matches(&[' ', '#'][..])
+                            .to_string();
 
-                        (npc_name, other_npc_name, npc_gender)
-                    };
-
-                    if let (Some(npc_name), Some(other_npc_name), Some(npc_gender)) =
-                        (npc_name, other_npc_name, npc_gender)
-                    {
-                        let next = Self::SaveByName {
-                            inn_name: inn_name.clone(),
-                            npc_gender,
-                            npc_name,
-                            other_npc_name,
-                        };
-
+                        let next = Self::Npc { inn_name };
                         (next.output(Some(Ok(output)), app_meta), Some(next))
                     } else {
-                        (Ok(output), Some(self.clone()))
+                        (command_output, Some(self.clone()))
                     }
-                } else {
-                    (command_output, Some(self.clone()))
                 }
-            }
-            (
+                Self::Npc { inn_name } => {
+                    let next = Self::NpcOther {
+                        inn_name: inn_name.clone(),
+                    };
+
+                    (
+                        next.output(Some(input_command.run(input, app_meta).await), app_meta),
+                        Some(next),
+                    )
+                }
+                Self::NpcOther { inn_name } => {
+                    let command_output = input_command.run(input, app_meta).await;
+
+                    if let Ok(output) = command_output {
+                        let (npc_name, other_npc_name, npc_gender) = {
+                            let mut lines_iter = output.lines();
+
+                            let other_npc_name = lines_iter
+                                .next()
+                                .map(|s| s.trim_start_matches(&[' ', '#'][..]).to_string());
+                            let npc_name = lines_iter
+                                .find(|s| s.starts_with("~1~ "))
+                                .and_then(|s| {
+                                    if let (Some(a), Some(b)) = (s.find('`'), s.rfind('`')) {
+                                        s.get(a + 1..b)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .map(|s| s.to_string());
+                            let npc_gender = app_meta
+                                .repository
+                                .recent()
+                                .find(|t| t.name().value() == npc_name.as_ref())
+                                .map(|t| t.gender());
+
+                            (npc_name, other_npc_name, npc_gender)
+                        };
+
+                        if let (Some(npc_name), Some(other_npc_name), Some(npc_gender)) =
+                            (npc_name, other_npc_name, npc_gender)
+                        {
+                            let next = Self::SaveByName {
+                                inn_name: inn_name.clone(),
+                                npc_gender,
+                                npc_name,
+                                other_npc_name,
+                            };
+
+                            (next.output(Some(Ok(output)), app_meta), Some(next))
+                        } else {
+                            (Ok(output), Some(self.clone()))
+                        }
+                    } else {
+                        (command_output, Some(self.clone()))
+                    }
+                }
                 Self::SaveByName {
                     inn_name,
                     npc_gender,
                     npc_name,
                     ..
-                },
-                Some(CommandType::Storage(StorageCommand::Load { name })),
-            ) if name == npc_name => {
-                let command_output = input_command.run(input, app_meta).await;
+                } => {
+                    let command_output = input_command.run(input, app_meta).await;
 
-                if let Ok(output) = command_output {
-                    let next = Self::Journal {
+                    if let Ok(output) = command_output {
+                        let next = Self::Journal {
+                            inn_name: inn_name.clone(),
+                            npc_gender: *npc_gender,
+                            npc_name: npc_name.clone(),
+                        };
+
+                        (next.output(Some(Ok(output)), app_meta), Some(next))
+                    } else {
+                        (command_output, Some(self.clone()))
+                    }
+                }
+                Self::Journal {
+                    inn_name,
+                    npc_gender,
+                    npc_name,
+                } => {
+                    let next = Self::LoadByName {
                         inn_name: inn_name.clone(),
                         npc_gender: *npc_gender,
                         npc_name: npc_name.clone(),
                     };
 
-                    (next.output(Some(Ok(output)), app_meta), Some(next))
-                } else {
-                    (command_output, Some(self.clone()))
+                    (
+                        next.output(Some(input_command.run(input, app_meta).await), app_meta),
+                        Some(next),
+                    )
                 }
-            }
-            (
-                Self::Journal {
-                    inn_name,
-                    npc_gender,
-                    npc_name,
-                },
-                Some(CommandType::Storage(StorageCommand::Save { name })),
-            ) if name == npc_name => {
-                let next = Self::LoadByName {
-                    inn_name: inn_name.clone(),
-                    npc_gender: *npc_gender,
-                    npc_name: npc_name.clone(),
-                };
-
-                (
-                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
-                    Some(next),
-                )
-            }
-            (
                 Self::LoadByName {
                     inn_name,
                     npc_gender,
                     npc_name,
-                },
-                Some(CommandType::Storage(StorageCommand::Journal)),
-            ) => {
-                let next = Self::Spell {
-                    inn_name: inn_name.clone(),
-                    npc_gender: *npc_gender,
-                    npc_name: npc_name.clone(),
-                };
+                } => {
+                    let next = Self::Spell {
+                        inn_name: inn_name.clone(),
+                        npc_gender: *npc_gender,
+                        npc_name: npc_name.clone(),
+                    };
 
-                (
-                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
-                    Some(next),
-                )
-            }
-            (
+                    (
+                        next.output(Some(input_command.run(input, app_meta).await), app_meta),
+                        Some(next),
+                    )
+                }
                 Self::Spell {
                     inn_name,
                     npc_gender,
                     npc_name,
-                },
-                Some(CommandType::Storage(StorageCommand::Load { name })),
-            ) if name == npc_name => {
-                let next = Self::Weapons {
-                    inn_name: inn_name.clone(),
-                    npc_gender: *npc_gender,
-                    npc_name: npc_name.clone(),
-                };
+                } => {
+                    let next = Self::Weapons {
+                        inn_name: inn_name.clone(),
+                        npc_gender: *npc_gender,
+                        npc_name: npc_name.clone(),
+                    };
 
-                (
-                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
-                    Some(next),
-                )
-            }
-            (
+                    (
+                        next.output(Some(input_command.run(input, app_meta).await), app_meta),
+                        Some(next),
+                    )
+                }
                 Self::Weapons {
                     inn_name,
                     npc_gender,
                     npc_name,
-                },
-                Some(CommandType::Reference(ReferenceCommand::Spell(Spell::Fireball))),
-            ) => {
-                let next = Self::Roll {
-                    inn_name: inn_name.clone(),
-                    npc_gender: *npc_gender,
-                    npc_name: npc_name.clone(),
-                };
+                } => {
+                    let next = Self::Roll {
+                        inn_name: inn_name.clone(),
+                        npc_gender: *npc_gender,
+                        npc_name: npc_name.clone(),
+                    };
 
-                (
-                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
-                    Some(next),
-                )
-            }
-            (
+                    (
+                        next.output(Some(input_command.run(input, app_meta).await), app_meta),
+                        Some(next),
+                    )
+                }
                 Self::Roll {
                     inn_name,
                     npc_gender,
                     npc_name,
-                },
-                Some(CommandType::Reference(ReferenceCommand::ItemCategory(ItemCategory::Weapon))),
-            ) => {
-                let next = Self::Delete {
-                    inn_name: inn_name.clone(),
-                    npc_gender: *npc_gender,
-                    npc_name: npc_name.clone(),
-                };
+                } => {
+                    let next = Self::Delete {
+                        inn_name: inn_name.clone(),
+                        npc_gender: *npc_gender,
+                        npc_name: npc_name.clone(),
+                    };
 
-                (
-                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
-                    Some(next),
-                )
-            }
-            (
+                    (
+                        next.output(Some(input_command.run(input, app_meta).await), app_meta),
+                        Some(next),
+                    )
+                }
                 Self::Delete {
                     inn_name,
                     npc_gender,
                     npc_name,
-                },
-                Some(CommandType::App(AppCommand::Roll(_))),
-            ) => {
-                let next = Self::AdjustTime {
-                    inn_name: inn_name.clone(),
-                    npc_gender: *npc_gender,
-                    npc_name: npc_name.clone(),
-                };
-
-                (
-                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
-                    Some(next),
-                )
-            }
-            (
-                Self::AdjustTime {
-                    inn_name, npc_name, ..
-                },
-                Some(CommandType::Storage(StorageCommand::Delete { name })),
-            ) if name == inn_name => {
-                let next = Self::Time {
-                    inn_name: inn_name.clone(),
-                    npc_name: npc_name.clone(),
-                };
-
-                (
-                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
-                    Some(next),
-                )
-            }
-            (
-                Self::Time { inn_name, npc_name },
-                Some(CommandType::Time(TimeCommand::Add { .. })),
-            ) => {
-                let next = Self::Conclusion {
-                    inn_name: inn_name.clone(),
-                    npc_name: npc_name.clone(),
-                };
-
-                (
-                    next.output(Some(input_command.run(input, app_meta).await), app_meta),
-                    Some(next),
-                )
-            }
-            (
-                Self::Conclusion { inn_name, npc_name },
-                Some(CommandType::Time(TimeCommand::Now)),
-            ) => {
-                app_meta
-                    .repository
-                    .modify(Change::Delete {
-                        id: inn_name.into(),
-                        name: inn_name.clone(),
-                    })
-                    .await
-                    .ok();
-                app_meta
-                    .repository
-                    .modify(Change::Delete {
-                        id: npc_name.into(),
-                        name: npc_name.clone(),
-                    })
-                    .await
-                    .ok();
-
-                (
-                    input_command.run(input, app_meta).await.map(|mut output| {
-                        output.push_str("\n\n#");
-                        output.push_str(include_str!("../../../../data/tutorial/99-conclusion.md"));
-                        output
-                    }),
-                    None,
-                )
-            }
-            _ => {
-                let result = {
-                    let f = |mut s: String| {
-                        if !s.is_empty() {
-                            s.push_str("\n\n#");
-                        }
-                        s.push_str(include_str!("../../../../data/tutorial/xx-still-active.md"));
-                        s
+                } => {
+                    let next = Self::AdjustTime {
+                        inn_name: inn_name.clone(),
+                        npc_gender: *npc_gender,
+                        npc_name: npc_name.clone(),
                     };
 
-                    if !matches!(
-                        input_command.get_type(),
-                        Some(CommandType::Tutorial(TutorialCommand::Introduction))
-                    ) {
-                        input_command.run(input, app_meta).await.map(f).map_err(f)
-                    } else {
-                        Ok(f(String::new()))
+                    (
+                        next.output(Some(input_command.run(input, app_meta).await), app_meta),
+                        Some(next),
+                    )
+                }
+                Self::AdjustTime {
+                    inn_name, npc_name, ..
+                } => {
+                    let next = Self::Time {
+                        inn_name: inn_name.clone(),
+                        npc_name: npc_name.clone(),
+                    };
+
+                    (
+                        next.output(Some(input_command.run(input, app_meta).await), app_meta),
+                        Some(next),
+                    )
+                }
+                Self::Time { inn_name, npc_name } => {
+                    let next = Self::Conclusion {
+                        inn_name: inn_name.clone(),
+                        npc_name: npc_name.clone(),
+                    };
+
+                    (
+                        next.output(Some(input_command.run(input, app_meta).await), app_meta),
+                        Some(next),
+                    )
+                }
+                Self::Conclusion { inn_name, npc_name } => {
+                    app_meta
+                        .repository
+                        .modify(Change::Delete {
+                            id: inn_name.into(),
+                            name: inn_name.clone(),
+                        })
+                        .await
+                        .ok();
+                    app_meta
+                        .repository
+                        .modify(Change::Delete {
+                            id: npc_name.into(),
+                            name: npc_name.clone(),
+                        })
+                        .await
+                        .ok();
+
+                    (
+                        input_command.run(input, app_meta).await.map(|mut output| {
+                            output.push_str("\n\n#");
+                            output.push_str(include_str!(
+                                "../../../../data/tutorial/99-conclusion.md"
+                            ));
+                            output
+                        }),
+                        None,
+                    )
+                }
+            }
+        } else if let Some(CommandType::Tutorial(TutorialCommand::Cancel { .. })) =
+            input_command.get_type()
+        {
+            (
+                Ok(include_str!("../../../../data/tutorial/xx-cancelled.md").to_string()),
+                None,
+            )
+        } else if let Some(CommandType::Tutorial(TutorialCommand::Resume)) =
+            input_command.get_type()
+        {
+            (self.output(None, app_meta), Some(self.clone()))
+        } else {
+            let result = {
+                let f = |mut s: String| {
+                    if !s.is_empty() {
+                        s.push_str("\n\n#");
                     }
+                    s.push_str(include_str!("../../../../data/tutorial/xx-still-active.md"));
+                    s
                 };
 
-                app_meta.command_aliases.insert(CommandAlias::literal(
-                    "resume".to_string(),
-                    "return to the tutorial".to_string(),
-                    Self::Resume.into(),
-                ));
+                if !matches!(
+                    input_command.get_type(),
+                    Some(CommandType::Tutorial(TutorialCommand::Introduction))
+                ) {
+                    input_command.run(input, app_meta).await.map(f).map_err(f)
+                } else {
+                    Ok(f(String::new()))
+                }
+            };
 
-                app_meta.command_aliases.insert(CommandAlias::literal(
-                    "restart".to_string(),
-                    "restart the tutorial".to_string(),
-                    Self::Restart {
-                        inn_name: self.inn_name(),
-                        npc_name: self.npc_name(),
-                    }
-                    .into(),
-                ));
+            app_meta.command_aliases.insert(CommandAlias::literal(
+                "resume".to_string(),
+                "return to the tutorial".to_string(),
+                Self::Resume.into(),
+            ));
 
-                (result, Some(self.clone()))
-            }
+            app_meta.command_aliases.insert(CommandAlias::literal(
+                "restart".to_string(),
+                "restart the tutorial".to_string(),
+                Self::Restart {
+                    inn_name: self.inn_name(),
+                    npc_name: self.npc_name(),
+                }
+                .into(),
+            ));
+
+            (result, Some(self.clone()))
         };
 
         if let Some(command) = next_command {
