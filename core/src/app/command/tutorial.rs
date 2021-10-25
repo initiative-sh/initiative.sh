@@ -360,7 +360,7 @@ impl TutorialCommand {
 
 #[async_trait(?Send)]
 impl Runnable for TutorialCommand {
-    async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         let input_command = Command::parse_input_irrefutable(input, app_meta);
 
         if let Some(CommandType::Tutorial(TutorialCommand::Cancel { inn_name, npc_name }))
@@ -471,30 +471,38 @@ impl Runnable for TutorialCommand {
 
                             (next.output(Some(Ok(output)), app_meta), Some(next))
                         } else {
-                            (Ok(output), Some(self.clone()))
+                            (Ok(output), Some(Self::NpcOther { inn_name }))
                         }
                     } else {
-                        (command_output, Some(self.clone()))
+                        (command_output, Some(Self::NpcOther { inn_name }))
                     }
                 }
                 Self::SaveByName {
                     inn_name,
                     npc_gender,
                     npc_name,
-                    ..
+                    other_npc_name,
                 } => {
                     let command_output = input_command.run(input, app_meta).await;
 
                     if let Ok(output) = command_output {
                         let next = Self::Journal {
-                            inn_name: inn_name.clone(),
-                            npc_gender: *npc_gender,
-                            npc_name: npc_name.clone(),
+                            inn_name,
+                            npc_gender,
+                            npc_name,
                         };
 
                         (next.output(Some(Ok(output)), app_meta), Some(next))
                     } else {
-                        (command_output, Some(self.clone()))
+                        (
+                            command_output,
+                            Some(Self::SaveByName {
+                                inn_name,
+                                npc_gender,
+                                npc_name,
+                                other_npc_name,
+                            }),
+                        )
                     }
                 }
                 Self::Journal {
@@ -503,9 +511,9 @@ impl Runnable for TutorialCommand {
                     npc_name,
                 } => {
                     let next = Self::LoadByName {
-                        inn_name: inn_name.clone(),
-                        npc_gender: *npc_gender,
-                        npc_name: npc_name.clone(),
+                        inn_name,
+                        npc_gender,
+                        npc_name,
                     };
 
                     (
@@ -519,9 +527,9 @@ impl Runnable for TutorialCommand {
                     npc_name,
                 } => {
                     let next = Self::Spell {
-                        inn_name: inn_name.clone(),
-                        npc_gender: *npc_gender,
-                        npc_name: npc_name.clone(),
+                        inn_name,
+                        npc_gender,
+                        npc_name,
                     };
 
                     (
@@ -535,9 +543,9 @@ impl Runnable for TutorialCommand {
                     npc_name,
                 } => {
                     let next = Self::Weapons {
-                        inn_name: inn_name.clone(),
-                        npc_gender: *npc_gender,
-                        npc_name: npc_name.clone(),
+                        inn_name,
+                        npc_gender,
+                        npc_name,
                     };
 
                     (
@@ -551,9 +559,9 @@ impl Runnable for TutorialCommand {
                     npc_name,
                 } => {
                     let next = Self::Roll {
-                        inn_name: inn_name.clone(),
-                        npc_gender: *npc_gender,
-                        npc_name: npc_name.clone(),
+                        inn_name,
+                        npc_gender,
+                        npc_name,
                     };
 
                     (
@@ -567,9 +575,9 @@ impl Runnable for TutorialCommand {
                     npc_name,
                 } => {
                     let next = Self::Delete {
-                        inn_name: inn_name.clone(),
-                        npc_gender: *npc_gender,
-                        npc_name: npc_name.clone(),
+                        inn_name,
+                        npc_gender,
+                        npc_name,
                     };
 
                     (
@@ -583,9 +591,9 @@ impl Runnable for TutorialCommand {
                     npc_name,
                 } => {
                     let next = Self::AdjustTime {
-                        inn_name: inn_name.clone(),
-                        npc_gender: *npc_gender,
-                        npc_name: npc_name.clone(),
+                        inn_name,
+                        npc_gender,
+                        npc_name,
                     };
 
                     (
@@ -621,16 +629,16 @@ impl Runnable for TutorialCommand {
                     app_meta
                         .repository
                         .modify(Change::Delete {
-                            id: inn_name.into(),
-                            name: inn_name.clone(),
+                            id: inn_name.as_str().into(),
+                            name: inn_name,
                         })
                         .await
                         .ok();
                     app_meta
                         .repository
                         .modify(Change::Delete {
-                            id: npc_name.into(),
-                            name: npc_name.clone(),
+                            id: npc_name.as_str().into(),
+                            name: npc_name,
                         })
                         .await
                         .ok();
@@ -702,8 +710,8 @@ impl Runnable for TutorialCommand {
                 "cancel".to_string(),
                 "cancel the tutorial".to_string(),
                 Self::Cancel {
-                    inn_name: self.inn_name(),
-                    npc_name: self.npc_name(),
+                    inn_name: command.inn_name(),
+                    npc_name: command.npc_name(),
                 }
                 .into(),
             ));

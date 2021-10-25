@@ -14,7 +14,7 @@ pub enum WorldCommand {
 
 #[async_trait(?Send)]
 impl Runnable for WorldCommand {
-    async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         Ok(match self {
             Self::Create { thing } => {
                 let mut thing_output = None;

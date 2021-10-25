@@ -29,7 +29,7 @@ impl ReferenceCommand {
 
 #[async_trait(?Send)]
 impl Runnable for ReferenceCommand {
-    async fn run(&self, _input: &str, _app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(self, _input: &str, _app_meta: &mut AppMeta) -> Result<String, String> {
         let (output, name) = match self {
             Self::Spell(spell) => (format!("{}", spell), spell.get_name()),
             Self::Spells => (Spell::get_list().to_string(), "This listing"),

@@ -3,7 +3,7 @@ use async_trait::async_trait;
 
 #[async_trait(?Send)]
 pub trait Runnable: Sized {
-    async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String>;
+    async fn run(self, input: &str, app_meta: &mut AppMeta) -> Result<String, String>;
 }
 
 pub trait ContextAwareParse: Sized {

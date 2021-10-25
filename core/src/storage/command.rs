@@ -47,7 +47,7 @@ impl StorageCommand {
 
 #[async_trait(?Send)]
 impl Runnable for StorageCommand {
-    async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
             Self::Journal => {
                 if !app_meta.repository.data_store_enabled() {
@@ -102,7 +102,7 @@ impl Runnable for StorageCommand {
                 app_meta
                     .repository
                     .modify(Change::Delete {
-                        id: name.into(),
+                        id: name.as_str().into(),
                         name: name.to_owned(),
                     })
                     .await
@@ -119,17 +119,14 @@ impl Runnable for StorageCommand {
                     })
             }
             Self::Load { name } => {
-                let thing = app_meta.repository.load(&name.into());
+                let thing = app_meta.repository.load(&name.as_str().into());
                 let mut save_command = None;
                 let output = if let Some(thing) = thing {
                     if thing.uuid().is_none() && app_meta.repository.data_store_enabled() {
                         save_command = Some(CommandAlias::literal(
                             "save".to_string(),
                             format!("save {}", name),
-                            StorageCommand::Save {
-                                name: name.to_string(),
-                            }
-                            .into(),
+                            StorageCommand::Save { name }.into(),
                         ));
 
                         Ok(format!(
