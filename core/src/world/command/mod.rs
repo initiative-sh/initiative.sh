@@ -34,14 +34,19 @@ impl Runnable for WorldCommand {
                                     them = thing.gender().them(),
                                 ));
 
+                                /*
+                                 * This should become undo
                                 command_alias = Some(CommandAlias::literal(
                                     "delete".to_string(),
                                     format!("delete {}", name),
-                                    StorageCommand::Delete {
-                                        name: name.to_string(),
+                                    StorageCommand::Change {
+                                        change: Change::Delete {
+                                            name: name.to_string(),
+                                        },
                                     }
                                     .into(),
                                 ));
+                                */
 
                                 Change::CreateAndSave { thing }
                             }
@@ -55,8 +60,10 @@ impl Runnable for WorldCommand {
                                 command_alias = Some(CommandAlias::literal(
                                     "save".to_string(),
                                     format!("save {}", name),
-                                    StorageCommand::Save {
-                                        name: name.to_string(),
+                                    StorageCommand::Change {
+                                        change: Change::Save {
+                                            name: name.to_string(),
+                                        },
                                     }
                                     .into(),
                                 ));

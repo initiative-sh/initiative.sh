@@ -14,8 +14,7 @@ pub struct Repository {
     time: Time,
 }
 
-#[derive(Clone, Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Change {
     /// Create a new thing and store it in recent entries.
     ///
@@ -47,8 +46,7 @@ pub struct DisplayUndo<'a>(&'a Change);
 
 pub struct DisplayRedo<'a>(&'a Change);
 
-#[derive(Clone, Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Id {
     Name(String),
     Uuid(Uuid),

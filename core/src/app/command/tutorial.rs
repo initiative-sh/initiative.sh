@@ -116,8 +116,10 @@ impl TutorialCommand {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "save".to_string(),
                     format!("save {}", inn_name),
-                    StorageCommand::Save {
-                        name: inn_name.clone(),
+                    StorageCommand::Change {
+                        change: Change::Save {
+                            name: inn_name.clone(),
+                        },
                     }
                     .into(),
                 ));
@@ -160,8 +162,10 @@ impl TutorialCommand {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "save".to_string(),
                     format!("save {}", npc_name),
-                    StorageCommand::Save {
-                        name: npc_name.clone(),
+                    StorageCommand::Change {
+                        change: Change::Save {
+                            name: npc_name.clone(),
+                        },
                     }
                     .into(),
                 ));
@@ -295,7 +299,10 @@ impl TutorialCommand {
             Self::Inn => matches!(command, Some(CommandType::Tutorial(Self::Inn))),
             Self::Save => input == "inn",
             Self::Npc { inn_name } => {
-                if let Some(CommandType::Storage(StorageCommand::Save { name })) = command {
+                if let Some(CommandType::Storage(StorageCommand::Change {
+                    change: Change::Save { name },
+                })) = command
+                {
                     name == inn_name
                 } else {
                     false
@@ -310,7 +317,10 @@ impl TutorialCommand {
                 }
             }
             Self::Journal { npc_name, .. } => {
-                if let Some(CommandType::Storage(StorageCommand::Save { name })) = command {
+                if let Some(CommandType::Storage(StorageCommand::Change {
+                    change: Change::Save { name },
+                })) = command
+                {
                     name == npc_name
                 } else {
                     false
@@ -344,7 +354,10 @@ impl TutorialCommand {
             }
             Self::Delete { .. } => matches!(command, Some(CommandType::App(AppCommand::Roll(_)))),
             Self::AdjustTime { inn_name, .. } => {
-                if let Some(CommandType::Storage(StorageCommand::Delete { name })) = command {
+                if let Some(CommandType::Storage(StorageCommand::Change {
+                    change: Change::Delete { name, .. },
+                })) = command
+                {
                     name == inn_name
                 } else {
                     false
