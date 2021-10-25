@@ -2,7 +2,7 @@
 name = "initiative-macros"
 version = "0.1.0"
 authors = ["Mikkel Paulson <git@email.mikkel.ca>"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 proc-macro = true
