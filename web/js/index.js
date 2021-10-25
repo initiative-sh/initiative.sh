@@ -15,7 +15,7 @@ if (stillLoading) {
   stillLoading.parentNode.removeChild(stillLoading)
 }
 
-document.body.insertAdjacentHTML(
+document.getElementById("container").insertAdjacentHTML(
   "beforeend",
   "<form id=\"prompt-form\"><input type=\"text\" id=\"prompt\" autocomplete=\"off\" autocorrect=\"off\" autocapitalize=\"none\"></form>"
 );

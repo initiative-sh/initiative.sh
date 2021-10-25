@@ -19,6 +19,11 @@ body {
     color: var(--solarized-scheme02);
 }
 
+#container {
+    background: var(--solarized-scheme3);
+    max-width: 100ch;
+}
+
 #output {
     margin: 0.5rem 0.5rem 0;
     padding: 0 0 1rem;
