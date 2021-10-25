@@ -1,5 +1,5 @@
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
-use crate::storage::repository::{Change, Error as RepositoryError};
+use crate::storage::{Change, RepositoryError};
 use crate::world::Thing;
 use async_trait::async_trait;
 use std::fmt;
@@ -101,7 +101,10 @@ impl Runnable for StorageCommand {
 
                 app_meta
                     .repository
-                    .modify(Change::Delete { id: name.into() })
+                    .modify(Change::Delete {
+                        id: name.into(),
+                        name: name.to_owned(),
+                    })
                     .await
                     .map(|_| format!("{} was successfully deleted.", name))
                     .map_err(|(_, e)| match e {

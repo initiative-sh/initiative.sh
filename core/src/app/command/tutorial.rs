@@ -303,6 +303,7 @@ impl Runnable for TutorialCommand {
                     .repository
                     .modify(Change::Delete {
                         id: inn_name.into(),
+                        name: inn_name.clone(),
                     })
                     .await
                     .ok();
@@ -313,6 +314,7 @@ impl Runnable for TutorialCommand {
                     .repository
                     .modify(Change::Delete {
                         id: npc_name.into(),
+                        name: npc_name.clone(),
                     })
                     .await
                     .ok();
@@ -589,6 +591,7 @@ impl Runnable for TutorialCommand {
                     .repository
                     .modify(Change::Delete {
                         id: inn_name.into(),
+                        name: inn_name.clone(),
                     })
                     .await
                     .ok();
@@ -596,6 +599,7 @@ impl Runnable for TutorialCommand {
                     .repository
                     .modify(Change::Delete {
                         id: npc_name.into(),
+                        name: npc_name.clone(),
                     })
                     .await
                     .ok();

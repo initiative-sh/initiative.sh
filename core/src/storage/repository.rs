@@ -30,7 +30,7 @@ pub enum Change {
     /// Delete a thing from recent or journal.
     ///
     /// Reverse: Create (recent) or CreateAndSave (journal)
-    Delete { id: Id },
+    Delete { name: String, id: Id },
 
     /// Transfer a thing from recent to journal.
     ///
@@ -40,8 +40,12 @@ pub enum Change {
     /// Transfer a thing from journal to recent. Only triggerable as the reverse to Save.
     ///
     /// Reverse: Save
-    Unsave { uuid: Uuid },
+    Unsave { name: String, uuid: Uuid },
 }
+
+pub struct DisplayUndo<'a>(&'a Change);
+
+pub struct DisplayRedo<'a>(&'a Change);
 
 #[derive(Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -118,16 +122,22 @@ impl Repository {
                 .create_thing(thing)
                 .map(|name| Change::Delete {
                     id: name.as_str().into(),
+                    name: name.to_owned(),
                 })
                 .map_err(|(thing, e)| (Change::Create { thing }, e)),
-            Change::CreateAndSave { thing } => self
-                .create_and_save_thing(thing)
-                .await
-                .map(|uuid| Change::Delete { id: uuid.into() })
-                .map_err(|(thing, e)| (Change::CreateAndSave { thing }, e)),
-            Change::Delete { id } => match id {
-                Id::Name(name) => self
-                    .delete_thing_by_name(&name)
+            Change::CreateAndSave { thing } => {
+                let name = thing.name().to_string();
+                self.create_and_save_thing(thing)
+                    .await
+                    .map(|uuid| Change::Delete {
+                        id: uuid.into(),
+                        name,
+                    })
+                    .map_err(|(thing, e)| (Change::CreateAndSave { thing }, e))
+            }
+            Change::Delete { id, name } => match id {
+                Id::Name(id_name) => self
+                    .delete_thing_by_name(&id_name)
                     .await
                     .map(|thing| {
                         if thing.uuid().is_some() {
@@ -136,23 +146,42 @@ impl Repository {
                             Change::Create { thing }
                         }
                     })
-                    .map_err(|e| (Change::Delete { id: Id::Name(name) }, e)),
+                    .map_err(|e| {
+                        (
+                            Change::Delete {
+                                id: Id::Name(id_name),
+                                name,
+                            },
+                            e,
+                        )
+                    }),
                 Id::Uuid(uuid) => self
                     .delete_thing_by_uuid(&uuid)
                     .await
                     .map(|thing| Change::CreateAndSave { thing })
-                    .map_err(|e| (Change::Delete { id: Id::Uuid(uuid) }, e)),
+                    .map_err(|e| {
+                        (
+                            Change::Delete {
+                                id: Id::Uuid(uuid),
+                                name,
+                            },
+                            e,
+                        )
+                    }),
             },
             Change::Save { name } => self
                 .save_thing_by_name(&name.to_lowercase())
                 .await
-                .map(|uuid| Change::Unsave { uuid })
+                .map(|uuid| Change::Unsave {
+                    uuid,
+                    name: self.cache.get(&uuid).unwrap().name().to_string(),
+                })
                 .map_err(|e| (Change::Save { name }, e)),
-            Change::Unsave { uuid } => self
+            Change::Unsave { name, uuid } => self
                 .unsave_thing_by_uuid(&uuid)
                 .await
                 .map(|name| Change::Save { name })
-                .map_err(|e| (Change::Unsave { uuid }, e)),
+                .map_err(|e| (Change::Unsave { name, uuid }, e)),
         }
     }
 
@@ -298,6 +327,46 @@ impl Repository {
     }
 }
 
+impl Change {
+    pub fn display_undo(&self) -> DisplayUndo {
+        DisplayUndo(self)
+    }
+
+    pub fn display_redo(&self) -> DisplayRedo {
+        DisplayRedo(self)
+    }
+}
+
+impl<'a> fmt::Display for DisplayUndo<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let change = self.0;
+
+        // Note: these descriptions are _backward_ since they describe the reverse, ie. the action
+        // that this Change will undo.
+        match change {
+            Change::Create { thing } => write!(f, "deleting {}", thing.name()),
+            Change::CreateAndSave { thing } => write!(f, "deleting {}", thing.name()),
+            Change::Delete { name, .. } => write!(f, "creating {}", name),
+            Change::Save { name } => write!(f, "removing {} from journal", name),
+            Change::Unsave { name, .. } => write!(f, "saving {} to journal", name),
+        }
+    }
+}
+
+impl<'a> fmt::Display for DisplayRedo<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let change = self.0;
+
+        match change {
+            Change::Create { thing } => write!(f, "creating {}", thing.name()),
+            Change::CreateAndSave { thing } => write!(f, "creating {}", thing.name()),
+            Change::Delete { name, .. } => write!(f, "deleting {}", name),
+            Change::Save { name } => write!(f, "saving {} to journal", name),
+            Change::Unsave { name, .. } => write!(f, "removing {} from journal", name),
+        }
+    }
+}
+
 impl From<Uuid> for Id {
     fn from(input: Uuid) -> Self {
         Id::Uuid(input)
@@ -431,61 +500,13 @@ mod test {
     }
 
     #[test]
-    fn change_test_delete_from_journal_by_name() {
-        let (mut repo, data_store) = repo_data_store();
-        assert_eq!(
-            Ok(Change::CreateAndSave {
-                thing: Location {
-                    uuid: Some(TEST_UUID.into()),
-                    name: "Olympus".into(),
-                    ..Default::default()
-                }
-                .into()
-            }),
-            block_on(repo.modify(Change::Delete {
-                id: "olympus".into(),
-            })),
-        );
-        assert_eq!(0, repo.journal().count());
-        assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
-    }
-
-    #[test]
-    fn change_test_delete_from_recent_by_name() {
-        let mut repo = repo();
-        assert_eq!(
-            Ok(Change::Create {
-                thing: Npc {
-                    name: "Odysseus".into(),
-                    ..Default::default()
-                }
-                .into()
-            }),
-            block_on(repo.modify(Change::Delete {
-                id: "ODYSSEUS".into(),
-            })),
-        );
-        assert_eq!(0, repo.recent().count());
-    }
-
-    #[test]
-    fn change_test_delete_by_name_not_found() {
-        let change = Change::Delete {
-            id: "NOBODY".into(),
-        };
-
-        assert_eq!(
-            block_on(repo().modify(change.clone())),
-            Err((change, Error::NotFound)),
-        );
-    }
-
-    #[test]
-    fn change_test_delete_by_uuid_success() {
+    fn change_test_delete_by_name_from_journal_success() {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::Delete {
-            id: TEST_UUID.into(),
+            id: "OLYMPUS".into(),
+            name: "Olympus".to_string(),
         };
+        assert_eq!("deleting Olympus", change.display_redo().to_string());
 
         let result = block_on(repo.modify(change)).unwrap();
 
@@ -500,6 +521,72 @@ mod test {
             },
             result,
         );
+        assert_eq!("deleting Olympus", result.display_undo().to_string());
+        assert_eq!(0, repo.journal().count());
+        assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+    }
+
+    #[test]
+    fn change_test_delete_by_name_from_recent_success() {
+        let mut repo = repo();
+        let change = Change::Delete {
+            id: "ODYSSEUS".into(),
+            name: "Odysseus".to_string(),
+        };
+        assert_eq!("deleting Odysseus", change.display_redo().to_string());
+
+        let result = block_on(repo.modify(change)).unwrap();
+
+        assert_eq!(
+            Change::Create {
+                thing: Npc {
+                    name: "Odysseus".into(),
+                    ..Default::default()
+                }
+                .into()
+            },
+            result,
+        );
+        assert_eq!("deleting Odysseus", result.display_undo().to_string());
+        assert_eq!(0, repo.recent().count());
+    }
+
+    #[test]
+    fn change_test_delete_by_name_not_found() {
+        let change = Change::Delete {
+            id: "NOBODY".into(),
+            name: String::new(),
+        };
+
+        assert_eq!(
+            block_on(repo().modify(change.clone())),
+            Err((change, Error::NotFound)),
+        );
+    }
+
+    #[test]
+    fn change_test_delete_by_uuid_success() {
+        let (mut repo, data_store) = repo_data_store();
+        let change = Change::Delete {
+            id: TEST_UUID.into(),
+            name: "Olympus".to_string(),
+        };
+        assert_eq!("deleting Olympus", change.display_redo().to_string());
+
+        let result = block_on(repo.modify(change)).unwrap();
+
+        assert_eq!(
+            Change::CreateAndSave {
+                thing: Location {
+                    uuid: Some(TEST_UUID.into()),
+                    name: "Olympus".into(),
+                    ..Default::default()
+                }
+                .into()
+            },
+            result,
+        );
+        assert_eq!("deleting Olympus", result.display_undo().to_string());
         assert_eq!(0, repo.journal().count());
         assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
     }
@@ -508,6 +595,7 @@ mod test {
     fn change_test_delete_by_uuid_not_found() {
         let change = Change::Delete {
             id: Uuid::nil().into(),
+            name: "Nobody".to_string(),
         };
 
         let result = block_on(repo().modify(change.clone())).unwrap_err();
@@ -521,6 +609,7 @@ mod test {
         block_on(data_store.delete_thing_by_uuid(&TEST_UUID)).unwrap();
         let change = Change::Delete {
             id: TEST_UUID.into(),
+            name: "Olympus".to_string(),
         };
 
         let result = block_on(repo.modify(change.clone())).unwrap_err();
@@ -531,21 +620,26 @@ mod test {
     #[test]
     fn change_test_create_success() {
         let mut repo = empty_repo();
+        let change = Change::Create {
+            thing: Npc {
+                name: "Odysseus".into(),
+                ..Default::default()
+            }
+            .clone()
+            .into(),
+        };
+        assert_eq!("creating Odysseus", change.display_redo().to_string());
+
+        let result = block_on(repo.modify(change)).unwrap();
+
         assert_eq!(
-            Ok(Change::Delete {
-                id: "Odysseus".into()
-            }),
-            block_on(
-                repo.modify(Change::Create {
-                    thing: Npc {
-                        name: "Odysseus".into(),
-                        ..Default::default()
-                    }
-                    .clone()
-                    .into()
-                })
-            ),
+            Change::Delete {
+                id: "Odysseus".into(),
+                name: "Odysseus".to_string(),
+            },
+            result,
         );
+        assert_eq!("creating Odysseus", result.display_undo().to_string());
         assert_eq!(1, repo.recent().count());
     }
 
@@ -591,17 +685,25 @@ mod test {
     #[test]
     fn change_test_save_success() {
         let (mut repo, data_store) = repo_data_store();
+        let change = Change::Save {
+            name: "ODYSSEUS".to_string(),
+        };
+        assert_eq!(
+            "saving ODYSSEUS to journal",
+            change.display_redo().to_string(),
+        );
 
-        assert_eq!(1, repo.journal().count());
-        assert_eq!(1, repo.recent().count());
+        let result = block_on(repo.modify(change)).unwrap();
 
-        assert!(matches!(
-            block_on(repo.modify(Change::Save {
-                name: "ODYSSEUS".to_string()
-            })),
-            Ok(Change::Unsave { .. })
-        ));
-
+        if let Change::Unsave { ref name, uuid: _ } = result {
+            assert_eq!("Odysseus", name);
+            assert_eq!(
+                "saving Odysseus to journal",
+                result.display_undo().to_string(),
+            );
+        } else {
+            panic!("{:?}", result);
+        }
         assert_eq!(2, repo.journal().count());
         assert_eq!(2, block_on(data_store.get_all_the_things()).unwrap().len());
         assert_eq!(0, repo.recent().count());
@@ -664,23 +766,59 @@ mod test {
     }
 
     #[test]
+    fn change_test_unsave_success() {
+        let mut repo = repo();
+        let change = Change::Unsave {
+            name: "Olympus".to_string(),
+            uuid: TEST_UUID.clone(),
+        };
+        assert_eq!(
+            "removing Olympus from journal",
+            change.display_redo().to_string(),
+        );
+
+        let result = block_on(repo.modify(change)).unwrap();
+
+        assert_eq!(
+            Change::Save {
+                name: "Olympus".to_string(),
+            },
+            result,
+        );
+        assert_eq!(
+            "removing Olympus from journal",
+            result.display_undo().to_string(),
+        );
+        assert_eq!(0, repo.journal().count());
+        assert_eq!(2, repo.recent().count());
+    }
+
+    #[test]
     fn change_test_create_and_save_success() {
         let (mut repo, data_store) = empty_repo_data_store();
-        assert!(matches!(
-            block_on(
-                repo.modify(Change::CreateAndSave {
-                    thing: Npc {
-                        name: "Odysseus".into(),
-                        ..Default::default()
-                    }
-                    .clone()
-                    .into()
-                })
-            ),
-            Ok(Change::Delete {
-                id: Id::Uuid { .. }
-            }),
-        ));
+        let change = Change::CreateAndSave {
+            thing: Npc {
+                name: "Odysseus".into(),
+                ..Default::default()
+            }
+            .clone()
+            .into(),
+        };
+        assert_eq!("creating Odysseus", change.display_redo().to_string());
+
+        let result = block_on(repo.modify(change)).unwrap();
+
+        assert_eq!("creating Odysseus", result.display_undo().to_string());
+        if let Change::Delete {
+            id: Id::Uuid(uuid),
+            name,
+        } = result
+        {
+            assert_eq!("Odysseus", name);
+            assert!(repo.load(&uuid.into()).is_some());
+        } else {
+            panic!();
+        }
         assert_eq!(1, repo.journal().count());
         assert_eq!(
             repo.journal().next().unwrap().uuid().unwrap(),
