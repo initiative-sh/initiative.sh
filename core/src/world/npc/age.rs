@@ -230,7 +230,7 @@ mod test {
 
     #[test]
     fn serialize_deserialize_test() {
-        assert_eq!(r#""Adult""#, serde_json::to_string(&Age::Adult).unwrap(),);
+        assert_eq!(r#""Adult""#, serde_json::to_string(&Age::Adult).unwrap());
 
         let value: Age = serde_json::from_str(r#""Adult""#).unwrap();
         assert_eq!(Age::Adult, value);

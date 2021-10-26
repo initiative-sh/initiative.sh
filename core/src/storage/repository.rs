@@ -377,7 +377,7 @@ mod test {
 
     #[test]
     fn change_test_delete_from_journal_by_name() {
-        let mut repo = repo();
+        let (mut repo, data_store) = repo_data_store();
         assert_eq!(
             Ok(()),
             block_on(repo.modify(Change::Delete {
@@ -385,6 +385,7 @@ mod test {
             })),
         );
         assert_eq!(0, repo.journal().count());
+        assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
     }
 
     #[test]
@@ -441,7 +442,7 @@ mod test {
 
     #[test]
     fn change_test_create_already_exists_in_journal() {
-        let mut repo = repo();
+        let (mut repo, data_store) = repo_data_store();
         let change = Change::Create {
             thing: Npc {
                 name: "Olympus".into(),
@@ -455,7 +456,8 @@ mod test {
             block_on(repo.modify(change.clone())),
             Err((change, Error::NameAlreadyExists)),
         );
-        assert_eq!(1, repo.recent().count());
+        assert_eq!(1, repo.journal().count());
+        assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
     }
 
     #[test]
@@ -479,7 +481,7 @@ mod test {
 
     #[test]
     fn change_test_save_success() {
-        let mut repo = repo();
+        let (mut repo, data_store) = repo_data_store();
 
         assert_eq!(1, repo.journal().count());
         assert_eq!(1, repo.recent().count());
@@ -492,12 +494,13 @@ mod test {
         );
 
         assert_eq!(2, repo.journal().count());
+        assert_eq!(2, block_on(data_store.get_all_the_things()).unwrap().len());
         assert_eq!(0, repo.recent().count());
     }
 
     #[test]
     fn change_test_save_data_store_failed() {
-        let mut repo = Repository::new(NullDataStore::default());
+        let mut repo = null_repo();
 
         block_on(
             repo.modify(Change::Create {
@@ -553,7 +556,7 @@ mod test {
 
     #[test]
     fn change_test_create_and_save_success() {
-        let mut repo = empty_repo();
+        let (mut repo, data_store) = empty_repo_data_store();
         assert_eq!(
             Ok(()),
             block_on(
@@ -568,16 +571,20 @@ mod test {
             ),
         );
         assert_eq!(1, repo.journal().count());
-        assert!(repo
-            .journal()
-            .next()
-            .and_then(|thing| thing.uuid())
-            .is_some());
+        assert_eq!(
+            repo.journal().next().unwrap().uuid().unwrap(),
+            block_on(data_store.get_all_the_things())
+                .unwrap()
+                .first()
+                .unwrap()
+                .uuid()
+                .unwrap(),
+        );
     }
 
     #[test]
     fn change_test_create_and_save_already_exists_in_journal() {
-        let mut repo = repo();
+        let (mut repo, data_store) = repo_data_store();
         let change = Change::CreateAndSave {
             thing: Location {
                 name: "Odysseus".into(),
@@ -592,11 +599,12 @@ mod test {
             Err((change, Error::NameAlreadyExists)),
         );
         assert_eq!(1, repo.journal().count());
+        assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
     }
 
     #[test]
     fn change_test_create_and_save_already_exists_in_recent() {
-        let mut repo = repo();
+        let (mut repo, data_store) = repo_data_store();
         let change = Change::CreateAndSave {
             thing: Npc {
                 name: "Olympus".into(),
@@ -611,11 +619,12 @@ mod test {
             Err((change, Error::NameAlreadyExists)),
         );
         assert_eq!(1, repo.journal().count());
+        assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
     }
 
     #[test]
     fn change_test_create_and_save_data_store_failed() {
-        let mut repo = Repository::new(NullDataStore::default());
+        let mut repo = null_repo();
 
         let change = Change::CreateAndSave {
             thing: Location {
@@ -642,19 +651,23 @@ mod test {
 
     #[test]
     fn data_store_enabled_test_success() {
-        let mut repo = Repository::new(MemoryDataStore::default());
+        let mut repo = repo();
         block_on(repo.init());
         assert_eq!(true, repo.data_store_enabled());
     }
 
     #[test]
     fn data_store_enabled_test_failure() {
-        let mut repo = Repository::new(NullDataStore::default());
+        let mut repo = null_repo();
         block_on(repo.init());
         assert_eq!(false, repo.data_store_enabled());
     }
 
     fn repo() -> Repository {
+        repo_data_store().0
+    }
+
+    fn repo_data_store() -> (Repository, MemoryDataStore) {
         let mut data_store = MemoryDataStore::default();
         block_on(
             data_store.save_thing(
@@ -668,7 +681,7 @@ mod test {
         )
         .unwrap();
 
-        let mut repo = Repository::new(data_store);
+        let mut repo = Repository::new(data_store.clone());
         block_on(repo.init());
 
         repo.recent.push_back(
@@ -679,10 +692,19 @@ mod test {
             .into(),
         );
 
-        repo
+        (repo, data_store)
     }
 
     fn empty_repo() -> Repository {
         Repository::new(MemoryDataStore::default())
+    }
+
+    fn empty_repo_data_store() -> (Repository, MemoryDataStore) {
+        let data_store = MemoryDataStore::default();
+        (Repository::new(data_store.clone()), data_store)
+    }
+
+    fn null_repo() -> Repository {
+        Repository::new(NullDataStore::default())
     }
 }

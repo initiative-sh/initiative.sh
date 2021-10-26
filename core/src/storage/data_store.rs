@@ -5,7 +5,7 @@ use async_trait::async_trait;
 pub struct NullDataStore;
 
 #[cfg(test)]
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct MemoryDataStore {
     pub things: std::rc::Rc<std::cell::RefCell<Vec<Thing>>>,
     pub key_values: std::rc::Rc<std::cell::RefCell<std::collections::HashMap<String, String>>>,
