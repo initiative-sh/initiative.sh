@@ -5,6 +5,7 @@ use std::collections::{HashMap, VecDeque};
 use std::fmt;
 
 const RECENT_MAX_LEN: usize = 100;
+const UNDO_HISTORY_LEN: usize = 10;
 
 pub struct Repository {
     cache: HashMap<Uuid, Thing>,
@@ -12,6 +13,7 @@ pub struct Repository {
     data_store_enabled: bool,
     recent: VecDeque<Thing>,
     time: Time,
+    undo_history: VecDeque<Change>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -68,6 +70,7 @@ impl Repository {
             data_store_enabled: false,
             recent: VecDeque::default(),
             time: Time::try_new(1, 8, 0, 0).unwrap(),
+            undo_history: VecDeque::default(),
         }
     }
 
@@ -114,7 +117,35 @@ impl Repository {
         self.cache.values()
     }
 
-    pub async fn modify(&mut self, change: Change) -> Result<Change, (Change, Error)> {
+    pub async fn modify(&mut self, change: Change) -> Result<(), (Change, Error)> {
+        self.modify_without_undo(change).await.map(|change| {
+            while self.undo_history.len() >= UNDO_HISTORY_LEN {
+                self.undo_history.pop_front();
+            }
+            self.undo_history.push_back(change);
+        })
+    }
+
+    pub async fn undo(&mut self) -> Option<Result<Change, Error>> {
+        if let Some(change) = self.undo_history.pop_back() {
+            Some(
+                self.modify_without_undo(change)
+                    .await
+                    .map_err(|(change, e)| {
+                        self.undo_history.push_back(change);
+                        e
+                    }),
+            )
+        } else {
+            None
+        }
+    }
+
+    pub fn undo_history(&self) -> impl Iterator<Item = &Change> {
+        self.undo_history.iter().rev()
+    }
+
+    async fn modify_without_undo(&mut self, change: Change) -> Result<Change, (Change, Error)> {
         match change {
             Change::Create { thing } => self
                 .create_thing(thing)
@@ -303,8 +334,13 @@ impl Repository {
     }
 
     async fn save_thing(&mut self, mut thing: Thing) -> Result<Uuid, (Thing, Error)> {
-        let uuid = Uuid::new_v4();
-        thing.set_uuid(uuid);
+        let uuid = if let Some(&uuid) = thing.uuid() {
+            uuid
+        } else {
+            let uuid = Uuid::new_v4();
+            thing.set_uuid(uuid);
+            uuid
+        };
 
         match self.data_store.save_thing(&thing).await {
             Ok(()) => {
@@ -506,22 +542,42 @@ mod test {
         };
         assert_eq!("deleting Olympus", change.display_redo().to_string());
 
-        let result = block_on(repo.modify(change)).unwrap();
+        {
+            block_on(repo.modify(change)).unwrap();
+            let result = repo.undo_history().next().unwrap();
 
-        assert_eq!(
-            Change::CreateAndSave {
-                thing: Location {
-                    uuid: Some(TEST_UUID.into()),
-                    name: "Olympus".into(),
-                    ..Default::default()
-                }
-                .into()
-            },
-            result,
-        );
-        assert_eq!("deleting Olympus", result.display_undo().to_string());
-        assert_eq!(0, repo.journal().count());
-        assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(
+                &Change::CreateAndSave {
+                    thing: Location {
+                        uuid: Some(TEST_UUID.into()),
+                        name: "Olympus".into(),
+                        ..Default::default()
+                    }
+                    .into()
+                },
+                result,
+            );
+            assert_eq!("deleting Olympus", result.display_undo().to_string());
+            assert_eq!(0, repo.journal().count());
+            assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+        }
+
+        {
+            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+
+            if let Change::Delete {
+                id: Id::Uuid(uuid),
+                name,
+            } = undo_result
+            {
+                assert_eq!("Olympus", name);
+                assert!(repo.load(&uuid.into()).is_some());
+            } else {
+                panic!();
+            }
+            assert_eq!(1, repo.journal().count());
+            assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+        }
     }
 
     #[test]
@@ -533,33 +589,37 @@ mod test {
         };
         assert_eq!("deleting Odysseus", change.display_redo().to_string());
 
-        let result = block_on(repo.modify(change)).unwrap();
+        {
+            block_on(repo.modify(change)).unwrap();
+            let result = repo.undo_history().next().unwrap();
 
-        assert_eq!(
-            Change::Create {
-                thing: Npc {
-                    name: "Odysseus".into(),
-                    ..Default::default()
-                }
-                .into()
-            },
-            result,
-        );
-        assert_eq!("deleting Odysseus", result.display_undo().to_string());
-        assert_eq!(0, repo.recent().count());
-    }
+            assert_eq!(
+                &Change::Create {
+                    thing: Npc {
+                        name: "Odysseus".into(),
+                        ..Default::default()
+                    }
+                    .into()
+                },
+                result,
+            );
+            assert_eq!("deleting Odysseus", result.display_undo().to_string());
+            assert_eq!(0, repo.recent().count());
+        }
 
-    #[test]
-    fn change_test_delete_by_name_not_found() {
-        let change = Change::Delete {
-            id: "NOBODY".into(),
-            name: String::new(),
-        };
+        {
+            let undo_result = block_on(repo.undo()).unwrap().unwrap();
 
-        assert_eq!(
-            block_on(repo().modify(change.clone())),
-            Err((change, Error::NotFound)),
-        );
+            assert_eq!(
+                Change::Delete {
+                    id: "odysseus".into(),
+                    name: "Odysseus".to_string(),
+                },
+                undo_result,
+            );
+            assert!(repo.load(&"odysseus".into()).is_some());
+            assert_eq!(1, repo.recent().count());
+        }
     }
 
     #[test]
@@ -567,26 +627,44 @@ mod test {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::Delete {
             id: TEST_UUID.into(),
-            name: "Olympus".to_string(),
+            name: "olympus".to_string(),
         };
-        assert_eq!("deleting Olympus", change.display_redo().to_string());
+        assert_eq!("deleting olympus", change.display_redo().to_string());
 
-        let result = block_on(repo.modify(change)).unwrap();
+        {
+            block_on(repo.modify(change)).unwrap();
+            let result = repo.undo_history().next().unwrap();
 
-        assert_eq!(
-            Change::CreateAndSave {
-                thing: Location {
-                    uuid: Some(TEST_UUID.into()),
-                    name: "Olympus".into(),
-                    ..Default::default()
-                }
-                .into()
-            },
-            result,
-        );
-        assert_eq!("deleting Olympus", result.display_undo().to_string());
-        assert_eq!(0, repo.journal().count());
-        assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(
+                &Change::CreateAndSave {
+                    thing: Location {
+                        uuid: Some(TEST_UUID.into()),
+                        name: "Olympus".into(),
+                        ..Default::default()
+                    }
+                    .into()
+                },
+                result,
+            );
+            assert_eq!("deleting Olympus", result.display_undo().to_string());
+            assert_eq!(0, repo.journal().count());
+            assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+        }
+
+        {
+            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+
+            assert_eq!(
+                Change::Delete {
+                    id: TEST_UUID.into(),
+                    name: "Olympus".to_string(),
+                },
+                undo_result,
+            );
+            assert!(repo.load(&TEST_UUID.into()).is_some());
+            assert_eq!(1, repo.journal().count());
+            assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+        }
     }
 
     #[test]
@@ -623,22 +701,40 @@ mod test {
                 name: "Odysseus".into(),
                 ..Default::default()
             }
-            .clone()
             .into(),
         };
         assert_eq!("creating Odysseus", change.display_redo().to_string());
 
-        let result = block_on(repo.modify(change)).unwrap();
+        {
+            block_on(repo.modify(change)).unwrap();
+            let result = repo.undo_history().next().unwrap();
 
-        assert_eq!(
-            Change::Delete {
-                id: "Odysseus".into(),
-                name: "Odysseus".to_string(),
-            },
-            result,
-        );
-        assert_eq!("creating Odysseus", result.display_undo().to_string());
-        assert_eq!(1, repo.recent().count());
+            assert_eq!(
+                &Change::Delete {
+                    id: "Odysseus".into(),
+                    name: "Odysseus".to_string(),
+                },
+                result,
+            );
+            assert_eq!("creating Odysseus", result.display_undo().to_string());
+            assert_eq!(1, repo.recent().count());
+        }
+
+        {
+            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+
+            assert_eq!(
+                Change::Create {
+                    thing: Npc {
+                        name: "Odysseus".into(),
+                        ..Default::default()
+                    }
+                    .into(),
+                },
+                undo_result,
+            );
+            assert_eq!(0, repo.recent().count());
+        }
     }
 
     #[test]
@@ -691,20 +787,37 @@ mod test {
             change.display_redo().to_string(),
         );
 
-        let result = block_on(repo.modify(change)).unwrap();
+        {
+            block_on(repo.modify(change)).unwrap();
+            let result = repo.undo_history().next().unwrap();
 
-        if let Change::Unsave { ref name, uuid: _ } = result {
-            assert_eq!("Odysseus", name);
             assert_eq!(
                 "saving Odysseus to journal",
                 result.display_undo().to_string(),
             );
-        } else {
-            panic!("{:?}", result);
+            if let Change::Unsave { ref name, uuid: _ } = result {
+                assert_eq!("Odysseus", name);
+            } else {
+                panic!("{:?}", result);
+            }
+            assert_eq!(2, repo.journal().count());
+            assert_eq!(2, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(0, repo.recent().count());
         }
-        assert_eq!(2, repo.journal().count());
-        assert_eq!(2, block_on(data_store.get_all_the_things()).unwrap().len());
-        assert_eq!(0, repo.recent().count());
+
+        {
+            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+
+            assert_eq!(
+                Change::Save {
+                    name: "Odysseus".to_string(),
+                },
+                undo_result,
+            );
+            assert_eq!(1, repo.journal().count());
+            assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(1, repo.recent().count());
+        }
     }
 
     #[test]
@@ -765,7 +878,7 @@ mod test {
 
     #[test]
     fn change_test_unsave_success() {
-        let mut repo = repo();
+        let (mut repo, data_store) = repo_data_store();
         let change = Change::Unsave {
             name: "Olympus".to_string(),
             uuid: TEST_UUID.clone(),
@@ -775,20 +888,40 @@ mod test {
             change.display_redo().to_string(),
         );
 
-        let result = block_on(repo.modify(change)).unwrap();
+        {
+            block_on(repo.modify(change)).unwrap();
+            let result = repo.undo_history().next().unwrap();
 
-        assert_eq!(
-            Change::Save {
-                name: "Olympus".to_string(),
-            },
-            result,
-        );
-        assert_eq!(
-            "removing Olympus from journal",
-            result.display_undo().to_string(),
-        );
-        assert_eq!(0, repo.journal().count());
-        assert_eq!(2, repo.recent().count());
+            assert_eq!(
+                &Change::Save {
+                    name: "Olympus".to_string(),
+                },
+                result,
+            );
+            assert_eq!(
+                "removing Olympus from journal",
+                result.display_undo().to_string(),
+            );
+            assert_eq!(0, repo.journal().count());
+            assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(2, repo.recent().count());
+            assert_eq!(None, repo.load(&"Olympus".into()).unwrap().uuid());
+        }
+
+        {
+            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+
+            if let Change::Unsave { name, uuid } = undo_result {
+                assert_eq!("Olympus", name);
+                assert_ne!(TEST_UUID, uuid);
+                assert!(repo.load(&uuid.into()).is_some());
+            } else {
+                panic!();
+            }
+            assert_eq!(1, repo.journal().count());
+            assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(1, repo.recent().count());
+        }
     }
 
     #[test]
@@ -799,34 +932,55 @@ mod test {
                 name: "Odysseus".into(),
                 ..Default::default()
             }
-            .clone()
             .into(),
         };
         assert_eq!("creating Odysseus", change.display_redo().to_string());
 
-        let result = block_on(repo.modify(change)).unwrap();
-
-        assert_eq!("creating Odysseus", result.display_undo().to_string());
-        if let Change::Delete {
-            id: Id::Uuid(uuid),
-            name,
-        } = result
         {
-            assert_eq!("Odysseus", name);
-            assert!(repo.load(&uuid.into()).is_some());
-        } else {
-            panic!();
+            block_on(repo.modify(change)).unwrap();
+            let result = repo.undo_history().next().unwrap();
+
+            assert_eq!("creating Odysseus", result.display_undo().to_string());
+            if let Change::Delete {
+                id: Id::Uuid(uuid),
+                name,
+            } = result
+            {
+                assert_eq!("Odysseus", name);
+                assert!(repo.load(&uuid.to_owned().into()).is_some());
+            } else {
+                panic!();
+            }
+            assert_eq!(1, repo.journal().count());
+            assert_eq!(
+                repo.journal().next().unwrap().uuid().unwrap(),
+                block_on(data_store.get_all_the_things())
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .uuid()
+                    .unwrap(),
+            );
         }
-        assert_eq!(1, repo.journal().count());
-        assert_eq!(
-            repo.journal().next().unwrap().uuid().unwrap(),
-            block_on(data_store.get_all_the_things())
-                .unwrap()
-                .first()
-                .unwrap()
-                .uuid()
-                .unwrap(),
-        );
+
+        {
+            let uuid = *repo.journal().next().unwrap().uuid().unwrap();
+            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+
+            assert_eq!(
+                Change::CreateAndSave {
+                    thing: Npc {
+                        uuid: Some(uuid.into()),
+                        name: "Odysseus".into(),
+                        ..Default::default()
+                    }
+                    .into(),
+                },
+                undo_result,
+            );
+            assert_eq!(0, repo.journal().count());
+            assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+        }
     }
 
     #[test]
