@@ -76,42 +76,46 @@ impl<T: Into<CommandType>> From<(Option<T>, Vec<T>)> for Command {
 
 #[async_trait(?Send)]
 impl Runnable for Command {
-    async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         if let Some(command) = &self.exact_match {
-            let mut result = command.run(input, app_meta).await;
-            if !self.fuzzy_matches.is_empty()
+            let other_interpretations_message = if !self.fuzzy_matches.is_empty()
                 && !matches!(
                     command,
                     CommandType::Alias(CommandAlias::StrictWildcard { .. })
-                )
-            {
-                let f = |mut message: String| -> String {
-                    message.push_str("\n\n! There are other possible interpretations of this command. Did you mean:\n");
-                    let mut lines: Vec<_> = self
-                        .fuzzy_matches
-                        .iter()
-                        .map(|command| format!("\n* `{}`", command))
-                        .collect();
-                    lines.sort();
-                    lines.drain(..).for_each(|line| message.push_str(&line));
-                    message
-                };
+                ) {
+                let mut message = "\n\n! There are other possible interpretations of this command. Did you mean:\n".to_string();
+                let mut lines: Vec<_> = self
+                    .fuzzy_matches
+                    .iter()
+                    .map(|command| format!("\n* `{}`", command))
+                    .collect();
+                lines.sort();
+                lines.drain(..).for_each(|line| message.push_str(&line));
+                Some(message)
+            } else {
+                None
+            };
 
-                result = match result {
-                    Ok(s) => Ok(f(s)),
-                    Err(s) => Err(f(s)),
-                };
+            let result = self.exact_match.unwrap().run(input, app_meta).await;
+            if let Some(message) = other_interpretations_message {
+                result
+                    .map(|mut s| {
+                        s.push_str(&message);
+                        s
+                    })
+                    .map_err(|mut s| {
+                        s.push_str(&message);
+                        s
+                    })
+            } else {
+                result
             }
-            result
         } else {
-            match self.fuzzy_matches.len() {
+            match &self.fuzzy_matches.len() {
                 0 => Err(format!("Unknown command: \"{}\"", input)),
                 1 => {
-                    self.fuzzy_matches
-                        .first()
-                        .unwrap()
-                        .run(input, app_meta)
-                        .await
+                    let mut fuzzy_matches = self.fuzzy_matches;
+                    fuzzy_matches.pop().unwrap().run(input, app_meta).await
                 }
                 _ => {
                     let mut message =
@@ -166,7 +170,7 @@ pub enum CommandType {
 }
 
 impl CommandType {
-    async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         if !matches!(self, Self::Alias(_) | Self::Tutorial(_)) {
             app_meta.command_aliases.clear();
         }

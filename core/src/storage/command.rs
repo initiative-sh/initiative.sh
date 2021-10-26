@@ -1,53 +1,68 @@
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
-use crate::storage::repository::{Change, Error as RepositoryError};
+use crate::storage::{Change, RepositoryError};
 use crate::world::Thing;
 use async_trait::async_trait;
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StorageCommand {
-    Delete { name: String },
+    Change { change: Change },
     Journal,
     Load { name: String },
-    Save { name: String },
+    Undo,
 }
 
 impl StorageCommand {
-    fn summarize(&self, thing: Option<&Thing>) -> String {
-        if let Some(thing) = thing {
-            let thing_type = match thing {
-                Thing::Location(_) => "location",
-                Thing::Npc(_) => "NPC",
-                Thing::Region(_) => "region",
-            };
-
-            match self {
-                Self::Delete { .. } => format!("remove {} from journal", thing_type),
-                Self::Journal { .. } => unreachable!(),
-                Self::Load { .. } => {
-                    if thing.uuid().is_some() {
-                        format!("{}", thing.display_description())
-                    } else {
-                        format!("{} (unsaved)", thing.display_description())
-                    }
+    fn summarize(&self, thing: Option<&Thing>, last_change: Option<&Change>) -> String {
+        match (self, thing) {
+            (
+                Self::Change {
+                    change: Change::Delete { .. },
+                },
+                Some(thing),
+            ) => format!("remove {} from journal", thing.as_str()),
+            (
+                Self::Change {
+                    change: Change::Delete { .. },
+                },
+                None,
+            ) => "remove an entry from journal".to_string(),
+            (
+                Self::Change {
+                    change: Change::Save { .. },
+                },
+                Some(thing),
+            ) => format!("save {} to journal", thing.as_str()),
+            (
+                Self::Change {
+                    change: Change::Save { .. },
+                },
+                None,
+            ) => "save an entry to journal".to_string(),
+            (Self::Change { .. }, _) => unreachable!(),
+            (Self::Journal { .. }, _) => "list journal contents".to_string(),
+            (Self::Load { .. }, Some(thing)) => {
+                if thing.uuid().is_some() {
+                    format!("{}", thing.display_description())
+                } else {
+                    format!("{} (unsaved)", thing.display_description())
                 }
-                Self::Save { .. } => format!("save {} to journal", thing_type),
             }
-        } else {
-            match self {
-                Self::Delete { .. } => "remove an entry from journal",
-                Self::Journal { .. } => "list journal contents",
-                Self::Load { .. } => "load an entry",
-                Self::Save { .. } => "save an entry to journal",
+            (Self::Load { .. }, None) => "load an entry".to_string(),
+            (Self::Undo, _) => {
+                if let Some(change) = last_change {
+                    format!("undo {}", change.display_undo())
+                } else {
+                    "nothing to undo".to_string()
+                }
             }
-            .to_string()
         }
     }
 }
 
 #[async_trait(?Send)]
 impl Runnable for StorageCommand {
-    async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
             Self::Journal => {
                 if !app_meta.repository.data_store_enabled() {
@@ -94,37 +109,77 @@ impl Runnable for StorageCommand {
 
                 Ok(output)
             }
-            Self::Delete { name } => {
-                if !app_meta.repository.data_store_enabled() {
+            Self::Change { change } => {
+                if matches!(change, Change::Save { .. } | Change::Unsave { .. })
+                    && !app_meta.repository.data_store_enabled()
+                {
                     return Err("The journal is not supported by your browser.".to_string());
                 }
 
-                app_meta
-                    .repository
-                    .modify(Change::Delete { id: name.into() })
-                    .await
-                    .map(|_| format!("{} was successfully deleted.", name))
-                    .map_err(|(_, e)| match e {
-                        RepositoryError::NotFound => {
-                            format!("There is no entity named \"{}\".", name)
-                        }
-                        RepositoryError::DataStoreFailed
-                        | RepositoryError::MissingName
-                        | RepositoryError::NameAlreadyExists => {
-                            format!("Couldn't delete `{}`.", name)
-                        }
-                    })
+                let name = match &change {
+                    Change::Create { thing } | Change::CreateAndSave { thing } => {
+                        thing.name().to_string()
+                    }
+                    Change::Delete { name, .. }
+                    | Change::Save { name }
+                    | Change::Unsave { name, .. } => name.to_owned(),
+                };
+
+                match &change {
+                    Change::Create { .. } | Change::CreateAndSave { .. } => app_meta
+                        .repository
+                        .modify(change)
+                        .await
+                        .map(|_| format!("{} was successfully restored. Use `undo` to reverse this.", name))
+                        .map_err(|_| format!("Couldn't restore {}.", name)),
+                    Change::Delete { .. } => app_meta
+                        .repository
+                        .modify(change)
+                        .await
+                        .map(|_| format!("{} was successfully deleted. Use `undo` to reverse this.", name))
+                        .map_err(|(_, e)| match e {
+                            RepositoryError::NotFound => {
+                                format!("There is no entity named \"{}\".", name)
+                            }
+                            RepositoryError::DataStoreFailed
+                            | RepositoryError::MissingName
+                            | RepositoryError::NameAlreadyExists => {
+                                format!("Couldn't delete `{}`.", name)
+                            }
+                        }),
+                    Change::Save { .. } => app_meta
+                        .repository
+                        .modify(change)
+                        .await
+                        .map(|_| format!("{} was successfully saved. Use `undo` to reverse this.", name))
+                        .map_err(|(_, e)| match e {
+                            RepositoryError::NotFound => {
+                                format!("There is no entity named \"{}\".", name)
+                            }
+                            RepositoryError::DataStoreFailed
+                            | RepositoryError::MissingName
+                            | RepositoryError::NameAlreadyExists => {
+                                format!("Couldn't save `{}`.", name)
+                            }
+                        }),
+                    Change::Unsave { .. } => app_meta
+                        .repository
+                        .modify(change)
+                        .await
+                        .map(|_| format!("{} was successfully removed from the journal. Use `undo` to reverse this.", name))
+                        .map_err(|_| format!("Couldn't remove {} from the journal.", name)),
+                }
             }
             Self::Load { name } => {
-                let thing = app_meta.repository.load(&name.into());
+                let thing = app_meta.repository.load(&name.as_str().into());
                 let mut save_command = None;
                 let output = if let Some(thing) = thing {
                     if thing.uuid().is_none() && app_meta.repository.data_store_enabled() {
                         save_command = Some(CommandAlias::literal(
                             "save".to_string(),
                             format!("save {}", name),
-                            StorageCommand::Save {
-                                name: name.to_string(),
+                            StorageCommand::Change {
+                                change: Change::Save { name },
                             }
                             .into(),
                         ));
@@ -148,17 +203,24 @@ impl Runnable for StorageCommand {
 
                 output
             }
-            Self::Save { name } => app_meta
-                .repository
-                .modify(Change::Save { name: name.clone() })
-                .await
-                .map(|_| format!("{} was successfully saved.", name))
-                .map_err(|(_, e)| match e {
-                    RepositoryError::NotFound => format!("There is no entity named {}.", name),
-                    RepositoryError::DataStoreFailed
-                    | RepositoryError::MissingName
-                    | RepositoryError::NameAlreadyExists => format!("Couldn't save `{}`.", name),
-                }),
+            Self::Undo => match app_meta.repository.undo().await {
+                Some(Ok(change)) => {
+                    let output = format!(
+                        "Successfully undid {}. Use ~redo~ to reverse this.",
+                        change.display_redo(),
+                    );
+
+                    app_meta.command_aliases.insert(CommandAlias::literal(
+                        "redo".to_string(),
+                        format!("redo {}", change.display_redo()),
+                        Self::Change { change }.into(),
+                    ));
+
+                    Ok(output)
+                }
+                Some(Err(_)) => Err("Failed to undo.".to_string()),
+                None => Err("Nothing to undo.".to_string()),
+            },
         }
     }
 }
@@ -176,19 +238,26 @@ impl ContextAwareParse for StorageCommand {
                 }
                 None
             } else if let Some(name) = input.strip_prefix("delete ") {
-                Some(Self::Delete {
-                    name: name.to_string(),
+                Some(Self::Change {
+                    change: Change::Delete {
+                        id: name.into(),
+                        name: name.to_string(),
+                    },
                 })
             } else if let Some(name) = input.strip_prefix("load ") {
                 Some(Self::Load {
                     name: name.to_string(),
                 })
             } else if let Some(name) = input.strip_prefix("save ") {
-                Some(Self::Save {
-                    name: name.to_string(),
+                Some(Self::Change {
+                    change: Change::Save {
+                        name: name.to_string(),
+                    },
                 })
             } else if input == "journal" {
                 Some(Self::Journal)
+            } else if input == "undo" {
+                Some(Self::Undo)
             } else {
                 None
             },
@@ -215,12 +284,17 @@ impl Autocomplete for StorageCommand {
                     .map(|command| (suggestion, command))
             })
             .chain(
-                ["journal"]
+                ["journal", "undo"]
                     .iter()
                     .filter(|s| s.starts_with(input))
                     .filter_map(|s| Self::parse_input(s, app_meta).0.map(|c| (s.to_string(), c))),
             )
-            .for_each(|(s, command)| result.push((s, command.summarize(None))));
+            .for_each(|(s, command)| {
+                result.push((
+                    s,
+                    command.summarize(None, app_meta.repository.undo_history().next()),
+                ))
+            });
 
         let (input_prefix, input_name) = if let Some(parts) = ["delete ", "load ", "save "]
             .iter()
@@ -262,7 +336,7 @@ impl Autocomplete for StorageCommand {
             })
             .take(10)
             .for_each(|(suggestion, thing, command)| {
-                result.push((suggestion, command.summarize(Some(thing))))
+                result.push((suggestion, command.summarize(Some(thing), None)))
             });
 
         result
@@ -272,10 +346,16 @@ impl Autocomplete for StorageCommand {
 impl fmt::Display for StorageCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
-            Self::Delete { name } => write!(f, "delete {}", name),
+            Self::Change {
+                change: Change::Delete { name, .. },
+            } => write!(f, "delete {}", name),
+            Self::Change {
+                change: Change::Save { name },
+            } => write!(f, "save {}", name),
+            Self::Change { .. } => unreachable!(),
             Self::Journal => write!(f, "journal"),
             Self::Load { name } => write!(f, "load {}", name),
-            Self::Save { name } => write!(f, "save {}", name),
+            Self::Undo => write!(f, "undo"),
         }
     }
 }
@@ -304,7 +384,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&location)),
+                .summarize(Some(&location), None),
             );
 
             location.set_uuid(Uuid::new_v4());
@@ -314,15 +394,17 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&location)),
+                .summarize(Some(&location), None),
             );
 
             assert_eq!(
                 "save location to journal",
-                StorageCommand::Save {
-                    name: String::new(),
+                StorageCommand::Change {
+                    change: Change::Save {
+                        name: String::new(),
+                    },
                 }
-                .summarize(Some(&location)),
+                .summarize(Some(&location), None),
             );
         }
 
@@ -338,7 +420,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&npc)),
+                .summarize(Some(&npc), None),
             );
 
             npc.set_uuid(Uuid::new_v4());
@@ -348,15 +430,17 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&npc)),
+                .summarize(Some(&npc), None),
             );
 
             assert_eq!(
-                "save NPC to journal",
-                StorageCommand::Save {
-                    name: String::new(),
+                "save character to journal",
+                StorageCommand::Change {
+                    change: Change::Save {
+                        name: String::new(),
+                    },
                 }
-                .summarize(Some(&npc)),
+                .summarize(Some(&npc), None),
             );
         }
 
@@ -368,7 +452,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&region)),
+                .summarize(Some(&region), None),
             );
 
             region.set_uuid(Uuid::new_v4());
@@ -378,15 +462,17 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&region)),
+                .summarize(Some(&region), None),
             );
 
             assert_eq!(
                 "save region to journal",
-                StorageCommand::Save {
-                    name: String::new(),
+                StorageCommand::Change {
+                    change: Change::Save {
+                        name: String::new(),
+                    }
                 }
-                .summarize(Some(&region)),
+                .summarize(Some(&region), None),
             );
         }
 
@@ -396,15 +482,33 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(None),
+                .summarize(None, None),
             );
 
             assert_eq!(
                 "save an entry to journal",
-                StorageCommand::Save {
-                    name: String::new(),
+                StorageCommand::Change {
+                    change: Change::Save {
+                        name: String::new(),
+                    }
                 }
-                .summarize(None),
+                .summarize(None, None),
+            );
+        }
+
+        {
+            let change = Change::Save {
+                name: "Potato Johnson".to_string(),
+            };
+
+            assert_eq!(
+                "undo removing Potato Johnson from journal",
+                StorageCommand::Undo.summarize(None, Some(&change)),
+            );
+
+            assert_eq!(
+                "nothing to undo",
+                StorageCommand::Undo.summarize(None, None),
             );
         }
     }
@@ -420,8 +524,23 @@ mod test {
 
         assert_eq!(
             (
-                Some(StorageCommand::Save {
-                    name: "Gandalf the Grey".to_string()
+                Some(StorageCommand::Change {
+                    change: Change::Delete {
+                        id: "Gandalf the Grey".into(),
+                        name: "Gandalf the Grey".to_string(),
+                    },
+                }),
+                Vec::new(),
+            ),
+            StorageCommand::parse_input("delete Gandalf the Grey", &app_meta),
+        );
+
+        assert_eq!(
+            (
+                Some(StorageCommand::Change {
+                    change: Change::Save {
+                        name: "Gandalf the Grey".to_string(),
+                    },
                 }),
                 Vec::new(),
             ),
@@ -508,8 +627,11 @@ mod test {
 
         assert_eq!(
             [
-                ("save Potato Johnson", "save NPC to journal"),
-                ("save potato should be capitalized", "save NPC to journal"),
+                ("save Potato Johnson", "save character to journal"),
+                (
+                    "save potato should be capitalized",
+                    "save character to journal",
+                ),
                 ("save Potato & Meat", "save location to journal"),
             ]
             .iter()
@@ -570,14 +692,19 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         vec![
-            StorageCommand::Delete {
-                name: "Potato Johnson".to_string(),
+            StorageCommand::Change {
+                change: Change::Delete {
+                    id: "Potato Johnson".into(),
+                    name: "Potato Johnson".to_string(),
+                },
+            },
+            StorageCommand::Change {
+                change: Change::Save {
+                    name: "Potato Johnson".to_string(),
+                },
             },
             StorageCommand::Journal,
             StorageCommand::Load {
-                name: "Potato Johnson".to_string(),
-            },
-            StorageCommand::Save {
                 name: "Potato Johnson".to_string(),
             },
         ]

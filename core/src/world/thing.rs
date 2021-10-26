@@ -29,6 +29,14 @@ impl Thing {
         }
     }
 
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Thing::Location(..) => "location",
+            Thing::Npc(..) => "character",
+            Thing::Region(..) => "region",
+        }
+    }
+
     pub fn uuid(&self) -> Option<&Uuid> {
         match self {
             Thing::Location(location) => location.uuid.as_ref().map(|u| u.as_ref()),

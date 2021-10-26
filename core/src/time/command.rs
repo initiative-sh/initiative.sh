@@ -13,8 +13,8 @@ pub enum TimeCommand {
 
 #[async_trait(?Send)]
 impl Runnable for TimeCommand {
-    async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
-        let time = match self {
+    async fn run(self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+        let time = match &self {
             Self::Add { interval } => app_meta.repository.get_time().checked_add(interval),
             Self::Sub { interval } => app_meta.repository.get_time().checked_sub(interval),
             Self::Now => {
@@ -33,14 +33,8 @@ impl Runnable for TimeCommand {
                     app_meta.repository.get_time().display_short(),
                 ),
                 match self {
-                    Self::Add { interval } => Self::Sub {
-                        interval: interval.clone(),
-                    }
-                    .into(),
-                    Self::Sub { interval } => Self::Add {
-                        interval: interval.clone(),
-                    }
-                    .into(),
+                    Self::Add { interval } => Self::Sub { interval }.into(),
+                    Self::Sub { interval } => Self::Add { interval }.into(),
                     Self::Now => unreachable!(),
                 },
             ));
@@ -51,7 +45,7 @@ impl Runnable for TimeCommand {
                 app_meta.repository.get_time().display_long(),
             ))
         } else {
-            match self {
+            match &self {
                 Self::Add { interval } => Err(format!(
                     "Unable to advance time by {}.",
                     interval.display_long(),

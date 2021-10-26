@@ -56,7 +56,7 @@ fn npc_cannot_be_saved_with_invalid_data_store() {
         .trim_start_matches("# ");
 
     assert_eq!(
-        format!("Couldn't save `{}`.", npc_name),
+        "The journal is not supported by your browser.",
         app.command(&format!("save {}", npc_name)).unwrap_err(),
     );
 
@@ -157,13 +157,32 @@ fn npc_can_be_deleted_from_temp() {
         .to_string();
 
     assert_eq!(
-        format!("{} was successfully deleted.", npc_name,),
+        format!(
+            "{} was successfully deleted. Use `undo` to reverse this.",
+            npc_name,
+        ),
         app.command(&format!("delete {}", npc_name)).unwrap(),
     );
 
     assert_eq!(
         format!("There is no entity named \"{}\".", npc_name),
         app.command(&format!("delete {}", npc_name)).unwrap_err(),
+    );
+
+    assert_eq!(
+        format!(
+            "Successfully undid deleting {}. Use ~redo~ to reverse this.",
+            npc_name,
+        ),
+        app.command("undo").unwrap(),
+    );
+
+    assert_eq!(
+        format!(
+            "{} was successfully deleted. Use `undo` to reverse this.",
+            npc_name
+        ),
+        app.command("redo").unwrap(),
     );
 }
 
@@ -171,34 +190,54 @@ fn npc_can_be_deleted_from_temp() {
 fn npc_can_be_deleted_from_data_store() {
     let mut app = sync_app();
 
-    let generated_output = app.command("npc").unwrap();
-    let npc_name = generated_output
-        .lines()
-        .next()
-        .unwrap()
-        .trim_start_matches("# ")
-        .to_string();
+    let generated_output = app.command("male character named Potato Johnson").unwrap();
 
-    app.command(&format!("save {}", npc_name)).unwrap();
-
-    assert_eq!(
-        format!("{} was successfully deleted.", npc_name),
-        app.command(&format!("delete {}", npc_name)).unwrap(),
+    assert!(
+        generated_output.ends_with("\n\n_Because you specified a name, Potato Johnson has been automatically added to your `journal`. Use `undo` to remove him._"),
+        "{}",
+        generated_output,
     );
 
     assert_eq!(
-        format!("There is no entity named \"{}\".", npc_name),
-        app.command(&format!("delete {}", npc_name)).unwrap_err(),
+        "Potato Johnson was successfully deleted. Use `undo` to reverse this.",
+        app.command("delete Potato Johnson").unwrap(),
+    );
+
+    assert_eq!(
+        "There is no entity named \"Potato Johnson\".",
+        app.command("delete Potato Johnson").unwrap_err(),
+    );
+
+    assert_eq!(
+        "Successfully undid deleting Potato Johnson. Use ~redo~ to reverse this.",
+        app.command("undo").unwrap(),
+    );
+
+    assert_eq!(
+        "Potato Johnson was successfully deleted. Use `undo` to reverse this.",
+        app.command("redo").unwrap(),
     );
 }
 
 #[test]
-fn delete_is_disabled_with_unusable_data_store() {
+fn delete_works_with_unusable_data_store() {
     let mut app = sync_app_with_data_store(NullDataStore::default());
 
+    app.command("npc named Potato Johnson").unwrap();
+
     assert_eq!(
-        "The journal is not supported by your browser.",
-        app.command("delete Potato Johnson").unwrap_err(),
+        "Potato Johnson was successfully deleted. Use `undo` to reverse this.",
+        app.command("delete Potato Johnson").unwrap(),
+    );
+
+    assert_eq!(
+        "Successfully undid deleting Potato Johnson. Use ~redo~ to reverse this.",
+        app.command("undo").unwrap(),
+    );
+
+    assert_eq!(
+        "Potato Johnson was successfully deleted. Use `undo` to reverse this.",
+        app.command("redo").unwrap(),
     );
 }
 

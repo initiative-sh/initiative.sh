@@ -5,6 +5,7 @@ use std::collections::{HashMap, VecDeque};
 use std::fmt;
 
 const RECENT_MAX_LEN: usize = 100;
+const UNDO_HISTORY_LEN: usize = 10;
 
 pub struct Repository {
     cache: HashMap<Uuid, Thing>,
@@ -12,19 +13,42 @@ pub struct Repository {
     data_store_enabled: bool,
     recent: VecDeque<Thing>,
     time: Time,
+    undo_history: VecDeque<Change>,
 }
 
-#[derive(Clone, Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Change {
+    /// Create a new thing and store it in recent entries.
+    ///
+    /// Reverse: Delete { id: Id::Name }
     Create { thing: Thing },
+
+    /// Create a new thing and store it in the journal.
+    ///
+    /// Reverse: Delete { id: Id::Uuid }
     CreateAndSave { thing: Thing },
-    Delete { id: Id },
+
+    /// Delete a thing from recent or journal.
+    ///
+    /// Reverse: Create (recent) or CreateAndSave (journal)
+    Delete { name: String, id: Id },
+
+    /// Transfer a thing from recent to journal.
+    ///
+    /// Reverse: Unsave
     Save { name: String },
+
+    /// Transfer a thing from journal to recent. Only triggerable as the reverse to Save.
+    ///
+    /// Reverse: Save
+    Unsave { name: String, uuid: Uuid },
 }
 
-#[derive(Clone, Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+pub struct DisplayUndo<'a>(&'a Change);
+
+pub struct DisplayRedo<'a>(&'a Change);
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Id {
     Name(String),
     Uuid(Uuid),
@@ -46,6 +70,7 @@ impl Repository {
             data_store_enabled: false,
             recent: VecDeque::default(),
             time: Time::try_new(1, 8, 0, 0).unwrap(),
+            undo_history: VecDeque::default(),
         }
     }
 
@@ -76,7 +101,7 @@ impl Repository {
     pub fn load(&self, id: &Id) -> Option<&Thing> {
         match id {
             Id::Name(name) => self.load_thing_by_name(name),
-            Id::Uuid(_) => unimplemented!(),
+            Id::Uuid(uuid) => self.cache.get(uuid),
         }
     }
 
@@ -93,25 +118,99 @@ impl Repository {
     }
 
     pub async fn modify(&mut self, change: Change) -> Result<(), (Change, Error)> {
+        self.modify_without_undo(change).await.map(|change| {
+            while self.undo_history.len() >= UNDO_HISTORY_LEN {
+                self.undo_history.pop_front();
+            }
+            self.undo_history.push_back(change);
+        })
+    }
+
+    pub async fn undo(&mut self) -> Option<Result<Change, Error>> {
+        if let Some(change) = self.undo_history.pop_back() {
+            Some(
+                self.modify_without_undo(change)
+                    .await
+                    .map_err(|(change, e)| {
+                        self.undo_history.push_back(change);
+                        e
+                    }),
+            )
+        } else {
+            None
+        }
+    }
+
+    pub fn undo_history(&self) -> impl Iterator<Item = &Change> {
+        self.undo_history.iter().rev()
+    }
+
+    async fn modify_without_undo(&mut self, change: Change) -> Result<Change, (Change, Error)> {
         match change {
             Change::Create { thing } => self
                 .create_thing(thing)
+                .map(|name| Change::Delete {
+                    id: name.as_str().into(),
+                    name: name.to_owned(),
+                })
                 .map_err(|(thing, e)| (Change::Create { thing }, e)),
-            Change::CreateAndSave { thing } => self
-                .create_and_save_thing(thing)
-                .await
-                .map_err(|(thing, e)| (Change::CreateAndSave { thing }, e)),
-            Change::Delete { id } => match id {
-                Id::Name(name) => self
-                    .delete_thing_by_name(&name)
+            Change::CreateAndSave { thing } => {
+                let name = thing.name().to_string();
+                self.create_and_save_thing(thing)
                     .await
-                    .map_err(|e| (Change::Delete { id: Id::Name(name) }, e)),
-                Id::Uuid(_) => unimplemented!(),
+                    .map(|uuid| Change::Delete {
+                        id: uuid.into(),
+                        name,
+                    })
+                    .map_err(|(thing, e)| (Change::CreateAndSave { thing }, e))
+            }
+            Change::Delete { id, name } => match id {
+                Id::Name(id_name) => self
+                    .delete_thing_by_name(&id_name)
+                    .await
+                    .map(|thing| {
+                        if thing.uuid().is_some() {
+                            Change::CreateAndSave { thing }
+                        } else {
+                            Change::Create { thing }
+                        }
+                    })
+                    .map_err(|e| {
+                        (
+                            Change::Delete {
+                                id: Id::Name(id_name),
+                                name,
+                            },
+                            e,
+                        )
+                    }),
+                Id::Uuid(uuid) => self
+                    .delete_thing_by_uuid(&uuid)
+                    .await
+                    .map(|thing| Change::CreateAndSave { thing })
+                    .map_err(|e| {
+                        (
+                            Change::Delete {
+                                id: Id::Uuid(uuid),
+                                name,
+                            },
+                            e,
+                        )
+                    }),
             },
             Change::Save { name } => self
                 .save_thing_by_name(&name.to_lowercase())
                 .await
+                .map(|uuid| Change::Unsave {
+                    uuid,
+                    name: self.cache.get(&uuid).unwrap().name().to_string(),
+                })
                 .map_err(|e| (Change::Save { name }, e)),
+            Change::Unsave { name, uuid } => self
+                .unsave_thing_by_uuid(&uuid)
+                .await
+                .map(|name| Change::Save { name })
+                .map_err(|e| (Change::Unsave { name, uuid }, e)),
         }
     }
 
@@ -155,20 +254,21 @@ impl Repository {
         }
     }
 
-    fn create_thing(&mut self, thing: Thing) -> Result<(), (Thing, Error)> {
+    fn create_thing(&mut self, thing: Thing) -> Result<String, (Thing, Error)> {
         if let Some(name) = thing.name().value() {
             if self.load_thing_by_name(&name.to_lowercase()).is_some() {
                 Err((thing, Error::NameAlreadyExists))
             } else {
+                let name = name.to_string();
                 self.push_recent(thing);
-                Ok(())
+                Ok(name)
             }
         } else {
             Err((thing, Error::MissingName))
         }
     }
 
-    async fn create_and_save_thing(&mut self, thing: Thing) -> Result<(), (Thing, Error)> {
+    async fn create_and_save_thing(&mut self, thing: Thing) -> Result<Uuid, (Thing, Error)> {
         if let Some(name) = thing.name().value() {
             if self.load_thing_by_name(&name.to_lowercase()).is_some() {
                 Err((thing, Error::NameAlreadyExists))
@@ -180,7 +280,7 @@ impl Repository {
         }
     }
 
-    async fn delete_thing_by_name(&mut self, name: &str) -> Result<(), Error> {
+    async fn delete_thing_by_name(&mut self, name: &str) -> Result<Thing, Error> {
         let name_matches = |s: &String| s.to_lowercase() == name;
 
         let cached_uuid = if let Some((uuid, _)) = self
@@ -194,23 +294,24 @@ impl Repository {
         };
 
         if let Some(uuid) = cached_uuid {
-            let (store_delete_success, cache_delete_success) = (
-                self.data_store.delete_thing_by_uuid(&uuid).await.is_ok(),
-                self.cache.remove(&uuid).is_some(),
-            );
-
-            if store_delete_success || cache_delete_success {
-                Ok(())
-            } else {
-                Err(Error::DataStoreFailed)
-            }
-        } else if self
-            .take_recent(|t| t.name().value().map_or(false, name_matches))
-            .is_some()
+            self.delete_thing_by_uuid(&uuid).await
+        } else if let Some(thing) =
+            self.take_recent(|t| t.name().value().map_or(false, name_matches))
         {
-            Ok(())
+            Ok(thing)
         } else {
             Err(Error::NotFound)
+        }
+    }
+
+    async fn delete_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<Thing, Error> {
+        match (
+            self.cache.remove(uuid),
+            self.data_store.delete_thing_by_uuid(uuid).await,
+        ) {
+            (Some(thing), Ok(())) => Ok(thing),
+            (Some(_), Err(())) => Err(Error::DataStoreFailed),
+            (None, _) => Err(Error::NotFound),
         }
     }
 
@@ -219,7 +320,7 @@ impl Repository {
             .find(|t| t.name().value().map_or(false, |s| s.to_lowercase() == name))
     }
 
-    async fn save_thing_by_name(&mut self, name: &str) -> Result<(), Error> {
+    async fn save_thing_by_name(&mut self, name: &str) -> Result<Uuid, Error> {
         if let Some(thing) =
             self.take_recent(|t| t.name().value().map_or(false, |s| s.to_lowercase() == name))
         {
@@ -232,18 +333,70 @@ impl Repository {
         }
     }
 
-    async fn save_thing(&mut self, mut thing: Thing) -> Result<(), (Thing, Error)> {
-        thing.set_uuid(Uuid::new_v4());
+    async fn save_thing(&mut self, mut thing: Thing) -> Result<Uuid, (Thing, Error)> {
+        let uuid = if let Some(&uuid) = thing.uuid() {
+            uuid
+        } else {
+            let uuid = Uuid::new_v4();
+            thing.set_uuid(uuid);
+            uuid
+        };
 
         match self.data_store.save_thing(&thing).await {
             Ok(()) => {
-                self.cache.insert(*thing.uuid().unwrap(), thing);
-                Ok(())
+                self.cache.insert(uuid, thing);
+                Ok(uuid)
             }
             Err(()) => {
                 thing.clear_uuid();
                 Err((thing, Error::DataStoreFailed))
             }
+        }
+    }
+
+    async fn unsave_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<String, Error> {
+        let mut thing = self.delete_thing_by_uuid(uuid).await?;
+        thing.clear_uuid();
+        self.create_thing(thing).map_err(|(_, e)| e)
+    }
+}
+
+impl Change {
+    pub fn display_undo(&self) -> DisplayUndo {
+        DisplayUndo(self)
+    }
+
+    pub fn display_redo(&self) -> DisplayRedo {
+        DisplayRedo(self)
+    }
+}
+
+impl<'a> fmt::Display for DisplayUndo<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let change = self.0;
+
+        // Note: these descriptions are _backward_ since they describe the reverse, ie. the action
+        // that this Change will undo.
+        match change {
+            Change::Create { thing } => write!(f, "deleting {}", thing.name()),
+            Change::CreateAndSave { thing } => write!(f, "deleting {}", thing.name()),
+            Change::Delete { name, .. } => write!(f, "creating {}", name),
+            Change::Save { name } => write!(f, "removing {} from journal", name),
+            Change::Unsave { name, .. } => write!(f, "saving {} to journal", name),
+        }
+    }
+}
+
+impl<'a> fmt::Display for DisplayRedo<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let change = self.0;
+
+        match change {
+            Change::Create { thing } => write!(f, "creating {}", thing.name()),
+            Change::CreateAndSave { thing } => write!(f, "creating {}", thing.name()),
+            Change::Delete { name, .. } => write!(f, "deleting {}", name),
+            Change::Save { name } => write!(f, "saving {} to journal", name),
+            Change::Unsave { name, .. } => write!(f, "removing {} from journal", name),
         }
     }
 }
@@ -370,78 +523,223 @@ mod test {
     }
 
     #[test]
-    #[should_panic = "not implemented"]
     fn load_test_by_uuid() {
-        repo().load(&TEST_UUID.into());
-    }
-
-    #[test]
-    fn change_test_delete_from_journal_by_name() {
-        let mut repo = repo();
         assert_eq!(
-            Ok(()),
-            block_on(repo.modify(Change::Delete {
-                id: "olympus".into(),
-            })),
+            "Olympus",
+            repo()
+                .load(&TEST_UUID.into())
+                .and_then(|thing| thing.name().value())
+                .unwrap(),
         );
-        assert_eq!(0, repo.journal().count());
     }
 
     #[test]
-    fn change_test_delete_from_recent_by_name() {
-        let mut repo = repo();
-        assert_eq!(
-            Ok(()),
-            block_on(repo.modify(Change::Delete {
-                id: "ODYSSEUS".into(),
-            })),
-        );
-        assert_eq!(0, repo.recent().count());
-    }
-
-    #[test]
-    fn change_test_delete_by_name_not_found() {
+    fn change_test_delete_by_name_from_journal_success() {
+        let (mut repo, data_store) = repo_data_store();
         let change = Change::Delete {
-            id: "NOBODY".into(),
+            id: "OLYMPUS".into(),
+            name: "Olympus".to_string(),
+        };
+        assert_eq!("deleting Olympus", change.display_redo().to_string());
+
+        {
+            block_on(repo.modify(change)).unwrap();
+            let result = repo.undo_history().next().unwrap();
+
+            assert_eq!(
+                &Change::CreateAndSave {
+                    thing: Location {
+                        uuid: Some(TEST_UUID.into()),
+                        name: "Olympus".into(),
+                        ..Default::default()
+                    }
+                    .into()
+                },
+                result,
+            );
+            assert_eq!("deleting Olympus", result.display_undo().to_string());
+            assert_eq!(0, repo.journal().count());
+            assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+        }
+
+        {
+            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+
+            if let Change::Delete {
+                id: Id::Uuid(uuid),
+                name,
+            } = undo_result
+            {
+                assert_eq!("Olympus", name);
+                assert!(repo.load(&uuid.into()).is_some());
+            } else {
+                panic!();
+            }
+            assert_eq!(1, repo.journal().count());
+            assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+        }
+    }
+
+    #[test]
+    fn change_test_delete_by_name_from_recent_success() {
+        let mut repo = repo();
+        let change = Change::Delete {
+            id: "ODYSSEUS".into(),
+            name: "Odysseus".to_string(),
+        };
+        assert_eq!("deleting Odysseus", change.display_redo().to_string());
+
+        {
+            block_on(repo.modify(change)).unwrap();
+            let result = repo.undo_history().next().unwrap();
+
+            assert_eq!(
+                &Change::Create {
+                    thing: Npc {
+                        name: "Odysseus".into(),
+                        ..Default::default()
+                    }
+                    .into()
+                },
+                result,
+            );
+            assert_eq!("deleting Odysseus", result.display_undo().to_string());
+            assert_eq!(0, repo.recent().count());
+        }
+
+        {
+            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+
+            assert_eq!(
+                Change::Delete {
+                    id: "odysseus".into(),
+                    name: "Odysseus".to_string(),
+                },
+                undo_result,
+            );
+            assert!(repo.load(&"odysseus".into()).is_some());
+            assert_eq!(1, repo.recent().count());
+        }
+    }
+
+    #[test]
+    fn change_test_delete_by_uuid_success() {
+        let (mut repo, data_store) = repo_data_store();
+        let change = Change::Delete {
+            id: TEST_UUID.into(),
+            name: "olympus".to_string(),
+        };
+        assert_eq!("deleting olympus", change.display_redo().to_string());
+
+        {
+            block_on(repo.modify(change)).unwrap();
+            let result = repo.undo_history().next().unwrap();
+
+            assert_eq!(
+                &Change::CreateAndSave {
+                    thing: Location {
+                        uuid: Some(TEST_UUID.into()),
+                        name: "Olympus".into(),
+                        ..Default::default()
+                    }
+                    .into()
+                },
+                result,
+            );
+            assert_eq!("deleting Olympus", result.display_undo().to_string());
+            assert_eq!(0, repo.journal().count());
+            assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+        }
+
+        {
+            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+
+            assert_eq!(
+                Change::Delete {
+                    id: TEST_UUID.into(),
+                    name: "Olympus".to_string(),
+                },
+                undo_result,
+            );
+            assert!(repo.load(&TEST_UUID.into()).is_some());
+            assert_eq!(1, repo.journal().count());
+            assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+        }
+    }
+
+    #[test]
+    fn change_test_delete_by_uuid_not_found() {
+        let change = Change::Delete {
+            id: Uuid::nil().into(),
+            name: "Nobody".to_string(),
         };
 
-        assert_eq!(
-            block_on(repo().modify(change.clone())),
-            Err((change, Error::NotFound)),
-        );
+        let result = block_on(repo().modify(change.clone())).unwrap_err();
+
+        assert_eq!((change, Error::NotFound), result);
     }
 
     #[test]
-    #[should_panic = "not implemented"]
-    fn change_test_delete_by_uuid() {
-        block_on(repo().modify(Change::Delete {
+    fn change_test_delete_by_uuid_data_store_failed() {
+        let (mut repo, mut data_store) = repo_data_store();
+        block_on(data_store.delete_thing_by_uuid(&TEST_UUID)).unwrap();
+        let change = Change::Delete {
             id: TEST_UUID.into(),
-        }))
-        .unwrap();
+            name: "Olympus".to_string(),
+        };
+
+        let result = block_on(repo.modify(change.clone())).unwrap_err();
+
+        assert_eq!((change, Error::DataStoreFailed), result);
     }
 
     #[test]
     fn change_test_create_success() {
         let mut repo = empty_repo();
-        assert_eq!(
-            Ok(()),
-            block_on(
-                repo.modify(Change::Create {
+        let change = Change::Create {
+            thing: Npc {
+                name: "Odysseus".into(),
+                ..Default::default()
+            }
+            .into(),
+        };
+        assert_eq!("creating Odysseus", change.display_redo().to_string());
+
+        {
+            block_on(repo.modify(change)).unwrap();
+            let result = repo.undo_history().next().unwrap();
+
+            assert_eq!(
+                &Change::Delete {
+                    id: "Odysseus".into(),
+                    name: "Odysseus".to_string(),
+                },
+                result,
+            );
+            assert_eq!("creating Odysseus", result.display_undo().to_string());
+            assert_eq!(1, repo.recent().count());
+        }
+
+        {
+            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+
+            assert_eq!(
+                Change::Create {
                     thing: Npc {
                         name: "Odysseus".into(),
                         ..Default::default()
                     }
-                    .clone()
-                    .into()
-                })
-            ),
-        );
-        assert_eq!(1, repo.recent().count());
+                    .into(),
+                },
+                undo_result,
+            );
+            assert_eq!(0, repo.recent().count());
+        }
     }
 
     #[test]
     fn change_test_create_already_exists_in_journal() {
-        let mut repo = repo();
+        let (mut repo, data_store) = repo_data_store();
         let change = Change::Create {
             thing: Npc {
                 name: "Olympus".into(),
@@ -455,7 +753,8 @@ mod test {
             block_on(repo.modify(change.clone())),
             Err((change, Error::NameAlreadyExists)),
         );
-        assert_eq!(1, repo.recent().count());
+        assert_eq!(1, repo.journal().count());
+        assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
     }
 
     #[test]
@@ -479,25 +778,51 @@ mod test {
 
     #[test]
     fn change_test_save_success() {
-        let mut repo = repo();
-
-        assert_eq!(1, repo.journal().count());
-        assert_eq!(1, repo.recent().count());
-
+        let (mut repo, data_store) = repo_data_store();
+        let change = Change::Save {
+            name: "ODYSSEUS".to_string(),
+        };
         assert_eq!(
-            Ok(()),
-            block_on(repo.modify(Change::Save {
-                name: "ODYSSEUS".to_string()
-            })),
+            "saving ODYSSEUS to journal",
+            change.display_redo().to_string(),
         );
 
-        assert_eq!(2, repo.journal().count());
-        assert_eq!(0, repo.recent().count());
+        {
+            block_on(repo.modify(change)).unwrap();
+            let result = repo.undo_history().next().unwrap();
+
+            assert_eq!(
+                "saving Odysseus to journal",
+                result.display_undo().to_string(),
+            );
+            if let Change::Unsave { ref name, uuid: _ } = result {
+                assert_eq!("Odysseus", name);
+            } else {
+                panic!("{:?}", result);
+            }
+            assert_eq!(2, repo.journal().count());
+            assert_eq!(2, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(0, repo.recent().count());
+        }
+
+        {
+            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+
+            assert_eq!(
+                Change::Save {
+                    name: "Odysseus".to_string(),
+                },
+                undo_result,
+            );
+            assert_eq!(1, repo.journal().count());
+            assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(1, repo.recent().count());
+        }
     }
 
     #[test]
     fn change_test_save_data_store_failed() {
-        let mut repo = Repository::new(NullDataStore::default());
+        let mut repo = null_repo();
 
         block_on(
             repo.modify(Change::Create {
@@ -552,32 +877,115 @@ mod test {
     }
 
     #[test]
-    fn change_test_create_and_save_success() {
-        let mut repo = empty_repo();
+    fn change_test_unsave_success() {
+        let (mut repo, data_store) = repo_data_store();
+        let change = Change::Unsave {
+            name: "Olympus".to_string(),
+            uuid: TEST_UUID.clone(),
+        };
         assert_eq!(
-            Ok(()),
-            block_on(
-                repo.modify(Change::CreateAndSave {
+            "removing Olympus from journal",
+            change.display_redo().to_string(),
+        );
+
+        {
+            block_on(repo.modify(change)).unwrap();
+            let result = repo.undo_history().next().unwrap();
+
+            assert_eq!(
+                &Change::Save {
+                    name: "Olympus".to_string(),
+                },
+                result,
+            );
+            assert_eq!(
+                "removing Olympus from journal",
+                result.display_undo().to_string(),
+            );
+            assert_eq!(0, repo.journal().count());
+            assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(2, repo.recent().count());
+            assert_eq!(None, repo.load(&"Olympus".into()).unwrap().uuid());
+        }
+
+        {
+            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+
+            if let Change::Unsave { name, uuid } = undo_result {
+                assert_eq!("Olympus", name);
+                assert_ne!(TEST_UUID, uuid);
+                assert!(repo.load(&uuid.into()).is_some());
+            } else {
+                panic!();
+            }
+            assert_eq!(1, repo.journal().count());
+            assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(1, repo.recent().count());
+        }
+    }
+
+    #[test]
+    fn change_test_create_and_save_success() {
+        let (mut repo, data_store) = empty_repo_data_store();
+        let change = Change::CreateAndSave {
+            thing: Npc {
+                name: "Odysseus".into(),
+                ..Default::default()
+            }
+            .into(),
+        };
+        assert_eq!("creating Odysseus", change.display_redo().to_string());
+
+        {
+            block_on(repo.modify(change)).unwrap();
+            let result = repo.undo_history().next().unwrap();
+
+            assert_eq!("creating Odysseus", result.display_undo().to_string());
+            if let Change::Delete {
+                id: Id::Uuid(uuid),
+                name,
+            } = result
+            {
+                assert_eq!("Odysseus", name);
+                assert!(repo.load(&uuid.to_owned().into()).is_some());
+            } else {
+                panic!();
+            }
+            assert_eq!(1, repo.journal().count());
+            assert_eq!(
+                repo.journal().next().unwrap().uuid().unwrap(),
+                block_on(data_store.get_all_the_things())
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .uuid()
+                    .unwrap(),
+            );
+        }
+
+        {
+            let uuid = *repo.journal().next().unwrap().uuid().unwrap();
+            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+
+            assert_eq!(
+                Change::CreateAndSave {
                     thing: Npc {
+                        uuid: Some(uuid.into()),
                         name: "Odysseus".into(),
                         ..Default::default()
                     }
-                    .clone()
-                    .into()
-                })
-            ),
-        );
-        assert_eq!(1, repo.journal().count());
-        assert!(repo
-            .journal()
-            .next()
-            .and_then(|thing| thing.uuid())
-            .is_some());
+                    .into(),
+                },
+                undo_result,
+            );
+            assert_eq!(0, repo.journal().count());
+            assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+        }
     }
 
     #[test]
     fn change_test_create_and_save_already_exists_in_journal() {
-        let mut repo = repo();
+        let (mut repo, data_store) = repo_data_store();
         let change = Change::CreateAndSave {
             thing: Location {
                 name: "Odysseus".into(),
@@ -592,11 +1000,12 @@ mod test {
             Err((change, Error::NameAlreadyExists)),
         );
         assert_eq!(1, repo.journal().count());
+        assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
     }
 
     #[test]
     fn change_test_create_and_save_already_exists_in_recent() {
-        let mut repo = repo();
+        let (mut repo, data_store) = repo_data_store();
         let change = Change::CreateAndSave {
             thing: Npc {
                 name: "Olympus".into(),
@@ -611,11 +1020,12 @@ mod test {
             Err((change, Error::NameAlreadyExists)),
         );
         assert_eq!(1, repo.journal().count());
+        assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
     }
 
     #[test]
     fn change_test_create_and_save_data_store_failed() {
-        let mut repo = Repository::new(NullDataStore::default());
+        let mut repo = null_repo();
 
         let change = Change::CreateAndSave {
             thing: Location {
@@ -642,19 +1052,23 @@ mod test {
 
     #[test]
     fn data_store_enabled_test_success() {
-        let mut repo = Repository::new(MemoryDataStore::default());
+        let mut repo = repo();
         block_on(repo.init());
         assert_eq!(true, repo.data_store_enabled());
     }
 
     #[test]
     fn data_store_enabled_test_failure() {
-        let mut repo = Repository::new(NullDataStore::default());
+        let mut repo = null_repo();
         block_on(repo.init());
         assert_eq!(false, repo.data_store_enabled());
     }
 
     fn repo() -> Repository {
+        repo_data_store().0
+    }
+
+    fn repo_data_store() -> (Repository, MemoryDataStore) {
         let mut data_store = MemoryDataStore::default();
         block_on(
             data_store.save_thing(
@@ -668,7 +1082,7 @@ mod test {
         )
         .unwrap();
 
-        let mut repo = Repository::new(data_store);
+        let mut repo = Repository::new(data_store.clone());
         block_on(repo.init());
 
         repo.recent.push_back(
@@ -679,10 +1093,19 @@ mod test {
             .into(),
         );
 
-        repo
+        (repo, data_store)
     }
 
     fn empty_repo() -> Repository {
         Repository::new(MemoryDataStore::default())
+    }
+
+    fn empty_repo_data_store() -> (Repository, MemoryDataStore) {
+        let data_store = MemoryDataStore::default();
+        (Repository::new(data_store.clone()), data_store)
+    }
+
+    fn null_repo() -> Repository {
+        Repository::new(NullDataStore::default())
     }
 }

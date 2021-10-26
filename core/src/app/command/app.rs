@@ -27,7 +27,7 @@ impl AppCommand {
 
 #[async_trait(?Send)]
 impl Runnable for AppCommand {
-    async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         Ok(match self {
             Self::About => include_str!("../../../../data/about.md")
                 .trim_end()
@@ -37,7 +37,7 @@ impl Runnable for AppCommand {
             Self::Help => include_str!("../../../../data/help.md")
                 .trim_end()
                 .to_string(),
-            Self::Roll(s) => Roller::new(s)
+            Self::Roll(s) => Roller::new(&s)
                 .ok()
                 .map(|r| r.roll_with(&mut app_meta.rng).ok())
                 .flatten()

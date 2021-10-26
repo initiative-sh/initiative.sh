@@ -68,7 +68,7 @@ impl Eq for CommandAlias {}
 
 #[async_trait(?Send)]
 impl Runnable for CommandAlias {
-    async fn run(&self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
             Self::Literal { command, .. } => {
                 let mut temp_aliases = mem::take(&mut app_meta.command_aliases);
@@ -87,9 +87,13 @@ impl Runnable for CommandAlias {
 
                 result
             }
-            Self::StrictWildcard { command } => {
-                app_meta.command_aliases.remove(self);
-                command.run(input, app_meta).await
+            Self::StrictWildcard { .. } => {
+                app_meta.command_aliases.remove(&self);
+                if let Self::StrictWildcard { command } = self {
+                    command.run(input, app_meta).await
+                } else {
+                    unreachable!();
+                }
             }
         }
     }

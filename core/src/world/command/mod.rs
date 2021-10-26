@@ -14,7 +14,7 @@ pub enum WorldCommand {
 
 #[async_trait(?Send)]
 impl Runnable for WorldCommand {
-    async fn run(&self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         Ok(match self {
             Self::Create { thing } => {
                 let mut thing_output = None;
@@ -29,18 +29,9 @@ impl Runnable for WorldCommand {
                         match thing.name() {
                             Field::Locked(name) => {
                                 temp_thing_output.push_str(&format!(
-                                    "\n\n_Because you specified a name, {name} has been automatically added to your `journal`. Use ~delete~ to remove {them}._",
+                                    "\n\n_Because you specified a name, {name} has been automatically added to your `journal`. Use `undo` to remove {them}._",
                                     name = name,
                                     them = thing.gender().them(),
-                                ));
-
-                                command_alias = Some(CommandAlias::literal(
-                                    "delete".to_string(),
-                                    format!("delete {}", name),
-                                    StorageCommand::Delete {
-                                        name: name.to_string(),
-                                    }
-                                    .into(),
                                 ));
 
                                 Change::CreateAndSave { thing }
@@ -55,8 +46,10 @@ impl Runnable for WorldCommand {
                                 command_alias = Some(CommandAlias::literal(
                                     "save".to_string(),
                                     format!("save {}", name),
-                                    StorageCommand::Save {
-                                        name: name.to_string(),
+                                    StorageCommand::Change {
+                                        change: Change::Save {
+                                            name: name.to_string(),
+                                        },
                                     }
                                     .into(),
                                 ));
@@ -70,7 +63,7 @@ impl Runnable for WorldCommand {
                     };
 
                     match app_meta.repository.modify(change).await {
-                        Ok(()) => {
+                        Ok(_) => {
                             thing_output = Some(temp_thing_output);
 
                             if let Some(command_alias) = command_alias {
@@ -130,7 +123,7 @@ impl Runnable for WorldCommand {
                             );
 
                             match app_meta.repository.modify(Change::Create { thing }).await {
-                                Ok(()) => {
+                                Ok(_) => {
                                     app_meta.command_aliases.insert(command_alias);
                                     thing_output = Some(temp_thing_output);
                                     break;
