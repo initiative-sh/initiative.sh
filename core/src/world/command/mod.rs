@@ -29,24 +29,10 @@ impl Runnable for WorldCommand {
                         match thing.name() {
                             Field::Locked(name) => {
                                 temp_thing_output.push_str(&format!(
-                                    "\n\n_Because you specified a name, {name} has been automatically added to your `journal`. Use ~delete~ to remove {them}._",
+                                    "\n\n_Because you specified a name, {name} has been automatically added to your `journal`. Use `undo` to remove {them}._",
                                     name = name,
                                     them = thing.gender().them(),
                                 ));
-
-                                /*
-                                 * This should become undo
-                                command_alias = Some(CommandAlias::literal(
-                                    "delete".to_string(),
-                                    format!("delete {}", name),
-                                    StorageCommand::Change {
-                                        change: Change::Delete {
-                                            name: name.to_string(),
-                                        },
-                                    }
-                                    .into(),
-                                ));
-                                */
 
                                 Change::CreateAndSave { thing }
                             }

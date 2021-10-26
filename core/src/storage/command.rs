@@ -9,41 +9,53 @@ pub enum StorageCommand {
     Change { change: Change },
     Journal,
     Load { name: String },
+    Undo,
 }
 
 impl StorageCommand {
-    fn summarize(&self, thing: Option<&Thing>) -> String {
-        if let Some(thing) = thing {
-            match self {
+    fn summarize(&self, thing: Option<&Thing>, last_change: Option<&Change>) -> String {
+        match (self, thing) {
+            (
                 Self::Change {
                     change: Change::Delete { .. },
-                } => format!("remove {} from journal", thing.as_str()),
+                },
+                Some(thing),
+            ) => format!("remove {} from journal", thing.as_str()),
+            (
+                Self::Change {
+                    change: Change::Delete { .. },
+                },
+                None,
+            ) => "remove an entry from journal".to_string(),
+            (
                 Self::Change {
                     change: Change::Save { .. },
-                } => format!("save {} to journal", thing.as_str()),
-                Self::Change { .. } => unreachable!(),
-                Self::Journal { .. } => unreachable!(),
-                Self::Load { .. } => {
-                    if thing.uuid().is_some() {
-                        format!("{}", thing.display_description())
-                    } else {
-                        format!("{} (unsaved)", thing.display_description())
-                    }
+                },
+                Some(thing),
+            ) => format!("save {} to journal", thing.as_str()),
+            (
+                Self::Change {
+                    change: Change::Save { .. },
+                },
+                None,
+            ) => "save an entry to journal".to_string(),
+            (Self::Change { .. }, _) => unreachable!(),
+            (Self::Journal { .. }, _) => "list journal contents".to_string(),
+            (Self::Load { .. }, Some(thing)) => {
+                if thing.uuid().is_some() {
+                    format!("{}", thing.display_description())
+                } else {
+                    format!("{} (unsaved)", thing.display_description())
                 }
             }
-        } else {
-            match self {
-                Self::Change {
-                    change: Change::Save { .. },
-                } => "save an entry to journal",
-                Self::Change {
-                    change: Change::Delete { .. },
-                } => "remove an entry from journal",
-                Self::Change { .. } => unreachable!(),
-                Self::Journal { .. } => "list journal contents",
-                Self::Load { .. } => "load an entry",
+            (Self::Load { .. }, None) => "load an entry".to_string(),
+            (Self::Undo, _) => {
+                if let Some(change) = last_change {
+                    format!("undo {}", change.display_undo())
+                } else {
+                    "nothing to undo".to_string()
+                }
             }
-            .to_string()
         }
     }
 }
@@ -97,46 +109,34 @@ impl Runnable for StorageCommand {
 
                 Ok(output)
             }
-            Self::Change { change } => match &change {
-                Change::Save { .. } => {
-                    let name = if let Change::Save { name } = &change {
-                        name.to_owned()
-                    } else {
-                        unreachable!();
-                    };
-
-                    app_meta
-                        .repository
-                        .modify(change)
-                        .await
-                        .map(|_| format!("{} was successfully saved.", name))
-                        .map_err(|(_, e)| match e {
-                            RepositoryError::NotFound => {
-                                format!("There is no entity named {}.", name)
-                            }
-                            RepositoryError::DataStoreFailed
-                            | RepositoryError::MissingName
-                            | RepositoryError::NameAlreadyExists => {
-                                format!("Couldn't save `{}`.", name)
-                            }
-                        })
+            Self::Change { change } => {
+                if matches!(change, Change::Save { .. } | Change::Unsave { .. })
+                    && !app_meta.repository.data_store_enabled()
+                {
+                    return Err("The journal is not supported by your browser.".to_string());
                 }
-                Change::Delete { .. } => {
-                    if !app_meta.repository.data_store_enabled() {
-                        return Err("The journal is not supported by your browser.".to_string());
+
+                let name = match &change {
+                    Change::Create { thing } | Change::CreateAndSave { thing } => {
+                        thing.name().to_string()
                     }
+                    Change::Delete { name, .. }
+                    | Change::Save { name }
+                    | Change::Unsave { name, .. } => name.to_owned(),
+                };
 
-                    let name = if let Change::Delete { name, .. } = &change {
-                        name.clone()
-                    } else {
-                        unreachable!();
-                    };
-
-                    app_meta
+                match &change {
+                    Change::Create { .. } | Change::CreateAndSave { .. } => app_meta
                         .repository
                         .modify(change)
                         .await
-                        .map(|_| format!("{} was successfully deleted.", name))
+                        .map(|_| format!("{} was successfully restored. Use `undo` to reverse this.", name))
+                        .map_err(|_| format!("Couldn't restore {}.", name)),
+                    Change::Delete { .. } => app_meta
+                        .repository
+                        .modify(change)
+                        .await
+                        .map(|_| format!("{} was successfully deleted. Use `undo` to reverse this.", name))
                         .map_err(|(_, e)| match e {
                             RepositoryError::NotFound => {
                                 format!("There is no entity named \"{}\".", name)
@@ -146,10 +146,30 @@ impl Runnable for StorageCommand {
                             | RepositoryError::NameAlreadyExists => {
                                 format!("Couldn't delete `{}`.", name)
                             }
-                        })
+                        }),
+                    Change::Save { .. } => app_meta
+                        .repository
+                        .modify(change)
+                        .await
+                        .map(|_| format!("{} was successfully saved. Use `undo` to reverse this.", name))
+                        .map_err(|(_, e)| match e {
+                            RepositoryError::NotFound => {
+                                format!("There is no entity named \"{}\".", name)
+                            }
+                            RepositoryError::DataStoreFailed
+                            | RepositoryError::MissingName
+                            | RepositoryError::NameAlreadyExists => {
+                                format!("Couldn't save `{}`.", name)
+                            }
+                        }),
+                    Change::Unsave { .. } => app_meta
+                        .repository
+                        .modify(change)
+                        .await
+                        .map(|_| format!("{} was successfully removed from the journal. Use `undo` to reverse this.", name))
+                        .map_err(|_| format!("Couldn't remove {} from the journal.", name)),
                 }
-                _ => unreachable!(),
-            },
+            }
             Self::Load { name } => {
                 let thing = app_meta.repository.load(&name.as_str().into());
                 let mut save_command = None;
@@ -183,6 +203,24 @@ impl Runnable for StorageCommand {
 
                 output
             }
+            Self::Undo => match app_meta.repository.undo().await {
+                Some(Ok(change)) => {
+                    let output = format!(
+                        "Successfully undid {}. Use ~redo~ to reverse this.",
+                        change.display_redo(),
+                    );
+
+                    app_meta.command_aliases.insert(CommandAlias::literal(
+                        "redo".to_string(),
+                        format!("redo {}", change.display_redo()),
+                        Self::Change { change }.into(),
+                    ));
+
+                    Ok(output)
+                }
+                Some(Err(_)) => Err("Failed to undo.".to_string()),
+                None => Err("Nothing to undo.".to_string()),
+            },
         }
     }
 }
@@ -218,6 +256,8 @@ impl ContextAwareParse for StorageCommand {
                 })
             } else if input == "journal" {
                 Some(Self::Journal)
+            } else if input == "undo" {
+                Some(Self::Undo)
             } else {
                 None
             },
@@ -244,12 +284,17 @@ impl Autocomplete for StorageCommand {
                     .map(|command| (suggestion, command))
             })
             .chain(
-                ["journal"]
+                ["journal", "undo"]
                     .iter()
                     .filter(|s| s.starts_with(input))
                     .filter_map(|s| Self::parse_input(s, app_meta).0.map(|c| (s.to_string(), c))),
             )
-            .for_each(|(s, command)| result.push((s, command.summarize(None))));
+            .for_each(|(s, command)| {
+                result.push((
+                    s,
+                    command.summarize(None, app_meta.repository.undo_history().next()),
+                ))
+            });
 
         let (input_prefix, input_name) = if let Some(parts) = ["delete ", "load ", "save "]
             .iter()
@@ -291,7 +336,7 @@ impl Autocomplete for StorageCommand {
             })
             .take(10)
             .for_each(|(suggestion, thing, command)| {
-                result.push((suggestion, command.summarize(Some(thing))))
+                result.push((suggestion, command.summarize(Some(thing), None)))
             });
 
         result
@@ -310,6 +355,7 @@ impl fmt::Display for StorageCommand {
             Self::Change { .. } => unreachable!(),
             Self::Journal => write!(f, "journal"),
             Self::Load { name } => write!(f, "load {}", name),
+            Self::Undo => write!(f, "undo"),
         }
     }
 }
@@ -338,7 +384,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&location)),
+                .summarize(Some(&location), None),
             );
 
             location.set_uuid(Uuid::new_v4());
@@ -348,7 +394,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&location)),
+                .summarize(Some(&location), None),
             );
 
             assert_eq!(
@@ -358,7 +404,7 @@ mod test {
                         name: String::new(),
                     },
                 }
-                .summarize(Some(&location)),
+                .summarize(Some(&location), None),
             );
         }
 
@@ -374,7 +420,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&npc)),
+                .summarize(Some(&npc), None),
             );
 
             npc.set_uuid(Uuid::new_v4());
@@ -384,7 +430,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&npc)),
+                .summarize(Some(&npc), None),
             );
 
             assert_eq!(
@@ -394,7 +440,7 @@ mod test {
                         name: String::new(),
                     },
                 }
-                .summarize(Some(&npc)),
+                .summarize(Some(&npc), None),
             );
         }
 
@@ -406,7 +452,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&region)),
+                .summarize(Some(&region), None),
             );
 
             region.set_uuid(Uuid::new_v4());
@@ -416,7 +462,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&region)),
+                .summarize(Some(&region), None),
             );
 
             assert_eq!(
@@ -426,7 +472,7 @@ mod test {
                         name: String::new(),
                     }
                 }
-                .summarize(Some(&region)),
+                .summarize(Some(&region), None),
             );
         }
 
@@ -436,7 +482,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(None),
+                .summarize(None, None),
             );
 
             assert_eq!(
@@ -446,7 +492,23 @@ mod test {
                         name: String::new(),
                     }
                 }
-                .summarize(None),
+                .summarize(None, None),
+            );
+        }
+
+        {
+            let change = Change::Save {
+                name: "Potato Johnson".to_string(),
+            };
+
+            assert_eq!(
+                "undo removing Potato Johnson from journal",
+                StorageCommand::Undo.summarize(None, Some(&change)),
+            );
+
+            assert_eq!(
+                "nothing to undo",
+                StorageCommand::Undo.summarize(None, None),
             );
         }
     }

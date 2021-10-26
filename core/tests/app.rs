@@ -125,3 +125,22 @@ fn command_conflict_ambiguous() {
         sync_app().command("Shield").unwrap_err(),
     );
 }
+
+#[test]
+fn command_conflict_other_meanings() {
+    let mut app = sync_app();
+
+    app.command("character named Open Game License").unwrap();
+
+    let output = app.command("Open Game License").unwrap();
+    assert!(
+        output.starts_with("# Open Game License Version"),
+        "{}",
+        output,
+    );
+    assert!(
+        output.ends_with("\n\n! There are other possible interpretations of this command. Did you mean:\n\n* `load Open Game License`"),
+        "{}",
+        output,
+    );
+}
