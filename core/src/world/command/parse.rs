@@ -151,7 +151,7 @@ mod test {
     fn place_from_str_test() {
         {
             let place: Place = "inn".parse().unwrap();
-            assert_eq!(Field::Locked(PlaceType::Inn), place.subtype,);
+            assert_eq!(Field::Locked(Some(PlaceType::Inn)), place.subtype);
         }
 
         {
@@ -161,18 +161,25 @@ mod test {
 
         {
             let place: Place = "The Prancing Pony, an inn".parse().unwrap();
-            assert_eq!(Field::Locked("The Prancing Pony".to_string()), place.name,);
+            assert_eq!(
+                Field::Locked(Some("The Prancing Pony".to_string())),
+                place.name,
+            );
+            assert_eq!(Field::Locked(Some(PlaceType::Inn)), place.subtype);
         }
 
         {
             let place: Place = "\"The Prancing Pony\", an inn".parse().unwrap();
-            assert_eq!(Field::Locked("The Prancing Pony".to_string()), place.name,);
-            assert_eq!(Field::Locked(PlaceType::Inn), place.subtype,);
+            assert_eq!(
+                Field::Locked(Some("The Prancing Pony".to_string())),
+                place.name,
+            );
+            assert_eq!(Field::Locked(Some(PlaceType::Inn)), place.subtype);
         }
 
         {
             let place: Place = "a place called home".parse().unwrap();
-            assert_eq!(Field::Locked("Home".to_string()), place.name);
+            assert_eq!(Field::Locked(Some("Home".to_string())), place.name);
             assert!(place.subtype.is_none());
         }
     }
@@ -185,22 +192,22 @@ mod test {
 
         {
             let npc: Npc = "elf".parse().unwrap();
-            assert_eq!(Field::Locked(Species::Elf), npc.species);
+            assert_eq!(Field::Locked(Some(Species::Elf)), npc.species);
         }
 
         {
             let npc: Npc = "Potato Johnson, a non-binary elf".parse().unwrap();
-            assert_eq!(Field::Locked("Potato Johnson".to_string()), npc.name);
-            assert_eq!(Field::Locked(Species::Elf), npc.species);
-            assert_eq!(Field::Locked(Gender::NonBinaryThey), npc.gender);
+            assert_eq!(Field::Locked(Some("Potato Johnson".to_string())), npc.name);
+            assert_eq!(Field::Locked(Some(Species::Elf)), npc.species);
+            assert_eq!(Field::Locked(Some(Gender::NonBinaryThey)), npc.gender);
         }
 
         {
             let npc: Npc = "37-year-old boy named sue".parse().unwrap();
-            assert_eq!(Field::Locked("Sue".to_string()), npc.name);
-            assert_eq!(Field::Locked(Gender::Masculine), npc.gender);
-            assert_eq!(Field::Locked(Age::Child), npc.age);
-            assert_eq!(Field::Locked(37), npc.age_years);
+            assert_eq!(Field::Locked(Some("Sue".to_string())), npc.name);
+            assert_eq!(Field::Locked(Some(Gender::Masculine)), npc.gender);
+            assert_eq!(Field::Locked(Some(Age::Child)), npc.age);
+            assert_eq!(Field::Locked(Some(37)), npc.age_years);
         }
 
         {

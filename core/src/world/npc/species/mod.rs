@@ -184,14 +184,15 @@ mod test {
     #[test]
     fn regenerate_test_locked() {
         let mut npc = Npc::default();
-        npc.species = Field::Locked(Species::Human);
-        npc.age = Field::Locked(Age::Adult);
-        npc.age_years = Field::Locked(u16::MAX);
-        npc.gender = Field::Locked(Gender::Neuter);
-        npc.size = Field::Locked(Size::Tiny {
+        npc.species = Species::Human.into();
+        npc.age = Age::Adult.into();
+        npc.age_years = u16::MAX.into();
+        npc.gender = Gender::Neuter.into();
+        npc.size = Size::Tiny {
             height: u16::MAX,
             weight: u16::MAX,
-        });
+        }
+        .into();
 
         let mut rng = SmallRng::seed_from_u64(0);
 
@@ -212,8 +213,8 @@ mod test {
     #[test]
     fn regenerate_test_age_years_provided() {
         let mut npc = Npc::default();
-        npc.species = Field::Locked(Species::Human);
-        npc.age_years = Field::Locked(u16::MAX);
+        npc.species = Species::Human.into();
+        npc.age_years = u16::MAX.into();
 
         let mut rng = SmallRng::seed_from_u64(0);
 

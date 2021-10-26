@@ -5,19 +5,18 @@ use std::mem;
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 #[serde(from = "Option<T>")]
 pub enum Field<T> {
-    Locked(T),
-    Unlocked(T),
-    Empty,
+    Locked(Option<T>),
+    Unlocked(Option<T>),
 }
 
 impl<T> Field<T> {
     pub fn new(value: T) -> Self {
-        Self::Locked(value)
+        Self::Locked(Some(value))
     }
 
     #[cfg(test)]
     pub fn new_generated(value: T) -> Self {
-        Self::Unlocked(value)
+        Self::Unlocked(Some(value))
     }
 
     pub fn is_locked(&self) -> bool {
@@ -60,32 +59,31 @@ impl<T> Field<T> {
 
     pub fn replace_with<F: FnOnce(Option<T>) -> T>(&mut self, f: F) {
         *self = match mem::take(self) {
-            Self::Unlocked(value) => Self::Unlocked(f(Some(value))),
-            Self::Empty => Self::Unlocked(f(None)),
+            Self::Unlocked(value) => Self::Unlocked(Some(f(value))),
             field => field,
         }
     }
 
     pub fn clear(&mut self) {
         if let Self::Unlocked(_) = self {
-            *self = Self::Empty;
+            *self = Self::Unlocked(None)
         }
     }
 
     pub fn value(&self) -> Option<&T> {
         match self {
-            Self::Locked(value) => Some(value),
-            Self::Unlocked(value) => Some(value),
-            Self::Empty => None,
+            Self::Locked(value) => value,
+            Self::Unlocked(value) => value,
         }
+        .as_ref()
     }
 
     pub fn value_mut(&mut self) -> Option<&mut T> {
         match self {
-            Self::Locked(value) => Some(value),
-            Self::Unlocked(value) => Some(value),
-            Self::Empty => None,
+            Self::Locked(value) => value,
+            Self::Unlocked(value) => value,
         }
+        .as_mut()
     }
 
     pub fn is_some(&self) -> bool {
@@ -93,13 +91,13 @@ impl<T> Field<T> {
     }
 
     pub fn is_none(&self) -> bool {
-        matches!(self, Self::Empty)
+        self.value().is_none()
     }
 }
 
 impl<T> Default for Field<T> {
     fn default() -> Self {
-        Self::Empty
+        Self::Unlocked(None)
     }
 }
 
@@ -111,19 +109,15 @@ impl<T> From<T> for Field<T> {
 
 impl<T> From<Option<T>> for Field<T> {
     fn from(value: Option<T>) -> Field<T> {
-        match value {
-            Some(v) => v.into(),
-            None => Field::default(),
-        }
+        Field::Locked(value)
     }
 }
 
 impl<T> From<Field<T>> for Option<T> {
     fn from(field: Field<T>) -> Option<T> {
         match field {
-            Field::Locked(value) => Some(value),
-            Field::Unlocked(value) => Some(value),
-            Field::Empty => None,
+            Field::Locked(value) => value,
+            Field::Unlocked(value) => value,
         }
     }
 }
@@ -185,7 +179,7 @@ mod test {
 
     #[test]
     fn lock_unlock_test() {
-        let mut field = Field::Unlocked(false);
+        let mut field = Field::Unlocked(Some(false));
 
         assert!(field.is_unlocked());
         assert!(!field.is_locked());
@@ -244,9 +238,9 @@ mod test {
     #[test]
     fn deserialize_test() {
         let field: Field<u8> = serde_json::from_str("123").unwrap();
-        assert_eq!(Field::Locked(123), field);
+        assert_eq!(Field::Locked(Some(123)), field);
 
         let field: Field<u8> = serde_json::from_str("null").unwrap();
-        assert_eq!(Field::Empty, field);
+        assert_eq!(Field::Locked(None), field);
     }
 }

@@ -27,7 +27,7 @@ impl Runnable for WorldCommand {
 
                     let change = if app_meta.repository.data_store_enabled() {
                         match thing.name() {
-                            Field::Locked(name) => {
+                            Field::Locked(Some(name)) => {
                                 temp_thing_output.push_str(&format!(
                                     "\n\n_Because you specified a name, {name} has been automatically added to your `journal`. Use `undo` to remove {them}._",
                                     name = name,
@@ -36,7 +36,7 @@ impl Runnable for WorldCommand {
 
                                 Change::CreateAndSave { thing }
                             }
-                            Field::Unlocked(name) => {
+                            Field::Unlocked(Some(name)) => {
                                 temp_thing_output.push_str(&format!(
                                     "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`._",
                                     name = name,
@@ -56,7 +56,7 @@ impl Runnable for WorldCommand {
 
                                 Change::Create { thing }
                             }
-                            Field::Empty => Change::Create { thing },
+                            _ => Change::Create { thing },
                         }
                     } else {
                         Change::Create { thing }
