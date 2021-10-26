@@ -1,6 +1,7 @@
 * **New:** Added `undo` to fix those little mistakes. Mostly this frees us to be
   more liberal with interpreting commands, since it removes the risk of changing
   something you don't want if your command is misinterpreted.
+* **Enhancement:** Fixed the description of the `Detect Thoughts` spell.
 * **New:** Substantially improved the process of creating NPCs and locations.
   Rather than being limited to simple terms like `inn` or `tiefling`, you can
   now generate `The Prancing Poodle, an inn`, an `old elvish woman`, or `a boy
