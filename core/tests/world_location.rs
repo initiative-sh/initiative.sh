@@ -12,14 +12,14 @@ fn results_are_random() {
 }
 
 #[test]
-fn generated_content_is_limited_by_building_type() {
-    ["inn"].iter().for_each(|building_type| {
-        let output = sync_app().command(building_type).unwrap();
+fn generated_content_is_limited_by_location_type() {
+    ["inn"].iter().for_each(|location_type| {
+        let output = sync_app().command(location_type).unwrap();
 
         assert!(
-            output.matches(building_type).count() >= 11,
+            output.matches(location_type).count() >= 11,
             "Input: {}\n\nOutput:\n{}",
-            building_type,
+            location_type,
             output,
         );
     });

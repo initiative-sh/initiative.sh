@@ -82,7 +82,7 @@ impl<'a> fmt::Display for DetailsView<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::world::location::{BuildingType, LocationType};
+    use crate::world::location::LocationType;
 
     #[test]
     fn view_test_empty() {
@@ -115,7 +115,7 @@ mod test {
     #[test]
     fn view_test_subtype_only() {
         let location = Location {
-            subtype: LocationType::from(BuildingType::Inn).into(),
+            subtype: LocationType::Inn.into(),
             ..Default::default()
         };
         assert_eq!("inn", format!("{}", location.display_summary()));
@@ -143,7 +143,7 @@ mod test {
     #[test]
     fn view_test_name_subtype() {
         let location = Location {
-            subtype: LocationType::from(BuildingType::Inn).into(),
+            subtype: LocationType::Inn.into(),
             name: "Oaken Mermaid Inn".into(),
             ..Default::default()
         };
@@ -179,7 +179,7 @@ mod test {
     #[test]
     fn view_test_subtype_description() {
         let location = Location {
-            subtype: LocationType::from(BuildingType::Inn).into(),
+            subtype: LocationType::Inn.into(),
             description: "You can check out any time you like.".into(),
             ..Default::default()
         };
@@ -194,7 +194,7 @@ mod test {
     #[test]
     fn view_test_name_subtype_description() {
         let location = Location {
-            subtype: LocationType::from(BuildingType::Inn).into(),
+            subtype: LocationType::Inn.into(),
             name: "Oaken Mermaid Inn".into(),
             description: "I am Mordenkainen.".into(),
             ..Default::default()

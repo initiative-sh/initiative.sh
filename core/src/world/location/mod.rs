@@ -1,14 +1,12 @@
-pub use building::*;
-
-mod building;
+mod inn;
 mod view;
 
 use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
+use initiative_macros::WordList;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::str::FromStr;
 use view::{DescriptionView, DetailsView, SummaryView};
 
 initiative_macros::uuid!();
@@ -32,10 +30,12 @@ pub struct Location {
     // pub price: something
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", content = "subtype")]
+#[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
 pub enum LocationType {
-    Building(Option<BuildingType>),
+    #[alias = "bar"]
+    #[alias = "pub"]
+    #[alias = "tavern"]
+    Inn,
 }
 
 impl Location {
@@ -58,74 +58,32 @@ impl Location {
 
 impl Generate for Location {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
-        self.subtype.replace_with(|location_type| {
-            if let Some(mut location_type) = location_type {
-                location_type.regenerate(rng, demographics);
-                location_type
-            } else {
-                LocationType::generate(rng, demographics)
-            }
-        });
+        self.subtype
+            .replace_with(|_| LocationType::generate(rng, demographics));
 
         if let Some(value) = self.subtype.value_mut() {
             match value {
-                LocationType::Building(mut building_type) => {
-                    if building_type.is_none() {
-                        building_type.replace(BuildingType::generate(rng, demographics));
-                        self.subtype = Field::Locked(LocationType::Building(building_type));
-                    }
-
-                    match building_type.unwrap() {
-                        BuildingType::Inn => generate_inn(self, rng, demographics),
-                    }
-                }
+                LocationType::Inn => inn::generate(self, rng, demographics),
             }
         }
-    }
-}
-
-impl LocationType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Building(None) => "building",
-            Self::Building(Some(building)) => building.as_str(),
-        }
-    }
-
-    pub fn get_words() -> &'static [&'static str] {
-        &["building"][..]
     }
 }
 
 impl Default for LocationType {
     fn default() -> Self {
-        Self::Building(Default::default())
+        Self::Inn
     }
 }
 
 impl Generate for LocationType {
-    fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
-        *self = Self::Building(Some(BuildingType::generate(rng, demographics)));
+    fn regenerate(&mut self, _rng: &mut impl Rng, _demographics: &Demographics) {
+        *self = Self::Inn;
     }
 }
 
 impl fmt::Display for LocationType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.as_str())
-    }
-}
-
-impl FromStr for LocationType {
-    type Err = ();
-
-    fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        if let Ok(building_type) = raw.parse() {
-            Ok(LocationType::Building(Some(building_type)))
-        } else if raw == "building" {
-            Ok(LocationType::Building(None))
-        } else {
-            Err(())
-        }
     }
 }
 
@@ -154,27 +112,17 @@ mod test {
 
     #[test]
     fn default_test() {
-        assert_eq!(LocationType::Building(None), LocationType::default());
+        assert_eq!(LocationType::Inn, LocationType::default());
     }
 
     #[test]
     fn display_test() {
-        assert_eq!(
-            format!("{}", BuildingType::Inn),
-            format!("{}", LocationType::Building(Some(BuildingType::Inn))),
-        );
-
-        assert_eq!("building", format!("{}", LocationType::Building(None)));
+        assert_eq!("inn", format!("{}", LocationType::Inn));
     }
 
     #[test]
     fn try_from_noun_test() {
-        assert_eq!(
-            Ok(LocationType::Building(Some(BuildingType::Inn))),
-            "inn".parse(),
-        );
-
-        assert_eq!(Ok(LocationType::Building(None)), "building".parse());
+        assert_eq!(Ok(LocationType::Inn), "inn".parse(),);
 
         let location_type: Result<LocationType, ()> = "npc".parse();
         assert_eq!(Err(()), location_type);
@@ -183,13 +131,8 @@ mod test {
     #[test]
     fn location_type_serialize_deserialize_test() {
         assert_eq!(
-            r#"{"type":"Building","subtype":null}"#,
-            serde_json::to_string(&LocationType::Building(None)).unwrap(),
-        );
-
-        assert_eq!(
-            r#"{"type":"Building","subtype":"Inn"}"#,
-            serde_json::to_string(&LocationType::Building(Some(BuildingType::Inn))).unwrap(),
+            r#""Inn""#,
+            serde_json::to_string(&LocationType::Inn).unwrap(),
         );
     }
 
@@ -198,18 +141,18 @@ mod test {
         let location = Location {
             uuid: Some(uuid::Uuid::nil().into()),
             parent_uuid: Some(uuid::Uuid::nil().into()),
-            subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
+            subtype: LocationType::Inn.into(),
 
             name: "Oaken Mermaid Inn".into(),
             description: "I am Mordenkainen".into(),
         };
 
         assert_eq!(
-            r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":{"type":"Building","subtype":"Inn"},"name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#,
+            r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"Inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#,
             serde_json::to_string(&location).unwrap(),
         );
 
-        let value: Location = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":{"type":"Building","subtype":"Inn"},"name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
+        let value: Location = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"Inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
 
         assert_eq!(location, value);
     }

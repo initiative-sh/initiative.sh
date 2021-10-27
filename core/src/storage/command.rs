@@ -364,7 +364,7 @@ impl fmt::Display for StorageCommand {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
-    use crate::world::location::{BuildingType, Location, LocationType};
+    use crate::world::location::{Location, LocationType};
     use crate::world::npc::{Age, Gender, Npc, Species};
     use crate::world::Thing;
     use tokio_test::block_on;
@@ -374,7 +374,7 @@ mod test {
     fn summarize_test() {
         {
             let mut location = Location {
-                subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
+                subtype: LocationType::Inn.into(),
                 ..Default::default()
             }
             .into();
@@ -601,7 +601,7 @@ mod test {
             app_meta.repository.modify(Change::Create {
                 thing: Location {
                     name: "Potato & Meat".into(),
-                    subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
+                    subtype: LocationType::Inn.into(),
                     ..Default::default()
                 }
                 .into(),

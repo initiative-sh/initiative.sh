@@ -193,7 +193,7 @@ impl fmt::Display for WorldCommand {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
-    use crate::world::location::{BuildingType, LocationType};
+    use crate::world::location::LocationType;
     use crate::world::npc::Species;
 
     #[test]
@@ -256,7 +256,7 @@ mod test {
             ("halfling", "create halfling"),
             ("human", "create human"),
             ("tiefling", "create tiefling"),
-            // BuildingType
+            // LocationType
             ("inn", "create inn"),
         ]
         .drain(..)
@@ -288,14 +288,7 @@ mod test {
         vec![
             WorldCommand::Create {
                 thing: Location {
-                    subtype: LocationType::Building(None).into(),
-                    ..Default::default()
-                }
-                .into(),
-            },
-            WorldCommand::Create {
-                thing: Location {
-                    subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
+                    subtype: LocationType::Inn.into(),
                     ..Default::default()
                 }
                 .into(),

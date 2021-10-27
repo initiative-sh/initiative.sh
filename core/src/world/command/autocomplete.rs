@@ -1,6 +1,6 @@
 use crate::app::{AppMeta, Autocomplete};
 use crate::utils::quoted_words;
-use crate::world::location::{BuildingType, Location};
+use crate::world::location::{Location, LocationType};
 use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
 use crate::world::Thing;
 use std::collections::HashSet;
@@ -220,7 +220,7 @@ impl Autocomplete for Location {
             &[(
                 "location type",
                 "specify a location type (eg. inn)",
-                BuildingType::get_words(),
+                LocationType::get_words(),
             )],
         )
     }

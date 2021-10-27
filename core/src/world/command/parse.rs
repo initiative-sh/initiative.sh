@@ -59,7 +59,7 @@ impl FromStr for Location {
         for word in quoted_words(description) {
             if ["a", "an"].contains(&word.as_str()) {
                 // ignore
-            } else if ["location", "place"].contains(&word.as_str()) {
+            } else if ["building", "location", "place"].contains(&word.as_str()) {
                 is_explicit = true;
             } else if let Ok(location_type) = word.as_str().parse() {
                 location.subtype = Field::new(location_type);
@@ -144,17 +144,14 @@ impl FromStr for Npc {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::world::location::{BuildingType, LocationType};
+    use crate::world::location::LocationType;
     use crate::world::npc::{Age, Gender, Species};
 
     #[test]
     fn location_from_str_test() {
         {
             let location: Location = "inn".parse().unwrap();
-            assert_eq!(
-                Field::Locked(LocationType::Building(Some(BuildingType::Inn))),
-                location.subtype,
-            );
+            assert_eq!(Field::Locked(LocationType::Inn), location.subtype,);
         }
 
         {
@@ -171,23 +168,12 @@ mod test {
         }
 
         {
-            let location: Location = "building".parse().unwrap();
-            assert_eq!(
-                Field::Locked(LocationType::Building(None)),
-                location.subtype,
-            );
-        }
-
-        {
             let location: Location = "\"The Prancing Pony\", an inn".parse().unwrap();
             assert_eq!(
                 Field::Locked("The Prancing Pony".to_string()),
                 location.name,
             );
-            assert_eq!(
-                Field::Locked(LocationType::Building(Some(BuildingType::Inn))),
-                location.subtype,
-            );
+            assert_eq!(Field::Locked(LocationType::Inn), location.subtype,);
         }
 
         {
