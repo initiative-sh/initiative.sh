@@ -121,6 +121,8 @@ impl Runnable for StorageCommand {
                         thing.name().to_string()
                     }
                     Change::Delete { name, .. }
+                    | Change::Edit { name, .. }
+                    | Change::EditAndUnsave { name, .. }
                     | Change::Save { name }
                     | Change::Unsave { name, .. } => name.to_owned(),
                 };
@@ -147,6 +149,7 @@ impl Runnable for StorageCommand {
                                 format!("Couldn't delete `{}`.", name)
                             }
                         }),
+                    Change::Edit { .. } | Change::EditAndUnsave { .. } => unimplemented!(),
                     Change::Save { .. } => app_meta
                         .repository
                         .modify(change)
