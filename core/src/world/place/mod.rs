@@ -14,7 +14,7 @@ initiative_macros::uuid!();
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Place {
     pub uuid: Option<Uuid>,
-    pub parent_uuid: Option<RegionUuid>,
+    pub parent_uuid: Field<RegionUuid>,
     pub subtype: Field<PlaceType>,
 
     pub name: Field<String>,
@@ -53,6 +53,21 @@ impl Place {
 
     pub fn get_words() -> &'static [&'static str] {
         &["place"][..]
+    }
+
+    pub fn lock_all(&mut self) {
+        let Self {
+            uuid: _,
+            parent_uuid,
+            subtype,
+            name,
+            description,
+        } = self;
+
+        parent_uuid.lock();
+        subtype.lock();
+        name.lock();
+        description.lock();
     }
 }
 
@@ -137,7 +152,7 @@ mod test {
     fn place_serialize_deserialize_test() {
         let place = Place {
             uuid: Some(uuid::Uuid::nil().into()),
-            parent_uuid: Some(uuid::Uuid::nil().into()),
+            parent_uuid: RegionUuid::from(uuid::Uuid::nil()).into(),
             subtype: PlaceType::Inn.into(),
 
             name: "Oaken Mermaid Inn".into(),
@@ -152,5 +167,22 @@ mod test {
         let value: Place = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"Inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
 
         assert_eq!(place, value);
+    }
+
+    #[test]
+    fn lock_all_test() {
+        let mut place = Place::default();
+        place.lock_all();
+
+        assert_eq!(
+            Place {
+                uuid: None,
+                parent_uuid: Field::Locked(None),
+                subtype: Field::Locked(None),
+                name: Field::Locked(None),
+                description: Field::Locked(None),
+            },
+            place,
+        );
     }
 }

@@ -118,6 +118,14 @@ impl Thing {
     pub fn display_details(&self) -> DetailsView {
         DetailsView(self)
     }
+
+    pub fn lock_all(&mut self) {
+        match self {
+            Self::Npc(npc) => npc.lock_all(),
+            Self::Place(place) => place.lock_all(),
+            Self::Region(region) => region.lock_all(),
+        }
+    }
 }
 
 impl From<Place> for Thing {
@@ -184,6 +192,7 @@ impl<'a> fmt::Display for DetailsView<'a> {
 mod test {
     use super::*;
     use crate::world::npc::{Ethnicity, Species};
+    use crate::world::region::RegionType;
     use crate::world::Demographics;
     use std::collections::HashMap;
 
@@ -247,7 +256,8 @@ mod test {
         let mut demographic_groups: HashMap<(Species, Ethnicity), u64> = HashMap::new();
         demographic_groups.insert((Species::Human, Ethnicity::Dwarvish), 7);
         let region = Region {
-            demographics: Demographics::new(demographic_groups),
+            demographics: Demographics::new(demographic_groups).into(),
+            subtype: RegionType::World.into(),
             ..Default::default()
         };
         let thing = Thing::Region(region);
@@ -348,6 +358,33 @@ mod test {
         });
 
         assert_eq!(Gender::Feminine, npc.gender());
+    }
+
+    #[test]
+    fn lock_all_test_npc() {
+        let mut npc = Npc::default();
+        npc.lock_all();
+        let mut thing = Thing::Npc(Npc::default());
+        thing.lock_all();
+        assert_eq!(Thing::Npc(npc), thing);
+    }
+
+    #[test]
+    fn lock_all_test_place() {
+        let mut place = Place::default();
+        place.lock_all();
+        let mut thing = Thing::Place(Place::default());
+        thing.lock_all();
+        assert_eq!(Thing::Place(place), thing);
+    }
+
+    #[test]
+    fn lock_all_test_region() {
+        let mut region = Region::default();
+        region.lock_all();
+        let mut thing = Thing::Region(Region::default());
+        thing.lock_all();
+        assert_eq!(Thing::Region(region), thing);
     }
 
     fn place() -> Thing {

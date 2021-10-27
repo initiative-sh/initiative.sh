@@ -60,6 +60,27 @@ impl Npc {
     pub fn get_words() -> &'static [&'static str] {
         &["character", "npc"][..]
     }
+
+    pub fn lock_all(&mut self) {
+        let Self {
+            uuid: _,
+            name,
+            gender,
+            age,
+            age_years,
+            size,
+            species,
+            ethnicity,
+        } = self;
+
+        name.lock();
+        gender.lock();
+        age.lock();
+        age_years.lock();
+        size.lock();
+        species.lock();
+        ethnicity.lock();
+    }
 }
 
 impl Generate for Npc {
@@ -144,5 +165,25 @@ mod test {
         let value: Npc = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"Neuter","age":"Geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"Human","ethnicity":"Human"}"#).unwrap();
 
         assert_eq!(npc, value);
+    }
+
+    #[test]
+    fn lock_all_test() {
+        let mut npc = Npc::default();
+        npc.lock_all();
+
+        assert_eq!(
+            Npc {
+                uuid: None,
+                name: Field::Locked(None),
+                gender: Field::Locked(None),
+                age: Field::Locked(None),
+                age_years: Field::Locked(None),
+                size: Field::Locked(None),
+                species: Field::Locked(None),
+                ethnicity: Field::Locked(None),
+            },
+            npc,
+        );
     }
 }

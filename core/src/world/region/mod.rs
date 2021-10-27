@@ -6,9 +6,9 @@ initiative_macros::uuid!();
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Region {
     pub uuid: Option<Uuid>,
-    pub parent_uuid: Option<Uuid>,
-    pub demographics: Demographics,
-    pub subtype: RegionType,
+    pub parent_uuid: Field<Uuid>,
+    pub demographics: Field<Demographics>,
+    pub subtype: Field<RegionType>,
 
     pub name: Field<String>,
     // pub population: Field<u64>,
@@ -20,6 +20,23 @@ pub struct Region {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum RegionType {
     World,
+}
+
+impl Region {
+    pub fn lock_all(&mut self) {
+        let Region {
+            uuid: _,
+            parent_uuid,
+            demographics,
+            subtype,
+            name,
+        } = self;
+
+        parent_uuid.lock();
+        demographics.lock();
+        subtype.lock();
+        name.lock();
+    }
 }
 
 impl Default for RegionType {
@@ -52,8 +69,8 @@ mod test {
 
         let region = Region {
             uuid: Some(uuid::Uuid::nil().into()),
-            parent_uuid: Some(uuid::Uuid::nil().into()),
-            demographics: Demographics::new(demographic_groups),
+            parent_uuid: Uuid::from(uuid::Uuid::nil()).into(),
+            demographics: Demographics::new(demographic_groups).into(),
             subtype: RegionType::World.into(),
             name: "Middle Earth".into(),
         };
@@ -65,5 +82,22 @@ mod test {
 
         let value: Region = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","demographics":{"groups":[["Human","Dwarvish",7]]},"subtype":"World","name":"Middle Earth"}"#).unwrap();
         assert_eq!(region, value);
+    }
+
+    #[test]
+    fn lock_all_test() {
+        let mut region = Region::default();
+        region.lock_all();
+
+        assert_eq!(
+            Region {
+                uuid: None,
+                parent_uuid: Field::Locked(None),
+                demographics: Field::Locked(None),
+                subtype: Field::Locked(None),
+                name: Field::Locked(None),
+            },
+            region,
+        );
     }
 }
