@@ -37,6 +37,21 @@ impl Region {
         subtype.lock();
         name.lock();
     }
+
+    pub fn apply_diff(&mut self, diff: &mut Self) {
+        let Self {
+            uuid: _,
+            parent_uuid,
+            demographics,
+            subtype,
+            name,
+        } = self;
+
+        parent_uuid.apply_diff(&mut diff.parent_uuid);
+        demographics.apply_diff(&mut diff.demographics);
+        subtype.apply_diff(&mut diff.subtype);
+        name.apply_diff(&mut diff.name);
+    }
 }
 
 impl Default for RegionType {
@@ -64,16 +79,7 @@ mod test {
 
     #[test]
     fn region_serialize_deserialize_test() {
-        let mut demographic_groups: HashMap<(Species, Ethnicity), u64> = HashMap::new();
-        demographic_groups.insert((Species::Human, Ethnicity::Dwarvish), 7);
-
-        let region = Region {
-            uuid: Some(uuid::Uuid::nil().into()),
-            parent_uuid: Uuid::from(uuid::Uuid::nil()).into(),
-            demographics: Demographics::new(demographic_groups).into(),
-            subtype: RegionType::World.into(),
-            name: "Middle Earth".into(),
-        };
+        let region = middle_earth();
 
         assert_eq!(
             r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","demographics":{"groups":[["Human","Dwarvish",7]]},"subtype":"World","name":"Middle Earth"}"#,
@@ -82,6 +88,47 @@ mod test {
 
         let value: Region = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","demographics":{"groups":[["Human","Dwarvish",7]]},"subtype":"World","name":"Middle Earth"}"#).unwrap();
         assert_eq!(region, value);
+    }
+
+    #[test]
+    fn apply_diff_test_no_change() {
+        let mut region = middle_earth();
+        let mut diff = Region::default();
+
+        region.apply_diff(&mut diff);
+
+        assert_eq!(middle_earth(), region);
+        assert_eq!(Region::default(), diff);
+    }
+
+    #[test]
+    fn apply_diff_test_from_empty() {
+        let mut middle_earth = middle_earth();
+        middle_earth.uuid = None;
+
+        let mut region = Region::default();
+        let mut diff = middle_earth.clone();
+
+        region.apply_diff(&mut diff);
+
+        assert_eq!(middle_earth, region);
+
+        let mut empty_locked = Region::default();
+        empty_locked.lock_all();
+        assert_eq!(empty_locked, diff);
+    }
+
+    fn middle_earth() -> Region {
+        let mut demographic_groups: HashMap<(Species, Ethnicity), u64> = HashMap::new();
+        demographic_groups.insert((Species::Human, Ethnicity::Dwarvish), 7);
+
+        Region {
+            uuid: Some(uuid::Uuid::nil().into()),
+            parent_uuid: Uuid::from(uuid::Uuid::nil()).into(),
+            demographics: Demographics::new(demographic_groups).into(),
+            subtype: RegionType::World.into(),
+            name: "Middle Earth".into(),
+        }
     }
 
     #[test]

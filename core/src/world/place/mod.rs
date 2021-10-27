@@ -69,6 +69,21 @@ impl Place {
         name.lock();
         description.lock();
     }
+
+    pub fn apply_diff(&mut self, diff: &mut Self) {
+        let Self {
+            uuid: _,
+            parent_uuid,
+            subtype,
+            name,
+            description,
+        } = self;
+
+        parent_uuid.apply_diff(&mut diff.parent_uuid);
+        subtype.apply_diff(&mut diff.subtype);
+        name.apply_diff(&mut diff.name);
+        description.apply_diff(&mut diff.description);
+    }
 }
 
 impl Generate for Place {
@@ -150,14 +165,7 @@ mod test {
 
     #[test]
     fn place_serialize_deserialize_test() {
-        let place = Place {
-            uuid: Some(uuid::Uuid::nil().into()),
-            parent_uuid: RegionUuid::from(uuid::Uuid::nil()).into(),
-            subtype: PlaceType::Inn.into(),
-
-            name: "Oaken Mermaid Inn".into(),
-            description: "I am Mordenkainen".into(),
-        };
+        let place = oaken_mermaid_inn();
 
         assert_eq!(
             r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"Inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#,
@@ -167,6 +175,45 @@ mod test {
         let value: Place = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"Inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
 
         assert_eq!(place, value);
+    }
+
+    #[test]
+    fn apply_diff_test_no_change() {
+        let mut place = oaken_mermaid_inn();
+        let mut diff = Place::default();
+
+        place.apply_diff(&mut diff);
+
+        assert_eq!(oaken_mermaid_inn(), place);
+        assert_eq!(Place::default(), diff);
+    }
+
+    #[test]
+    fn apply_diff_test_from_empty() {
+        let mut oaken_mermaid_inn = oaken_mermaid_inn();
+        oaken_mermaid_inn.uuid = None;
+
+        let mut place = Place::default();
+        let mut diff = oaken_mermaid_inn.clone();
+
+        place.apply_diff(&mut diff);
+
+        assert_eq!(oaken_mermaid_inn, place);
+
+        let mut empty_locked = Place::default();
+        empty_locked.lock_all();
+        assert_eq!(empty_locked, diff);
+    }
+
+    fn oaken_mermaid_inn() -> Place {
+        Place {
+            uuid: Some(uuid::Uuid::nil().into()),
+            parent_uuid: RegionUuid::from(uuid::Uuid::nil()).into(),
+            subtype: PlaceType::Inn.into(),
+
+            name: "Oaken Mermaid Inn".into(),
+            description: "I am Mordenkainen".into(),
+        }
     }
 
     #[test]

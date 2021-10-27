@@ -81,6 +81,27 @@ impl Npc {
         species.lock();
         ethnicity.lock();
     }
+
+    pub fn apply_diff(&mut self, diff: &mut Self) {
+        let Self {
+            uuid: _,
+            name,
+            gender,
+            age,
+            age_years,
+            size,
+            species,
+            ethnicity,
+        } = self;
+
+        name.apply_diff(&mut diff.name);
+        gender.apply_diff(&mut diff.gender);
+        age.apply_diff(&mut diff.age);
+        age_years.apply_diff(&mut diff.age_years);
+        size.apply_diff(&mut diff.size);
+        species.apply_diff(&mut diff.species);
+        ethnicity.apply_diff(&mut diff.ethnicity);
+    }
 }
 
 impl Generate for Npc {
@@ -142,7 +163,48 @@ mod test {
 
     #[test]
     fn serialize_deserialize_test() {
-        let npc = Npc {
+        let npc = gandalf();
+
+        assert_eq!(
+            r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"Neuter","age":"Geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"Human","ethnicity":"Human"}"#,
+            serde_json::to_string(&npc).unwrap()
+        );
+
+        let value: Npc = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"Neuter","age":"Geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"Human","ethnicity":"Human"}"#).unwrap();
+
+        assert_eq!(npc, value);
+    }
+
+    #[test]
+    fn apply_diff_test_no_change() {
+        let mut npc = gandalf();
+        let mut diff = Npc::default();
+
+        npc.apply_diff(&mut diff);
+
+        assert_eq!(gandalf(), npc);
+        assert_eq!(Npc::default(), diff);
+    }
+
+    #[test]
+    fn apply_diff_test_from_empty() {
+        let mut gandalf = gandalf();
+        gandalf.uuid = None;
+
+        let mut npc = Npc::default();
+        let mut diff = gandalf.clone();
+
+        npc.apply_diff(&mut diff);
+
+        assert_eq!(gandalf, npc);
+
+        let mut empty_locked = Npc::default();
+        empty_locked.lock_all();
+        assert_eq!(empty_locked, diff);
+    }
+
+    fn gandalf() -> Npc {
+        Npc {
             uuid: Some(uuid::Uuid::nil().into()),
             name: "Gandalf the Grey".into(),
             gender: Gender::Neuter.into(),
@@ -155,16 +217,7 @@ mod test {
             .into(),
             species: Species::Human.into(),
             ethnicity: Ethnicity::Human.into(),
-        };
-
-        assert_eq!(
-            r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"Neuter","age":"Geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"Human","ethnicity":"Human"}"#,
-            serde_json::to_string(&npc).unwrap()
-        );
-
-        let value: Npc = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"Neuter","age":"Geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"Human","ethnicity":"Human"}"#).unwrap();
-
-        assert_eq!(npc, value);
+        }
     }
 
     #[test]

@@ -126,6 +126,18 @@ impl Thing {
             Self::Region(region) => region.lock_all(),
         }
     }
+
+    #[allow(clippy::result_unit_err)]
+    pub fn try_apply_diff(&mut self, diff: &mut Self) -> Result<(), ()> {
+        match (self, diff) {
+            (Self::Npc(npc), Self::Npc(diff_npc)) => npc.apply_diff(diff_npc),
+            (Self::Place(place), Self::Place(diff_place)) => place.apply_diff(diff_place),
+            (Self::Region(region), Self::Region(diff_region)) => region.apply_diff(diff_region),
+            _ => return Err(()),
+        }
+
+        Ok(())
+    }
 }
 
 impl From<Place> for Thing {

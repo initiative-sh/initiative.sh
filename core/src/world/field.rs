@@ -93,6 +93,13 @@ impl<T> Field<T> {
     pub fn is_none(&self) -> bool {
         self.value().is_none()
     }
+
+    pub fn apply_diff(&mut self, other: &mut Self) {
+        if other.is_locked() {
+            mem::swap(self, other);
+            other.lock();
+        }
+    }
 }
 
 impl<T> Default for Field<T> {
@@ -242,5 +249,40 @@ mod test {
 
         let field: Field<u8> = serde_json::from_str("null").unwrap();
         assert_eq!(Field::Locked(None), field);
+    }
+
+    #[test]
+    fn apply_diff_test() {
+        {
+            let mut field = Field::Locked(Some(false));
+            let mut diff = Field::Unlocked(None);
+            field.apply_diff(&mut diff);
+            assert_eq!(Field::Locked(Some(false)), field);
+            assert_eq!(Field::Unlocked(None), diff);
+        }
+
+        {
+            let mut field = Field::Locked(Some(false));
+            let mut diff = Field::Locked(Some(true));
+            field.apply_diff(&mut diff);
+            assert_eq!(Field::Locked(Some(true)), field);
+            assert_eq!(Field::Locked(Some(false)), diff);
+        }
+
+        {
+            let mut field = Field::Locked(Some(false));
+            let mut diff = Field::Locked(None);
+            field.apply_diff(&mut diff);
+            assert_eq!(Field::Locked(None), field);
+            assert_eq!(Field::Locked(Some(false)), diff);
+        }
+
+        {
+            let mut field = Field::Unlocked(Some(false));
+            let mut diff = Field::Locked(Some(true));
+            field.apply_diff(&mut diff);
+            assert_eq!(Field::Locked(Some(true)), field);
+            assert_eq!(Field::Locked(Some(false)), diff);
+        }
     }
 }
