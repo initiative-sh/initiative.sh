@@ -1,5 +1,5 @@
 use super::npc::Gender;
-use super::{Demographics, Field, Generate, Location, Npc, Region};
+use super::{Demographics, Field, Generate, Npc, Place, Region};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -9,7 +9,7 @@ use uuid::Uuid;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Thing {
-    Location(Location),
+    Place(Place),
     Npc(Npc),
     Region(Region),
 }
@@ -23,7 +23,7 @@ pub struct DetailsView<'a>(&'a Thing);
 impl Thing {
     pub fn name(&self) -> &Field<String> {
         match self {
-            Thing::Location(location) => &location.name,
+            Thing::Place(place) => &place.name,
             Thing::Npc(npc) => &npc.name,
             Thing::Region(region) => &region.name,
         }
@@ -31,7 +31,7 @@ impl Thing {
 
     pub fn as_str(&self) -> &'static str {
         match self {
-            Thing::Location(..) => "location",
+            Thing::Place(..) => "place",
             Thing::Npc(..) => "character",
             Thing::Region(..) => "region",
         }
@@ -39,7 +39,7 @@ impl Thing {
 
     pub fn uuid(&self) -> Option<&Uuid> {
         match self {
-            Thing::Location(location) => location.uuid.as_ref().map(|u| u.as_ref()),
+            Thing::Place(place) => place.uuid.as_ref().map(|u| u.as_ref()),
             Thing::Npc(npc) => npc.uuid.as_ref().map(|u| u.as_ref()),
             Thing::Region(region) => region.uuid.as_ref().map(|u| u.as_ref()),
         }
@@ -47,8 +47,8 @@ impl Thing {
 
     pub fn set_uuid(&mut self, uuid: Uuid) {
         match self {
-            Thing::Location(location) => {
-                location.uuid.get_or_insert(uuid.into());
+            Thing::Place(place) => {
+                place.uuid.get_or_insert(uuid.into());
             }
             Thing::Npc(npc) => {
                 npc.uuid.get_or_insert(uuid.into());
@@ -61,7 +61,7 @@ impl Thing {
 
     pub fn clear_uuid(&mut self) {
         match self {
-            Thing::Location(location) => location.uuid = None,
+            Thing::Place(place) => place.uuid = None,
             Thing::Npc(npc) => npc.uuid = None,
             Thing::Region(region) => region.uuid = None,
         }
@@ -69,7 +69,7 @@ impl Thing {
 
     pub fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
         match self {
-            Thing::Location(location) => location.regenerate(rng, demographics),
+            Thing::Place(place) => place.regenerate(rng, demographics),
             Thing::Npc(npc) => npc.regenerate(rng, demographics),
             Thing::Region(_) => {}
         }
@@ -83,9 +83,9 @@ impl Thing {
         }
     }
 
-    pub fn location(&self) -> Option<&Location> {
-        if let Self::Location(location) = self {
-            Some(location)
+    pub fn place(&self) -> Option<&Place> {
+        if let Self::Place(place) = self {
+            Some(place)
         } else {
             None
         }
@@ -120,9 +120,9 @@ impl Thing {
     }
 }
 
-impl From<Location> for Thing {
-    fn from(location: Location) -> Thing {
-        Thing::Location(location)
+impl From<Place> for Thing {
+    fn from(place: Place) -> Thing {
+        Thing::Place(place)
     }
 }
 
@@ -144,7 +144,7 @@ impl FromStr for Thing {
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
         match (raw.parse(), raw.parse()) {
             (Ok(npc), Err(())) => Ok(Thing::Npc(npc)),
-            (Err(()), Ok(location)) => Ok(Thing::Location(location)),
+            (Err(()), Ok(place)) => Ok(Thing::Place(place)),
             _ => Err(()),
         }
     }
@@ -153,7 +153,7 @@ impl FromStr for Thing {
 impl<'a> fmt::Display for SummaryView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0 {
-            Thing::Location(l) => write!(f, "{}", l.display_summary()),
+            Thing::Place(l) => write!(f, "{}", l.display_summary()),
             Thing::Npc(n) => write!(f, "{}", n.display_summary()),
             Thing::Region(r) => write!(f, "{}", r.name),
         }
@@ -163,7 +163,7 @@ impl<'a> fmt::Display for SummaryView<'a> {
 impl<'a> fmt::Display for DescriptionView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0 {
-            Thing::Location(l) => write!(f, "{}", l.display_description()),
+            Thing::Place(l) => write!(f, "{}", l.display_description()),
             Thing::Npc(n) => write!(f, "{}", n.display_description()),
             Thing::Region(_) => write!(f, "region"),
         }
@@ -173,7 +173,7 @@ impl<'a> fmt::Display for DescriptionView<'a> {
 impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0 {
-            Thing::Location(l) => write!(f, "{}", l.display_details()),
+            Thing::Place(l) => write!(f, "{}", l.display_details()),
             Thing::Npc(n) => write!(f, "{}", n.display_details()),
             Thing::Region(r) => write!(f, "{}", r.name),
         }
@@ -190,11 +190,11 @@ mod test {
     #[test]
     fn name_test() {
         {
-            let mut location = Location::default();
-            location.name.replace("The Prancing Pony".to_string());
+            let mut place = Place::default();
+            place.name.replace("The Prancing Pony".to_string());
             assert_eq!(
                 Some(&"The Prancing Pony".to_string()),
-                Thing::from(location).name().value()
+                Thing::from(place).name().value()
             );
         }
 
@@ -219,16 +219,16 @@ mod test {
 
     #[test]
     fn into_test() {
-        assert!(matches!(Location::default().into(), Thing::Location(_)));
+        assert!(matches!(Place::default().into(), Thing::Place(_)));
         assert!(matches!(Npc::default().into(), Thing::Npc(_)));
         assert!(matches!(Region::default().into(), Thing::Region(_)));
     }
 
     #[test]
-    fn serialize_deserialize_test_location() {
-        let thing = location();
+    fn serialize_deserialize_test_place() {
+        let thing = place();
         assert_eq!(
-            r#"{"type":"Location","uuid":null,"parent_uuid":null,"subtype":null,"name":null,"description":null}"#,
+            r#"{"type":"Place","uuid":null,"parent_uuid":null,"subtype":null,"name":null,"description":null}"#,
             serde_json::to_string(&thing).unwrap(),
         );
     }
@@ -259,32 +259,32 @@ mod test {
     }
 
     #[test]
-    fn location_npc_region_test() {
+    fn place_npc_region_test() {
         {
-            let thing = location();
-            assert!(matches!(thing.location(), Some(Location { .. })));
+            let thing = place();
+            assert!(matches!(thing.place(), Some(Place { .. })));
             assert!(thing.npc().is_none());
             assert!(thing.region().is_none());
         }
 
         {
             let thing = npc();
-            assert!(thing.location().is_none());
+            assert!(thing.place().is_none());
             assert!(matches!(thing.npc(), Some(Npc { .. })));
             assert!(thing.region().is_none());
         }
 
         {
             let thing = region();
-            assert!(thing.location().is_none());
+            assert!(thing.place().is_none());
             assert!(thing.npc().is_none());
             assert!(matches!(thing.region(), Some(Region { .. })));
         }
     }
 
     #[test]
-    fn uuid_test_location() {
-        let mut thing = location();
+    fn uuid_test_place() {
+        let mut thing = place();
         assert_eq!(None, thing.uuid());
 
         let uuid = Uuid::new_v4();
@@ -293,7 +293,7 @@ mod test {
 
         assert_eq!(
             uuid.to_string(),
-            thing.location().unwrap().uuid.as_ref().unwrap().to_string(),
+            thing.place().unwrap().uuid.as_ref().unwrap().to_string(),
         );
 
         thing.clear_uuid();
@@ -338,7 +338,7 @@ mod test {
 
     #[test]
     fn gender_test() {
-        assert_eq!(Gender::Neuter, location().gender());
+        assert_eq!(Gender::Neuter, place().gender());
         assert_eq!(Gender::Neuter, region().gender());
         assert_eq!(Gender::NonBinaryThey, npc().gender());
 
@@ -350,8 +350,8 @@ mod test {
         assert_eq!(Gender::Feminine, npc.gender());
     }
 
-    fn location() -> Thing {
-        Thing::Location(Location::default())
+    fn place() -> Thing {
+        Thing::Place(Place::default())
     }
 
     fn npc() -> Thing {

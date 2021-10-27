@@ -1,4 +1,4 @@
-use super::{Field, Location, Npc, Thing};
+use super::{Field, Npc, Place, Thing};
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use crate::storage::{Change, RepositoryError, StorageCommand};
 use async_trait::async_trait;
@@ -174,7 +174,7 @@ impl Autocomplete for WorldCommand {
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         let mut suggestions = Vec::new();
 
-        suggestions.append(&mut Location::autocomplete(input, app_meta));
+        suggestions.append(&mut Place::autocomplete(input, app_meta));
         suggestions.append(&mut Npc::autocomplete(input, app_meta));
 
         suggestions
@@ -193,8 +193,8 @@ impl fmt::Display for WorldCommand {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
-    use crate::world::location::LocationType;
     use crate::world::npc::Species;
+    use crate::world::place::PlaceType;
 
     #[test]
     fn parse_input_test() {
@@ -256,7 +256,7 @@ mod test {
             ("halfling", "create halfling"),
             ("human", "create human"),
             ("tiefling", "create tiefling"),
-            // LocationType
+            // PlaceType
             ("inn", "create inn"),
         ]
         .drain(..)
@@ -287,8 +287,8 @@ mod test {
 
         vec![
             WorldCommand::Create {
-                thing: Location {
-                    subtype: LocationType::Inn.into(),
+                thing: Place {
+                    subtype: PlaceType::Inn.into(),
                     ..Default::default()
                 }
                 .into(),

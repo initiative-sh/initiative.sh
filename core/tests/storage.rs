@@ -350,7 +350,7 @@ fn journal_shows_alphabetized_results() {
         });
 
     assert_eq!(Some(""), output_iter.next());
-    assert_eq!(Some("## Locations"), output_iter.next());
+    assert_eq!(Some("## Places"), output_iter.next());
 
     inns.drain(..)
         .zip(output_iter.by_ref())

@@ -12,10 +12,10 @@ use view::{DescriptionView, DetailsView, SummaryView};
 initiative_macros::uuid!();
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct Location {
+pub struct Place {
     pub uuid: Option<Uuid>,
     pub parent_uuid: Option<RegionUuid>,
-    pub subtype: Field<LocationType>,
+    pub subtype: Field<PlaceType>,
 
     pub name: Field<String>,
     pub description: Field<String>,
@@ -31,14 +31,14 @@ pub struct Location {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
-pub enum LocationType {
+pub enum PlaceType {
     #[alias = "bar"]
     #[alias = "pub"]
     #[alias = "tavern"]
     Inn,
 }
 
-impl Location {
+impl Place {
     pub fn display_summary(&self) -> SummaryView {
         SummaryView::new(self)
     }
@@ -52,36 +52,36 @@ impl Location {
     }
 
     pub fn get_words() -> &'static [&'static str] {
-        &["location"][..]
+        &["place"][..]
     }
 }
 
-impl Generate for Location {
+impl Generate for Place {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
         self.subtype
-            .replace_with(|_| LocationType::generate(rng, demographics));
+            .replace_with(|_| PlaceType::generate(rng, demographics));
 
         if let Some(value) = self.subtype.value_mut() {
             match value {
-                LocationType::Inn => inn::generate(self, rng, demographics),
+                PlaceType::Inn => inn::generate(self, rng, demographics),
             }
         }
     }
 }
 
-impl Default for LocationType {
+impl Default for PlaceType {
     fn default() -> Self {
         Self::Inn
     }
 }
 
-impl Generate for LocationType {
+impl Generate for PlaceType {
     fn regenerate(&mut self, _rng: &mut impl Rng, _demographics: &Demographics) {
         *self = Self::Inn;
     }
 }
 
-impl fmt::Display for LocationType {
+impl fmt::Display for PlaceType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.as_str())
     }
@@ -95,53 +95,50 @@ mod test {
     fn generate_test() {
         let demographics = Demographics::default();
 
-        // This should fail when we start re-adding location types.
+        // This should fail when we start re-adding place types.
         let mut rng = SmallRng::seed_from_u64(0);
         assert_eq!(
-            Location::generate(&mut rng, &demographics).subtype,
-            Location::generate(&mut rng, &demographics).subtype,
+            Place::generate(&mut rng, &demographics).subtype,
+            Place::generate(&mut rng, &demographics).subtype,
         );
 
         let mut rng1 = SmallRng::seed_from_u64(0);
         let mut rng2 = SmallRng::seed_from_u64(0);
         assert_eq!(
-            Location::generate(&mut rng1, &demographics).subtype,
-            Location::generate(&mut rng2, &demographics).subtype,
+            Place::generate(&mut rng1, &demographics).subtype,
+            Place::generate(&mut rng2, &demographics).subtype,
         );
     }
 
     #[test]
     fn default_test() {
-        assert_eq!(LocationType::Inn, LocationType::default());
+        assert_eq!(PlaceType::Inn, PlaceType::default());
     }
 
     #[test]
     fn display_test() {
-        assert_eq!("inn", format!("{}", LocationType::Inn));
+        assert_eq!("inn", format!("{}", PlaceType::Inn));
     }
 
     #[test]
     fn try_from_noun_test() {
-        assert_eq!(Ok(LocationType::Inn), "inn".parse(),);
+        assert_eq!(Ok(PlaceType::Inn), "inn".parse(),);
 
-        let location_type: Result<LocationType, ()> = "npc".parse();
-        assert_eq!(Err(()), location_type);
+        let place_type: Result<PlaceType, ()> = "npc".parse();
+        assert_eq!(Err(()), place_type);
     }
 
     #[test]
-    fn location_type_serialize_deserialize_test() {
-        assert_eq!(
-            r#""Inn""#,
-            serde_json::to_string(&LocationType::Inn).unwrap(),
-        );
+    fn place_type_serialize_deserialize_test() {
+        assert_eq!(r#""Inn""#, serde_json::to_string(&PlaceType::Inn).unwrap(),);
     }
 
     #[test]
-    fn location_serialize_deserialize_test() {
-        let location = Location {
+    fn place_serialize_deserialize_test() {
+        let place = Place {
             uuid: Some(uuid::Uuid::nil().into()),
             parent_uuid: Some(uuid::Uuid::nil().into()),
-            subtype: LocationType::Inn.into(),
+            subtype: PlaceType::Inn.into(),
 
             name: "Oaken Mermaid Inn".into(),
             description: "I am Mordenkainen".into(),
@@ -149,11 +146,11 @@ mod test {
 
         assert_eq!(
             r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"Inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#,
-            serde_json::to_string(&location).unwrap(),
+            serde_json::to_string(&place).unwrap(),
         );
 
-        let value: Location = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"Inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
+        let value: Place = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"Inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
 
-        assert_eq!(location, value);
+        assert_eq!(place, value);
     }
 }

@@ -12,14 +12,14 @@ fn results_are_random() {
 }
 
 #[test]
-fn generated_content_is_limited_by_location_type() {
-    ["inn"].iter().for_each(|location_type| {
-        let output = sync_app().command(location_type).unwrap();
+fn generated_content_is_limited_by_place_type() {
+    ["inn"].iter().for_each(|place_type| {
+        let output = sync_app().command(place_type).unwrap();
 
         assert!(
-            output.matches(location_type).count() >= 11,
+            output.matches(place_type).count() >= 11,
             "Input: {}\n\nOutput:\n{}",
-            location_type,
+            place_type,
             output,
         );
     });
@@ -98,7 +98,7 @@ fn generated_content_is_persisted() {
 }
 
 #[test]
-fn numeric_aliases_exist_for_locations() {
+fn numeric_aliases_exist_for_places() {
     let mut app = sync_app();
 
     // Generate a data set to potentially interfere with the one being tested.
@@ -141,7 +141,7 @@ fn numeric_aliases_exist_for_locations() {
 }
 
 #[test]
-fn save_alias_exists_for_locations() {
+fn save_alias_exists_for_places() {
     let mut app = sync_app();
 
     {
@@ -165,7 +165,7 @@ fn save_alias_exists_for_locations() {
 }
 
 #[test]
-fn location_save_alias_does_not_exist_with_invalid_data_store() {
+fn place_save_alias_does_not_exist_with_invalid_data_store() {
     let mut app = sync_app_with_data_store(NullDataStore::default());
 
     let output = app.command("building").unwrap();
@@ -178,7 +178,7 @@ fn location_save_alias_does_not_exist_with_invalid_data_store() {
 }
 
 #[test]
-fn create_location_with_custom_attributes() {
+fn create_place_with_custom_attributes() {
     let mut app = sync_app();
 
     {
@@ -203,9 +203,7 @@ fn create_location_with_custom_attributes() {
     }
 
     {
-        let output = app
-            .command("a location named the prancing pony")
-            .unwrap_err();
+        let output = app.command("a place named the prancing pony").unwrap_err();
         assert_eq!(
             "That name is already in use by `The Prancing Pony`, an inn.",
             output,

@@ -70,14 +70,14 @@ impl Runnable for StorageCommand {
                 }
 
                 let mut output = "# Journal".to_string();
-                let [mut npcs, mut locations, mut regions] = [Vec::new(), Vec::new(), Vec::new()];
+                let [mut npcs, mut places, mut regions] = [Vec::new(), Vec::new(), Vec::new()];
 
                 let record_count = app_meta
                     .repository
                     .journal()
                     .map(|thing| match thing {
                         Thing::Npc(_) => npcs.push(thing),
-                        Thing::Location(_) => locations.push(thing),
+                        Thing::Place(_) => places.push(thing),
                         Thing::Region(_) => regions.push(thing),
                     })
                     .count();
@@ -100,7 +100,7 @@ impl Runnable for StorageCommand {
                 };
 
                 add_section("NPCs", npcs);
-                add_section("Locations", locations);
+                add_section("Places", places);
                 add_section("Regions", regions);
 
                 if record_count == 0 {
@@ -364,8 +364,8 @@ impl fmt::Display for StorageCommand {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
-    use crate::world::location::{Location, LocationType};
     use crate::world::npc::{Age, Gender, Npc, Species};
+    use crate::world::place::{Place, PlaceType};
     use crate::world::Thing;
     use tokio_test::block_on;
     use uuid::Uuid;
@@ -373,8 +373,8 @@ mod test {
     #[test]
     fn summarize_test() {
         {
-            let mut location = Location {
-                subtype: LocationType::Inn.into(),
+            let mut place = Place {
+                subtype: PlaceType::Inn.into(),
                 ..Default::default()
             }
             .into();
@@ -384,27 +384,27 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&location), None),
+                .summarize(Some(&place), None),
             );
 
-            location.set_uuid(Uuid::new_v4());
+            place.set_uuid(Uuid::new_v4());
 
             assert_eq!(
                 "inn",
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&location), None),
+                .summarize(Some(&place), None),
             );
 
             assert_eq!(
-                "save location to journal",
+                "save place to journal",
                 StorageCommand::Change {
                     change: Change::Save {
                         name: String::new(),
                     },
                 }
-                .summarize(Some(&location), None),
+                .summarize(Some(&place), None),
             );
         }
 
@@ -599,9 +599,9 @@ mod test {
 
         block_on(
             app_meta.repository.modify(Change::Create {
-                thing: Location {
+                thing: Place {
                     name: "Potato & Meat".into(),
-                    subtype: LocationType::Inn.into(),
+                    subtype: PlaceType::Inn.into(),
                     ..Default::default()
                 }
                 .into(),
@@ -632,7 +632,7 @@ mod test {
                     "save potato should be capitalized",
                     "save character to journal",
                 ),
-                ("save Potato & Meat", "save location to journal"),
+                ("save Potato & Meat", "save place to journal"),
             ]
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))

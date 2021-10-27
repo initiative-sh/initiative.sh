@@ -1,5 +1,5 @@
 use crate::utils::{capitalize, quoted_words};
-use crate::world::{Field, Location, Npc};
+use crate::world::{Field, Npc, Place};
 use std::str::FromStr;
 
 fn split_name(input: &str) -> Option<(&str, &str)> {
@@ -42,15 +42,15 @@ fn split_name(input: &str) -> Option<(&str, &str)> {
     }
 }
 
-impl FromStr for Location {
+impl FromStr for Place {
     type Err = ();
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        let mut location = Location::default();
+        let mut place = Place::default();
         let mut is_explicit = false;
 
         let description = if let Some((name, description)) = split_name(input) {
-            location.name = Field::new(capitalize(name));
+            place.name = Field::new(capitalize(name));
             description
         } else {
             input
@@ -59,17 +59,17 @@ impl FromStr for Location {
         for word in quoted_words(description) {
             if ["a", "an"].contains(&word.as_str()) {
                 // ignore
-            } else if ["building", "location", "place"].contains(&word.as_str()) {
+            } else if ["building", "place"].contains(&word.as_str()) {
                 is_explicit = true;
-            } else if let Ok(location_type) = word.as_str().parse() {
-                location.subtype = Field::new(location_type);
+            } else if let Ok(place_type) = word.as_str().parse() {
+                place.subtype = Field::new(place_type);
             } else {
                 return Err(());
             }
         }
 
-        if is_explicit || location.subtype.is_some() {
-            Ok(location)
+        if is_explicit || place.subtype.is_some() {
+            Ok(place)
         } else {
             Err(())
         }
@@ -144,42 +144,36 @@ impl FromStr for Npc {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::world::location::LocationType;
     use crate::world::npc::{Age, Gender, Species};
+    use crate::world::place::PlaceType;
 
     #[test]
-    fn location_from_str_test() {
+    fn place_from_str_test() {
         {
-            let location: Location = "inn".parse().unwrap();
-            assert_eq!(Field::Locked(LocationType::Inn), location.subtype,);
+            let place: Place = "inn".parse().unwrap();
+            assert_eq!(Field::Locked(PlaceType::Inn), place.subtype,);
         }
 
         {
-            let location = "building named foo bar".parse::<Location>().unwrap();
-            assert_eq!(Some("Foo bar"), location.name.value().map(|s| s.as_str()));
+            let place = "building named foo bar".parse::<Place>().unwrap();
+            assert_eq!(Some("Foo bar"), place.name.value().map(|s| s.as_str()));
         }
 
         {
-            let location: Location = "The Prancing Pony, an inn".parse().unwrap();
-            assert_eq!(
-                Field::Locked("The Prancing Pony".to_string()),
-                location.name,
-            );
+            let place: Place = "The Prancing Pony, an inn".parse().unwrap();
+            assert_eq!(Field::Locked("The Prancing Pony".to_string()), place.name,);
         }
 
         {
-            let location: Location = "\"The Prancing Pony\", an inn".parse().unwrap();
-            assert_eq!(
-                Field::Locked("The Prancing Pony".to_string()),
-                location.name,
-            );
-            assert_eq!(Field::Locked(LocationType::Inn), location.subtype,);
+            let place: Place = "\"The Prancing Pony\", an inn".parse().unwrap();
+            assert_eq!(Field::Locked("The Prancing Pony".to_string()), place.name,);
+            assert_eq!(Field::Locked(PlaceType::Inn), place.subtype,);
         }
 
         {
-            let location: Location = "a place called home".parse().unwrap();
-            assert_eq!(Field::Locked("Home".to_string()), location.name);
-            assert!(location.subtype.is_none());
+            let place: Place = "a place called home".parse().unwrap();
+            assert_eq!(Field::Locked("Home".to_string()), place.name);
+            assert!(place.subtype.is_none());
         }
     }
 

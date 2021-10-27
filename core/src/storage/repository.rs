@@ -433,7 +433,7 @@ impl fmt::Debug for Repository {
 mod test {
     use super::*;
     use crate::storage::data_store::{MemoryDataStore, NullDataStore};
-    use crate::world::{Location, Npc};
+    use crate::world::{Npc, Place};
     use tokio_test::block_on;
 
     const TEST_UUID: Uuid = Uuid::from_u128(u128::MAX);
@@ -548,7 +548,7 @@ mod test {
 
             assert_eq!(
                 &Change::CreateAndSave {
-                    thing: Location {
+                    thing: Place {
                         uuid: Some(TEST_UUID.into()),
                         name: "Olympus".into(),
                         ..Default::default()
@@ -637,7 +637,7 @@ mod test {
 
             assert_eq!(
                 &Change::CreateAndSave {
-                    thing: Location {
+                    thing: Place {
                         uuid: Some(TEST_UUID.into()),
                         name: "Olympus".into(),
                         ..Default::default()
@@ -761,7 +761,7 @@ mod test {
     fn change_test_create_already_exists_in_recent() {
         let mut repo = repo();
         let change = Change::Create {
-            thing: Location {
+            thing: Place {
                 name: "Odysseus".into(),
                 ..Default::default()
             }
@@ -826,7 +826,7 @@ mod test {
 
         block_on(
             repo.modify(Change::Create {
-                thing: Location {
+                thing: Place {
                     name: "Odysseus".into(),
                     ..Default::default()
                 }
@@ -987,7 +987,7 @@ mod test {
     fn change_test_create_and_save_already_exists_in_journal() {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::CreateAndSave {
-            thing: Location {
+            thing: Place {
                 name: "Odysseus".into(),
                 ..Default::default()
             }
@@ -1028,7 +1028,7 @@ mod test {
         let mut repo = null_repo();
 
         let change = Change::CreateAndSave {
-            thing: Location {
+            thing: Place {
                 name: "Odysseus".into(),
                 ..Default::default()
             }
@@ -1072,7 +1072,7 @@ mod test {
         let mut data_store = MemoryDataStore::default();
         block_on(
             data_store.save_thing(
-                &Location {
+                &Place {
                     uuid: Some(TEST_UUID.into()),
                     name: "Olympus".into(),
                     ..Default::default()

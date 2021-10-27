@@ -8,6 +8,8 @@ dexie.version(6).stores({
 }).upgrade((tx) => {
   return tx.table("things").toCollection().modify((thing) => {
     if (thing.type === "Location") {
+      thing.type = "Place"
+
       if (thing.subtype && thing.subtype.subtype) {
         thing.subtype = thing.subtype.subtype
       }
