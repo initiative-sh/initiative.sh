@@ -116,7 +116,7 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
                 } else {
                     ""
                 },
-                thing.display_description(),
+                thing.as_str(),
             );
 
             vec![(

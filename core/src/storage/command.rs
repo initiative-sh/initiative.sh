@@ -1,6 +1,7 @@
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use crate::storage::{Change, RepositoryError};
-use crate::world::Thing;
+use crate::utils::quoted_words;
+use crate::world::{Npc, Place, Thing};
 use async_trait::async_trait;
 use std::fmt;
 
@@ -149,7 +150,37 @@ impl Runnable for StorageCommand {
                                 format!("Couldn't delete `{}`.", name)
                             }
                         }),
-                    Change::Edit { .. } | Change::EditAndUnsave { .. } => unimplemented!(),
+                    Change::Edit { .. } | Change::EditAndUnsave { .. } => app_meta
+                        .repository
+                        .modify(change)
+                        .await
+                        .map(|id| {
+                            let thing = app_meta.repository.load(&id).unwrap();
+
+                            if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) {
+                                format!(
+                                    "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
+                                    thing.display_details(),
+                                    name,
+                                )
+                            } else {
+                                format!(
+                                    "{}\n\n_{} was successfully edited. Use `undo` to reverse this._",
+                                    thing.display_details(),
+                                    name,
+                                )
+                            }
+                        })
+                        .map_err(|(_, e)| match e {
+                            RepositoryError::NotFound => {
+                                format!("There is no entity named \"{}\".", name)
+                            }
+                            RepositoryError::DataStoreFailed
+                                | RepositoryError::MissingName
+                                | RepositoryError::NameAlreadyExists => {
+                                format!("Couldn't edit `{}`.", name)
+                                }
+                        }),
                     Change::Save { .. } => app_meta
                         .repository
                         .modify(change)
@@ -232,15 +263,49 @@ impl ContextAwareParse for StorageCommand {
     fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut fuzzy_matches = Vec::new();
 
-        (
-            if input.starts_with(char::is_uppercase) {
-                if app_meta.repository.load(&input.into()).is_some() {
-                    fuzzy_matches.push(Self::Load {
-                        name: input.to_string(),
+        if input.starts_with(char::is_uppercase)
+            && app_meta.repository.load(&input.into()).is_some()
+        {
+            fuzzy_matches.push(Self::Load {
+                name: input.to_string(),
+            });
+        }
+
+        if let Some(word) = quoted_words(input)
+            .skip(1)
+            .find(|word| word.as_str() == "is")
+        {
+            let (name, description) = (
+                input[..word.range().start].trim(),
+                input[word.range().end..].trim(),
+            );
+
+            if let Some(thing) = app_meta.repository.load(&name.into()) {
+                let diff = match thing {
+                    Thing::Npc(_) => description.parse::<Npc>().map(|npc| npc.into()),
+                    Thing::Place(_) => description.parse::<Place>().map(|place| place.into()),
+                    Thing::Region(_) => unimplemented!(),
+                };
+
+                if let Ok(diff) = diff {
+                    let name = thing.name().to_string();
+
+                    fuzzy_matches.push(Self::Change {
+                        change: Change::Edit {
+                            id: thing.uuid().map_or_else(
+                                || name.as_str().into(),
+                                |uuid| uuid.to_owned().into(),
+                            ),
+                            name,
+                            diff,
+                        },
                     });
                 }
-                None
-            } else if let Some(name) = input.strip_prefix("delete ") {
+            }
+        }
+
+        (
+            if let Some(name) = input.strip_prefix("delete ") {
                 Some(Self::Change {
                     change: Change::Delete {
                         id: name.into(),
@@ -271,11 +336,7 @@ impl ContextAwareParse for StorageCommand {
 
 impl Autocomplete for StorageCommand {
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
-        if input.is_empty() {
-            return Vec::new();
-        }
-
-        let mut result = Vec::new();
+        let mut suggestions = Vec::new();
 
         ["delete", "load", "save"]
             .iter()
@@ -293,7 +354,7 @@ impl Autocomplete for StorageCommand {
                     .filter_map(|s| Self::parse_input(s, app_meta).0.map(|c| (s.to_string(), c))),
             )
             .for_each(|(s, command)| {
-                result.push((
+                suggestions.push((
                     s,
                     command.summarize(None, app_meta.repository.undo_history().next()),
                 ))
@@ -339,10 +400,107 @@ impl Autocomplete for StorageCommand {
             })
             .take(10)
             .for_each(|(suggestion, thing, command)| {
-                result.push((suggestion, command.summarize(Some(thing), None)))
+                suggestions.push((suggestion, command.summarize(Some(thing), None)))
             });
 
-        result
+        let mut input_words = quoted_words(input).skip(1);
+
+        if let Some((is_word, next_word)) = input_words
+            .find(|word| word.as_str() == "is")
+            .and_then(|word| input_words.next().map(|next_word| (word, next_word)))
+        {
+            if let Some(thing) = app_meta
+                .repository
+                .load(&input[..is_word.range().start].trim().into())
+            {
+                let split_pos = input.len() - input[is_word.range().end..].trim_start().len();
+
+                let mut edit_suggestions = match thing {
+                    Thing::Npc(_) => Npc::autocomplete(input[split_pos..].trim_start(), app_meta),
+                    Thing::Place(_) => {
+                        Place::autocomplete(input[split_pos..].trim_start(), app_meta)
+                    }
+                    Thing::Region(_) => unimplemented!(),
+                };
+
+                suggestions.reserve(edit_suggestions.len());
+
+                edit_suggestions
+                    .drain(..)
+                    .map(|(a, _)| {
+                        (
+                            format!("{}{}", &input[..split_pos], a),
+                            format!("edit {}", thing.as_str()),
+                        )
+                    })
+                    .for_each(|suggestion| suggestions.push(suggestion));
+
+                if ["named", "called"].contains(&next_word.as_str()) && input_words.next().is_some()
+                {
+                    suggestions.push((input.to_string(), format!("rename {}", thing.as_str())));
+                }
+            }
+        }
+
+        if let Some(thing) = app_meta.repository.load(&input.trim_end().into()) {
+            suggestions.push((
+                if input.ends_with(char::is_whitespace) {
+                    format!("{}is [{} description]", input, thing.as_str())
+                } else {
+                    format!("{} is [{} description]", input, thing.as_str())
+                },
+                format!("edit {}", thing.as_str()),
+            ));
+        } else if let Some((last_word_index, last_word)) =
+            quoted_words(input).enumerate().skip(1).last()
+        {
+            if "is".starts_with(last_word.as_str()) {
+                if let Some(thing) = app_meta
+                    .repository
+                    .load(&input[..last_word.range().start].trim().into())
+                {
+                    suggestions.push((
+                        if last_word.range().end == input.len() {
+                            format!(
+                                "{}is [{} description]",
+                                &input[..last_word.range().start],
+                                thing.as_str(),
+                            )
+                        } else {
+                            format!("{}[{} description]", &input, thing.as_str())
+                        },
+                        format!("edit {}", thing.as_str()),
+                    ))
+                }
+            } else if let Some(suggestion) = ["named", "called"]
+                .iter()
+                .find(|s| s.starts_with(last_word.as_str()))
+            {
+                let second_last_word = quoted_words(input).nth(last_word_index - 1).unwrap();
+
+                if second_last_word.as_str() == "is" {
+                    if let Some(thing) = app_meta
+                        .repository
+                        .load(&input[..second_last_word.range().start].trim().into())
+                    {
+                        suggestions.push((
+                            if last_word.range().end == input.len() {
+                                format!(
+                                    "{}{} [name]",
+                                    &input[..last_word.range().start],
+                                    suggestion,
+                                )
+                            } else {
+                                format!("{}[name]", input)
+                            },
+                            format!("rename {}", thing.as_str()),
+                        ));
+                    }
+                }
+            }
+        }
+
+        suggestions
     }
 }
 
@@ -569,6 +727,39 @@ mod test {
             (None, Vec::<StorageCommand>::new()),
             StorageCommand::parse_input("potato", &app_meta),
         );
+
+        {
+            let mut app_meta = AppMeta::new(NullDataStore::default());
+
+            block_on(
+                app_meta.repository.modify(Change::Create {
+                    thing: Npc {
+                        name: "Gandalf the Grey".into(),
+                        ..Default::default()
+                    }
+                    .into(),
+                }),
+            )
+            .unwrap();
+
+            assert_eq!(
+                (
+                    None,
+                    vec![StorageCommand::Change {
+                        change: Change::Edit {
+                            id: "Gandalf the Grey".into(),
+                            name: "Gandalf the Grey".into(),
+                            diff: Npc {
+                                age: Age::Geriatric.into(),
+                                ..Default::default()
+                            }
+                            .into(),
+                        },
+                    }],
+                ),
+                StorageCommand::parse_input("gandalf the grey is ancient", &app_meta),
+            );
+        }
     }
 
     #[test]
@@ -612,82 +803,86 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(
-            [
+        assert_autocomplete(
+            &[
                 ("Potato Johnson", "adult elf, they/them (unsaved)"),
                 ("Potato & Meat", "inn (unsaved)"),
-            ]
-            .iter()
-            .map(|(a, b)| (a.to_string(), b.to_string()))
-            .collect::<Vec<_>>(),
+            ][..],
             StorageCommand::autocomplete("P", &app_meta),
         );
 
-        assert_eq!(
-            Vec::<(String, String)>::new(),
-            StorageCommand::autocomplete("delete P", &app_meta),
-        );
+        assert!(StorageCommand::autocomplete("delete P", &app_meta).is_empty());
 
-        assert_eq!(
-            [
+        assert_autocomplete(
+            &[
                 ("save Potato Johnson", "save character to journal"),
                 (
                     "save potato should be capitalized",
                     "save character to journal",
                 ),
                 ("save Potato & Meat", "save place to journal"),
-            ]
-            .iter()
-            .map(|(a, b)| (a.to_string(), b.to_string()))
-            .collect::<Vec<_>>(),
+            ][..],
             StorageCommand::autocomplete("save ", &app_meta),
         );
 
-        assert_eq!(
-            [
+        assert_autocomplete(
+            &[
                 ("load Potato Johnson", "adult elf, they/them (unsaved)"),
                 ("load Potato & Meat", "inn (unsaved)"),
-            ]
-            .iter()
-            .map(|(a, b)| (a.to_string(), b.to_string()))
-            .collect::<Vec<_>>(),
+            ][..],
             StorageCommand::autocomplete("load P", &app_meta),
         );
 
-        assert_eq!(
-            [("delete [name]", "remove an entry from journal")]
-                .iter()
-                .map(|(a, b)| (a.to_string(), b.to_string()))
-                .collect::<Vec<_>>(),
+        assert_autocomplete(
+            &[("delete [name]", "remove an entry from journal")][..],
             StorageCommand::autocomplete("delete", &app_meta),
         );
 
-        assert_eq!(
-            [("load [name]", "load an entry")]
-                .iter()
-                .map(|(a, b)| (a.to_string(), b.to_string()))
-                .collect::<Vec<_>>(),
+        assert_autocomplete(
+            &[("load [name]", "load an entry")][..],
             StorageCommand::autocomplete("load", &app_meta),
         );
 
-        assert_eq!(
-            [("save [name]", "save an entry to journal")]
-                .iter()
-                .map(|(a, b)| (a.to_string(), b.to_string()))
-                .collect::<Vec<_>>(),
+        assert_autocomplete(
+            &[("save [name]", "save an entry to journal")][..],
             StorageCommand::autocomplete("s", &app_meta),
         );
 
-        assert_eq!(
-            [("journal", "list journal contents")]
-                .iter()
-                .map(|(a, b)| (a.to_string(), b.to_string()))
-                .collect::<Vec<_>>(),
+        assert_autocomplete(
+            &[("journal", "list journal contents")][..],
             StorageCommand::autocomplete("j", &app_meta),
         );
 
         assert!(StorageCommand::autocomplete("p", &app_meta).is_empty());
-        assert!(StorageCommand::autocomplete("", &app_meta).is_empty());
+
+        assert_autocomplete(
+            &[
+                ("Potato Johnson", "adult elf, they/them (unsaved)"),
+                (
+                    "Potato Johnson is [character description]",
+                    "edit character",
+                ),
+            ][..],
+            StorageCommand::autocomplete("Potato Johnson", &app_meta),
+        );
+
+        assert_autocomplete(
+            &[(
+                "Potato Johnson is a [character description]",
+                "edit character",
+            )][..],
+            StorageCommand::autocomplete("Potato Johnson is a ", &app_meta),
+        );
+
+        assert_autocomplete(
+            &[
+                ("Potato Johnson is an elderly", "edit character"),
+                ("Potato Johnson is an elf", "edit character"),
+                ("Potato Johnson is an elvish", "edit character"),
+                ("Potato Johnson is an enby", "edit character"),
+            ][..],
+            StorageCommand::autocomplete("Potato Johnson is an e", &app_meta),
+        );
     }
 
     #[test]
@@ -722,5 +917,21 @@ mod test {
                 command_string,
             );
         });
+    }
+
+    fn assert_autocomplete(
+        expected_suggestions: &[(&str, &str)],
+        actual_suggestions: Vec<(String, String)>,
+    ) {
+        let mut expected: Vec<_> = expected_suggestions
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect();
+        expected.sort();
+
+        let mut actual = actual_suggestions;
+        actual.sort();
+
+        assert_eq!(expected, actual);
     }
 }

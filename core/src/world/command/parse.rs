@@ -47,7 +47,6 @@ impl FromStr for Place {
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         let mut place = Place::default();
-        let mut is_explicit = false;
 
         let description = if let Some((name, description)) = split_name(input) {
             place.name = Field::new(capitalize(name));
@@ -57,10 +56,8 @@ impl FromStr for Place {
         };
 
         for word in quoted_words(description) {
-            if ["a", "an"].contains(&word.as_str()) {
+            if ["a", "an", "building", "place"].contains(&word.as_str()) {
                 // ignore
-            } else if ["building", "place"].contains(&word.as_str()) {
-                is_explicit = true;
             } else if let Ok(place_type) = word.as_str().parse() {
                 place.subtype = Field::new(place_type);
             } else {
@@ -68,11 +65,7 @@ impl FromStr for Place {
             }
         }
 
-        if is_explicit || place.subtype.is_some() {
-            Ok(place)
-        } else {
-            Err(())
-        }
+        Ok(place)
     }
 }
 
@@ -81,7 +74,6 @@ impl FromStr for Npc {
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         let mut npc = Npc::default();
-        let mut is_explicit = false;
 
         let description = if let Some((name, description)) = split_name(input) {
             npc.name = Field::new(capitalize(name));
@@ -93,10 +85,8 @@ impl FromStr for Npc {
         for word in quoted_words(description) {
             let word_str = &word.as_str();
 
-            if ["a", "an"].contains(word_str) {
+            if ["a", "an", "character", "npc", "person"].contains(word_str) {
                 // ignore
-            } else if ["character", "npc", "person"].contains(word_str) {
-                is_explicit = true;
             } else if let Ok(gender) = word_str.parse() {
                 npc.gender = Field::new(gender);
 
@@ -127,17 +117,7 @@ impl FromStr for Npc {
             }
         }
 
-        if is_explicit
-            || npc.age.is_some()
-            || npc.age_years.is_some()
-            || npc.ethnicity.is_some()
-            || npc.gender.is_some()
-            || npc.species.is_some()
-        {
-            Ok(npc)
-        } else {
-            Err(())
-        }
+        Ok(npc)
     }
 }
 
