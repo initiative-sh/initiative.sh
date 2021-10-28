@@ -18,6 +18,10 @@ impl initiative_core::DataStore for DataStore {
         }
     }
 
+    async fn edit_thing(&mut self, thing: &Thing) -> Result<(), ()> {
+        self.save_thing(thing).await
+    }
+
     async fn get_all_the_things(&self) -> Result<Vec<Thing>, ()> {
         get_all_the_things().await.into_serde().map_err(|_| ())
     }
