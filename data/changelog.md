@@ -1,3 +1,5 @@
+* **Enhancement:** Improved readability by setting a max width to the page and
+  increasing line spacing between user input and command output.
 * **New:** Added `undo` to fix those little mistakes. Mostly this frees us to be
   more liberal with interpreting commands, since it removes the risk of changing
   something you don't want if your command is misinterpreted.

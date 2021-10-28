@@ -19,9 +19,38 @@ body {
     color: var(--solarized-scheme02);
 }
 
+#container {
+    background: var(--solarized-scheme3);
+    max-width: 100ch;
+}
+
 #output {
     margin: 0.5rem 0.5rem 0;
     padding: 0 0 1rem;
+}
+
+#output .output-intro {
+    margin: 0 0 -1.2rem;
+}
+
+#output .command::before {
+    content: "> ";
+    color: var(--solarized-scheme01);
+    font-weight: normal;
+}
+#output .command {
+    color: var(--solarized-green);
+    background: var(--solarized-scheme2);
+    font-weight: bold;
+    margin-top: 2.4rem;
+}
+
+#output #still-loading {
+    margin-top: 2.4rem;
+}
+
+#output .output-block {
+    margin: 2.4rem 0 0;
 }
 
 #output a {
@@ -143,7 +172,9 @@ body {
 }
 
 #prompt-form {
-    margin: 0.2rem 0.5rem 0.5rem;
+    background: var(--solarized-scheme2);
+    color: var(--solarized-scheme01);
+    margin: 1.4rem 0.5rem 0.5rem;
     position: relative;
     white-space: nowrap;
 }
@@ -155,7 +186,8 @@ body {
 #prompt {
     background: none;
     border: none;
-    color: inherit;
+    color: var(--solarized-green);
+    font-weight: bold;
     height: 1.2rem;
     margin-bottom: 0;
     margin-left: 1ch;

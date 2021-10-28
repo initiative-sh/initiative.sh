@@ -1,6 +1,6 @@
-import * as wasm from "initiative-web";
-import autoComplete from "@tarekraafat/autocomplete.js";
-import marked from "marked";
+import * as wasm from "initiative-web"
+import autoComplete from "@tarekraafat/autocomplete.js"
+import marked from "marked"
 
 if (window.stillLoadingTimeout) {
   clearTimeout(window.stillLoadingTimeout)
@@ -15,19 +15,19 @@ if (stillLoading) {
   stillLoading.parentNode.removeChild(stillLoading)
 }
 
-document.body.insertAdjacentHTML(
+document.getElementById("container").insertAdjacentHTML(
   "beforeend",
   "<form id=\"prompt-form\"><input type=\"text\" id=\"prompt\" autocomplete=\"off\" autocorrect=\"off\" autocapitalize=\"none\"></form>"
-);
+)
 
-const promptFormElement = document.getElementById("prompt-form");
-const promptElement = document.getElementById("prompt");
-const outputElement = document.getElementById("output");
+const promptFormElement = document.getElementById("prompt-form")
+const promptElement = document.getElementById("prompt")
+const outputElement = document.getElementById("output")
 
 const reducedMotion = (() => {
-  const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-  return mediaQuery && mediaQuery.matches;
-})();
+  const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
+  return mediaQuery && mediaQuery.matches
+})()
 
 marked.use({
   renderer: {
@@ -40,24 +40,24 @@ marked.use({
       level: "block",
       start: (src) => src.match(/^! /)?.index,
       tokenizer: function (src, tokens) {
-        const match = /^! (.+)/.exec(src);
+        const match = /^! (.+)/.exec(src)
         if (match) {
           const token = {
             type: "error",
             raw: match[0],
             text: match[1].trim(),
             tokens: [],
-          };
-          this.inlineTokens(token.text, token.tokens);
-          return token;
+          }
+          this.inlineTokens(token.text, token.tokens)
+          return token
         }
       },
       renderer: function (token) {
-        return `<p class="error">${this.parseInline(token.tokens)}</p>`;
+        return `<p class="error">${this.parseInline(token.tokens)}</p>`
       },
     },
   ],
-});
+})
 
 const autoCompleteJS = new autoComplete({
   data: {
@@ -65,7 +65,7 @@ const autoCompleteJS = new autoComplete({
       return {
         suggestion: a[0],
         description: a[1],
-      };
+      }
     }),
     keys: ["suggestion"],
   },
@@ -79,7 +79,7 @@ const autoCompleteJS = new autoComplete({
       item.innerHTML = `
       <span class="autocomplete-item-primary">${data.match}</span>
       <span class="autocomplete-item-description">${data.value.description}</span>
-      `;
+      `
     },
     highlight: "autocomplete-item-highlight",
     selected: "autocomplete-item-selected",
@@ -87,112 +87,124 @@ const autoCompleteJS = new autoComplete({
   selector: "#prompt",
   submit: true,
   wrapper: false,
-});
+})
 
 const selectBracketedExpression = (command) => {
-  promptElement.value = command;
+  promptElement.value = command
 
-  const match = /\[[^\]]+\]/.exec(command);
+  const match = /\[[^\]]+\]/.exec(command)
   if (!match) {
-    return false;
+    return false
   }
 
-  promptElement.focus();
+  promptElement.focus()
   promptElement.setSelectionRange(
     match.index,
     match.index + match[0].length,
-  );
+  )
 
   if (!autoCompleteJS.isOpen) {
-    autoCompleteJS.start();
+    autoCompleteJS.start()
   }
 
-  return true;
-};
+  return true
+}
 
 const runCommand = async (command) => {
   if (!selectBracketedExpression(command)) {
-    output("\\> " + command + "\n\n" + await wasm.command(command));
+    let commandElement = document.createElement("div")
+    commandElement.className = "command"
+    commandElement.insertAdjacentText("beforeend", command)
+    outputElement.insertAdjacentElement("beforeend", commandElement)
+
+    promptElement.value = ""
+    autoCompleteJS.close()
+
+    window.scroll({
+      left: 0,
+      top: document.body.clientHeight,
+      behavior: reducedMotion ? "auto" : "smooth",
+    })
+
+    output(await wasm.command(command))
   }
-};
+}
 
 const output = (text) => {
-  outputElement.insertAdjacentHTML(
-    "beforeend",
-    marked(text)
-  );
+  let outputBlock = document.createElement("div")
+  outputBlock.className = "output-block"
+  outputBlock.insertAdjacentHTML("beforeend", marked(text))
+  outputElement.insertAdjacentElement("beforeend", outputBlock)
 
-  promptElement.value = "";
-  autoCompleteJS.close();
   window.scroll({
     left: 0,
     top: document.body.clientHeight,
     behavior: reducedMotion ? "auto" : "smooth",
-  });
-};
+  })
+}
 
 promptFormElement.addEventListener("submit", async (event) => {
-  event.preventDefault();
+  event.preventDefault()
   if (promptElement.value !== "") {
-    await runCommand(promptElement.value);
+    await runCommand(promptElement.value)
   }
-});
+})
 
 promptFormElement.addEventListener("navigate", (event) => {
-  selectBracketedExpression(event.detail.selection.value.suggestion);
-});
+  selectBracketedExpression(event.detail.selection.value.suggestion)
+})
 
 promptFormElement.addEventListener("selection", async (event) => {
   if (event.detail.event.type == "click") {
-    await runCommand(event.detail.selection.value.suggestion);
+    await runCommand(event.detail.selection.value.suggestion)
   }
-});
+})
 
 window.addEventListener("keydown", (event) => {
   if (event.key === "Tab") {
-    event.preventDefault();
+    event.preventDefault()
 
     if (autoCompleteJS.isOpen) {
       if (autoCompleteJS.cursor > -1) {
         selectBracketedExpression(
           autoCompleteJS.feedback.results[autoCompleteJS.cursor].value.suggestion
-        );
+        )
 
-        autoCompleteJS.start();
+        autoCompleteJS.start()
       } else {
         const commonPrefix = autoCompleteJS.feedback.results
           .map((result) => result.value.suggestion)
           .reduce((a, b) => {
-            let acc = "";
+            let acc = ""
             for (let i = 0; i < Math.min(a.length, b.length); i++) {
               if (a[i] == b[i]) {
-                acc += a[i];
+                acc += a[i]
               } else {
-                break;
+                break
               }
             }
-            return acc;
-          });
+            return acc
+          })
 
-        selectBracketedExpression(commonPrefix);
-        autoCompleteJS.start();
+        selectBracketedExpression(commonPrefix)
+        autoCompleteJS.start()
       }
     }
   } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
-    promptElement.focus();
+    promptElement.focus()
   }
-});
+})
 
 window.addEventListener("click", async (event) => {
   if (event.target.nodeName === "CODE") {
-    await runCommand(event.target.innerText);
+    await runCommand(event.target.innerText)
   } else {
-    promptElement.focus();
+    promptElement.focus()
   }
-});
+})
 
 wasm.initialize()
   .then((motd) => output(motd))
-  .catch((err) => console.log(err));
+  .catch((err) => console.log(err))
 
-promptElement.focus();
+promptElement.focus()

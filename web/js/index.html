@@ -13,7 +13,7 @@
 
               document.getElementById('output').insertAdjacentHTML(
                 'beforeend',
-                '<p id="still-loading">initiative.sh is loading</p>',
+                '<div id="still-loading">initiative.sh is loading</div>',
               )
 
               window.stillLoadingInterval = setInterval(
@@ -45,8 +45,9 @@
     <link href="<%= htmlWebpackPlugin.files.css[css] %>" rel="stylesheet">
     <% } %>
   </head>
-  <body>
+  <body><div id="container">
     <div id="output" role="log">
+      <div class="output-intro">
       <div role="hidden" class="logo-large">█████████████████████████████████████████████████████████████████████
 █▄─▄█▄─▀█▄─▄█▄─▄█─▄─▄─█▄─▄██▀▄─██─▄─▄─█▄─▄█▄─█─▄█▄─▄▄─█████─▄▄▄▄█─█─█
 ██─███─█▄▀─███─████─████─███─▀─████─████─███▄▀▄███─▄█▀█░░██▄▄▄▄─█─▄─█
@@ -73,6 +74,7 @@
         an HTML-only command line interface, so I don't have an alternative
         version to offer you.</p>
       </noscript>
+      </div>
     </div>
-  </body>
+    </div></body>
 </html>
