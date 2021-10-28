@@ -220,6 +220,26 @@ fn create_npc_with_custom_attributes() {
             output,
         );
     }
+
+    assert_eq!(
+        "Successfully undid creating Sue. Use `redo` to reverse this.",
+        app.command("undo").unwrap(),
+    );
+
+    {
+        let output = app.command("journal").unwrap();
+        assert!(output.contains("empty"), "{}", output);
+    }
+
+    assert_eq!(
+        "Successfully redid creating Sue. Use `undo` to reverse this.",
+        app.command("redo").unwrap(),
+    );
+
+    {
+        let output = app.command("journal").unwrap();
+        assert!(output.contains("Sue"), "{}", output);
+    }
 }
 
 #[test]
@@ -244,19 +264,18 @@ fn edit_npc() {
     }
 
     assert_eq!(
-        "Successfully undid editing Elvis. Use ~redo~ to reverse this.",
+        "Successfully undid editing Elvis. Use `redo` to reverse this.",
         app.command("undo").unwrap(),
     );
 
-    {
-        let output = app.command("redo").unwrap();
-        assert!(output.starts_with("# Joe"), "{}", output);
-        assert!(
-            output.ends_with("_Elvis was successfully edited. Use `undo` to reverse this._"),
-            "{}",
-            output,
-        );
-    }
+    app.command("Elvis").unwrap();
+
+    assert_eq!(
+        "Successfully redid editing Joe. Use `undo` to reverse this.",
+        app.command("redo").unwrap(),
+    );
+
+    app.command("Joe").unwrap();
 }
 
 #[test]
@@ -292,7 +311,7 @@ fn edit_npc_implicitly_saves() {
 
     assert_eq!(
         format!(
-            "Successfully undid editing {}. Use ~redo~ to reverse this.",
+            "Successfully undid editing {}. Use `redo` to reverse this.",
             name,
         ),
         app.command("undo").unwrap(),
@@ -314,6 +333,19 @@ fn edit_npc_implicitly_saves() {
     {
         let output = app.command("journal").unwrap();
         assert!(output.contains("empty"), "{}", output);
+    }
+
+    assert_eq!(
+        format!(
+            "Successfully redid editing {}. Use `undo` to reverse this.",
+            name,
+        ),
+        app.command("redo").unwrap(),
+    );
+
+    {
+        let output = app.command("journal").unwrap();
+        assert!(output.contains(&name), "{}", output);
     }
 }
 

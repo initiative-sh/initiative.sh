@@ -10,11 +10,17 @@ pub enum StorageCommand {
     Change { change: Change },
     Journal,
     Load { name: String },
+    Redo,
     Undo,
 }
 
 impl StorageCommand {
-    fn summarize(&self, thing: Option<&Thing>, last_change: Option<&Change>) -> String {
+    fn summarize(
+        &self,
+        thing: Option<&Thing>,
+        undo_change: Option<&Change>,
+        redo_change: Option<&Change>,
+    ) -> String {
         match (self, thing) {
             (
                 Self::Change {
@@ -50,8 +56,15 @@ impl StorageCommand {
                 }
             }
             (Self::Load { .. }, None) => "load an entry".to_string(),
+            (Self::Redo, _) => {
+                if let Some(change) = redo_change {
+                    format!("redo {}", change.display_redo())
+                } else {
+                    "nothing to redo".to_string()
+                }
+            }
             (Self::Undo, _) => {
-                if let Some(change) = last_change {
+                if let Some(change) = undo_change {
                     format!("undo {}", change.display_undo())
                 } else {
                     "nothing to undo".to_string()
@@ -237,21 +250,24 @@ impl Runnable for StorageCommand {
 
                 output
             }
+            Self::Redo => match app_meta.repository.redo().await {
+                Some(Ok(_)) => Ok(format!(
+                    "Successfully redid {}. Use `undo` to reverse this.",
+                    app_meta
+                        .repository
+                        .undo_history()
+                        .next()
+                        .unwrap()
+                        .display_undo(),
+                )),
+                Some(Err(_)) => Err("Failed to redo.".to_string()),
+                None => Err("Nothing to redo.".to_string()),
+            },
             Self::Undo => match app_meta.repository.undo().await {
-                Some(Ok(change)) => {
-                    let output = format!(
-                        "Successfully undid {}. Use ~redo~ to reverse this.",
-                        change.display_redo(),
-                    );
-
-                    app_meta.command_aliases.insert(CommandAlias::literal(
-                        "redo".to_string(),
-                        format!("redo {}", change.display_redo()),
-                        Self::Change { change }.into(),
-                    ));
-
-                    Ok(output)
-                }
+                Some(Ok(_)) => Ok(format!(
+                    "Successfully undid {}. Use `redo` to reverse this.",
+                    app_meta.repository.get_redo().unwrap().display_redo(),
+                )),
                 Some(Err(_)) => Err("Failed to undo.".to_string()),
                 None => Err("Nothing to undo.".to_string()),
             },
@@ -322,12 +338,13 @@ impl ContextAwareParse for StorageCommand {
                         name: name.to_string(),
                     },
                 })
-            } else if input == "journal" {
-                Some(Self::Journal)
-            } else if input == "undo" {
-                Some(Self::Undo)
             } else {
-                None
+                match input {
+                    "journal" => Some(Self::Journal),
+                    "undo" => Some(Self::Undo),
+                    "redo" => Some(Self::Redo),
+                    _ => None,
+                }
             },
             fuzzy_matches,
         )
@@ -348,7 +365,7 @@ impl Autocomplete for StorageCommand {
                     .map(|command| (suggestion, command))
             })
             .chain(
-                ["journal", "undo"]
+                ["journal", "undo", "redo"]
                     .iter()
                     .filter(|s| s.starts_with(input))
                     .filter_map(|s| Self::parse_input(s, app_meta).0.map(|c| (s.to_string(), c))),
@@ -356,7 +373,11 @@ impl Autocomplete for StorageCommand {
             .for_each(|(s, command)| {
                 suggestions.push((
                     s,
-                    command.summarize(None, app_meta.repository.undo_history().next()),
+                    command.summarize(
+                        None,
+                        app_meta.repository.undo_history().next(),
+                        app_meta.repository.get_redo(),
+                    ),
                 ))
             });
 
@@ -400,7 +421,7 @@ impl Autocomplete for StorageCommand {
             })
             .take(10)
             .for_each(|(suggestion, thing, command)| {
-                suggestions.push((suggestion, command.summarize(Some(thing), None)))
+                suggestions.push((suggestion, command.summarize(Some(thing), None, None)))
             });
 
         let mut input_words = quoted_words(input).skip(1);
@@ -516,6 +537,7 @@ impl fmt::Display for StorageCommand {
             Self::Change { .. } => unreachable!(),
             Self::Journal => write!(f, "journal"),
             Self::Load { name } => write!(f, "load {}", name),
+            Self::Redo => write!(f, "redo"),
             Self::Undo => write!(f, "undo"),
         }
     }
@@ -545,7 +567,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&place), None),
+                .summarize(Some(&place), None, None),
             );
 
             place.set_uuid(Uuid::new_v4());
@@ -555,7 +577,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&place), None),
+                .summarize(Some(&place), None, None),
             );
 
             assert_eq!(
@@ -565,7 +587,7 @@ mod test {
                         name: String::new(),
                     },
                 }
-                .summarize(Some(&place), None),
+                .summarize(Some(&place), None, None),
             );
         }
 
@@ -581,7 +603,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&npc), None),
+                .summarize(Some(&npc), None, None),
             );
 
             npc.set_uuid(Uuid::new_v4());
@@ -591,7 +613,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&npc), None),
+                .summarize(Some(&npc), None, None),
             );
 
             assert_eq!(
@@ -601,7 +623,7 @@ mod test {
                         name: String::new(),
                     },
                 }
-                .summarize(Some(&npc), None),
+                .summarize(Some(&npc), None, None),
             );
         }
 
@@ -613,7 +635,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&region), None),
+                .summarize(Some(&region), None, None),
             );
 
             region.set_uuid(Uuid::new_v4());
@@ -623,7 +645,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(Some(&region), None),
+                .summarize(Some(&region), None, None),
             );
 
             assert_eq!(
@@ -633,7 +655,7 @@ mod test {
                         name: String::new(),
                     }
                 }
-                .summarize(Some(&region), None),
+                .summarize(Some(&region), None, None),
             );
         }
 
@@ -643,7 +665,7 @@ mod test {
                 StorageCommand::Load {
                     name: String::new(),
                 }
-                .summarize(None, None),
+                .summarize(None, None, None),
             );
 
             assert_eq!(
@@ -653,7 +675,7 @@ mod test {
                         name: String::new(),
                     }
                 }
-                .summarize(None, None),
+                .summarize(None, None, None),
             );
         }
 
@@ -664,12 +686,28 @@ mod test {
 
             assert_eq!(
                 "undo removing Potato Johnson from journal",
-                StorageCommand::Undo.summarize(None, Some(&change)),
+                StorageCommand::Undo.summarize(None, Some(&change), None),
             );
 
             assert_eq!(
                 "nothing to undo",
-                StorageCommand::Undo.summarize(None, None),
+                StorageCommand::Undo.summarize(None, None, None),
+            );
+        }
+
+        {
+            let change = Change::Save {
+                name: "Potato Johnson".to_string(),
+            };
+
+            assert_eq!(
+                "redo saving Potato Johnson to journal",
+                StorageCommand::Redo.summarize(None, None, Some(&change)),
+            );
+
+            assert_eq!(
+                "nothing to redo",
+                StorageCommand::Redo.summarize(None, None, None),
             );
         }
     }

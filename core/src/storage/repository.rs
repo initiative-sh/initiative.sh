@@ -12,6 +12,7 @@ pub struct Repository {
     data_store: Box<dyn DataStore>,
     data_store_enabled: bool,
     recent: VecDeque<Thing>,
+    redo_change: Option<Change>,
     time: Time,
     undo_history: VecDeque<Change>,
 }
@@ -83,6 +84,7 @@ impl Repository {
             data_store: Box::new(data_store),
             data_store_enabled: false,
             recent: VecDeque::default(),
+            redo_change: None,
             time: Time::try_new(1, 8, 0, 0).unwrap(),
             undo_history: VecDeque::default(),
         }
@@ -142,11 +144,16 @@ impl Repository {
         })
     }
 
-    pub async fn undo(&mut self) -> Option<Result<Change, Error>> {
+    pub async fn undo(&mut self) -> Option<Result<Id, Error>> {
         if let Some(change) = self.undo_history.pop_back() {
             Some(
                 self.modify_without_undo(change)
                     .await
+                    .map(|change| {
+                        let id = change.id();
+                        self.redo_change = Some(change);
+                        id
+                    })
                     .map_err(|(change, e)| {
                         self.undo_history.push_back(change);
                         e
@@ -159,6 +166,21 @@ impl Repository {
 
     pub fn undo_history(&self) -> impl Iterator<Item = &Change> {
         self.undo_history.iter().rev()
+    }
+
+    pub async fn redo(&mut self) -> Option<Result<Id, Error>> {
+        if let Some(change) = self.redo_change.take() {
+            Some(self.modify(change).await.map_err(|(change, e)| {
+                self.redo_change = Some(change);
+                e
+            }))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_redo(&self) -> Option<&Change> {
+        self.redo_change.as_ref()
     }
 
     async fn modify_without_undo(&mut self, change: Change) -> Result<Change, (Change, Error)> {
@@ -776,20 +798,15 @@ mod test {
         }
 
         {
-            let undo_result = block_on(repo.undo()).unwrap().unwrap();
-
-            if let Change::Delete {
-                id: Id::Uuid(uuid),
-                name,
-            } = undo_result
-            {
-                assert_eq!("Olympus", name);
-                assert!(repo.load(&uuid.into()).is_some());
-            } else {
-                panic!();
-            }
-            assert_eq!(1, repo.journal().count());
+            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.undo()).unwrap().unwrap());
+            assert!(repo.load(&TEST_UUID.into()).is_some());
+            assert!(repo.load(&"Olympus".into()).is_some());
             assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+        }
+
+        {
+            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.redo()).unwrap().unwrap());
+            assert!(repo.load(&"Olympus".into()).is_none());
         }
     }
 
@@ -821,14 +838,14 @@ mod test {
         }
 
         {
-            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
 
             assert_eq!(
-                Change::Delete {
+                Some(Change::Delete {
                     id: "odysseus".into(),
                     name: "Odysseus".to_string(),
-                },
-                undo_result,
+                }),
+                repo.redo_change,
             );
             assert!(repo.load(&"odysseus".into()).is_some());
             assert_eq!(1, repo.recent().count());
@@ -865,14 +882,14 @@ mod test {
         }
 
         {
-            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
 
             assert_eq!(
-                Change::Delete {
+                Some(Change::Delete {
                     id: TEST_UUID.into(),
                     name: "Olympus".to_string(),
-                },
-                undo_result,
+                }),
+                repo.redo_change,
             );
             assert!(repo.load(&TEST_UUID.into()).is_some());
             assert_eq!(1, repo.journal().count());
@@ -953,25 +970,21 @@ mod test {
         }
 
         {
-            let undo_result = block_on(repo.undo()).unwrap().unwrap();
-
             assert_eq!(
-                Change::Edit {
-                    id: "Odysseus".into(),
-                    name: "Odysseus".into(),
-                    diff: Npc {
-                        name: "Nobody".into(),
-                        species: Species::Human.into(),
-                        ..Default::default()
-                    }
-                    .into(),
-                },
-                undo_result,
+                Id::from("ODYSSEUS"),
+                block_on(repo.undo()).unwrap().unwrap(),
             );
             assert!(repo.load(&"Odysseus".into()).is_some());
             assert_eq!(1, repo.journal().count());
             assert_eq!(1, repo.recent().count());
             assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+        }
+
+        if let Id::Uuid(uuid) = block_on(repo.redo()).unwrap().unwrap() {
+            assert!(repo.load(&"Nobody".into()).is_some());
+            assert!(repo.load(&uuid.into()).is_some());
+        } else {
+            panic!();
         }
     }
 
@@ -1034,27 +1047,30 @@ mod test {
         }
 
         {
-            let undo_result = block_on(repo.undo()).unwrap().unwrap();
-
             assert_eq!(
-                Change::Edit {
-                    id: "ODYSSEUS".into(),
-                    name: "Odysseus".into(),
-                    diff: Npc {
-                        species: Species::Human.into(),
-                        ..Default::default()
-                    }
-                    .into(),
-                },
-                undo_result,
+                Id::from("ODYSSEUS"),
+                block_on(repo.undo()).unwrap().unwrap(),
             );
-
             assert_eq!(
                 Some(false),
                 repo.recent()
                     .find(|t| t.name().to_string() == "Odysseus")
                     .and_then(|t| t.npc())
                     .map(|n| n.species.is_some())
+            );
+        }
+
+        {
+            assert_eq!(
+                Id::from("ODYSSEUS"),
+                block_on(repo.redo()).unwrap().unwrap(),
+            );
+            assert_eq!(
+                Some(&Species::Human),
+                repo.recent()
+                    .find(|t| t.name().to_string() == "Odysseus")
+                    .and_then(|t| t.npc())
+                    .and_then(|n| n.species.value()),
             );
         }
     }
@@ -1094,22 +1110,17 @@ mod test {
         }
 
         {
-            let undo_result = block_on(repo.undo()).unwrap().unwrap();
-
             assert_eq!(
-                Change::Edit {
-                    id: "ODYSSEUS".into(),
-                    name: "Odysseus".into(),
-                    diff: Npc {
-                        name: "Nobody".into(),
-                        ..Default::default()
-                    }
-                    .into(),
-                },
-                undo_result,
+                Id::from("ODYSSEUS"),
+                block_on(repo.undo()).unwrap().unwrap(),
             );
 
             assert!(repo.recent().any(|t| t.name().to_string() == "Odysseus"));
+        }
+
+        {
+            assert_eq!(Id::from("NOBODY"), block_on(repo.redo()).unwrap().unwrap());
+            assert!(repo.recent().any(|t| t.name().to_string() == "Nobody"));
         }
     }
 
@@ -1160,22 +1171,8 @@ mod test {
         }
 
         {
-            let undo_result = block_on(repo.undo()).unwrap().unwrap();
-
-            assert_eq!(
-                Change::Edit {
-                    id: TEST_UUID.into(),
-                    name: "Olympus".into(),
-                    diff: Place {
-                        name: "Hades".into(),
-                        description: "This really is hell!".into(),
-                        ..Default::default()
-                    }
-                    .into(),
-                },
-                undo_result,
-            );
-            assert!(repo.load(&"Olympus".into()).is_some());
+            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.undo()).unwrap().unwrap());
+            assert!(repo.load(&"OLYMPUS".into()).is_some());
             assert_eq!(
                 "Olympus",
                 block_on(data_store.get_all_the_things())
@@ -1186,6 +1183,11 @@ mod test {
                     .value()
                     .unwrap(),
             );
+        }
+
+        {
+            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.redo()).unwrap().unwrap());
+            assert!(repo.load(&"HADES".into()).is_some());
         }
     }
 
@@ -1303,21 +1305,8 @@ mod test {
         }
 
         {
-            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.undo()).unwrap().unwrap());
 
-            assert_eq!(
-                Change::Edit {
-                    id: TEST_UUID.into(),
-                    name: "Olympus".into(),
-                    diff: Place {
-                        name: "Hades".into(),
-                        description: "This really is hell!".into(),
-                        ..Default::default()
-                    }
-                    .into(),
-                },
-                undo_result,
-            );
             assert!(repo.load(&"Olympus".into()).is_some());
             assert_eq!(
                 "Olympus",
@@ -1329,6 +1318,11 @@ mod test {
                     .value()
                     .unwrap(),
             );
+        }
+
+        {
+            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.redo()).unwrap().unwrap());
+            assert!(repo.load(&"Hades".into()).is_some());
         }
     }
 
@@ -1441,24 +1435,10 @@ mod test {
                 .is_empty());
         }
 
-        {
-            let undo_result = block_on(repo.undo()).unwrap().unwrap();
-
-            if let Change::EditAndUnsave { name, uuid, diff } = undo_result {
-                assert_eq!("Olympus", name);
-                assert_ne!(TEST_UUID, uuid);
-                assert_eq!(
-                    Thing::from(Place {
-                        name: "Hades".into(),
-                        description: "This really is hell!".into(),
-                        ..Default::default()
-                    }),
-                    diff,
-                );
-            } else {
-                panic!();
-            }
+        if let Id::Uuid(uuid) = block_on(repo.undo()).unwrap().unwrap() {
+            assert_ne!(TEST_UUID, uuid);
             assert!(repo.load(&"Olympus".into()).is_some());
+            assert!(repo.load(&uuid.into()).is_some());
             assert_eq!(1, repo.recent().count());
             assert_eq!(1, repo.journal().count());
             assert_eq!(
@@ -1471,6 +1451,13 @@ mod test {
                     .value()
                     .unwrap(),
             );
+        } else {
+            panic!();
+        }
+
+        {
+            assert_eq!(Id::from("Hades"), block_on(repo.redo()).unwrap().unwrap());
+            assert!(repo.load(&"Hades".into()).is_some());
         }
     }
 
@@ -1546,17 +1533,17 @@ mod test {
         }
 
         {
-            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
 
             assert_eq!(
-                Change::Create {
+                Some(Change::Create {
                     thing: Npc {
                         name: "Odysseus".into(),
                         ..Default::default()
                     }
                     .into(),
-                },
-                undo_result,
+                }),
+                repo.redo_change,
             );
             assert_eq!(0, repo.recent().count());
         }
@@ -1634,13 +1621,13 @@ mod test {
         }
 
         {
-            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
 
             assert_eq!(
-                Change::Save {
+                Some(Change::Save {
                     name: "Odysseus".to_string(),
-                },
-                undo_result,
+                }),
+                repo.redo_change,
             );
             assert_eq!(1, repo.journal().count());
             assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
@@ -1737,9 +1724,9 @@ mod test {
         }
 
         {
-            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
 
-            if let Change::Unsave { name, uuid } = undo_result {
+            if let Some(Change::Unsave { ref name, uuid }) = repo.redo_change {
                 assert_eq!("Olympus", name);
                 assert_ne!(TEST_UUID, uuid);
                 assert!(repo.load(&uuid.into()).is_some());
@@ -1792,18 +1779,18 @@ mod test {
 
         {
             let uuid = *repo.journal().next().unwrap().uuid().unwrap();
-            let undo_result = block_on(repo.undo()).unwrap().unwrap();
+            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
 
             assert_eq!(
-                Change::CreateAndSave {
+                Some(Change::CreateAndSave {
                     thing: Npc {
                         uuid: Some(uuid.into()),
                         name: "Odysseus".into(),
                         ..Default::default()
                     }
                     .into(),
-                },
-                undo_result,
+                }),
+                repo.redo_change,
             );
             assert_eq!(0, repo.journal().count());
             assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());

@@ -171,7 +171,7 @@ fn npc_can_be_deleted_from_temp() {
 
     assert_eq!(
         format!(
-            "Successfully undid deleting {}. Use ~redo~ to reverse this.",
+            "Successfully undid deleting {}. Use `redo` to reverse this.",
             npc_name,
         ),
         app.command("undo").unwrap(),
@@ -179,8 +179,8 @@ fn npc_can_be_deleted_from_temp() {
 
     assert_eq!(
         format!(
-            "{} was successfully deleted. Use `undo` to reverse this.",
-            npc_name
+            "Successfully redid deleting {}. Use `undo` to reverse this.",
+            npc_name,
         ),
         app.command("redo").unwrap(),
     );
@@ -209,12 +209,12 @@ fn npc_can_be_deleted_from_data_store() {
     );
 
     assert_eq!(
-        "Successfully undid deleting Potato Johnson. Use ~redo~ to reverse this.",
+        "Successfully undid deleting Potato Johnson. Use `redo` to reverse this.",
         app.command("undo").unwrap(),
     );
 
     assert_eq!(
-        "Potato Johnson was successfully deleted. Use `undo` to reverse this.",
+        "Successfully redid deleting Potato Johnson. Use `undo` to reverse this.",
         app.command("redo").unwrap(),
     );
 }
@@ -231,12 +231,12 @@ fn delete_works_with_unusable_data_store() {
     );
 
     assert_eq!(
-        "Successfully undid deleting Potato Johnson. Use ~redo~ to reverse this.",
+        "Successfully undid deleting Potato Johnson. Use `redo` to reverse this.",
         app.command("undo").unwrap(),
     );
 
     assert_eq!(
-        "Potato Johnson was successfully deleted. Use `undo` to reverse this.",
+        "Successfully redid deleting Potato Johnson. Use `undo` to reverse this.",
         app.command("redo").unwrap(),
     );
 }

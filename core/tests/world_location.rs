@@ -237,21 +237,18 @@ fn edit_place() {
     }
 
     assert_eq!(
-        "Successfully undid editing Hotel California. Use ~redo~ to reverse this.",
+        "Successfully undid editing Hotel California. Use `redo` to reverse this.",
         app.command("undo").unwrap(),
     );
 
-    {
-        let output = app.command("redo").unwrap();
-        assert!(output.starts_with("# Heaven Or Hell"), "{}", output);
-        assert!(
-            output.ends_with(
-                "_Hotel California was successfully edited. Use `undo` to reverse this._"
-            ),
-            "{}",
-            output,
-        );
-    }
+    app.command("Hotel California").unwrap();
+
+    assert_eq!(
+        "Successfully redid editing Heaven Or Hell. Use `undo` to reverse this.",
+        app.command("redo").unwrap(),
+    );
+
+    app.command("Heaven Or Hell").unwrap();
 }
 
 #[test]
@@ -287,7 +284,7 @@ fn edit_place_implicitly_saves() {
 
     assert_eq!(
         format!(
-            "Successfully undid editing {}. Use ~redo~ to reverse this.",
+            "Successfully undid editing {}. Use `redo` to reverse this.",
             name,
         ),
         app.command("undo").unwrap(),
@@ -310,6 +307,13 @@ fn edit_place_implicitly_saves() {
         let output = app.command("journal").unwrap();
         assert!(output.contains("empty"), "{}", output);
     }
+
+    assert_eq!(
+        "Successfully redid editing Desire. Use `undo` to reverse this.",
+        app.command("redo").unwrap(),
+    );
+
+    app.command("Desire").unwrap();
 }
 
 #[test]
@@ -338,21 +342,18 @@ fn edit_place_with_invalid_data_store() {
     }
 
     assert_eq!(
-        "Successfully undid editing Oaken Mermaid Inn. Use ~redo~ to reverse this.",
+        "Successfully undid editing Oaken Mermaid Inn. Use `redo` to reverse this.",
         app.command("undo").unwrap(),
     );
 
-    {
-        let output = app.command("redo").unwrap();
-        assert!(output.starts_with("# I Am Mordenkainen"), "{}", output);
-        assert!(
-            output.ends_with(
-                "_Oaken Mermaid Inn was successfully edited. Use `undo` to reverse this._"
-            ),
-            "{}",
-            output,
-        );
-    }
+    app.command("Oaken Mermaid Inn").unwrap();
+
+    assert_eq!(
+        "Successfully redid editing I Am Mordenkainen. Use `undo` to reverse this.",
+        app.command("redo").unwrap(),
+    );
+
+    app.command("I Am Mordenkainen").unwrap();
 }
 
 #[test]
