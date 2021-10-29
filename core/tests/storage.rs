@@ -169,13 +169,18 @@ fn npc_can_be_deleted_from_temp() {
         app.command(&format!("delete {}", npc_name)).unwrap_err(),
     );
 
-    assert_eq!(
-        format!(
-            "Successfully undid deleting {}. Use `redo` to reverse this.",
-            npc_name,
-        ),
-        app.command("undo").unwrap(),
-    );
+    {
+        let output = app.command("undo").unwrap();
+        assert!(output.starts_with(&format!("# {}", npc_name)), "{}", output);
+        assert!(
+            output.ends_with(&format!(
+                "_Successfully undid deleting {}. Use `redo` to reverse this._",
+                npc_name,
+            ),),
+            "{}",
+            output,
+        );
+    }
 
     assert_eq!(
         format!(
@@ -208,10 +213,17 @@ fn npc_can_be_deleted_from_data_store() {
         app.command("delete Potato Johnson").unwrap_err(),
     );
 
-    assert_eq!(
-        "Successfully undid deleting Potato Johnson. Use `redo` to reverse this.",
-        app.command("undo").unwrap(),
-    );
+    {
+        let output = app.command("undo").unwrap();
+        assert!(output.starts_with("# Potato Johnson"), "{}", output);
+        assert!(
+            output.ends_with(
+                "_Successfully undid deleting Potato Johnson. Use `redo` to reverse this._"
+            ),
+            "{}",
+            output,
+        );
+    }
 
     assert_eq!(
         "Successfully redid deleting Potato Johnson. Use `undo` to reverse this.",
@@ -230,10 +242,17 @@ fn delete_works_with_unusable_data_store() {
         app.command("delete Potato Johnson").unwrap(),
     );
 
-    assert_eq!(
-        "Successfully undid deleting Potato Johnson. Use `redo` to reverse this.",
-        app.command("undo").unwrap(),
-    );
+    {
+        let output = app.command("undo").unwrap();
+        assert!(output.starts_with("# Potato Johnson"), "{}", output);
+        assert!(
+            output.ends_with(
+                "_Successfully undid deleting Potato Johnson. Use `redo` to reverse this._"
+            ),
+            "{}",
+            output,
+        );
+    }
 
     assert_eq!(
         "Successfully redid deleting Potato Johnson. Use `undo` to reverse this.",

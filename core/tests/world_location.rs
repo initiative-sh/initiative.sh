@@ -236,19 +236,29 @@ fn edit_place() {
         assert!(output.starts_with("# Heaven Or Hell"), "{}", output);
     }
 
-    assert_eq!(
-        "Successfully undid editing Hotel California. Use `redo` to reverse this.",
-        app.command("undo").unwrap(),
-    );
+    {
+        let output = app.command("undo").unwrap();
+        assert!(output.starts_with("# Hotel California"), "{}", output);
+        assert!(
+            output.ends_with(
+                "_Successfully undid editing Hotel California. Use `redo` to reverse this._"
+            ),
+            "{}",
+            output,
+        );
+    }
 
-    app.command("Hotel California").unwrap();
-
-    assert_eq!(
-        "Successfully redid editing Heaven Or Hell. Use `undo` to reverse this.",
-        app.command("redo").unwrap(),
-    );
-
-    app.command("Heaven Or Hell").unwrap();
+    {
+        let output = app.command("redo").unwrap();
+        assert!(output.starts_with("# Heaven Or Hell"), "{}", output);
+        assert!(
+            output.ends_with(
+                "_Successfully redid editing Heaven Or Hell. Use `undo` to reverse this._"
+            ),
+            "{}",
+            output,
+        );
+    }
 }
 
 #[test]
@@ -282,13 +292,18 @@ fn edit_place_implicitly_saves() {
         assert!(output.contains("Desire"), "{}", output);
     }
 
-    assert_eq!(
-        format!(
-            "Successfully undid editing {}. Use `redo` to reverse this.",
-            name,
-        ),
-        app.command("undo").unwrap(),
-    );
+    {
+        let output = app.command("undo").unwrap();
+        assert!(output.starts_with(&format!("# {}", name)), "{}", output);
+        assert!(
+            output.ends_with(&format!(
+                "_Successfully undid editing {}. Use `redo` to reverse this._",
+                name,
+            )),
+            "{}",
+            output,
+        );
+    }
 
     {
         let output = app.command(&name).unwrap();
@@ -308,12 +323,15 @@ fn edit_place_implicitly_saves() {
         assert!(output.contains("empty"), "{}", output);
     }
 
-    assert_eq!(
-        "Successfully redid editing Desire. Use `undo` to reverse this.",
-        app.command("redo").unwrap(),
-    );
-
-    app.command("Desire").unwrap();
+    {
+        let output = app.command("redo").unwrap();
+        assert!(output.starts_with("# Desire"), "{}", output);
+        assert!(
+            output.ends_with("_Successfully redid editing Desire. Use `undo` to reverse this._"),
+            "{}",
+            output,
+        );
+    }
 }
 
 #[test]
@@ -341,19 +359,29 @@ fn edit_place_with_invalid_data_store() {
         assert!(output.starts_with("# I Am Mordenkainen"), "{}", output);
     }
 
-    assert_eq!(
-        "Successfully undid editing Oaken Mermaid Inn. Use `redo` to reverse this.",
-        app.command("undo").unwrap(),
-    );
+    {
+        let output = app.command("undo").unwrap();
+        assert!(output.starts_with("# Oaken Mermaid Inn"), "{}", output);
+        assert!(
+            output.ends_with(
+                "_Successfully undid editing Oaken Mermaid Inn. Use `redo` to reverse this._"
+            ),
+            "{}",
+            output,
+        );
+    }
 
-    app.command("Oaken Mermaid Inn").unwrap();
-
-    assert_eq!(
-        "Successfully redid editing I Am Mordenkainen. Use `undo` to reverse this.",
-        app.command("redo").unwrap(),
-    );
-
-    app.command("I Am Mordenkainen").unwrap();
+    {
+        let output = app.command("redo").unwrap();
+        assert!(output.starts_with("# I Am Mordenkainen"), "{}", output);
+        assert!(
+            output.ends_with(
+                "_Successfully redid editing I Am Mordenkainen. Use `undo` to reverse this._"
+            ),
+            "{}",
+            output,
+        );
+    }
 }
 
 #[test]

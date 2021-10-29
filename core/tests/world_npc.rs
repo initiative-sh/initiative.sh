@@ -231,10 +231,15 @@ fn create_npc_with_custom_attributes() {
         assert!(output.contains("empty"), "{}", output);
     }
 
-    assert_eq!(
-        "Successfully redid creating Sue. Use `undo` to reverse this.",
-        app.command("redo").unwrap(),
-    );
+    {
+        let output = app.command("redo").unwrap();
+        assert!(output.starts_with("# Sue"), "{}", output);
+        assert!(
+            output.ends_with("_Successfully redid creating Sue. Use `undo` to reverse this._"),
+            "{}",
+            output,
+        );
+    }
 
     {
         let output = app.command("journal").unwrap();
@@ -263,17 +268,27 @@ fn edit_npc() {
         assert!(output.contains("# Joe"), "{}", output);
     }
 
-    assert_eq!(
-        "Successfully undid editing Elvis. Use `redo` to reverse this.",
-        app.command("undo").unwrap(),
-    );
+    {
+        let output = app.command("undo").unwrap();
+        assert!(output.starts_with("# Elvis"), "{}", output);
+        assert!(
+            output.ends_with("_Successfully undid editing Elvis. Use `redo` to reverse this._"),
+            "{}",
+            output,
+        );
+    }
 
     app.command("Elvis").unwrap();
 
-    assert_eq!(
-        "Successfully redid editing Joe. Use `undo` to reverse this.",
-        app.command("redo").unwrap(),
-    );
+    {
+        let output = app.command("redo").unwrap();
+        assert!(output.starts_with("# Joe"), "{}", output);
+        assert!(
+            output.ends_with("_Successfully redid editing Joe. Use `undo` to reverse this._"),
+            "{}",
+            output,
+        );
+    }
 
     app.command("Joe").unwrap();
 }
@@ -297,6 +312,7 @@ fn edit_npc_implicitly_saves() {
 
     {
         let output = app.command(&format!("{} is human", name)).unwrap();
+        assert!(output.contains("**Species:** human"), "{}", output);
         assert!(
             output.ends_with(&format!("_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._", name)),
             "{}",
@@ -309,17 +325,21 @@ fn edit_npc_implicitly_saves() {
         assert!(output.contains(&name), "{}", output);
     }
 
-    assert_eq!(
-        format!(
-            "Successfully undid editing {}. Use `redo` to reverse this.",
-            name,
-        ),
-        app.command("undo").unwrap(),
-    );
+    {
+        let output = app.command("undo").unwrap();
+        assert!(output.contains("**Species:** elf"), "{}", output);
+        assert!(
+            output.ends_with(&format!(
+                "_Successfully undid editing {}. Use `redo` to reverse this._",
+                name,
+            )),
+            "{}",
+            output,
+        );
+    }
 
     {
         let output = app.command(&name).unwrap();
-        assert!(output.starts_with(&format!("# {}", name)), "{}", output);
         assert!(
             output.contains(&format!(
                 "_{} has not yet been saved. Use ~save~ to save ",
@@ -335,13 +355,18 @@ fn edit_npc_implicitly_saves() {
         assert!(output.contains("empty"), "{}", output);
     }
 
-    assert_eq!(
-        format!(
-            "Successfully redid editing {}. Use `undo` to reverse this.",
-            name,
-        ),
-        app.command("redo").unwrap(),
-    );
+    {
+        let output = app.command("redo").unwrap();
+        assert!(output.contains("**Species:** human"), "{}", output);
+        assert!(
+            output.ends_with(&format!(
+                "_Successfully redid editing {}. Use `undo` to reverse this._",
+                name,
+            )),
+            "{}",
+            output,
+        );
+    }
 
     {
         let output = app.command("journal").unwrap();

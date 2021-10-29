@@ -251,23 +251,47 @@ impl Runnable for StorageCommand {
                 output
             }
             Self::Redo => match app_meta.repository.redo().await {
-                Some(Ok(_)) => Ok(format!(
-                    "Successfully redid {}. Use `undo` to reverse this.",
-                    app_meta
+                Some(Ok(id)) => {
+                    let action = app_meta
                         .repository
                         .undo_history()
                         .next()
                         .unwrap()
-                        .display_undo(),
-                )),
+                        .display_undo();
+
+                    if let Some(thing) = app_meta.repository.load(&id) {
+                        Ok(format!(
+                            "{}\n\n_Successfully redid {}. Use `undo` to reverse this._",
+                            thing.display_details(),
+                            action,
+                        ))
+                    } else {
+                        Ok(format!(
+                            "Successfully redid {}. Use `undo` to reverse this.",
+                            action,
+                        ))
+                    }
+                }
                 Some(Err(_)) => Err("Failed to redo.".to_string()),
                 None => Err("Nothing to redo.".to_string()),
             },
             Self::Undo => match app_meta.repository.undo().await {
-                Some(Ok(_)) => Ok(format!(
-                    "Successfully undid {}. Use `redo` to reverse this.",
-                    app_meta.repository.get_redo().unwrap().display_redo(),
-                )),
+                Some(Ok(id)) => {
+                    let action = app_meta.repository.get_redo().unwrap().display_redo();
+
+                    if let Some(thing) = app_meta.repository.load(&id) {
+                        Ok(format!(
+                            "{}\n\n_Successfully undid {}. Use `redo` to reverse this._",
+                            thing.display_details(),
+                            action,
+                        ))
+                    } else {
+                        Ok(format!(
+                            "Successfully undid {}. Use `redo` to reverse this.",
+                            action,
+                        ))
+                    }
+                }
                 Some(Err(_)) => Err("Failed to undo.".to_string()),
                 None => Err("Nothing to undo.".to_string()),
             },
