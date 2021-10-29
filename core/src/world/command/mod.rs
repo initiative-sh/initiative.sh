@@ -1,4 +1,4 @@
-use super::{Field, Location, Npc, Thing};
+use super::{Field, Npc, Place, Thing};
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use crate::storage::{Change, RepositoryError, StorageCommand};
 use async_trait::async_trait;
@@ -27,7 +27,7 @@ impl Runnable for WorldCommand {
 
                     let change = if app_meta.repository.data_store_enabled() {
                         match thing.name() {
-                            Field::Locked(name) => {
+                            Field::Locked(Some(name)) => {
                                 temp_thing_output.push_str(&format!(
                                     "\n\n_Because you specified a name, {name} has been automatically added to your `journal`. Use `undo` to remove {them}._",
                                     name = name,
@@ -36,7 +36,7 @@ impl Runnable for WorldCommand {
 
                                 Change::CreateAndSave { thing }
                             }
-                            Field::Unlocked(name) => {
+                            Field::Unlocked(Some(name)) => {
                                 temp_thing_output.push_str(&format!(
                                     "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`._",
                                     name = name,
@@ -56,7 +56,7 @@ impl Runnable for WorldCommand {
 
                                 Change::Create { thing }
                             }
-                            Field::Empty => Change::Create { thing },
+                            _ => Change::Create { thing },
                         }
                     } else {
                         Change::Create { thing }
@@ -174,7 +174,7 @@ impl Autocomplete for WorldCommand {
     fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         let mut suggestions = Vec::new();
 
-        suggestions.append(&mut Location::autocomplete(input, app_meta));
+        suggestions.append(&mut Place::autocomplete(input, app_meta));
         suggestions.append(&mut Npc::autocomplete(input, app_meta));
 
         suggestions
@@ -193,8 +193,8 @@ impl fmt::Display for WorldCommand {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
-    use crate::world::location::{BuildingType, LocationType};
     use crate::world::npc::Species;
+    use crate::world::place::PlaceType;
 
     #[test]
     fn parse_input_test() {
@@ -256,7 +256,7 @@ mod test {
             ("halfling", "create halfling"),
             ("human", "create human"),
             ("tiefling", "create tiefling"),
-            // BuildingType
+            // PlaceType
             ("inn", "create inn"),
         ]
         .drain(..)
@@ -287,15 +287,8 @@ mod test {
 
         vec![
             WorldCommand::Create {
-                thing: Location {
-                    subtype: LocationType::Building(None).into(),
-                    ..Default::default()
-                }
-                .into(),
-            },
-            WorldCommand::Create {
-                thing: Location {
-                    subtype: LocationType::Building(Some(BuildingType::Inn)).into(),
+                thing: Place {
+                    subtype: PlaceType::Inn.into(),
                     ..Default::default()
                 }
                 .into(),

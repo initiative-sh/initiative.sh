@@ -1,3 +1,7 @@
+* **New:** You can now edit things in your journal and recent items! Try
+  `[name] is [description]` to get started.
+* **Enhancement:** The `redo` command is now available at all times, not just
+  immediately after `undo`.
 * **Enhancement:** Improved readability by setting a max width to the page and
   increasing line spacing between user input and command output.
 * **New:** Added `undo` to fix those little mistakes. Mostly this frees us to be

@@ -12,14 +12,14 @@ fn results_are_random() {
 }
 
 #[test]
-fn generated_content_is_limited_by_building_type() {
-    ["inn"].iter().for_each(|building_type| {
-        let output = sync_app().command(building_type).unwrap();
+fn generated_content_is_limited_by_place_type() {
+    ["inn"].iter().for_each(|place_type| {
+        let output = sync_app().command(place_type).unwrap();
 
         assert!(
-            output.matches(building_type).count() >= 11,
+            output.matches(place_type).count() >= 11,
             "Input: {}\n\nOutput:\n{}",
-            building_type,
+            place_type,
             output,
         );
     });
@@ -98,7 +98,7 @@ fn generated_content_is_persisted() {
 }
 
 #[test]
-fn numeric_aliases_exist_for_locations() {
+fn numeric_aliases_exist_for_places() {
     let mut app = sync_app();
 
     // Generate a data set to potentially interfere with the one being tested.
@@ -141,7 +141,7 @@ fn numeric_aliases_exist_for_locations() {
 }
 
 #[test]
-fn save_alias_exists_for_locations() {
+fn save_alias_exists_for_places() {
     let mut app = sync_app();
 
     {
@@ -165,7 +165,7 @@ fn save_alias_exists_for_locations() {
 }
 
 #[test]
-fn location_save_alias_does_not_exist_with_invalid_data_store() {
+fn place_save_alias_does_not_exist_with_invalid_data_store() {
     let mut app = sync_app_with_data_store(NullDataStore::default());
 
     let output = app.command("building").unwrap();
@@ -178,7 +178,7 @@ fn location_save_alias_does_not_exist_with_invalid_data_store() {
 }
 
 #[test]
-fn create_location_with_custom_attributes() {
+fn create_place_with_custom_attributes() {
     let mut app = sync_app();
 
     {
@@ -203,12 +203,194 @@ fn create_location_with_custom_attributes() {
     }
 
     {
-        let output = app
-            .command("a location named the prancing pony")
-            .unwrap_err();
+        let output = app.command("a place named the prancing pony").unwrap_err();
         assert_eq!(
             "That name is already in use by `The Prancing Pony`, an inn.",
             output,
         );
     }
+}
+
+#[test]
+fn edit_place() {
+    let mut app = sync_app();
+
+    app.command("inn named Hotel California").unwrap();
+
+    {
+        let output = app
+            .command("Hotel California is called Heaven Or Hell")
+            .unwrap();
+        assert!(output.starts_with("# Heaven Or Hell"), "{}", output);
+        assert!(
+            output.ends_with(
+                "_Hotel California was successfully edited. Use `undo` to reverse this._"
+            ),
+            "{}",
+            output,
+        );
+    }
+
+    {
+        let output = app.command("Heaven Or Hell").unwrap();
+        assert!(output.starts_with("# Heaven Or Hell"), "{}", output);
+    }
+
+    {
+        let output = app.command("undo").unwrap();
+        assert!(output.starts_with("# Hotel California"), "{}", output);
+        assert!(
+            output.ends_with(
+                "_Successfully undid editing Hotel California. Use `redo` to reverse this._"
+            ),
+            "{}",
+            output,
+        );
+    }
+
+    {
+        let output = app.command("redo").unwrap();
+        assert!(output.starts_with("# Heaven Or Hell"), "{}", output);
+        assert!(
+            output.ends_with(
+                "_Successfully redid editing Heaven Or Hell. Use `undo` to reverse this._"
+            ),
+            "{}",
+            output,
+        );
+    }
+}
+
+#[test]
+fn edit_place_implicitly_saves() {
+    let mut app = sync_app();
+
+    let generated_output = app.command("inn").unwrap();
+
+    let name = generated_output
+        .lines()
+        .next()
+        .unwrap()
+        .trim_start_matches("# ");
+
+    {
+        let output = app.command("journal").unwrap();
+        assert!(output.contains("empty"), "{}", output);
+    }
+
+    {
+        let output = app.command(&format!("{} is called Desire", name)).unwrap();
+        assert!(
+            output.ends_with(&format!("_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._", name)),
+            "{}",
+            output,
+        );
+    }
+
+    {
+        let output = app.command("journal").unwrap();
+        assert!(output.contains("Desire"), "{}", output);
+    }
+
+    {
+        let output = app.command("undo").unwrap();
+        assert!(output.starts_with(&format!("# {}", name)), "{}", output);
+        assert!(
+            output.ends_with(&format!(
+                "_Successfully undid editing {}. Use `redo` to reverse this._",
+                name,
+            )),
+            "{}",
+            output,
+        );
+    }
+
+    {
+        let output = app.command(&name).unwrap();
+        assert!(output.starts_with(&format!("# {}", name)), "{}", output);
+        assert!(
+            output.ends_with(&format!(
+                "_{} has not yet been saved. Use ~save~ to save it to your `journal`._",
+                name,
+            )),
+            "{}",
+            output,
+        );
+    }
+
+    {
+        let output = app.command("journal").unwrap();
+        assert!(output.contains("empty"), "{}", output);
+    }
+
+    {
+        let output = app.command("redo").unwrap();
+        assert!(output.starts_with("# Desire"), "{}", output);
+        assert!(
+            output.ends_with("_Successfully redid editing Desire. Use `undo` to reverse this._"),
+            "{}",
+            output,
+        );
+    }
+}
+
+#[test]
+fn edit_place_with_invalid_data_store() {
+    let mut app = sync_app_with_data_store(NullDataStore::default());
+
+    app.command("Oaken Mermaid Inn, an inn").unwrap();
+
+    {
+        let output = app
+            .command("Oaken Mermaid Inn is named I Am Mordenkainen")
+            .unwrap();
+        assert!(output.starts_with("# I Am Mordenkainen"), "{}", output,);
+        assert!(
+            output.ends_with(
+                "_Oaken Mermaid Inn was successfully edited. Use `undo` to reverse this._"
+            ),
+            "{}",
+            output,
+        );
+    }
+
+    {
+        let output = app.command("I Am Mordenkainen").unwrap();
+        assert!(output.starts_with("# I Am Mordenkainen"), "{}", output);
+    }
+
+    {
+        let output = app.command("undo").unwrap();
+        assert!(output.starts_with("# Oaken Mermaid Inn"), "{}", output);
+        assert!(
+            output.ends_with(
+                "_Successfully undid editing Oaken Mermaid Inn. Use `redo` to reverse this._"
+            ),
+            "{}",
+            output,
+        );
+    }
+
+    {
+        let output = app.command("redo").unwrap();
+        assert!(output.starts_with("# I Am Mordenkainen"), "{}", output);
+        assert!(
+            output.ends_with(
+                "_Successfully redid editing I Am Mordenkainen. Use `undo` to reverse this._"
+            ),
+            "{}",
+            output,
+        );
+    }
+}
+
+#[test]
+fn edit_place_with_wrong_type() {
+    let mut app = sync_app();
+    app.command("inn named Foo").unwrap();
+
+    assert_eq!(
+        "Unknown command: \"Foo is an elf\"",
+        app.command("Foo is an elf").unwrap_err(),
+    );
 }

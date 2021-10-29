@@ -57,6 +57,24 @@ impl DataStore for MemoryDataStore {
         }
     }
 
+    async fn edit_thing(&mut self, thing: &Thing) -> Result<(), ()> {
+        if let Some(uuid) = thing.uuid() {
+            if let Some(existing_thing) = self
+                .things
+                .borrow_mut()
+                .iter_mut()
+                .find(|t| t.uuid() == Some(uuid))
+            {
+                *existing_thing = thing.clone();
+                return Ok(());
+            }
+
+            self.save_thing(thing).await
+        } else {
+            Err(())
+        }
+    }
+
     async fn get_all_the_things(&self) -> Result<Vec<Thing>, ()> {
         Ok(self.things.borrow().to_vec())
     }

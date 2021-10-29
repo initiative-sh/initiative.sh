@@ -1,5 +1,5 @@
 use crate::utils::{capitalize, quoted_words};
-use crate::world::{Field, Location, Npc};
+use crate::world::{Field, Npc, Place};
 use std::str::FromStr;
 
 fn split_name(input: &str) -> Option<(&str, &str)> {
@@ -42,37 +42,30 @@ fn split_name(input: &str) -> Option<(&str, &str)> {
     }
 }
 
-impl FromStr for Location {
+impl FromStr for Place {
     type Err = ();
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        let mut location = Location::default();
-        let mut is_explicit = false;
+        let mut place = Place::default();
 
         let description = if let Some((name, description)) = split_name(input) {
-            location.name = Field::new(capitalize(name));
+            place.name = Field::new(capitalize(name));
             description
         } else {
             input
         };
 
         for word in quoted_words(description) {
-            if ["a", "an"].contains(&word.as_str()) {
+            if ["a", "an", "building", "place"].contains(&word.as_str()) {
                 // ignore
-            } else if ["location", "place"].contains(&word.as_str()) {
-                is_explicit = true;
-            } else if let Ok(location_type) = word.as_str().parse() {
-                location.subtype = Field::new(location_type);
+            } else if let Ok(place_type) = word.as_str().parse() {
+                place.subtype = Field::new(place_type);
             } else {
                 return Err(());
             }
         }
 
-        if is_explicit || location.subtype.is_some() {
-            Ok(location)
-        } else {
-            Err(())
-        }
+        Ok(place)
     }
 }
 
@@ -81,7 +74,6 @@ impl FromStr for Npc {
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         let mut npc = Npc::default();
-        let mut is_explicit = false;
 
         let description = if let Some((name, description)) = split_name(input) {
             npc.name = Field::new(capitalize(name));
@@ -93,10 +85,8 @@ impl FromStr for Npc {
         for word in quoted_words(description) {
             let word_str = &word.as_str();
 
-            if ["a", "an"].contains(word_str) {
+            if ["a", "an", "character", "npc", "person"].contains(word_str) {
                 // ignore
-            } else if ["character", "npc", "person"].contains(word_str) {
-                is_explicit = true;
             } else if let Ok(gender) = word_str.parse() {
                 npc.gender = Field::new(gender);
 
@@ -127,73 +117,50 @@ impl FromStr for Npc {
             }
         }
 
-        if is_explicit
-            || npc.age.is_some()
-            || npc.age_years.is_some()
-            || npc.ethnicity.is_some()
-            || npc.gender.is_some()
-            || npc.species.is_some()
-        {
-            Ok(npc)
-        } else {
-            Err(())
-        }
+        Ok(npc)
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::world::location::{BuildingType, LocationType};
     use crate::world::npc::{Age, Gender, Species};
+    use crate::world::place::PlaceType;
 
     #[test]
-    fn location_from_str_test() {
+    fn place_from_str_test() {
         {
-            let location: Location = "inn".parse().unwrap();
-            assert_eq!(
-                Field::Locked(LocationType::Building(Some(BuildingType::Inn))),
-                location.subtype,
-            );
+            let place: Place = "inn".parse().unwrap();
+            assert_eq!(Field::Locked(Some(PlaceType::Inn)), place.subtype);
         }
 
         {
-            let location = "building named foo bar".parse::<Location>().unwrap();
-            assert_eq!(Some("Foo bar"), location.name.value().map(|s| s.as_str()));
+            let place = "building named foo bar".parse::<Place>().unwrap();
+            assert_eq!(Some("Foo bar"), place.name.value().map(|s| s.as_str()));
         }
 
         {
-            let location: Location = "The Prancing Pony, an inn".parse().unwrap();
+            let place: Place = "The Prancing Pony, an inn".parse().unwrap();
             assert_eq!(
-                Field::Locked("The Prancing Pony".to_string()),
-                location.name,
+                Field::Locked(Some("The Prancing Pony".to_string())),
+                place.name,
             );
+            assert_eq!(Field::Locked(Some(PlaceType::Inn)), place.subtype);
         }
 
         {
-            let location: Location = "building".parse().unwrap();
+            let place: Place = "\"The Prancing Pony\", an inn".parse().unwrap();
             assert_eq!(
-                Field::Locked(LocationType::Building(None)),
-                location.subtype,
+                Field::Locked(Some("The Prancing Pony".to_string())),
+                place.name,
             );
+            assert_eq!(Field::Locked(Some(PlaceType::Inn)), place.subtype);
         }
 
         {
-            let location: Location = "\"The Prancing Pony\", an inn".parse().unwrap();
-            assert_eq!(
-                Field::Locked("The Prancing Pony".to_string()),
-                location.name,
-            );
-            assert_eq!(
-                Field::Locked(LocationType::Building(Some(BuildingType::Inn))),
-                location.subtype,
-            );
-        }
-
-        {
-            let location: Location = "a place called home".parse().unwrap();
-            assert_eq!(Field::Locked("Home".to_string()), location.name);
-            assert!(location.subtype.is_none());
+            let place: Place = "a place called home".parse().unwrap();
+            assert_eq!(Field::Locked(Some("Home".to_string())), place.name);
+            assert!(place.subtype.is_none());
         }
     }
 
@@ -205,22 +172,22 @@ mod test {
 
         {
             let npc: Npc = "elf".parse().unwrap();
-            assert_eq!(Field::Locked(Species::Elf), npc.species);
+            assert_eq!(Field::Locked(Some(Species::Elf)), npc.species);
         }
 
         {
             let npc: Npc = "Potato Johnson, a non-binary elf".parse().unwrap();
-            assert_eq!(Field::Locked("Potato Johnson".to_string()), npc.name);
-            assert_eq!(Field::Locked(Species::Elf), npc.species);
-            assert_eq!(Field::Locked(Gender::NonBinaryThey), npc.gender);
+            assert_eq!(Field::Locked(Some("Potato Johnson".to_string())), npc.name);
+            assert_eq!(Field::Locked(Some(Species::Elf)), npc.species);
+            assert_eq!(Field::Locked(Some(Gender::NonBinaryThey)), npc.gender);
         }
 
         {
             let npc: Npc = "37-year-old boy named sue".parse().unwrap();
-            assert_eq!(Field::Locked("Sue".to_string()), npc.name);
-            assert_eq!(Field::Locked(Gender::Masculine), npc.gender);
-            assert_eq!(Field::Locked(Age::Child), npc.age);
-            assert_eq!(Field::Locked(37), npc.age_years);
+            assert_eq!(Field::Locked(Some("Sue".to_string())), npc.name);
+            assert_eq!(Field::Locked(Some(Gender::Masculine)), npc.gender);
+            assert_eq!(Field::Locked(Some(Age::Child)), npc.age);
+            assert_eq!(Field::Locked(Some(37)), npc.age_years);
         }
 
         {

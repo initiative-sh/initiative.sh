@@ -200,7 +200,7 @@ fn create_npc_with_custom_attributes() {
             output,
         );
         assert!(
-            output.contains("has been automatically added to your `journal`."),
+            output.ends_with("_Because you specified a name, Sue has been automatically added to your `journal`. Use `undo` to remove them._"),
             "{}",
             output,
         );
@@ -220,4 +220,167 @@ fn create_npc_with_custom_attributes() {
             output,
         );
     }
+
+    assert_eq!(
+        "Successfully undid creating Sue. Use `redo` to reverse this.",
+        app.command("undo").unwrap(),
+    );
+
+    {
+        let output = app.command("journal").unwrap();
+        assert!(output.contains("empty"), "{}", output);
+    }
+
+    {
+        let output = app.command("redo").unwrap();
+        assert!(output.starts_with("# Sue"), "{}", output);
+        assert!(
+            output.ends_with("_Successfully redid creating Sue. Use `undo` to reverse this._"),
+            "{}",
+            output,
+        );
+    }
+
+    {
+        let output = app.command("journal").unwrap();
+        assert!(output.contains("Sue"), "{}", output);
+    }
+}
+
+#[test]
+fn edit_npc() {
+    let mut app = sync_app();
+
+    app.command("man named Elvis").unwrap();
+
+    {
+        let output = app.command("Elvis is named Joe").unwrap();
+        assert!(output.contains("# Joe"), "{}", output);
+        assert!(
+            output.ends_with("_Elvis was successfully edited. Use `undo` to reverse this._"),
+            "{}",
+            output,
+        );
+    }
+
+    {
+        let output = app.command("Joe").unwrap();
+        assert!(output.contains("# Joe"), "{}", output);
+    }
+
+    {
+        let output = app.command("undo").unwrap();
+        assert!(output.starts_with("# Elvis"), "{}", output);
+        assert!(
+            output.ends_with("_Successfully undid editing Elvis. Use `redo` to reverse this._"),
+            "{}",
+            output,
+        );
+    }
+
+    app.command("Elvis").unwrap();
+
+    {
+        let output = app.command("redo").unwrap();
+        assert!(output.starts_with("# Joe"), "{}", output);
+        assert!(
+            output.ends_with("_Successfully redid editing Joe. Use `undo` to reverse this._"),
+            "{}",
+            output,
+        );
+    }
+
+    app.command("Joe").unwrap();
+}
+
+#[test]
+fn edit_npc_implicitly_saves() {
+    let mut app = sync_app();
+
+    let generated_output = app.command("elf").unwrap();
+
+    let name = generated_output
+        .lines()
+        .next()
+        .unwrap()
+        .trim_start_matches("# ");
+
+    {
+        let output = app.command("journal").unwrap();
+        assert!(output.contains("empty"), "{}", output);
+    }
+
+    {
+        let output = app.command(&format!("{} is human", name)).unwrap();
+        assert!(output.contains("**Species:** human"), "{}", output);
+        assert!(
+            output.ends_with(&format!("_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._", name)),
+            "{}",
+            output,
+        );
+    }
+
+    {
+        let output = app.command("journal").unwrap();
+        assert!(output.contains(&name), "{}", output);
+    }
+
+    {
+        let output = app.command("undo").unwrap();
+        assert!(output.contains("**Species:** elf"), "{}", output);
+        assert!(
+            output.ends_with(&format!(
+                "_Successfully undid editing {}. Use `redo` to reverse this._",
+                name,
+            )),
+            "{}",
+            output,
+        );
+    }
+
+    {
+        let output = app.command(&name).unwrap();
+        assert!(
+            output.contains(&format!(
+                "_{} has not yet been saved. Use ~save~ to save ",
+                name,
+            )),
+            "{}",
+            output,
+        );
+    }
+
+    {
+        let output = app.command("journal").unwrap();
+        assert!(output.contains("empty"), "{}", output);
+    }
+
+    {
+        let output = app.command("redo").unwrap();
+        assert!(output.contains("**Species:** human"), "{}", output);
+        assert!(
+            output.ends_with(&format!(
+                "_Successfully redid editing {}. Use `undo` to reverse this._",
+                name,
+            )),
+            "{}",
+            output,
+        );
+    }
+
+    {
+        let output = app.command("journal").unwrap();
+        assert!(output.contains(&name), "{}", output);
+    }
+}
+
+#[test]
+fn edit_npc_with_wrong_type() {
+    let mut app = sync_app();
+    app.command("elf named Foo").unwrap();
+
+    assert_eq!(
+        "Unknown command: \"Foo is an inn\"",
+        app.command("Foo is an inn").unwrap_err(),
+    );
 }

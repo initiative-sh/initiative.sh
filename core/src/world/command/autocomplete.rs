@@ -1,7 +1,7 @@
 use crate::app::{AppMeta, Autocomplete};
 use crate::utils::quoted_words;
-use crate::world::location::{BuildingType, Location};
 use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
+use crate::world::place::{Place, PlaceType};
 use crate::world::Thing;
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -116,7 +116,7 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
                 } else {
                     ""
                 },
-                thing.display_description(),
+                thing.as_str(),
             );
 
             vec![(
@@ -212,15 +212,15 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
     }
 }
 
-impl Autocomplete for Location {
+impl Autocomplete for Place {
     fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
-        autocomplete_terms::<Location>(
+        autocomplete_terms::<Place>(
             input,
-            &["location", "place"],
+            &["place"],
             &[(
-                "location type",
-                "specify a location type (eg. inn)",
-                BuildingType::get_words(),
+                "place type",
+                "specify a place type (eg. inn)",
+                PlaceType::get_words(),
             )],
         )
     }
@@ -364,35 +364,35 @@ mod test {
     }
 
     #[test]
-    fn location_autocomplete_test() {
+    fn place_autocomplete_test() {
         assert_autocomplete(
             &[("inn", "create inn")][..],
-            Location::autocomplete("i", &app_meta()),
+            Place::autocomplete("i", &app_meta()),
         );
 
         assert_autocomplete(
             &[("an inn", "create inn")][..],
-            Location::autocomplete("an i", &app_meta()),
+            Place::autocomplete("an i", &app_meta()),
         );
 
         assert_autocomplete(
             &[("an inn named [name]", "specify a name")][..],
-            Location::autocomplete("an inn n", &app_meta()),
+            Place::autocomplete("an inn n", &app_meta()),
         );
 
         assert_eq!(
             Vec::<(String, String)>::new(),
-            Location::autocomplete("a streetcar named desire", &app_meta()),
+            Place::autocomplete("a streetcar named desire", &app_meta()),
         );
 
         assert_eq!(
             Vec::<(String, String)>::new(),
-            Location::autocomplete("Foo, an inn n", &app_meta()),
+            Place::autocomplete("Foo, an inn n", &app_meta()),
         );
     }
 
     #[test]
-    fn location_autocomplete_test_typing() {
+    fn place_autocomplete_test_typing() {
         {
             let input = "a bar called Heaven";
             let app_meta = app_meta();
@@ -400,7 +400,7 @@ mod test {
             for i in 2..input.len() {
                 assert_ne!(
                     Vec::<(String, String)>::new(),
-                    Location::autocomplete(&input[..i], &app_meta),
+                    Place::autocomplete(&input[..i], &app_meta),
                     "Input: {}",
                     &input[..i],
                 );
@@ -414,7 +414,7 @@ mod test {
             for i in 4..input.len() {
                 assert_ne!(
                     Vec::<(String, String)>::new(),
-                    Location::autocomplete(&input[..i], &app_meta),
+                    Place::autocomplete(&input[..i], &app_meta),
                     "Input: {}",
                     &input[..i],
                 );
