@@ -195,11 +195,16 @@ window.addEventListener("keydown", (event) => {
   }
 })
 
-window.addEventListener("click", async (event) => {
-  if (event.target.nodeName === "CODE") {
-    await runCommand(event.target.innerText)
-  } else {
-    promptElement.focus()
+let mouseMoveEvents = 0
+window.addEventListener("mousedown", () => mouseMoveEvents = 0)
+window.addEventListener("mousemove", () => mouseMoveEvents++)
+window.addEventListener("mouseup", async (event) => {
+  if (mouseMoveEvents < 5) {
+    if (event.target.nodeName === "CODE") {
+      await runCommand(event.target.innerText)
+    } else {
+      promptElement.focus()
+    }
   }
 })
 
