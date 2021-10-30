@@ -1,3 +1,6 @@
+* **Bug:** Fix broken text selection, which was preventing copy/paste
+  operations. I wasn't trying to do the annoying "right click disabled" thing
+  from the early '00s, but it sure felt like it.
 * **New:** You can now edit things in your journal and recent items! Try
   `[name] is [description]` to get started.
 * **Enhancement:** The `redo` command is now available at all times, not just
