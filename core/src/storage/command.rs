@@ -1,7 +1,6 @@
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use crate::storage::{Change, RepositoryError};
-use crate::utils::quoted_words;
-use crate::world::{Npc, ParsedThing, Place, Thing};
+use crate::world::Thing;
 use async_trait::async_trait;
 use std::fmt;
 
@@ -319,52 +318,6 @@ impl ContextAwareParse for StorageCommand {
             });
         }
 
-        if let Some(word) = quoted_words(input)
-            .skip(1)
-            .find(|word| word.as_str() == "is")
-        {
-            let (name, description) = (
-                input[..word.range().start].trim(),
-                input[word.range().end..].trim(),
-            );
-
-            let (diff, thing) = if let Some(thing) = app_meta.repository.load(&name.into()) {
-                (
-                    match thing {
-                        Thing::Npc(_) => description
-                            .parse::<ParsedThing<Npc>>()
-                            .map(|npc| npc.into_thing()),
-                        Thing::Place(_) => description
-                            .parse::<ParsedThing<Place>>()
-                            .map(|npc| npc.into_thing()),
-                        Thing::Region(_) => unimplemented!(),
-                    }
-                    .or_else(|_| description.parse()),
-                    Some(thing),
-                )
-            } else {
-                // This will be an error when we try to run the command, but for now we'll pretend
-                // it's valid so that we can provide a more coherent message.
-                (description.parse(), None)
-            };
-
-            if let Ok(diff) = diff {
-                let name = thing
-                    .map(|t| t.name().to_string())
-                    .unwrap_or_else(|| name.to_string());
-
-                fuzzy_matches.push(Self::Change {
-                    change: Change::Edit {
-                        id: thing
-                            .and_then(|t| t.uuid())
-                            .map_or_else(|| name.as_str().into(), |uuid| uuid.to_owned().into()),
-                        name,
-                        diff: diff.thing,
-                    },
-                });
-            }
-        }
-
         (
             if let Some(name) = input.strip_prefix("delete ") {
                 Some(Self::Change {
@@ -468,103 +421,6 @@ impl Autocomplete for StorageCommand {
             .for_each(|(suggestion, thing, command)| {
                 suggestions.push((suggestion, command.summarize(Some(thing), None, None)))
             });
-
-        let mut input_words = quoted_words(input).skip(1);
-
-        if let Some((is_word, next_word)) = input_words
-            .find(|word| word.as_str() == "is")
-            .and_then(|word| input_words.next().map(|next_word| (word, next_word)))
-        {
-            if let Some(thing) = app_meta
-                .repository
-                .load(&input[..is_word.range().start].trim().into())
-            {
-                let split_pos = input.len() - input[is_word.range().end..].trim_start().len();
-
-                let mut edit_suggestions = match thing {
-                    Thing::Npc(_) => Npc::autocomplete(input[split_pos..].trim_start(), app_meta),
-                    Thing::Place(_) => {
-                        Place::autocomplete(input[split_pos..].trim_start(), app_meta)
-                    }
-                    Thing::Region(_) => unimplemented!(),
-                };
-
-                suggestions.reserve(edit_suggestions.len());
-
-                edit_suggestions
-                    .drain(..)
-                    .map(|(a, _)| {
-                        (
-                            format!("{}{}", &input[..split_pos], a),
-                            format!("edit {}", thing.as_str()),
-                        )
-                    })
-                    .for_each(|suggestion| suggestions.push(suggestion));
-
-                if ["named", "called"].contains(&next_word.as_str()) && input_words.next().is_some()
-                {
-                    suggestions.push((input.to_string(), format!("rename {}", thing.as_str())));
-                }
-            }
-        }
-
-        if let Some(thing) = app_meta.repository.load(&input.trim_end().into()) {
-            suggestions.push((
-                if input.ends_with(char::is_whitespace) {
-                    format!("{}is [{} description]", input, thing.as_str())
-                } else {
-                    format!("{} is [{} description]", input, thing.as_str())
-                },
-                format!("edit {}", thing.as_str()),
-            ));
-        } else if let Some((last_word_index, last_word)) =
-            quoted_words(input).enumerate().skip(1).last()
-        {
-            if "is".starts_with(last_word.as_str()) {
-                if let Some(thing) = app_meta
-                    .repository
-                    .load(&input[..last_word.range().start].trim().into())
-                {
-                    suggestions.push((
-                        if last_word.range().end == input.len() {
-                            format!(
-                                "{}is [{} description]",
-                                &input[..last_word.range().start],
-                                thing.as_str(),
-                            )
-                        } else {
-                            format!("{}[{} description]", &input, thing.as_str())
-                        },
-                        format!("edit {}", thing.as_str()),
-                    ))
-                }
-            } else if let Some(suggestion) = ["named", "called"]
-                .iter()
-                .find(|s| s.starts_with(last_word.as_str()))
-            {
-                let second_last_word = quoted_words(input).nth(last_word_index - 1).unwrap();
-
-                if second_last_word.as_str() == "is" {
-                    if let Some(thing) = app_meta
-                        .repository
-                        .load(&input[..second_last_word.range().start].trim().into())
-                    {
-                        suggestions.push((
-                            if last_word.range().end == input.len() {
-                                format!(
-                                    "{}{} [name]",
-                                    &input[..last_word.range().start],
-                                    suggestion,
-                                )
-                            } else {
-                                format!("{}[name]", input)
-                            },
-                            format!("rename {}", thing.as_str()),
-                        ));
-                    }
-                }
-            }
-        }
 
         suggestions
     }
@@ -810,39 +666,6 @@ mod test {
             (None, Vec::<StorageCommand>::new()),
             StorageCommand::parse_input("potato", &app_meta),
         );
-
-        {
-            let mut app_meta = AppMeta::new(NullDataStore::default());
-
-            block_on(
-                app_meta.repository.modify(Change::Create {
-                    thing: Npc {
-                        name: "Gandalf the Grey".into(),
-                        ..Default::default()
-                    }
-                    .into(),
-                }),
-            )
-            .unwrap();
-
-            assert_eq!(
-                (
-                    None,
-                    vec![StorageCommand::Change {
-                        change: Change::Edit {
-                            id: "Gandalf the Grey".into(),
-                            name: "Gandalf the Grey".into(),
-                            diff: Npc {
-                                age: Age::Geriatric.into(),
-                                ..Default::default()
-                            }
-                            .into(),
-                        },
-                    }],
-                ),
-                StorageCommand::parse_input("gandalf the grey is ancient", &app_meta),
-            );
-        }
     }
 
     #[test]
@@ -939,32 +762,8 @@ mod test {
         assert!(StorageCommand::autocomplete("p", &app_meta).is_empty());
 
         assert_autocomplete(
-            &[
-                ("Potato Johnson", "adult elf, they/them (unsaved)"),
-                (
-                    "Potato Johnson is [character description]",
-                    "edit character",
-                ),
-            ][..],
+            &[("Potato Johnson", "adult elf, they/them (unsaved)")][..],
             StorageCommand::autocomplete("Potato Johnson", &app_meta),
-        );
-
-        assert_autocomplete(
-            &[(
-                "Potato Johnson is a [character description]",
-                "edit character",
-            )][..],
-            StorageCommand::autocomplete("Potato Johnson is a ", &app_meta),
-        );
-
-        assert_autocomplete(
-            &[
-                ("Potato Johnson is an elderly", "edit character"),
-                ("Potato Johnson is an elf", "edit character"),
-                ("Potato Johnson is an elvish", "edit character"),
-                ("Potato Johnson is an enby", "edit character"),
-            ][..],
-            StorageCommand::autocomplete("Potato Johnson is an e", &app_meta),
         );
     }
 
