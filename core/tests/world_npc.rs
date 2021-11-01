@@ -389,3 +389,28 @@ fn edit_npc_with_wrong_type() {
         app.command("Bar is an elf").unwrap_err(),
     );
 }
+
+#[test]
+fn create_place_with_unknown_words() {
+    let mut app = sync_app();
+
+    {
+        let output = app
+            .command("a male dragon turtle young adult named Smaug")
+            .unwrap();
+
+        assert!(output.starts_with("# Smaug"), "{}", output);
+        assert!(output.contains("he/him"), "{}", output);
+        assert!(
+            output.ends_with(
+                "! initiative.sh doesn't know some of those words, but it did its best.\n\
+                \n\
+                \\> a male **dragon** **turtle** young adult named Smaug\\\n\
+                \u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}^^^^^^\u{a0}^^^^^^\\\n\
+                Want to help improve its vocabulary? Join us [on Discord](https://discord.gg/ZrqJPpxXVZ) and suggest your new words!"
+            ),
+            "{}",
+            output,
+        );
+    }
+}

@@ -10,10 +10,10 @@ mod parse;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum WorldCommand {
-    Create { thing: Thing },
+    Create { thing: ParsedThing<Thing> },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ParsedThing<T> {
     pub thing: T,
     pub unknown_words: Vec<Range<usize>>,
@@ -22,9 +22,12 @@ pub struct ParsedThing<T> {
 
 #[async_trait(?Send)]
 impl Runnable for WorldCommand {
-    async fn run(self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         Ok(match self {
-            Self::Create { thing } => {
+            Self::Create {
+                thing: parsed_thing,
+            } => {
+                let thing = parsed_thing.thing;
                 let mut thing_output = None;
 
                 for _ in 0..10 {
@@ -155,6 +158,35 @@ impl Runnable for WorldCommand {
                     }
                 }
 
+                if !parsed_thing.unknown_words.is_empty() {
+                    output.push_str("\n\n! initiative.sh doesn't know some of those words, but it did its best.\n\n\\> ");
+
+                    {
+                        let mut pos = 0;
+                        for word_range in parsed_thing.unknown_words.iter() {
+                            output.push_str(&input[pos..word_range.start]);
+                            pos = word_range.end;
+                            output.push_str("**");
+                            output.push_str(&input[word_range.clone()]);
+                            output.push_str("**");
+                        }
+                        output.push_str(&input[pos..]);
+                    }
+
+                    output.push_str("\\\n\u{a0}\u{a0}");
+
+                    {
+                        let mut pos = 0;
+                        for word_range in parsed_thing.unknown_words {
+                            (pos..word_range.start).for_each(|_| output.push('\u{a0}'));
+                            pos = word_range.end;
+                            word_range.for_each(|_| output.push('^'));
+                        }
+                    }
+
+                    output.push_str("\\\nWant to help improve its vocabulary? Join us [on Discord](https://discord.gg/ZrqJPpxXVZ) and suggest your new words!");
+                }
+
                 output
             }
         })
@@ -166,23 +198,17 @@ impl ContextAwareParse for WorldCommand {
         let mut exact_match = None;
         let mut fuzzy_matches = Vec::new();
 
-        if let Some(Ok(parsed)) = input
+        if let Some(Ok(thing)) = input
             .strip_prefix("create ")
             .map(|s| s.parse::<ParsedThing<Thing>>())
         {
-            if parsed.unknown_words.is_empty() {
-                exact_match = Some(Self::Create {
-                    thing: parsed.thing,
-                });
+            if thing.unknown_words.is_empty() {
+                exact_match = Some(Self::Create { thing });
             } else {
-                fuzzy_matches.push(Self::Create {
-                    thing: parsed.thing,
-                });
+                fuzzy_matches.push(Self::Create { thing });
             }
-        } else if let Ok(parsed) = input.parse::<ParsedThing<Thing>>() {
-            fuzzy_matches.push(Self::Create {
-                thing: parsed.thing,
-            });
+        } else if let Ok(thing) = input.parse::<ParsedThing<Thing>>() {
+            fuzzy_matches.push(Self::Create { thing });
         }
 
         (exact_match, fuzzy_matches)
@@ -203,8 +229,14 @@ impl Autocomplete for WorldCommand {
 impl fmt::Display for WorldCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
-            Self::Create { thing } => write!(f, "create {}", thing.display_summary()),
+            Self::Create { thing } => write!(f, "create {}", thing.thing.display_summary()),
         }
+    }
+}
+
+impl<T: PartialEq> PartialEq for ParsedThing<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.thing == other.thing
     }
 }
 
@@ -246,35 +278,22 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
-            (
-                None,
-                vec![WorldCommand::Create {
-                    thing: Npc::default().into()
-                }],
-            ),
+            (None, vec![create(Npc::default())],),
             WorldCommand::parse_input("npc", &app_meta),
         );
 
         assert_eq!(
-            (
-                Some(WorldCommand::Create {
-                    thing: Npc::default().into()
-                }),
-                Vec::new(),
-            ),
+            (Some(create(Npc::default())), Vec::new(),),
             WorldCommand::parse_input("create npc", &app_meta),
         );
 
         assert_eq!(
             (
                 None,
-                vec![WorldCommand::Create {
-                    thing: Npc {
-                        species: Species::Elf.into(),
-                        ..Default::default()
-                    }
-                    .into()
-                }],
+                vec![create(Npc {
+                    species: Species::Elf.into(),
+                    ..Default::default()
+                })],
             ),
             WorldCommand::parse_input("elf", &app_meta),
         );
@@ -331,23 +350,15 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         vec![
-            WorldCommand::Create {
-                thing: Place {
-                    subtype: PlaceType::Inn.into(),
-                    ..Default::default()
-                }
-                .into(),
-            },
-            WorldCommand::Create {
-                thing: Npc::default().into(),
-            },
-            WorldCommand::Create {
-                thing: Npc {
-                    species: Some(Species::Elf).into(),
-                    ..Default::default()
-                }
-                .into(),
-            },
+            create(Place {
+                subtype: PlaceType::Inn.into(),
+                ..Default::default()
+            }),
+            create(Npc::default()),
+            create(Npc {
+                species: Some(Species::Elf).into(),
+                ..Default::default()
+            }),
         ]
         .drain(..)
         .for_each(|command| {
@@ -360,5 +371,15 @@ mod test {
                 command_string,
             );
         });
+    }
+
+    fn create(thing: impl Into<Thing>) -> WorldCommand {
+        WorldCommand::Create {
+            thing: ParsedThing {
+                thing: thing.into(),
+                unknown_words: Vec::new(),
+                word_count: 1,
+            },
+        }
     }
 }

@@ -399,3 +399,25 @@ fn edit_place_with_wrong_type() {
         app.command("Bar is an inn").unwrap_err(),
     );
 }
+
+#[test]
+fn create_place_with_unknown_words() {
+    let mut app = sync_app();
+
+    {
+        let output = app.command("a fuzzy place called home").unwrap();
+
+        assert!(output.starts_with("# Home"), "{}", output);
+        assert!(
+            output.ends_with(
+                "! initiative.sh doesn't know some of those words, but it did its best.\n\
+                \n\
+                \\> a **fuzzy** place called home\\\n\
+                \u{a0}\u{a0}\u{a0}\u{a0}^^^^^\\\n\
+                Want to help improve its vocabulary? Join us [on Discord](https://discord.gg/ZrqJPpxXVZ) and suggest your new words!"
+            ),
+            "{}",
+            output,
+        );
+    }
+}

@@ -256,7 +256,7 @@ impl From<WorldCommand> for CommandType {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
-    use crate::world::Npc;
+    use crate::world::{Npc, ParsedThing};
 
     #[test]
     fn parse_input_test() {
@@ -303,7 +303,11 @@ mod test {
                     Command::default().union(
                         (
                             Some(CommandType::World(WorldCommand::Create {
-                                thing: Npc::default().into()
+                                thing: ParsedThing {
+                                    thing: Npc::default().into(),
+                                    unknown_words: Vec::new(),
+                                    word_count: 1,
+                                },
                             })),
                             Vec::new(),
                         )
@@ -355,10 +359,18 @@ mod test {
 
         assert_eq!(
             CommandType::World(WorldCommand::Create {
-                thing: Npc::default().into()
+                thing: ParsedThing {
+                    thing: Npc::default().into(),
+                    unknown_words: Vec::new(),
+                    word_count: 1,
+                },
             }),
             WorldCommand::Create {
-                thing: Npc::default().into()
+                thing: ParsedThing {
+                    thing: Npc::default().into(),
+                    unknown_words: Vec::new(),
+                    word_count: 1,
+                },
             }
             .into(),
         );
