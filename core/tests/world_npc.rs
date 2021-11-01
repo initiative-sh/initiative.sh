@@ -414,3 +414,23 @@ fn create_place_with_unknown_words() {
         );
     }
 }
+
+#[test]
+fn edit_place_with_unknown_words() {
+    let mut app = sync_app();
+    app.command("npc named Spot").unwrap();
+
+    let output = app.command("Spot is a good boy").unwrap();
+    assert!(output.starts_with("# Spot"), "{}", output);
+    assert!(
+        output.ends_with(
+            "! initiative.sh doesn't know some of those words, but it did its best.\n\
+            \n\
+            \\> Spot is a **good** boy\\\n\
+            \u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}^^^^\\\n\
+            Want to help improve its vocabulary? Join us [on Discord](https://discord.gg/ZrqJPpxXVZ) and suggest your new words!"
+        ),
+        "{}",
+        output,
+    );
+}

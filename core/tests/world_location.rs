@@ -421,3 +421,45 @@ fn create_place_with_unknown_words() {
         );
     }
 }
+
+#[test]
+fn edit_place_with_unknown_words() {
+    let mut app = sync_app();
+    app.command("inn named Oaken Mermaid Inn").unwrap();
+
+    let output = app
+        .command("Oaken Mermaid Inn is secretly an inn named I Am Mordenkainen")
+        .unwrap();
+    assert!(output.starts_with("# I Am Mordenkainen"), "{}", output);
+    assert!(
+        output.ends_with(
+            "! initiative.sh doesn't know some of those words, but it did its best.\n\
+            \n\
+            \\> Oaken Mermaid Inn is **secretly** an inn named I Am Mordenkainen\\\n\
+            \u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}^^^^^^^^\\\n\
+            Want to help improve its vocabulary? Join us [on Discord](https://discord.gg/ZrqJPpxXVZ) and suggest your new words!"
+        ),
+        "{}",
+        output,
+    );
+}
+
+#[test]
+fn emoji_test() {
+    let mut app = sync_app();
+    app.command("inn named 🏩").unwrap();
+
+    let output = app.command("🏩 is a 💩 place called 💩").unwrap();
+    assert!(output.starts_with("# 💩"), "{}", output);
+    assert!(
+        output.ends_with(
+            "! initiative.sh doesn't know some of those words, but it did its best.\n\
+            \n\
+            \\> 🏩 is a **💩** place called 💩\\\n\
+            \u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}\u{a0}^\\\n\
+            Want to help improve its vocabulary? Join us [on Discord](https://discord.gg/ZrqJPpxXVZ) and suggest your new words!"
+        ),
+        "{}",
+        output,
+    );
+}

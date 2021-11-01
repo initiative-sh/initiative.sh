@@ -165,47 +165,29 @@ impl Runnable for WorldCommand {
                     }
                 }
 
-                if !parsed_thing.unknown_words.is_empty() {
-                    output.push_str("\n\n! initiative.sh doesn't know some of those words, but it did its best.\n\n\\> ");
-
-                    {
-                        let mut pos = 0;
-                        for word_range in parsed_thing.unknown_words.iter() {
-                            output.push_str(&input[pos..word_range.start]);
-                            pos = word_range.end;
-                            output.push_str("**");
-                            output.push_str(&input[word_range.clone()]);
-                            output.push_str("**");
-                        }
-                        output.push_str(&input[pos..]);
-                    }
-
-                    output.push_str("\\\n\u{a0}\u{a0}");
-
-                    {
-                        let mut pos = 0;
-                        for word_range in parsed_thing.unknown_words {
-                            (pos..word_range.start).for_each(|_| output.push('\u{a0}'));
-                            pos = word_range.end;
-                            word_range.for_each(|_| output.push('^'));
-                        }
-                    }
-
-                    output.push_str("\\\nWant to help improve its vocabulary? Join us [on Discord](https://discord.gg/ZrqJPpxXVZ) and suggest your new words!");
-                }
-
-                Ok(output)
+                Ok(append_unknown_words_notice(
+                    output,
+                    input,
+                    parsed_thing.unknown_words,
+                ))
             }
             Self::Edit { name, diff } => {
+                let ParsedThing {
+                    thing: diff,
+                    unknown_words,
+                    word_count: _,
+                } = diff;
+
                 StorageCommand::Change {
                     change: Change::Edit {
                         id: name.as_str().into(),
                         name,
-                        diff: diff.thing,
+                        diff,
                     },
                 }
                 .run(input, app_meta)
                 .await
+                .map(|s| append_unknown_words_notice(s, input, unknown_words))
             }
         }
     }
@@ -416,6 +398,51 @@ impl<T: Into<Thing>> From<ParsedThing<T>> for Thing {
     fn from(input: ParsedThing<T>) -> Self {
         input.thing.into()
     }
+}
+
+fn append_unknown_words_notice(
+    mut output: String,
+    input: &str,
+    mut unknown_words: Vec<Range<usize>>,
+) -> String {
+    if !unknown_words.is_empty() {
+        output.push_str(
+            "\n\n! initiative.sh doesn't know some of those words, but it did its best.\n\n\\> ",
+        );
+
+        {
+            let mut pos = 0;
+            for word_range in unknown_words.iter() {
+                output.push_str(&input[pos..word_range.start]);
+                pos = word_range.end;
+                output.push_str("**");
+                output.push_str(&input[word_range.clone()]);
+                output.push_str("**");
+            }
+            output.push_str(&input[pos..]);
+        }
+
+        output.push_str("\\\n\u{a0}\u{a0}");
+
+        {
+            let mut words = unknown_words.drain(..);
+            let mut unknown_word = words.next();
+            for (i, _) in input.char_indices() {
+                if unknown_word.as_ref().map_or(false, |word| i >= word.end) {
+                    unknown_word = words.next();
+                }
+
+                if let Some(word) = &unknown_word {
+                    output.push(if i >= word.start { '^' } else { '\u{a0}' });
+                } else {
+                    break;
+                }
+            }
+        }
+
+        output.push_str("\\\nWant to help improve its vocabulary? Join us [on Discord](https://discord.gg/ZrqJPpxXVZ) and suggest your new words!");
+    }
+    output
 }
 
 #[cfg(test)]
