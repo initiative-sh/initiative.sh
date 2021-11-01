@@ -387,10 +387,15 @@ fn edit_place_with_invalid_data_store() {
 #[test]
 fn edit_place_with_wrong_type() {
     let mut app = sync_app();
-    app.command("inn named Foo").unwrap();
+    app.command("elf named Foo").unwrap();
 
     assert_eq!(
-        "Unknown command: \"Foo is an elf\"",
-        app.command("Foo is an elf").unwrap_err(),
+        "There is no place named \"Foo\".",
+        app.command("Foo is an inn").unwrap_err(),
+    );
+
+    assert_eq!(
+        "There is no place named \"Bar\".",
+        app.command("Bar is an inn").unwrap_err(),
     );
 }

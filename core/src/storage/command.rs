@@ -328,31 +328,40 @@ impl ContextAwareParse for StorageCommand {
                 input[word.range().end..].trim(),
             );
 
-            if let Some(thing) = app_meta.repository.load(&name.into()) {
-                let diff: Result<ParsedThing<Thing>, _> = match thing {
-                    Thing::Npc(_) => description
-                        .parse::<ParsedThing<Npc>>()
-                        .map(|npc| npc.into_thing()),
-                    Thing::Place(_) => description
-                        .parse::<ParsedThing<Place>>()
-                        .map(|npc| npc.into_thing()),
-                    Thing::Region(_) => unimplemented!(),
-                };
+            let (diff, thing) = if let Some(thing) = app_meta.repository.load(&name.into()) {
+                (
+                    match thing {
+                        Thing::Npc(_) => description
+                            .parse::<ParsedThing<Npc>>()
+                            .map(|npc| npc.into_thing()),
+                        Thing::Place(_) => description
+                            .parse::<ParsedThing<Place>>()
+                            .map(|npc| npc.into_thing()),
+                        Thing::Region(_) => unimplemented!(),
+                    }
+                    .or_else(|_| description.parse()),
+                    Some(thing),
+                )
+            } else {
+                // This will be an error when we try to run the command, but for now we'll pretend
+                // it's valid so that we can provide a more coherent message.
+                (description.parse(), None)
+            };
 
-                if let Ok(diff) = diff {
-                    let name = thing.name().to_string();
+            if let Ok(diff) = diff {
+                let name = thing
+                    .map(|t| t.name().to_string())
+                    .unwrap_or_else(|| name.to_string());
 
-                    fuzzy_matches.push(Self::Change {
-                        change: Change::Edit {
-                            id: thing.uuid().map_or_else(
-                                || name.as_str().into(),
-                                |uuid| uuid.to_owned().into(),
-                            ),
-                            name,
-                            diff: diff.thing,
-                        },
-                    });
-                }
+                fuzzy_matches.push(Self::Change {
+                    change: Change::Edit {
+                        id: thing
+                            .and_then(|t| t.uuid())
+                            .map_or_else(|| name.as_str().into(), |uuid| uuid.to_owned().into()),
+                        name,
+                        diff: diff.thing,
+                    },
+                });
             }
         }
 
