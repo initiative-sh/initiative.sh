@@ -3,6 +3,7 @@ use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnabl
 use crate::storage::{Change, RepositoryError, StorageCommand};
 use async_trait::async_trait;
 use std::fmt;
+use std::ops::Range;
 
 mod autocomplete;
 mod parse;
@@ -10,6 +11,13 @@ mod parse;
 #[derive(Clone, Debug, PartialEq)]
 pub enum WorldCommand {
     Create { thing: Thing },
+}
+
+#[derive(Debug)]
+pub struct ParsedThing<T> {
+    pub thing: T,
+    pub unknown_words: Vec<Range<usize>>,
+    pub word_count: usize,
 }
 
 #[async_trait(?Send)]
@@ -155,18 +163,29 @@ impl Runnable for WorldCommand {
 
 impl ContextAwareParse for WorldCommand {
     fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        (
-            if let Some(Ok(thing)) = input.strip_prefix("create ").map(|s| s.parse()) {
-                Some(Self::Create { thing })
+        let mut exact_match = None;
+        let mut fuzzy_matches = Vec::new();
+
+        if let Some(Ok(parsed)) = input
+            .strip_prefix("create ")
+            .map(|s| s.parse::<ParsedThing<Thing>>())
+        {
+            if parsed.unknown_words.is_empty() {
+                exact_match = Some(Self::Create {
+                    thing: parsed.thing,
+                });
             } else {
-                None
-            },
-            if let Ok(thing) = input.parse() {
-                vec![Self::Create { thing }]
-            } else {
-                Vec::new()
-            },
-        )
+                fuzzy_matches.push(Self::Create {
+                    thing: parsed.thing,
+                });
+            }
+        } else if let Ok(parsed) = input.parse::<ParsedThing<Thing>>() {
+            fuzzy_matches.push(Self::Create {
+                thing: parsed.thing,
+            });
+        }
+
+        (exact_match, fuzzy_matches)
     }
 }
 
@@ -186,6 +205,32 @@ impl fmt::Display for WorldCommand {
         match self {
             Self::Create { thing } => write!(f, "create {}", thing.display_summary()),
         }
+    }
+}
+
+impl<T: Into<Thing>> ParsedThing<T> {
+    pub fn into_thing(self) -> ParsedThing<Thing> {
+        ParsedThing {
+            thing: self.thing.into(),
+            unknown_words: self.unknown_words,
+            word_count: self.word_count,
+        }
+    }
+}
+
+impl<T: Default> Default for ParsedThing<T> {
+    fn default() -> Self {
+        Self {
+            thing: T::default(),
+            unknown_words: Vec::default(),
+            word_count: 0,
+        }
+    }
+}
+
+impl<T: Into<Thing>> From<ParsedThing<T>> for Thing {
+    fn from(input: ParsedThing<T>) -> Self {
+        input.thing.into()
     }
 }
 

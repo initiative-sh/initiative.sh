@@ -1,7 +1,7 @@
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use crate::storage::{Change, RepositoryError};
 use crate::utils::quoted_words;
-use crate::world::{Npc, Place, Thing};
+use crate::world::{Npc, ParsedThing, Place, Thing};
 use async_trait::async_trait;
 use std::fmt;
 
@@ -163,7 +163,14 @@ impl Runnable for StorageCommand {
                                 format!("Couldn't delete `{}`.", name)
                             }
                         }),
-                    Change::Edit { .. } | Change::EditAndUnsave { .. } => app_meta
+                    Change::Edit { .. } | Change::EditAndUnsave { .. } => {
+                        let thing_type = if let Change::Edit { ref diff, .. } | Change::EditAndUnsave { ref diff, .. } = change {
+                            diff.as_str()
+                        } else {
+                            unreachable!()
+                        };
+
+                        app_meta
                         .repository
                         .modify(change)
                         .await
@@ -186,14 +193,15 @@ impl Runnable for StorageCommand {
                         })
                         .map_err(|(_, e)| match e {
                             RepositoryError::NotFound => {
-                                format!("There is no entity named \"{}\".", name)
+                                format!("There is no {} named \"{}\".", thing_type, name)
                             }
                             RepositoryError::DataStoreFailed
                                 | RepositoryError::MissingName
                                 | RepositoryError::NameAlreadyExists => {
                                 format!("Couldn't edit `{}`.", name)
                                 }
-                        }),
+                        })
+                    }
                     Change::Save { .. } => app_meta
                         .repository
                         .modify(change)
@@ -321,9 +329,13 @@ impl ContextAwareParse for StorageCommand {
             );
 
             if let Some(thing) = app_meta.repository.load(&name.into()) {
-                let diff = match thing {
-                    Thing::Npc(_) => description.parse::<Npc>().map(|npc| npc.into()),
-                    Thing::Place(_) => description.parse::<Place>().map(|place| place.into()),
+                let diff: Result<ParsedThing<Thing>, _> = match thing {
+                    Thing::Npc(_) => description
+                        .parse::<ParsedThing<Npc>>()
+                        .map(|npc| npc.into_thing()),
+                    Thing::Place(_) => description
+                        .parse::<ParsedThing<Place>>()
+                        .map(|npc| npc.into_thing()),
                     Thing::Region(_) => unimplemented!(),
                 };
 
@@ -337,7 +349,7 @@ impl ContextAwareParse for StorageCommand {
                                 |uuid| uuid.to_owned().into(),
                             ),
                             name,
-                            diff,
+                            diff: diff.thing,
                         },
                     });
                 }

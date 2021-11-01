@@ -1,3 +1,4 @@
+use super::ParsedThing;
 use crate::app::{AppMeta, Autocomplete};
 use crate::utils::quoted_words;
 use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
@@ -214,7 +215,7 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
 
 impl Autocomplete for Place {
     fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
-        autocomplete_terms::<Place>(
+        autocomplete_terms::<ParsedThing<Place>>(
             input,
             &["place"],
             &[(
@@ -244,13 +245,22 @@ impl Autocomplete for Npc {
                 )
             };
 
-            if let Ok(npc) = suggestion.parse::<Npc>() {
-                vec![(suggestion, format!("create {}", npc.display_summary()))]
+            if let Some(description) =
+                suggestion
+                    .parse::<ParsedThing<Thing>>()
+                    .ok()
+                    .and_then(|pt| {
+                        pt.thing
+                            .npc()
+                            .map(|npc| format!("create {}", npc.display_summary()))
+                    })
+            {
+                vec![(suggestion, description)]
             } else {
                 Vec::new()
             }
         } else {
-            autocomplete_terms::<Npc>(
+            autocomplete_terms::<ParsedThing<Npc>>(
                 input,
                 &["character", "npc", "person"],
                 &[
