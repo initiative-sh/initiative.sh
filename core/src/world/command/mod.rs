@@ -368,8 +368,10 @@ impl Autocomplete for WorldCommand {
 impl fmt::Display for WorldCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
-            Self::Create { thing } => write!(f, "create {}", thing.thing.display_summary()),
-            Self::Edit { name, diff } => write!(f, "{} is {}", name, diff.thing.display_summary()),
+            Self::Create { thing } => write!(f, "create {}", thing.thing.display_description()),
+            Self::Edit { name, diff } => {
+                write!(f, "{} is {}", name, diff.thing.display_description())
+            }
         }
     }
 }

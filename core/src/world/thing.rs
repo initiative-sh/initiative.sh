@@ -207,8 +207,16 @@ impl<'a> fmt::Display for DescriptionView<'a> {
 impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0 {
-            Thing::Place(l) => write!(f, "{}", l.display_details()),
-            Thing::Npc(n) => write!(f, "{}", n.display_details()),
+            Thing::Place(p) => write!(
+                f,
+                "<div class=\"thing-box place\">\n\n{}\n\n</div>",
+                p.display_details(),
+            ),
+            Thing::Npc(n) => write!(
+                f,
+                "<div class=\"thing-box npc\">\n\n{}\n\n</div>",
+                n.display_details(),
+            ),
             Thing::Region(r) => write!(f, "{}", r.name),
         }
     }

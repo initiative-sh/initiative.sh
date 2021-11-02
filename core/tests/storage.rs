@@ -11,7 +11,7 @@ fn npc_is_saved_to_storage() {
     let generated_output = app.command("npc").unwrap();
     let npc_name = generated_output
         .lines()
-        .next()
+        .nth(2)
         .unwrap()
         .trim_start_matches("# ");
 
@@ -33,7 +33,7 @@ fn npc_is_saved_to_storage_by_alias() {
     let generated_output = app.command("npc").unwrap();
     let npc_name = generated_output
         .lines()
-        .next()
+        .nth(2)
         .unwrap()
         .trim_start_matches("# ");
 
@@ -51,7 +51,7 @@ fn npc_cannot_be_saved_with_invalid_data_store() {
     let generated_output = app.command("npc").unwrap();
     let npc_name = generated_output
         .lines()
-        .next()
+        .nth(2)
         .unwrap()
         .trim_start_matches("# ");
 
@@ -66,7 +66,7 @@ fn npc_cannot_be_saved_with_invalid_data_store() {
         app.command(&format!("load {}", npc_name))
             .unwrap()
             .lines()
-            .next()
+            .nth(2)
             .unwrap(),
     );
 }
@@ -78,7 +78,7 @@ fn npc_cannot_be_saved_by_alias_with_invalid_data_store() {
     let generated_output = app.command("npc").unwrap();
     let npc_name = generated_output
         .lines()
-        .next()
+        .nth(2)
         .unwrap()
         .trim_start_matches("# ");
 
@@ -101,7 +101,7 @@ fn npc_can_be_loaded_from_storage() {
         let generated_output = app.command("npc").unwrap();
         let npc_name = generated_output
             .lines()
-            .next()
+            .nth(2)
             .unwrap()
             .trim_start_matches("# ")
             .to_string();
@@ -151,7 +151,7 @@ fn npc_can_be_deleted_from_temp() {
     let generated_output = app.command("npc").unwrap();
     let npc_name = generated_output
         .lines()
-        .next()
+        .nth(2)
         .unwrap()
         .trim_start_matches("# ")
         .to_string();
@@ -171,7 +171,7 @@ fn npc_can_be_deleted_from_temp() {
 
     {
         let output = app.command("undo").unwrap();
-        assert!(output.starts_with(&format!("# {}", npc_name)), "{}", output);
+        assert!(output.contains(&format!("# {}", npc_name)), "{}", output);
         assert!(
             output.ends_with(&format!(
                 "_Successfully undid deleting {}. Use `redo` to reverse this._",
@@ -215,7 +215,7 @@ fn npc_can_be_deleted_from_data_store() {
 
     {
         let output = app.command("undo").unwrap();
-        assert!(output.starts_with("# Potato Johnson"), "{}", output);
+        assert!(output.contains("# Potato Johnson"), "{}", output);
         assert!(
             output.ends_with(
                 "_Successfully undid deleting Potato Johnson. Use `redo` to reverse this._"
@@ -244,7 +244,7 @@ fn delete_works_with_unusable_data_store() {
 
     {
         let output = app.command("undo").unwrap();
-        assert!(output.starts_with("# Potato Johnson"), "{}", output);
+        assert!(output.contains("# Potato Johnson"), "{}", output);
         assert!(
             output.ends_with(
                 "_Successfully undid deleting Potato Johnson. Use `redo` to reverse this._"
@@ -318,7 +318,7 @@ fn journal_shows_alphabetized_results() {
                 "{}",
                 app.command(&format!(
                     "save {}",
-                    line.find('(').map(|pos| &line[1..(pos - 2)]).unwrap()
+                    line.find('(').map(|pos| &line[6..(pos - 2)]).unwrap()
                 ))
                 .unwrap(),
             );
@@ -326,7 +326,7 @@ fn journal_shows_alphabetized_results() {
         })
         .collect();
 
-    npcs.sort();
+    npcs.sort_by(|a, b| a[6..].cmp(&b[6..]));
 
     let inn_list = app.command("inn").unwrap();
     println!("{}", inn_list);

@@ -61,16 +61,16 @@ fn generated_content_is_persisted() {
     // Ensure that the primary suggestion matches the generated content.
     let name = generated_output
         .lines()
-        .next()
+        .nth(2)
         .unwrap()
         .trim_start_matches("# ");
     let persisted_output = app.command(&format!("load {}", name)).unwrap();
     assert_eq!(
         format!("# {}", name),
-        persisted_output.lines().next().unwrap(),
+        persisted_output.lines().nth(2).unwrap(),
     );
     assert_eq!(
-        9,
+        13,
         generated_output
             .lines()
             .zip(persisted_output.lines())
@@ -89,13 +89,13 @@ fn generated_content_is_persisted() {
             .filter(|line| line.starts_with('~'))
             .map(|s| {
                 if let Some(pos) = s.find('(') {
-                    let name = &s[5..(pos - 2)];
+                    let name = &s[10..(pos - 2)];
                     assert_eq!(
                         format!("# {}", name),
                         app.command(&format!("load {}", name))
                             .unwrap()
                             .lines()
-                            .next()
+                            .nth(2)
                             .unwrap(),
                     );
                 } else {
@@ -126,9 +126,9 @@ fn numeric_aliases_exist_for_npcs() {
                 let digit = &s[1..2];
                 let digit_output = app.command(digit).unwrap();
 
-                let name = &s[5..(pos - 2)];
+                let name = &s[10..(pos - 2)];
 
-                assert_eq!(format!("# {}", name), digit_output.lines().next().unwrap());
+                assert_eq!(format!("# {}", name), digit_output.lines().nth(2).unwrap());
 
                 (digit_output, name.to_string())
             } else {
@@ -157,7 +157,7 @@ fn save_alias_exists_for_npcs() {
 
     {
         let output = app.command("npc").unwrap();
-        let name = output.lines().next().unwrap().trim_start_matches("# ");
+        let name = output.lines().nth(2).unwrap().trim_start_matches("# ");
 
         let output = app.command(&format!("load {}", name)).unwrap();
         assert!(output.contains("has not yet been saved"), "{}", output);
@@ -165,7 +165,7 @@ fn save_alias_exists_for_npcs() {
 
     {
         let output = app.command("npc").unwrap();
-        let name = output.lines().next().unwrap().trim_start_matches("# ");
+        let name = output.lines().nth(2).unwrap().trim_start_matches("# ");
 
         let output = app.command("save").unwrap();
         assert!(output.contains("was successfully saved."), "{}", output);
@@ -195,7 +195,7 @@ fn create_npc_with_custom_attributes() {
     {
         let output = app.command("Sue, a young enby dwarvish elf").unwrap();
         assert!(
-            output.starts_with("# Sue\n*young adult elf, they/them*"),
+            output.contains("# Sue\n*young adult elf, they/them*"),
             "{}",
             output,
         );
@@ -216,7 +216,7 @@ fn create_npc_with_custom_attributes() {
     {
         let output = app.command("a boy named sue").unwrap_err();
         assert_eq!(
-            "That name is already in use by `Sue` (young adult elf, they/them).",
+            "That name is already in use by 🧑 `Sue` (young adult elf, they/them).",
             output,
         );
     }
@@ -233,7 +233,7 @@ fn create_npc_with_custom_attributes() {
 
     {
         let output = app.command("redo").unwrap();
-        assert!(output.starts_with("# Sue"), "{}", output);
+        assert!(output.contains("# Sue"), "{}", output);
         assert!(
             output.ends_with("_Successfully redid creating Sue. Use `undo` to reverse this._"),
             "{}",
@@ -270,7 +270,7 @@ fn edit_npc() {
 
     {
         let output = app.command("undo").unwrap();
-        assert!(output.starts_with("# Elvis"), "{}", output);
+        assert!(output.contains("# Elvis"), "{}", output);
         assert!(
             output.ends_with("_Successfully undid editing Elvis. Use `redo` to reverse this._"),
             "{}",
@@ -282,7 +282,7 @@ fn edit_npc() {
 
     {
         let output = app.command("redo").unwrap();
-        assert!(output.starts_with("# Joe"), "{}", output);
+        assert!(output.contains("# Joe"), "{}", output);
         assert!(
             output.ends_with("_Successfully redid editing Joe. Use `undo` to reverse this._"),
             "{}",
@@ -301,7 +301,7 @@ fn edit_npc_implicitly_saves() {
 
     let name = generated_output
         .lines()
-        .next()
+        .nth(2)
         .unwrap()
         .trim_start_matches("# ");
 
@@ -399,7 +399,7 @@ fn create_place_with_unknown_words() {
             .command("a male dragon turtle young adult named Smaug")
             .unwrap();
 
-        assert!(output.starts_with("# Smaug"), "{}", output);
+        assert!(output.contains("# Smaug"), "{}", output);
         assert!(output.contains("he/him"), "{}", output);
         assert!(
             output.ends_with(
@@ -421,7 +421,7 @@ fn edit_place_with_unknown_words() {
     app.command("npc named Spot").unwrap();
 
     let output = app.command("Spot is a good boy").unwrap();
-    assert!(output.starts_with("# Spot"), "{}", output);
+    assert!(output.contains("# Spot"), "{}", output);
     assert!(
         output.ends_with(
             "! initiative.sh doesn't know some of those words, but it did its best.\n\
