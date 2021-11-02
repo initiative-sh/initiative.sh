@@ -6,13 +6,18 @@ Commands are intended to be typed, although underlined words are also clickable
 to make it easier to discover new commands. They're also intended to be as
 intuitive and succinct as possible.
 
-To generate a random thing, simply type its name. Generators will include a list
-of alternatives, in case the first suggestion isn't appropriate to your
-situation. You can see more details about an alternative by typing its name or
-the number listed next to it.
+To generate a random thing, simply describe it. This can be simple, as in typing
+the name of the thing you're looking for, or more complex, describing details of
+that thing.
 
 * `npc` (`human`, `elf`, etc.)
 * `building` (`inn`)
+* `a human boy named Roger`
+* `The Wilted Lily, an inn`
+
+Existing things can be edited by describing them with "is", for instance:
+
+* `Roger is a non-binary halfling`
 
 Proper (capitalized) nouns will give you existing people, places, or reference
 items from the 5th edition D&D Systems Reference Document. For instance:

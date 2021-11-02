@@ -14,6 +14,9 @@ pub enum WorldCommand {
     Create {
         thing: ParsedThing<Thing>,
     },
+    CreateMultiple {
+        thing: Thing,
+    },
     Edit {
         name: String,
         diff: ParsedThing<Thing>,
@@ -34,19 +37,20 @@ impl Runnable for WorldCommand {
             Self::Create {
                 thing: parsed_thing,
             } => {
-                let thing = parsed_thing.thing;
-                let mut thing_output = None;
+                let diff = parsed_thing.thing;
+                let unknown_words = parsed_thing.unknown_words.to_owned();
+                let mut output = None;
 
                 for _ in 0..10 {
-                    let mut thing = thing.clone();
+                    let mut thing = diff.clone();
                     thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
-                    let mut temp_thing_output = format!("{}", thing.display_details());
-                    let mut command_alias = None;
+                    let mut temp_output = format!("{}", thing.display_details());
+                    let mut command_aliases = None;
 
                     let change = if app_meta.repository.data_store_enabled() {
                         match thing.name() {
                             Field::Locked(Some(name)) => {
-                                temp_thing_output.push_str(&format!(
+                                temp_output.push_str(&format!(
                                     "\n\n_Because you specified a name, {name} has been automatically added to your `journal`. Use `undo` to remove {them}._",
                                     name = name,
                                     them = thing.gender().them(),
@@ -55,22 +59,32 @@ impl Runnable for WorldCommand {
                                 Change::CreateAndSave { thing }
                             }
                             Field::Unlocked(Some(name)) => {
-                                temp_thing_output.push_str(&format!(
-                                    "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`._",
+                                temp_output.push_str(&format!(
+                                    "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`. For more suggestions, type ~more~._",
                                     name = name,
                                     them = thing.gender().them(),
                                 ));
 
-                                command_alias = Some(CommandAlias::literal(
-                                    "save".to_string(),
-                                    format!("save {}", name),
-                                    StorageCommand::Change {
-                                        change: Change::Save {
-                                            name: name.to_string(),
-                                        },
-                                    }
-                                    .into(),
-                                ));
+                                command_aliases = Some([
+                                    CommandAlias::literal(
+                                        "save".to_string(),
+                                        format!("save {}", name),
+                                        StorageCommand::Change {
+                                            change: Change::Save {
+                                                name: name.to_string(),
+                                            },
+                                        }
+                                        .into(),
+                                    ),
+                                    CommandAlias::literal(
+                                        "more".to_string(),
+                                        format!("create {}", diff.display_description()),
+                                        WorldCommand::CreateMultiple {
+                                            thing: diff.clone(),
+                                        }
+                                        .into(),
+                                    ),
+                                ]);
 
                                 Change::Create { thing }
                             }
@@ -82,10 +96,12 @@ impl Runnable for WorldCommand {
 
                     match app_meta.repository.modify(change).await {
                         Ok(_) => {
-                            thing_output = Some(temp_thing_output);
+                            output = Some(temp_output);
 
-                            if let Some(command_alias) = command_alias {
-                                app_meta.command_aliases.insert(command_alias);
+                            if let Some(command_aliases) = command_aliases {
+                                command_aliases.into_iter().for_each(|alias| {
+                                    app_meta.command_aliases.insert(alias);
+                                });
                             }
 
                             break;
@@ -113,63 +129,70 @@ impl Runnable for WorldCommand {
                     }
                 }
 
-                let mut output = if let Some(thing_output) = thing_output {
-                    thing_output
+                if let Some(output) = output {
+                    Ok(append_unknown_words_notice(output, input, unknown_words))
                 } else {
-                    return Err(format!(
+                    Err(format!(
                         "Couldn't create a unique {} name.",
-                        thing.display_description(),
-                    ));
-                };
+                        diff.display_description(),
+                    ))
+                }
+            }
+            Self::CreateMultiple { thing } => {
+                let mut output = format!(
+                    "# Alternative suggestions for \"{}\"",
+                    thing.display_description(),
+                );
 
-                if thing.name().is_none() {
-                    for i in 1..=10 {
-                        let mut thing_output = None;
+                for i in 1..=10 {
+                    let mut thing_output = None;
 
-                        for _ in 0..10 {
-                            let mut thing = thing.clone();
-                            thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
-                            let temp_thing_output =
-                                format!("\\\n~{}~ {}", i % 10, thing.display_summary());
-                            let command_alias = CommandAlias::literal(
-                                (i % 10).to_string(),
-                                format!("load {}", thing.name()),
-                                StorageCommand::Load {
-                                    name: thing.name().to_string(),
-                                }
-                                .into(),
-                            );
-
-                            match app_meta.repository.modify(Change::Create { thing }).await {
-                                Ok(_) => {
-                                    app_meta.command_aliases.insert(command_alias);
-                                    thing_output = Some(temp_thing_output);
-                                    break;
-                                }
-                                Err((_, RepositoryError::NameAlreadyExists)) => {}
-                                Err(_) => return Err("An error occurred.".to_string()),
+                    for _ in 0..10 {
+                        let mut thing = thing.clone();
+                        thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
+                        let temp_thing_output = format!(
+                            "{}~{}~ {}",
+                            if i == 1 { "\n\n" } else { "\\\n" },
+                            i % 10,
+                            thing.display_summary(),
+                        );
+                        let command_alias = CommandAlias::literal(
+                            (i % 10).to_string(),
+                            format!("load {}", thing.name()),
+                            StorageCommand::Load {
+                                name: thing.name().to_string(),
                             }
-                        }
+                            .into(),
+                        );
 
-                        if let Some(thing_output) = thing_output {
-                            if i == 1 {
-                                output.push_str("\n\n*Alternatives:* ");
+                        match app_meta.repository.modify(Change::Create { thing }).await {
+                            Ok(_) => {
+                                app_meta.command_aliases.insert(command_alias);
+                                thing_output = Some(temp_thing_output);
+                                break;
                             }
-
-                            output.push_str(&thing_output);
-                        } else {
-                            output
-                                .push_str("\n\n! An error occurred generating additional results.");
-                            break;
+                            Err((_, RepositoryError::NameAlreadyExists)) => {}
+                            Err(_) => return Err("An error occurred.".to_string()),
                         }
+                    }
+
+                    if let Some(thing_output) = thing_output {
+                        output.push_str(&thing_output);
+                    } else {
+                        output.push_str("\n\n! An error occurred generating additional results.");
+                        break;
                     }
                 }
 
-                Ok(append_unknown_words_notice(
-                    output,
-                    input,
-                    parsed_thing.unknown_words,
-                ))
+                app_meta.command_aliases.insert(CommandAlias::literal(
+                    "more".to_string(),
+                    format!("create {}", thing.display_description()),
+                    Self::CreateMultiple { thing }.into(),
+                ));
+
+                output.push_str("\n\n_For even more suggestions, type ~more~._");
+
+                Ok(output)
             }
             Self::Edit { name, diff } => {
                 let ParsedThing {
@@ -369,6 +392,9 @@ impl fmt::Display for WorldCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
             Self::Create { thing } => write!(f, "create {}", thing.thing.display_description()),
+            Self::CreateMultiple { thing } => {
+                write!(f, "create  multiple {}", thing.display_description())
+            }
             Self::Edit { name, diff } => {
                 write!(f, "{} is {}", name, diff.thing.display_description())
             }

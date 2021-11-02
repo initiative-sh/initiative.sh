@@ -2,7 +2,7 @@ mod common;
 
 use common::sync_app;
 
-const TUTORIAL_STEPS: usize = 15;
+const TUTORIAL_STEPS: usize = 16;
 
 #[test]
 fn happy_path() {

@@ -1,3 +1,7 @@
+* **Enhancement:** When you generate a `person` or `place`, alternative
+  suggestions aren't offered automatically, but are instead available via the
+  "more" command. Also updated the `tutorial` and `help` to cover the latest
+  feature changes.
 * **Enhancement:** Added box displays when generating a `character` or `place`,
   as well as emoji icons to differentiate people by age/gender.
 * **Enhancement:** Creating and editing things will now proceed even if not all

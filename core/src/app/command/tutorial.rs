@@ -5,7 +5,8 @@ use crate::app::{
 use crate::reference::{ItemCategory, ReferenceCommand, Spell};
 use crate::storage::{Change, StorageCommand};
 use crate::time::TimeCommand;
-use crate::world::npc::Gender;
+use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
+use crate::world::{ParsedThing, Thing, WorldCommand};
 use async_trait::async_trait;
 use std::fmt;
 
@@ -17,48 +18,43 @@ pub enum TutorialCommand {
     Npc {
         inn_name: String,
     },
-    NpcOther {
+    NpcMore {
         inn_name: String,
     },
-    SaveByName {
+    NpcOther {
         inn_name: String,
-        npc_gender: Gender,
         npc_name: String,
-        other_npc_name: String,
+    },
+    Editing {
+        inn_name: String,
+        npc_name: String,
     },
     Journal {
         inn_name: String,
-        npc_gender: Gender,
         npc_name: String,
     },
     LoadByName {
         inn_name: String,
-        npc_gender: Gender,
         npc_name: String,
     },
     Spell {
         inn_name: String,
-        npc_gender: Gender,
         npc_name: String,
     },
     Weapons {
         inn_name: String,
-        npc_gender: Gender,
         npc_name: String,
     },
     Roll {
         inn_name: String,
-        npc_gender: Gender,
         npc_name: String,
     },
     Delete {
         inn_name: String,
-        npc_gender: Gender,
         npc_name: String,
     },
     AdjustTime {
         inn_name: String,
-        npc_gender: Gender,
         npc_name: String,
     },
     Time {
@@ -129,17 +125,32 @@ impl TutorialCommand {
                     inn_name = inn_name,
                 ));
             }
-            Self::NpcOther { .. } => {
+            Self::NpcMore { .. } => {
                 output.push_str(include_str!("../../../../data/tutorial/03-npc.md"))
             }
-            Self::SaveByName {
-                npc_gender,
-                npc_name,
-                other_npc_name,
-                ..
-            } => {
+            Self::NpcOther { npc_name, .. } => {
+                let thing = Thing::from(Npc {
+                    species: Species::Human.into(),
+                    ethnicity: Ethnicity::Human.into(),
+                    age: Age::Adult.into(),
+                    gender: Gender::Feminine.into(),
+                    ..Default::default()
+                });
+
                 app_meta.command_aliases.insert(CommandAlias::literal(
-                    "1".to_string(),
+                    "more".to_string(),
+                    format!("create {}", thing.display_description()),
+                    WorldCommand::CreateMultiple { thing }.into(),
+                ));
+
+                output.push_str(&format!(
+                    include_str!("../../../../data/tutorial/04-npc-more.md"),
+                    npc_name = npc_name,
+                ));
+            }
+            Self::Editing { npc_name, .. } => {
+                app_meta.command_aliases.insert(CommandAlias::literal(
+                    "2".to_string(),
                     format!("load {}", npc_name),
                     StorageCommand::Load {
                         name: npc_name.to_owned(),
@@ -148,17 +159,11 @@ impl TutorialCommand {
                 ));
 
                 output.push_str(&format!(
-                    include_str!("../../../../data/tutorial/04-npc-other.md"),
+                    include_str!("../../../../data/tutorial/05-npc-other.md"),
                     npc_name = npc_name,
-                    other_npc_name = other_npc_name,
-                    their = npc_gender.their(),
                 ));
             }
-            Self::Journal {
-                inn_name,
-                npc_gender,
-                npc_name,
-            } => {
+            Self::Journal { npc_name, .. } => {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "save".to_string(),
                     format!("save {}", npc_name),
@@ -171,68 +176,41 @@ impl TutorialCommand {
                 ));
 
                 output.push_str(&format!(
-                    include_str!("../../../../data/tutorial/05-save-by-name.md"),
-                    inn_name = inn_name,
+                    include_str!("../../../../data/tutorial/06-editing.md"),
                     npc_name = npc_name,
-                    them = npc_gender.them(),
                 ));
             }
-            Self::LoadByName { .. } => {
-                output.push_str(include_str!("../../../../data/tutorial/06-journal.md"))
-            }
+            Self::LoadByName { inn_name, .. } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/07-journal.md"),
+                inn_name = inn_name,
+            )),
             Self::Spell { npc_name, .. } => output.push_str(&format!(
-                include_str!("../../../../data/tutorial/07-load-by-name.md"),
+                include_str!("../../../../data/tutorial/08-load-by-name.md"),
                 npc_name = npc_name,
             )),
-            Self::Weapons {
-                npc_gender,
-                npc_name,
-                ..
-            } => output.push_str(&format!(
-                include_str!("../../../../data/tutorial/08-spell.md"),
+            Self::Weapons { npc_name, .. } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/09-spell.md"),
                 npc_name = npc_name,
-                their = npc_gender.their(),
-                them = npc_gender.them(),
-                theyre_cap = npc_gender.theyre_cap(),
             )),
-            Self::Roll {
-                inn_name,
-                npc_gender,
-                npc_name,
-            } => output.push_str(&format!(
-                include_str!("../../../../data/tutorial/09-weapons.md"),
+            Self::Roll { inn_name, npc_name } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/10-weapons.md"),
                 inn_name = inn_name,
                 npc_name = npc_name,
-                pull = npc_gender.conjugate("pulls", "pull"),
-                their = npc_gender.their(),
-                they_cap = npc_gender.they_cap(),
-                theyre = npc_gender.theyre(),
             )),
-            Self::Delete {
-                npc_gender,
-                npc_name,
-                ..
-            } => output.push_str(&format!(
-                include_str!("../../../../data/tutorial/10-roll.md"),
+            Self::Delete { npc_name, .. } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/11-roll.md"),
                 npc_name = npc_name,
-                theyve = npc_gender.theyve(),
             )),
-            Self::AdjustTime {
-                inn_name,
-                npc_gender,
-                npc_name,
-            } => output.push_str(&format!(
-                include_str!("../../../../data/tutorial/11-delete.md"),
+            Self::AdjustTime { inn_name, npc_name } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/12-delete.md"),
                 inn_name = inn_name,
                 npc_name = npc_name,
-                slip = npc_gender.conjugate("slips", "slip"),
-                they = npc_gender.they(),
             )),
             Self::Time { .. } => {
-                output.push_str(include_str!("../../../../data/tutorial/12-adjust-time.md"))
+                output.push_str(include_str!("../../../../data/tutorial/13-adjust-time.md"))
             }
             Self::Conclusion { .. } => {
-                output.push_str(include_str!("../../../../data/tutorial/13-time.md"))
+                output.push_str(include_str!("../../../../data/tutorial/14-time.md"))
             }
         }
 
@@ -248,8 +226,9 @@ impl TutorialCommand {
             Self::Introduction | Self::Inn | Self::Save | Self::Resume => None,
 
             Self::Npc { inn_name }
-            | Self::NpcOther { inn_name }
-            | Self::SaveByName { inn_name, .. }
+            | Self::NpcMore { inn_name }
+            | Self::NpcOther { inn_name, .. }
+            | Self::Editing { inn_name, .. }
             | Self::Journal { inn_name, .. }
             | Self::LoadByName { inn_name, .. }
             | Self::Spell { inn_name, .. }
@@ -273,9 +252,10 @@ impl TutorialCommand {
             | Self::Save
             | Self::Resume
             | Self::Npc { .. }
+            | Self::NpcMore { .. }
             | Self::NpcOther { .. } => None,
 
-            Self::SaveByName { npc_name, .. }
+            Self::Editing { npc_name, .. }
             | Self::Journal { npc_name, .. }
             | Self::LoadByName { npc_name, .. }
             | Self::Spell { npc_name, .. }
@@ -308,8 +288,43 @@ impl TutorialCommand {
                     false
                 }
             }
-            Self::NpcOther { .. } => input == "npc",
-            Self::SaveByName { npc_name, .. } => {
+            Self::NpcMore { .. } => {
+                if let Some(CommandType::World(WorldCommand::Create {
+                    thing:
+                        ParsedThing {
+                            thing,
+                            unknown_words: _,
+                            word_count: _,
+                        },
+                })) = command
+                {
+                    thing.npc()
+                        == Some(&Npc {
+                            species: Species::Human.into(),
+                            ethnicity: Ethnicity::Human.into(),
+                            age: Age::Adult.into(),
+                            gender: Gender::Feminine.into(),
+                            ..Default::default()
+                        })
+                } else {
+                    false
+                }
+            }
+            Self::NpcOther { .. } => {
+                if let Some(CommandType::World(WorldCommand::CreateMultiple { thing })) = command {
+                    thing.npc()
+                        == Some(&Npc {
+                            species: Species::Human.into(),
+                            ethnicity: Ethnicity::Human.into(),
+                            age: Age::Adult.into(),
+                            gender: Gender::Feminine.into(),
+                            ..Default::default()
+                        })
+                } else {
+                    false
+                }
+            }
+            Self::Editing { npc_name, .. } => {
                 if let Some(CommandType::Storage(StorageCommand::Load { name })) = command {
                     name == npc_name
                 } else {
@@ -317,11 +332,22 @@ impl TutorialCommand {
                 }
             }
             Self::Journal { npc_name, .. } => {
-                if let Some(CommandType::Storage(StorageCommand::Change {
-                    change: Change::Save { name },
+                if let Some(CommandType::World(WorldCommand::Edit {
+                    name,
+                    diff:
+                        ParsedThing {
+                            thing,
+                            unknown_words: _,
+                            word_count: _,
+                        },
                 })) = command
                 {
                     name == npc_name
+                        && thing.npc()
+                            == Some(&Npc {
+                                species: Species::HalfElf.into(),
+                                ..Default::default()
+                            })
                 } else {
                     false
                 }
@@ -376,9 +402,10 @@ impl Runnable for TutorialCommand {
     async fn run(self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         let input_command = Command::parse_input_irrefutable(input, app_meta);
 
-        if let Some(CommandType::Tutorial(TutorialCommand::Cancel { inn_name, npc_name }))
-        | Some(CommandType::Tutorial(TutorialCommand::Restart { inn_name, npc_name })) =
-            input_command.get_type()
+        if let Some(CommandType::Tutorial(
+            TutorialCommand::Cancel { inn_name, npc_name }
+            | TutorialCommand::Restart { inn_name, npc_name },
+        )) = input_command.get_type()
         {
             if let Some(inn_name) = inn_name {
                 app_meta
@@ -434,178 +461,105 @@ impl Runnable for TutorialCommand {
                     }
                 }
                 Self::Npc { inn_name } => {
-                    let next = Self::NpcOther { inn_name };
+                    let next = Self::NpcMore { inn_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
                         Some(next),
                     )
                 }
-                Self::NpcOther { inn_name } => {
+                Self::NpcMore { inn_name } => {
                     let command_output = input_command.run(input, app_meta).await;
 
                     if let Ok(output) = command_output {
-                        let (npc_name, other_npc_name, npc_gender) = {
-                            let mut lines_iter = output.lines();
-
-                            let other_npc_name = lines_iter
-                                .nth(2)
-                                .map(|s| s.trim_start_matches(&[' ', '#'][..]).to_string());
-                            let npc_name = lines_iter
-                                .find(|s| s.starts_with("~1~ "))
-                                .and_then(|s| {
-                                    if let (Some(a), Some(b)) = (s.find('`'), s.rfind('`')) {
-                                        s.get(a + 1..b)
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .map(|s| s.to_string());
-                            let npc_gender = app_meta
-                                .repository
-                                .recent()
-                                .find(|t| t.name().value() == npc_name.as_ref())
-                                .map(|t| t.gender());
-
-                            (npc_name, other_npc_name, npc_gender)
-                        };
-
-                        if let (Some(npc_name), Some(other_npc_name), Some(npc_gender)) =
-                            (npc_name, other_npc_name, npc_gender)
+                        if let Some(npc_name) = output
+                            .lines()
+                            .find(|s| s.starts_with('#'))
+                            .map(|s| s.trim_start_matches(&[' ', '#'][..]).to_string())
                         {
-                            let next = Self::SaveByName {
-                                inn_name,
-                                npc_gender,
-                                npc_name,
-                                other_npc_name,
-                            };
+                            let next = Self::NpcOther { inn_name, npc_name };
 
                             (next.output(Some(Ok(output)), app_meta), Some(next))
                         } else {
-                            (Ok(output), Some(Self::NpcOther { inn_name }))
+                            (Ok(output), Some(Self::NpcMore { inn_name }))
                         }
                     } else {
-                        (command_output, Some(Self::NpcOther { inn_name }))
+                        (command_output, Some(Self::NpcMore { inn_name }))
                     }
                 }
-                Self::SaveByName {
-                    inn_name,
-                    npc_gender,
-                    npc_name,
-                    other_npc_name,
-                } => {
+                Self::NpcOther { inn_name, npc_name } => {
                     let command_output = input_command.run(input, app_meta).await;
 
                     if let Ok(output) = command_output {
-                        let next = Self::Journal {
-                            inn_name,
-                            npc_gender,
-                            npc_name,
-                        };
+                        if let Some(npc_name) = output
+                            .lines()
+                            .find(|s| s.starts_with("~2~"))
+                            .and_then(|s| s.find('(').map(|i| (i, s)))
+                            .map(|(i, s)| s[10..i - 2].to_string())
+                        {
+                            let next = Self::Editing { npc_name, inn_name };
+
+                            (next.output(Some(Ok(output)), app_meta), Some(next))
+                        } else {
+                            (Ok(output), Some(Self::NpcOther { inn_name, npc_name }))
+                        }
+                    } else {
+                        (command_output, Some(Self::NpcOther { inn_name, npc_name }))
+                    }
+                }
+                Self::Editing { inn_name, npc_name } => {
+                    let command_output = input_command.run(input, app_meta).await;
+
+                    if let Ok(output) = command_output {
+                        let next = Self::Journal { inn_name, npc_name };
 
                         (next.output(Some(Ok(output)), app_meta), Some(next))
                     } else {
-                        (
-                            command_output,
-                            Some(Self::SaveByName {
-                                inn_name,
-                                npc_gender,
-                                npc_name,
-                                other_npc_name,
-                            }),
-                        )
+                        (command_output, Some(Self::Editing { inn_name, npc_name }))
                     }
                 }
-                Self::Journal {
-                    inn_name,
-                    npc_gender,
-                    npc_name,
-                } => {
-                    let next = Self::LoadByName {
-                        inn_name,
-                        npc_gender,
-                        npc_name,
-                    };
+                Self::Journal { inn_name, npc_name } => {
+                    let next = Self::LoadByName { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
                         Some(next),
                     )
                 }
-                Self::LoadByName {
-                    inn_name,
-                    npc_gender,
-                    npc_name,
-                } => {
-                    let next = Self::Spell {
-                        inn_name,
-                        npc_gender,
-                        npc_name,
-                    };
+                Self::LoadByName { inn_name, npc_name } => {
+                    let next = Self::Spell { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
                         Some(next),
                     )
                 }
-                Self::Spell {
-                    inn_name,
-                    npc_gender,
-                    npc_name,
-                } => {
-                    let next = Self::Weapons {
-                        inn_name,
-                        npc_gender,
-                        npc_name,
-                    };
+                Self::Spell { inn_name, npc_name } => {
+                    let next = Self::Weapons { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
                         Some(next),
                     )
                 }
-                Self::Weapons {
-                    inn_name,
-                    npc_gender,
-                    npc_name,
-                } => {
-                    let next = Self::Roll {
-                        inn_name,
-                        npc_gender,
-                        npc_name,
-                    };
+                Self::Weapons { inn_name, npc_name } => {
+                    let next = Self::Roll { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
                         Some(next),
                     )
                 }
-                Self::Roll {
-                    inn_name,
-                    npc_gender,
-                    npc_name,
-                } => {
-                    let next = Self::Delete {
-                        inn_name,
-                        npc_gender,
-                        npc_name,
-                    };
+                Self::Roll { inn_name, npc_name } => {
+                    let next = Self::Delete { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
                         Some(next),
                     )
                 }
-                Self::Delete {
-                    inn_name,
-                    npc_gender,
-                    npc_name,
-                } => {
-                    let next = Self::AdjustTime {
-                        inn_name,
-                        npc_gender,
-                        npc_name,
-                    };
+                Self::Delete { inn_name, npc_name } => {
+                    let next = Self::AdjustTime { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
