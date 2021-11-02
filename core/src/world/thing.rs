@@ -1,7 +1,9 @@
 use super::npc::Gender;
 use super::{Demographics, Field, Generate, Npc, Place, Region};
+use crate::world::command::ParsedThing;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;
 use uuid::Uuid;
@@ -158,14 +160,26 @@ impl From<Region> for Thing {
     }
 }
 
-impl FromStr for Thing {
+impl FromStr for ParsedThing<Thing> {
     type Err = ();
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        match (raw.parse(), raw.parse()) {
-            (Ok(npc), Err(())) => Ok(Thing::Npc(npc)),
-            (Err(()), Ok(place)) => Ok(Thing::Place(place)),
-            _ => Err(()),
+        match (
+            raw.parse::<ParsedThing<Npc>>(),
+            raw.parse::<ParsedThing<Place>>(),
+        ) {
+            (Ok(parsed_npc), Ok(parsed_place)) => match parsed_npc
+                .unknown_words
+                .len()
+                .cmp(&parsed_place.unknown_words.len())
+            {
+                Ordering::Less => Ok(parsed_npc.into_thing()),
+                Ordering::Equal => Err(()),
+                Ordering::Greater => Ok(parsed_place.into_thing()),
+            },
+            (Ok(parsed_npc), Err(())) => Ok(parsed_npc.into_thing()),
+            (Err(()), Ok(parsed_place)) => Ok(parsed_place.into_thing()),
+            (Err(()), Err(())) => Err(()),
         }
     }
 }

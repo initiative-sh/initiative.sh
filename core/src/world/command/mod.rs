@@ -1,22 +1,40 @@
 use super::{Field, Npc, Place, Thing};
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use crate::storage::{Change, RepositoryError, StorageCommand};
+use crate::utils::quoted_words;
 use async_trait::async_trait;
 use std::fmt;
+use std::ops::Range;
 
 mod autocomplete;
 mod parse;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum WorldCommand {
-    Create { thing: Thing },
+    Create {
+        thing: ParsedThing<Thing>,
+    },
+    Edit {
+        name: String,
+        diff: ParsedThing<Thing>,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParsedThing<T> {
+    pub thing: T,
+    pub unknown_words: Vec<Range<usize>>,
+    pub word_count: usize,
 }
 
 #[async_trait(?Send)]
 impl Runnable for WorldCommand {
-    async fn run(self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
-        Ok(match self {
-            Self::Create { thing } => {
+    async fn run(self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+        match self {
+            Self::Create {
+                thing: parsed_thing,
+            } => {
+                let thing = parsed_thing.thing;
                 let mut thing_output = None;
 
                 for _ in 0..10 {
@@ -147,26 +165,95 @@ impl Runnable for WorldCommand {
                     }
                 }
 
-                output
+                Ok(append_unknown_words_notice(
+                    output,
+                    input,
+                    parsed_thing.unknown_words,
+                ))
             }
-        })
+            Self::Edit { name, diff } => {
+                let ParsedThing {
+                    thing: diff,
+                    unknown_words,
+                    word_count: _,
+                } = diff;
+
+                StorageCommand::Change {
+                    change: Change::Edit {
+                        id: name.as_str().into(),
+                        name,
+                        diff,
+                    },
+                }
+                .run(input, app_meta)
+                .await
+                .map(|s| append_unknown_words_notice(s, input, unknown_words))
+            }
+        }
     }
 }
 
 impl ContextAwareParse for WorldCommand {
-    fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        (
-            if let Some(Ok(thing)) = input.strip_prefix("create ").map(|s| s.parse()) {
-                Some(Self::Create { thing })
+    fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        let mut exact_match = None;
+        let mut fuzzy_matches = Vec::new();
+
+        if let Some(Ok(thing)) = input
+            .strip_prefix("create ")
+            .map(|s| s.parse::<ParsedThing<Thing>>())
+        {
+            if thing.unknown_words.is_empty() {
+                exact_match = Some(Self::Create { thing });
             } else {
-                None
-            },
-            if let Ok(thing) = input.parse() {
-                vec![Self::Create { thing }]
+                fuzzy_matches.push(Self::Create { thing });
+            }
+        } else if let Ok(thing) = input.parse::<ParsedThing<Thing>>() {
+            fuzzy_matches.push(Self::Create { thing });
+        }
+
+        if let Some(word) = quoted_words(input)
+            .skip(1)
+            .find(|word| word.as_str() == "is")
+        {
+            let (name, description) = (
+                input[..word.range().start].trim(),
+                input[word.range().end..].trim(),
+            );
+
+            let (diff, thing) = if let Some(thing) = app_meta.repository.load(&name.into()) {
+                (
+                    match thing {
+                        Thing::Npc(_) => description
+                            .parse::<ParsedThing<Npc>>()
+                            .map(|npc| npc.into_thing()),
+                        Thing::Place(_) => description
+                            .parse::<ParsedThing<Place>>()
+                            .map(|npc| npc.into_thing()),
+                        Thing::Region(_) => unimplemented!(),
+                    }
+                    .or_else(|_| description.parse()),
+                    Some(thing),
+                )
             } else {
-                Vec::new()
-            },
-        )
+                // This will be an error when we try to run the command, but for now we'll pretend
+                // it's valid so that we can provide a more coherent message.
+                (description.parse(), None)
+            };
+
+            if let Ok(mut diff) = diff {
+                let name = thing
+                    .map(|t| t.name().to_string())
+                    .unwrap_or_else(|| name.to_string());
+
+                diff.unknown_words.iter_mut().for_each(|range| {
+                    *range = range.start + word.range().end + 1..range.end + word.range().end + 1
+                });
+
+                fuzzy_matches.push(Self::Edit { name, diff });
+            }
+        }
+
+        (exact_match, fuzzy_matches)
     }
 }
 
@@ -177,6 +264,103 @@ impl Autocomplete for WorldCommand {
         suggestions.append(&mut Place::autocomplete(input, app_meta));
         suggestions.append(&mut Npc::autocomplete(input, app_meta));
 
+        let mut input_words = quoted_words(input).skip(1);
+
+        if let Some((is_word, next_word)) = input_words
+            .find(|word| word.as_str() == "is")
+            .and_then(|word| input_words.next().map(|next_word| (word, next_word)))
+        {
+            if let Some(thing) = app_meta
+                .repository
+                .load(&input[..is_word.range().start].trim().into())
+            {
+                let split_pos = input.len() - input[is_word.range().end..].trim_start().len();
+
+                let mut edit_suggestions = match thing {
+                    Thing::Npc(_) => Npc::autocomplete(input[split_pos..].trim_start(), app_meta),
+                    Thing::Place(_) => {
+                        Place::autocomplete(input[split_pos..].trim_start(), app_meta)
+                    }
+                    Thing::Region(_) => unimplemented!(),
+                };
+
+                suggestions.reserve(edit_suggestions.len());
+
+                edit_suggestions
+                    .drain(..)
+                    .map(|(a, _)| {
+                        (
+                            format!("{}{}", &input[..split_pos], a),
+                            format!("edit {}", thing.as_str()),
+                        )
+                    })
+                    .for_each(|suggestion| suggestions.push(suggestion));
+
+                if ["named", "called"].contains(&next_word.as_str()) && input_words.next().is_some()
+                {
+                    suggestions.push((input.to_string(), format!("rename {}", thing.as_str())));
+                }
+            }
+        }
+
+        if let Some(thing) = app_meta.repository.load(&input.trim_end().into()) {
+            suggestions.push((
+                if input.ends_with(char::is_whitespace) {
+                    format!("{}is [{} description]", input, thing.as_str())
+                } else {
+                    format!("{} is [{} description]", input, thing.as_str())
+                },
+                format!("edit {}", thing.as_str()),
+            ));
+        } else if let Some((last_word_index, last_word)) =
+            quoted_words(input).enumerate().skip(1).last()
+        {
+            if "is".starts_with(last_word.as_str()) {
+                if let Some(thing) = app_meta
+                    .repository
+                    .load(&input[..last_word.range().start].trim().into())
+                {
+                    suggestions.push((
+                        if last_word.range().end == input.len() {
+                            format!(
+                                "{}is [{} description]",
+                                &input[..last_word.range().start],
+                                thing.as_str(),
+                            )
+                        } else {
+                            format!("{}[{} description]", &input, thing.as_str())
+                        },
+                        format!("edit {}", thing.as_str()),
+                    ))
+                }
+            } else if let Some(suggestion) = ["named", "called"]
+                .iter()
+                .find(|s| s.starts_with(last_word.as_str()))
+            {
+                let second_last_word = quoted_words(input).nth(last_word_index - 1).unwrap();
+
+                if second_last_word.as_str() == "is" {
+                    if let Some(thing) = app_meta
+                        .repository
+                        .load(&input[..second_last_word.range().start].trim().into())
+                    {
+                        suggestions.push((
+                            if last_word.range().end == input.len() {
+                                format!(
+                                    "{}{} [name]",
+                                    &input[..last_word.range().start],
+                                    suggestion,
+                                )
+                            } else {
+                                format!("{}[name]", input)
+                            },
+                            format!("rename {}", thing.as_str()),
+                        ));
+                    }
+                }
+            }
+        }
+
         suggestions
     }
 }
@@ -184,52 +368,112 @@ impl Autocomplete for WorldCommand {
 impl fmt::Display for WorldCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
-            Self::Create { thing } => write!(f, "create {}", thing.display_summary()),
+            Self::Create { thing } => write!(f, "create {}", thing.thing.display_summary()),
+            Self::Edit { name, diff } => write!(f, "{} is {}", name, diff.thing.display_summary()),
         }
     }
+}
+
+impl<T: Into<Thing>> ParsedThing<T> {
+    pub fn into_thing(self) -> ParsedThing<Thing> {
+        ParsedThing {
+            thing: self.thing.into(),
+            unknown_words: self.unknown_words,
+            word_count: self.word_count,
+        }
+    }
+}
+
+impl<T: Default> Default for ParsedThing<T> {
+    fn default() -> Self {
+        Self {
+            thing: T::default(),
+            unknown_words: Vec::default(),
+            word_count: 0,
+        }
+    }
+}
+
+impl<T: Into<Thing>> From<ParsedThing<T>> for Thing {
+    fn from(input: ParsedThing<T>) -> Self {
+        input.thing.into()
+    }
+}
+
+fn append_unknown_words_notice(
+    mut output: String,
+    input: &str,
+    mut unknown_words: Vec<Range<usize>>,
+) -> String {
+    if !unknown_words.is_empty() {
+        output.push_str(
+            "\n\n! initiative.sh doesn't know some of those words, but it did its best.\n\n\\> ",
+        );
+
+        {
+            let mut pos = 0;
+            for word_range in unknown_words.iter() {
+                output.push_str(&input[pos..word_range.start]);
+                pos = word_range.end;
+                output.push_str("**");
+                output.push_str(&input[word_range.clone()]);
+                output.push_str("**");
+            }
+            output.push_str(&input[pos..]);
+        }
+
+        output.push_str("\\\n\u{a0}\u{a0}");
+
+        {
+            let mut words = unknown_words.drain(..);
+            let mut unknown_word = words.next();
+            for (i, _) in input.char_indices() {
+                if unknown_word.as_ref().map_or(false, |word| i >= word.end) {
+                    unknown_word = words.next();
+                }
+
+                if let Some(word) = &unknown_word {
+                    output.push(if i >= word.start { '^' } else { '\u{a0}' });
+                } else {
+                    break;
+                }
+            }
+        }
+
+        output.push_str("\\\nWant to help improve its vocabulary? Join us [on Discord](https://discord.gg/ZrqJPpxXVZ) and suggest your new words!");
+    }
+    output
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
-    use crate::world::npc::Species;
+    use crate::world::npc::{Age, Gender, Species};
     use crate::world::place::PlaceType;
+    use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
-            (
-                None,
-                vec![WorldCommand::Create {
-                    thing: Npc::default().into()
-                }],
-            ),
+            (None, vec![create(Npc::default())],),
             WorldCommand::parse_input("npc", &app_meta),
         );
 
         assert_eq!(
-            (
-                Some(WorldCommand::Create {
-                    thing: Npc::default().into()
-                }),
-                Vec::new(),
-            ),
+            (Some(create(Npc::default())), Vec::new(),),
             WorldCommand::parse_input("create npc", &app_meta),
         );
 
         assert_eq!(
             (
                 None,
-                vec![WorldCommand::Create {
-                    thing: Npc {
-                        species: Species::Elf.into(),
-                        ..Default::default()
-                    }
-                    .into()
-                }],
+                vec![create(Npc {
+                    species: Species::Elf.into(),
+                    ..Default::default()
+                })],
             ),
             WorldCommand::parse_input("elf", &app_meta),
         );
@@ -238,11 +482,60 @@ mod test {
             (None, Vec::<WorldCommand>::new()),
             WorldCommand::parse_input("potato", &app_meta),
         );
+
+        {
+            let mut app_meta = AppMeta::new(NullDataStore::default());
+
+            block_on(
+                app_meta.repository.modify(Change::Create {
+                    thing: Npc {
+                        name: "Spot".into(),
+                        ..Default::default()
+                    }
+                    .into(),
+                }),
+            )
+            .unwrap();
+
+            assert_eq!(
+                (
+                    None,
+                    vec![WorldCommand::Edit {
+                        name: "Spot".into(),
+                        diff: ParsedThing {
+                            thing: Npc {
+                                age: Age::Child.into(),
+                                gender: Gender::Masculine.into(),
+                                ..Default::default()
+                            }
+                            .into(),
+                            unknown_words: vec![10..14],
+                            word_count: 2,
+                        },
+                    }],
+                ),
+                WorldCommand::parse_input("Spot is a good boy", &app_meta),
+            );
+        }
     }
 
     #[test]
     fn autocomplete_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let mut app_meta = AppMeta::new(NullDataStore::default());
+
+        block_on(
+            app_meta.repository.modify(Change::Create {
+                thing: Npc {
+                    name: "Potato Johnson".into(),
+                    species: Species::Elf.into(),
+                    gender: Gender::NonBinaryThey.into(),
+                    age: Age::Adult.into(),
+                    ..Default::default()
+                }
+                .into(),
+            }),
+        )
+        .unwrap();
 
         vec![
             ("npc", "create person"),
@@ -279,6 +572,32 @@ mod test {
 
             assert_eq!(expected, actual);
         }
+
+        assert_autocomplete(
+            &[(
+                "Potato Johnson is [character description]",
+                "edit character",
+            )][..],
+            WorldCommand::autocomplete("Potato Johnson", &app_meta),
+        );
+
+        assert_autocomplete(
+            &[(
+                "Potato Johnson is a [character description]",
+                "edit character",
+            )][..],
+            WorldCommand::autocomplete("Potato Johnson is a ", &app_meta),
+        );
+
+        assert_autocomplete(
+            &[
+                ("Potato Johnson is an elderly", "edit character"),
+                ("Potato Johnson is an elf", "edit character"),
+                ("Potato Johnson is an elvish", "edit character"),
+                ("Potato Johnson is an enby", "edit character"),
+            ][..],
+            WorldCommand::autocomplete("Potato Johnson is an e", &app_meta),
+        );
     }
 
     #[test]
@@ -286,23 +605,15 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         vec![
-            WorldCommand::Create {
-                thing: Place {
-                    subtype: PlaceType::Inn.into(),
-                    ..Default::default()
-                }
-                .into(),
-            },
-            WorldCommand::Create {
-                thing: Npc::default().into(),
-            },
-            WorldCommand::Create {
-                thing: Npc {
-                    species: Some(Species::Elf).into(),
-                    ..Default::default()
-                }
-                .into(),
-            },
+            create(Place {
+                subtype: PlaceType::Inn.into(),
+                ..Default::default()
+            }),
+            create(Npc::default()),
+            create(Npc {
+                species: Some(Species::Elf).into(),
+                ..Default::default()
+            }),
         ]
         .drain(..)
         .for_each(|command| {
@@ -315,5 +626,31 @@ mod test {
                 command_string,
             );
         });
+    }
+
+    fn create(thing: impl Into<Thing>) -> WorldCommand {
+        WorldCommand::Create {
+            thing: ParsedThing {
+                thing: thing.into(),
+                unknown_words: Vec::new(),
+                word_count: 1,
+            },
+        }
+    }
+
+    fn assert_autocomplete(
+        expected_suggestions: &[(&str, &str)],
+        actual_suggestions: Vec<(String, String)>,
+    ) {
+        let mut expected: Vec<_> = expected_suggestions
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect();
+        expected.sort();
+
+        let mut actual = actual_suggestions;
+        actual.sort();
+
+        assert_eq!(expected, actual);
     }
 }

@@ -1,3 +1,6 @@
+* **Enhancement:** Creating and editing things will now proceed even if not all
+  words are recognized, so long as the parser can make a reasonable guess about
+  what you meant. If it guesses wrong, that's what `undo` is for.
 * **Bug:** Fix broken text selection, which was preventing copy/paste
   operations. I wasn't trying to do the annoying "right click disabled" thing
   from the early '00s, but it sure felt like it.
