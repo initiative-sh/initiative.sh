@@ -50,16 +50,16 @@ fn generated_content_is_persisted() {
     // Ensure that the primary suggestion matches the generated content.
     let name = generated_output
         .lines()
-        .next()
+        .nth(2)
         .unwrap()
         .trim_start_matches("# ");
     let persisted_output = app.command(&format!("load {}", name)).unwrap();
     assert_eq!(
         format!("# {}", name),
-        persisted_output.lines().next().unwrap(),
+        persisted_output.lines().nth(2).unwrap(),
     );
     assert_eq!(
-        4,
+        8,
         generated_output
             .lines()
             .zip(persisted_output.lines())
@@ -84,7 +84,7 @@ fn generated_content_is_persisted() {
                         app.command(&format!("load {}", name))
                             .unwrap()
                             .lines()
-                            .next()
+                            .nth(2)
                             .unwrap(),
                     );
                 } else {
@@ -117,7 +117,7 @@ fn numeric_aliases_exist_for_places() {
 
                 let name = &s[5..(pos - 1)];
 
-                assert_eq!(format!("# {}", name), digit_output.lines().next().unwrap());
+                assert_eq!(format!("# {}", name), digit_output.lines().nth(2).unwrap());
 
                 (digit_output, name.to_string())
             } else {
@@ -146,7 +146,7 @@ fn save_alias_exists_for_places() {
 
     {
         let output = app.command("building").unwrap();
-        let name = output.lines().next().unwrap().trim_start_matches("# ");
+        let name = output.lines().nth(2).unwrap().trim_start_matches("# ");
 
         let output = app.command(&format!("load {}", name)).unwrap();
         assert!(output.contains("has not yet been saved"), "{}", output);
@@ -154,7 +154,7 @@ fn save_alias_exists_for_places() {
 
     {
         let output = app.command("building").unwrap();
-        let name = output.lines().next().unwrap().trim_start_matches("# ");
+        let name = output.lines().nth(2).unwrap().trim_start_matches("# ");
 
         let output = app.command("save").unwrap();
         assert!(output.contains("was successfully saved."), "{}", output);
@@ -183,11 +183,7 @@ fn create_place_with_custom_attributes() {
 
     {
         let output = app.command("an inn called The Prancing Pony").unwrap();
-        assert!(
-            output.starts_with("# The Prancing Pony\n*inn*"),
-            "{}",
-            output,
-        );
+        assert!(output.contains("# The Prancing Pony\n*inn*"), "{}", output,);
         assert!(
             output.contains("has been automatically added to your `journal`."),
             "{}",
@@ -221,7 +217,7 @@ fn edit_place() {
         let output = app
             .command("Hotel California is called Heaven Or Hell")
             .unwrap();
-        assert!(output.starts_with("# Heaven Or Hell"), "{}", output);
+        assert!(output.contains("# Heaven Or Hell"), "{}", output);
         assert!(
             output.ends_with(
                 "_Hotel California was successfully edited. Use `undo` to reverse this._"
@@ -233,12 +229,12 @@ fn edit_place() {
 
     {
         let output = app.command("Heaven Or Hell").unwrap();
-        assert!(output.starts_with("# Heaven Or Hell"), "{}", output);
+        assert!(output.contains("# Heaven Or Hell"), "{}", output);
     }
 
     {
         let output = app.command("undo").unwrap();
-        assert!(output.starts_with("# Hotel California"), "{}", output);
+        assert!(output.contains("# Hotel California"), "{}", output);
         assert!(
             output.ends_with(
                 "_Successfully undid editing Hotel California. Use `redo` to reverse this._"
@@ -250,7 +246,7 @@ fn edit_place() {
 
     {
         let output = app.command("redo").unwrap();
-        assert!(output.starts_with("# Heaven Or Hell"), "{}", output);
+        assert!(output.contains("# Heaven Or Hell"), "{}", output);
         assert!(
             output.ends_with(
                 "_Successfully redid editing Heaven Or Hell. Use `undo` to reverse this._"
@@ -269,7 +265,7 @@ fn edit_place_implicitly_saves() {
 
     let name = generated_output
         .lines()
-        .next()
+        .nth(2)
         .unwrap()
         .trim_start_matches("# ");
 
@@ -294,7 +290,7 @@ fn edit_place_implicitly_saves() {
 
     {
         let output = app.command("undo").unwrap();
-        assert!(output.starts_with(&format!("# {}", name)), "{}", output);
+        assert!(output.contains(&format!("# {}", name)), "{}", output);
         assert!(
             output.ends_with(&format!(
                 "_Successfully undid editing {}. Use `redo` to reverse this._",
@@ -307,7 +303,7 @@ fn edit_place_implicitly_saves() {
 
     {
         let output = app.command(&name).unwrap();
-        assert!(output.starts_with(&format!("# {}", name)), "{}", output);
+        assert!(output.contains(&format!("# {}", name)), "{}", output);
         assert!(
             output.ends_with(&format!(
                 "_{} has not yet been saved. Use ~save~ to save it to your `journal`._",
@@ -325,7 +321,7 @@ fn edit_place_implicitly_saves() {
 
     {
         let output = app.command("redo").unwrap();
-        assert!(output.starts_with("# Desire"), "{}", output);
+        assert!(output.contains("# Desire"), "{}", output);
         assert!(
             output.ends_with("_Successfully redid editing Desire. Use `undo` to reverse this._"),
             "{}",
@@ -344,7 +340,7 @@ fn edit_place_with_invalid_data_store() {
         let output = app
             .command("Oaken Mermaid Inn is named I Am Mordenkainen")
             .unwrap();
-        assert!(output.starts_with("# I Am Mordenkainen"), "{}", output,);
+        assert!(output.contains("# I Am Mordenkainen"), "{}", output,);
         assert!(
             output.ends_with(
                 "_Oaken Mermaid Inn was successfully edited. Use `undo` to reverse this._"
@@ -356,12 +352,12 @@ fn edit_place_with_invalid_data_store() {
 
     {
         let output = app.command("I Am Mordenkainen").unwrap();
-        assert!(output.starts_with("# I Am Mordenkainen"), "{}", output);
+        assert!(output.contains("# I Am Mordenkainen"), "{}", output);
     }
 
     {
         let output = app.command("undo").unwrap();
-        assert!(output.starts_with("# Oaken Mermaid Inn"), "{}", output);
+        assert!(output.contains("# Oaken Mermaid Inn"), "{}", output);
         assert!(
             output.ends_with(
                 "_Successfully undid editing Oaken Mermaid Inn. Use `redo` to reverse this._"
@@ -373,7 +369,7 @@ fn edit_place_with_invalid_data_store() {
 
     {
         let output = app.command("redo").unwrap();
-        assert!(output.starts_with("# I Am Mordenkainen"), "{}", output);
+        assert!(output.contains("# I Am Mordenkainen"), "{}", output);
         assert!(
             output.ends_with(
                 "_Successfully redid editing I Am Mordenkainen. Use `undo` to reverse this._"
@@ -407,7 +403,7 @@ fn create_place_with_unknown_words() {
     {
         let output = app.command("a fuzzy place called home").unwrap();
 
-        assert!(output.starts_with("# Home"), "{}", output);
+        assert!(output.contains("# Home"), "{}", output);
         assert!(
             output.ends_with(
                 "! initiative.sh doesn't know some of those words, but it did its best.\n\
@@ -430,7 +426,7 @@ fn edit_place_with_unknown_words() {
     let output = app
         .command("Oaken Mermaid Inn is secretly an inn named I Am Mordenkainen")
         .unwrap();
-    assert!(output.starts_with("# I Am Mordenkainen"), "{}", output);
+    assert!(output.contains("# I Am Mordenkainen"), "{}", output);
     assert!(
         output.ends_with(
             "! initiative.sh doesn't know some of those words, but it did its best.\n\
@@ -450,7 +446,7 @@ fn emoji_test() {
     app.command("inn named 🏩").unwrap();
 
     let output = app.command("🏩 is a 💩 place called 💩").unwrap();
-    assert!(output.starts_with("# 💩"), "{}", output);
+    assert!(output.contains("# 💩"), "{}", output);
     assert!(
         output.ends_with(
             "! initiative.sh doesn't know some of those words, but it did its best.\n\

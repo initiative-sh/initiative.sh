@@ -422,7 +422,7 @@ impl Runnable for TutorialCommand {
                     if let Ok(output) = command_output {
                         let inn_name = output
                             .lines()
-                            .next()
+                            .nth(2)
                             .unwrap()
                             .trim_start_matches(&[' ', '#'][..])
                             .to_string();
@@ -451,7 +451,7 @@ impl Runnable for TutorialCommand {
                             let mut lines_iter = output.lines();
 
                             let other_npc_name = lines_iter
-                                .next()
+                                .nth(2)
                                 .map(|s| s.trim_start_matches(&[' ', '#'][..]).to_string());
                             let npc_name = lines_iter
                                 .find(|s| s.starts_with("~1~ "))

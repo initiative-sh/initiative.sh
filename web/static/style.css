@@ -39,7 +39,6 @@ body {
     font-weight: normal;
 }
 #output .command {
-    color: var(--solarized-green);
     background: var(--solarized-scheme2);
     font-weight: bold;
     margin-top: 2.4rem;
@@ -171,6 +170,26 @@ body {
     color: inherit;
 }
 
+#output .thing-box {
+    background: var(--solarized-scheme01);
+    box-shadow: var(--solarized-scheme2) 2ch 1rem;
+    color: var(--solarized-scheme3);
+    max-width: 50ch;
+}
+
+#output .thing-box > * {
+    padding-left: 1ch;
+    padding-right: 1ch;
+}
+
+#output .thing-box.npc {
+    background: var(--solarized-green);
+}
+
+#output .thing-box.place {
+    background: var(--solarized-violet);
+}
+
 #prompt-form {
     background: var(--solarized-scheme2);
     color: var(--solarized-scheme01);
@@ -186,7 +205,6 @@ body {
 #prompt {
     background: none;
     border: none;
-    color: var(--solarized-green);
     font-weight: bold;
     height: 1.2rem;
     margin-bottom: 0;

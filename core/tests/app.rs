@@ -36,7 +36,7 @@ fn autocomplete_proper_noun() {
     let mut app = sync_app();
     let output = app.command("npc").unwrap();
     let mut output_iter = output.lines();
-    let npc_name = output_iter.next().unwrap().trim_start_matches("# ");
+    let npc_name = output_iter.nth(2).unwrap().trim_start_matches("# ");
     let npc_description = output_iter.next().unwrap().trim_matches('*');
     let query = npc_name.split_whitespace().next().unwrap();
     let autocomplete_results = app.autocomplete(query);
