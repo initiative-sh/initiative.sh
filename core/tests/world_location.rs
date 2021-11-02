@@ -14,8 +14,25 @@ fn results_are_random() {
 #[test]
 fn generated_content_is_limited_by_place_type() {
     ["inn"].iter().for_each(|place_type| {
-        let output = sync_app().command(place_type).unwrap();
+        let mut app = sync_app();
 
+        let output = app.command(place_type).unwrap();
+        assert!(
+            output.contains(place_type),
+            "Input: {}\n\nOutput:\n{}",
+            place_type,
+            output,
+        );
+
+        let output = app.command("more").unwrap();
+        assert!(
+            output.matches(place_type).count() >= 11,
+            "Input: {}\n\nOutput:\n{}",
+            place_type,
+            output,
+        );
+
+        let output = app.command("more").unwrap();
         assert!(
             output.matches(place_type).count() >= 11,
             "Input: {}\n\nOutput:\n{}",
@@ -28,73 +45,85 @@ fn generated_content_is_limited_by_place_type() {
 #[test]
 fn generated_content_is_persisted() {
     let mut app = sync_app();
-    let generated_output = app.command("building").unwrap();
 
-    // # The Roaring Spirit
-    // *inn*
-    //
-    // _The Roaring Spirit has not yet been saved. Use ~save~ to save it to your `journal`._
-    //
-    // *Alternatives:*\
-    // ~0~ `The Lonely Rose`, an inn\
-    // ~1~ `The Roaring Star`, an inn\
-    // ~2~ `The Howling Spirit`, an inn\
-    // ~3~ `The Lonely Dolphin`, an inn\
-    // ~4~ `The Prancing Lamb`, an inn\
-    // ~5~ `The Leering Star`, an inn\
-    // ~6~ `The Staggering Pegasus`, an inn\
-    // ~7~ `The Prancing Horde`, an inn\
-    // ~8~ `The Black Star`, an inn\
-    // ~9~ `The Prancing Pegasus`, an inn
+    {
+        // # The Roaring Spirit
+        // *inn*
+        //
+        // _The Roaring Spirit has not yet been saved. Use ~save~ to save it to your `journal`. For
+        // more suggestions, type ~more~._
+        let generated_output = app.command("building").unwrap();
 
-    // Ensure that the primary suggestion matches the generated content.
-    let name = generated_output
-        .lines()
-        .nth(2)
-        .unwrap()
-        .trim_start_matches("# ");
-    let persisted_output = app.command(&format!("load {}", name)).unwrap();
-    assert_eq!(
-        format!("# {}", name),
-        persisted_output.lines().nth(2).unwrap(),
-    );
-    assert_eq!(
-        8,
-        generated_output
+        // Ensure that the primary suggestion matches the generated content.
+        let name = generated_output
             .lines()
-            .zip(persisted_output.lines())
-            .map(|(generated, persisted)| assert_eq!(generated, persisted))
-            .count(),
-        "Generated:\n{}\n\nPersisted:\n{}",
-        generated_output,
-        persisted_output,
-    );
+            .nth(2)
+            .unwrap()
+            .trim_start_matches("# ");
+        let persisted_output = app.command(&format!("load {}", name)).unwrap();
+        assert_eq!(
+            format!("# {}", name),
+            persisted_output.lines().nth(2).unwrap(),
+        );
+        assert_eq!(
+            7,
+            generated_output
+                .lines()
+                .zip(persisted_output.lines())
+                .filter(|(generated, _)| !generated.starts_with('_'))
+                .map(|(generated, persisted)| assert_eq!(generated, persisted))
+                .count(),
+            "Generated:\n{}\n\nPersisted:\n{}",
+            generated_output,
+            persisted_output,
+        );
+    }
 
-    // Ensure that secondary suggestions have also been persisted.
-    assert_eq!(
-        10,
-        generated_output
-            .lines()
-            .filter(|line| line.starts_with('~'))
-            .map(|s| {
-                if let Some(pos) = s.find(',') {
-                    let name = &s[5..(pos - 1)];
-                    assert_eq!(
-                        format!("# {}", name),
-                        app.command(&format!("load {}", name))
-                            .unwrap()
-                            .lines()
-                            .nth(2)
-                            .unwrap(),
-                    );
-                } else {
-                    panic!("Missing , in \"{}\"", s);
-                }
-            })
-            .count(),
-        "{}",
-        generated_output,
-    );
+    {
+        app.command("inn").unwrap();
+
+        // # Alternative suggestions for "inn":
+        //
+        // ~1~ `The Roaring Star`, an inn\
+        // ~2~ `The Howling Spirit`, an inn\
+        // ~3~ `The Lonely Dolphin`, an inn\
+        // ~4~ `The Prancing Lamb`, an inn\
+        // ~5~ `The Leering Star`, an inn\
+        // ~6~ `The Staggering Pegasus`, an inn\
+        // ~7~ `The Prancing Horde`, an inn\
+        // ~8~ `The Black Star`, an inn\
+        // ~9~ `The Prancing Pegasus`, an inn\
+        // ~0~ `The Lonely Rose`, an inn
+        //
+        // _For even more suggestions, type ~more~.
+        let generated_output = app.command("more").unwrap();
+
+        // Ensure that secondary suggestions have also been persisted.
+        assert_eq!(
+            10,
+            generated_output
+                .lines()
+                .filter(|line| line.starts_with('~'))
+                .map(|s| {
+                    if let Some(pos) = s.find(',') {
+                        let name = &s[5..(pos - 1)];
+                        assert_eq!(
+                            format!("# {}", name),
+                            app.command(&format!("load {}", name))
+                                .unwrap()
+                                .lines()
+                                .nth(2)
+                                .unwrap(),
+                        );
+                    } else {
+                        panic!("Missing , in \"{}\"", s);
+                    }
+                })
+                .count(),
+            "{}",
+            generated_output,
+        );
+    }
 }
 
 #[test]
@@ -103,8 +132,9 @@ fn numeric_aliases_exist_for_places() {
 
     // Generate a data set to potentially interfere with the one being tested.
     app.command("building").unwrap();
+    app.command("building").unwrap();
 
-    let generated_output = app.command("building").unwrap();
+    let generated_output = app.command("more").unwrap();
 
     // Doing this in two steps due to borrowing issues.
     let mut outputs = generated_output

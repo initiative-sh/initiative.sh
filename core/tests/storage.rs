@@ -307,11 +307,13 @@ fn journal_with_invalid_data_store_shows_error_message() {
 fn journal_shows_alphabetized_results() {
     let mut app = sync_app();
 
-    let npc_list = app.command("npc").unwrap();
+    app.command("npc").unwrap();
+
+    let npc_list = app.command("more").unwrap();
     println!("{}", npc_list);
     let mut npcs: Vec<&str> = npc_list
         .lines()
-        .skip_while(|s| !s.starts_with('~'))
+        .filter(|s| s.starts_with('~'))
         .map(|s| s[4..].trim_end_matches('\\'))
         .map(|line| {
             println!(
@@ -326,13 +328,16 @@ fn journal_shows_alphabetized_results() {
         })
         .collect();
 
+    assert_eq!(10, npcs.len());
     npcs.sort_by(|a, b| a[6..].cmp(&b[6..]));
 
-    let inn_list = app.command("inn").unwrap();
+    app.command("inn").unwrap();
+
+    let inn_list = app.command("more").unwrap();
     println!("{}", inn_list);
     let mut inns: Vec<&str> = inn_list
         .lines()
-        .skip_while(|s| !s.starts_with('~'))
+        .filter(|s| s.starts_with('~'))
         .map(|s| s[4..].trim_end_matches('\\'))
         .map(|line| {
             println!(
@@ -347,6 +352,7 @@ fn journal_shows_alphabetized_results() {
         })
         .collect();
 
+    assert_eq!(10, inns.len());
     inns.sort();
 
     let output = app.command("journal").unwrap();

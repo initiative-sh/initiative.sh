@@ -20,7 +20,7 @@ jobs:
       - name: Update Rust
         run: rustc --version && rustup update
       - name: Run rustfmt
-        run: git ls-files '*.rs' | xargs rustfmt --check --edition 2018 --verbose
+        run: git ls-files '*.rs' | xargs rustfmt --check --edition 2021 --verbose
       - name: Run Clippy
         run: cargo clippy --workspace -- --deny warnings
 

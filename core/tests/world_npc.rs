@@ -26,86 +26,121 @@ fn generated_content_is_limited_by_species() {
     ]
     .iter()
     .for_each(|species| {
-        let output = sync_app().command(species).unwrap();
-        assert!(output.matches(species).count() >= 12, "{}", output);
+        let mut app = sync_app();
+
+        let output = app.command(species).unwrap();
+        assert!(
+            output.contains(species),
+            "Input: {}\n\nOutput:\n{}",
+            species,
+            output,
+        );
+
+        let output = app.command("more").unwrap();
+        assert!(
+            output.matches(species).count() >= 11,
+            "Input: {}\n\nOutput:\n{}",
+            species,
+            output,
+        );
+
+        let output = app.command("more").unwrap();
+        assert!(
+            output.matches(species).count() >= 11,
+            "Input: {}\n\nOutput:\n{}",
+            species,
+            output,
+        );
     });
 }
 
 #[test]
 fn generated_content_is_persisted() {
     let mut app = sync_app();
-    let generated_output = app.command("npc").unwrap();
 
-    // # Sybil
-    // *elderly human, she/her*
-    //
-    // **Species:** human\
-    // **Gender:** feminine\
-    // **Age:** 64 years\
-    // **Size:** 5'7", 112 lbs (medium)
-    //
-    // _Sybil has not yet been saved. Use ~save~ to save her to your `journal`._
-    //
-    // *Alternatives:* \
-    // ~0~ `Mokosh` (middle-aged half-elf, she/her)\
-    // ~1~ `Jaya` (middle-aged human, she/her)\
-    // ~2~ `Harsha` (half-elf infant, he/him)\
-    // ~3~ `Lucan Amakiir` (elderly half-elf, he/him)\
-    // ~4~ `Germana` (middle-aged human, she/her)\
-    // ~5~ `Akachi` (geriatric human, she/her)\
-    // ~6~ `Callie Bigheart` (middle-aged halfling, she/her)\
-    // ~7~ `Pratima` (young adult human, she/her)\
-    // ~8~ `Laelia` (human infant, she/her)\
-    // ~9~ `Pierre` (adult human, he/him)
+    {
+        // # Sybil
+        // *elderly human, she/her*
+        //
+        // **Species:** human\
+        // **Gender:** feminine\
+        // **Age:** 64 years\
+        // **Size:** 5'7", 112 lbs (medium)
+        //
+        // _Sybil has not yet been saved. Use ~save~ to save her to your `journal`. For more
+        // suggestions, type ~more~._
+        let generated_output = app.command("npc").unwrap();
 
-    // Ensure that the primary suggestion matches the generated content.
-    let name = generated_output
-        .lines()
-        .nth(2)
-        .unwrap()
-        .trim_start_matches("# ");
-    let persisted_output = app.command(&format!("load {}", name)).unwrap();
-    assert_eq!(
-        format!("# {}", name),
-        persisted_output.lines().nth(2).unwrap(),
-    );
-    assert_eq!(
-        13,
-        generated_output
+        // Ensure that the primary suggestion matches the generated content.
+        let name = generated_output
             .lines()
-            .zip(persisted_output.lines())
-            .map(|(generated, persisted)| assert_eq!(generated, persisted))
-            .count(),
-        "Generated:\n{}\n\nPersisted:\n{}",
-        generated_output,
-        persisted_output,
-    );
+            .nth(2)
+            .unwrap()
+            .trim_start_matches("# ");
+        let persisted_output = app.command(&format!("load {}", name)).unwrap();
+        assert_eq!(
+            format!("# {}", name),
+            persisted_output.lines().nth(2).unwrap(),
+        );
+        assert_eq!(
+            12,
+            generated_output
+                .lines()
+                .zip(persisted_output.lines())
+                .filter(|(generated, _)| !generated.starts_with('_'))
+                .map(|(generated, persisted)| assert_eq!(generated, persisted))
+                .count(),
+            "Generated:\n{}\n\nPersisted:\n{}",
+            generated_output,
+            persisted_output,
+        );
+    }
 
-    // Ensure that secondary suggestions have also been persisted.
-    assert_eq!(
-        10,
-        generated_output
-            .lines()
-            .filter(|line| line.starts_with('~'))
-            .map(|s| {
-                if let Some(pos) = s.find('(') {
-                    let name = &s[10..(pos - 2)];
-                    assert_eq!(
-                        format!("# {}", name),
-                        app.command(&format!("load {}", name))
-                            .unwrap()
-                            .lines()
-                            .nth(2)
-                            .unwrap(),
-                    );
-                } else {
-                    panic!("Missing ( in \"{}\"", s);
-                }
-            })
-            .count(),
-        "{}",
-        generated_output,
-    );
+    {
+        app.command("npc").unwrap();
+
+        // # Alternative suggestions for "person":
+        //
+        // ~1~ `Jaya` (middle-aged human, she/her)\
+        // ~2~ `Harsha` (half-elf infant, he/him)\
+        // ~3~ `Lucan Amakiir` (elderly half-elf, he/him)\
+        // ~4~ `Germana` (middle-aged human, she/her)\
+        // ~5~ `Akachi` (geriatric human, she/her)\
+        // ~6~ `Callie Bigheart` (middle-aged halfling, she/her)\
+        // ~7~ `Pratima` (young adult human, she/her)\
+        // ~8~ `Laelia` (human infant, she/her)\
+        // ~9~ `Pierre` (adult human, he/him)\
+        // ~0~ `Mokosh` (middle-aged half-elf, she/her)
+        //
+        // _For even more suggestions, type ~more~.
+        let generated_output = app.command("more").unwrap();
+
+        // Ensure that secondary suggestions have also been persisted.
+        assert_eq!(
+            10,
+            generated_output
+                .lines()
+                .filter(|line| line.starts_with('~'))
+                .map(|s| {
+                    if let Some(pos) = s.find('(') {
+                        let name = &s[10..(pos - 2)];
+                        assert_eq!(
+                            format!("# {}", name),
+                            app.command(&format!("load {}", name))
+                                .unwrap()
+                                .lines()
+                                .nth(2)
+                                .unwrap(),
+                        );
+                    } else {
+                        panic!("Missing ( in \"{}\"", s);
+                    }
+                })
+                .count(),
+            "{}",
+            generated_output,
+        );
+    }
 }
 
 #[test]
@@ -114,8 +149,9 @@ fn numeric_aliases_exist_for_npcs() {
 
     // Generate a data set to potentially interfere with the one being tested.
     app.command("npc").unwrap();
+    app.command("npc").unwrap();
 
-    let generated_output = app.command("npc").unwrap();
+    let generated_output = app.command("more").unwrap();
 
     // Doing this in two steps due to borrowing issues.
     let mut outputs = generated_output
