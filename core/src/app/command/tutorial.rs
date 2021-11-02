@@ -118,7 +118,7 @@ impl TutorialCommand {
                     format!("save {}", inn_name),
                     StorageCommand::Change {
                         change: Change::Save {
-                            name: inn_name.clone(),
+                            name: inn_name.to_owned(),
                         },
                     }
                     .into(),
@@ -142,7 +142,7 @@ impl TutorialCommand {
                     "1".to_string(),
                     format!("load {}", npc_name),
                     StorageCommand::Load {
-                        name: npc_name.clone(),
+                        name: npc_name.to_owned(),
                     }
                     .into(),
                 ));
@@ -164,7 +164,7 @@ impl TutorialCommand {
                     format!("save {}", npc_name),
                     StorageCommand::Change {
                         change: Change::Save {
-                            name: npc_name.clone(),
+                            name: npc_name.to_owned(),
                         },
                     }
                     .into(),
@@ -385,7 +385,7 @@ impl Runnable for TutorialCommand {
                     .repository
                     .modify(Change::Delete {
                         id: inn_name.into(),
-                        name: inn_name.clone(),
+                        name: inn_name.to_owned(),
                     })
                     .await
                     .ok();
@@ -396,7 +396,7 @@ impl Runnable for TutorialCommand {
                     .repository
                     .modify(Change::Delete {
                         id: npc_name.into(),
-                        name: npc_name.clone(),
+                        name: npc_name.to_owned(),
                     })
                     .await
                     .ok();
@@ -430,13 +430,11 @@ impl Runnable for TutorialCommand {
                         let next = Self::Npc { inn_name };
                         (next.output(Some(Ok(output)), app_meta), Some(next))
                     } else {
-                        (command_output, Some(self.clone()))
+                        (command_output, Some(self))
                     }
                 }
                 Self::Npc { inn_name } => {
-                    let next = Self::NpcOther {
-                        inn_name: inn_name.clone(),
-                    };
+                    let next = Self::NpcOther { inn_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
@@ -476,7 +474,7 @@ impl Runnable for TutorialCommand {
                             (npc_name, other_npc_name, npc_gender)
                         {
                             let next = Self::SaveByName {
-                                inn_name: inn_name.clone(),
+                                inn_name,
                                 npc_gender,
                                 npc_name,
                                 other_npc_name,
@@ -617,10 +615,7 @@ impl Runnable for TutorialCommand {
                 Self::AdjustTime {
                     inn_name, npc_name, ..
                 } => {
-                    let next = Self::Time {
-                        inn_name: inn_name.clone(),
-                        npc_name: npc_name.clone(),
-                    };
+                    let next = Self::Time { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
@@ -628,10 +623,7 @@ impl Runnable for TutorialCommand {
                     )
                 }
                 Self::Time { inn_name, npc_name } => {
-                    let next = Self::Conclusion {
-                        inn_name: inn_name.clone(),
-                        npc_name: npc_name.clone(),
-                    };
+                    let next = Self::Conclusion { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
@@ -678,7 +670,7 @@ impl Runnable for TutorialCommand {
         } else if let Some(CommandType::Tutorial(TutorialCommand::Resume)) =
             input_command.get_type()
         {
-            (self.output(None, app_meta), Some(self.clone()))
+            (self.output(None, app_meta), Some(self))
         } else {
             let result = {
                 let f = |mut s: String| {
@@ -715,7 +707,7 @@ impl Runnable for TutorialCommand {
                 .into(),
             ));
 
-            (result, Some(self.clone()))
+            (result, Some(self))
         };
 
         if let Some(command) = next_command {
