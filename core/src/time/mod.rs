@@ -4,7 +4,6 @@ pub use interval::Interval;
 mod command;
 mod interval;
 
-use std::convert::TryInto;
 use std::fmt;
 use std::str::FromStr;
 
