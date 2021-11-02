@@ -1,4 +1,4 @@
-use super::Npc;
+use super::{Age, Gender, Npc};
 use std::fmt;
 
 pub struct SummaryView<'a>(&'a Npc);
@@ -50,6 +50,23 @@ impl<'a> fmt::Display for SummaryView<'a> {
             || npc.ethnicity.is_some()
             || npc.gender.is_some()
             || npc.species.is_some();
+
+        write!(
+            f,
+            "{} ",
+            match (npc.age.value(), npc.gender.value()) {
+                (Some(Age::Infant), _) => '\u{1f476}',
+                (Some(Age::Child | Age::Adolescent), Some(Gender::Feminine)) => '\u{1f467}',
+                (Some(Age::Child | Age::Adolescent), Some(Gender::Masculine)) => '\u{1f466}',
+                (Some(Age::Child | Age::Adolescent), _) => '\u{1f9d2}',
+                (Some(Age::Elderly | Age::Geriatric), Some(Gender::Feminine)) => '\u{1f475}',
+                (Some(Age::Elderly | Age::Geriatric), Some(Gender::Masculine)) => '\u{1f474}',
+                (Some(Age::Elderly | Age::Geriatric), _) => '\u{1f9d3}',
+                (_, Some(Gender::Feminine)) => '\u{1f469}',
+                (_, Some(Gender::Masculine)) => '\u{1f468}',
+                _ => '\u{1f9d1}',
+            },
+        )?;
 
         if let Some(name) = npc.name.value() {
             if has_details {
@@ -127,38 +144,38 @@ mod test_display_for_npc_details_view {
     #[test]
     fn summary_view_test() {
         let (expected, actual): (Vec<String>, Vec<String>) = [
-            "person",
-            "`Potato Johnson`",
-            "adult",
-            "`Potato Johnson` (adult)",
-            "human",
-            "`Potato Johnson` (human)",
-            "adult human",
-            "`Potato Johnson` (adult human)",
-            "person, they/them",
-            "`Potato Johnson` (person, they/them)",
-            "adult, they/them",
-            "`Potato Johnson` (adult, they/them)",
-            "human, they/them",
-            "`Potato Johnson` (human, they/them)",
-            "adult human, they/them",
-            "`Potato Johnson` (adult human, they/them)",
-            "elvish person",
-            "`Potato Johnson` (elvish person)",
-            "elvish adult",
-            "`Potato Johnson` (elvish adult)",
-            "human",
-            "`Potato Johnson` (human)",
-            "adult human",
-            "`Potato Johnson` (adult human)",
-            "elvish person, they/them",
-            "`Potato Johnson` (elvish person, they/them)",
-            "elvish adult, they/them",
-            "`Potato Johnson` (elvish adult, they/them)",
-            "human, they/them",
-            "`Potato Johnson` (human, they/them)",
-            "adult human, they/them",
-            "`Potato Johnson` (adult human, they/them)",
+            "🧑 person",
+            "🧑 `Potato Johnson`",
+            "🧓 elderly person",
+            "🧓 `Potato Johnson` (elderly person)",
+            "🧑 human",
+            "🧑 `Potato Johnson` (human)",
+            "🧓 elderly human",
+            "🧓 `Potato Johnson` (elderly human)",
+            "👨 person, he/him",
+            "👨 `Potato Johnson` (person, he/him)",
+            "👴 elderly person, he/him",
+            "👴 `Potato Johnson` (elderly person, he/him)",
+            "👨 human, he/him",
+            "👨 `Potato Johnson` (human, he/him)",
+            "👴 elderly human, he/him",
+            "👴 `Potato Johnson` (elderly human, he/him)",
+            "🧑 elvish person",
+            "🧑 `Potato Johnson` (elvish person)",
+            "🧓 elderly elvish person",
+            "🧓 `Potato Johnson` (elderly elvish person)",
+            "🧑 human",
+            "🧑 `Potato Johnson` (human)",
+            "🧓 elderly human",
+            "🧓 `Potato Johnson` (elderly human)",
+            "👨 elvish person, he/him",
+            "👨 `Potato Johnson` (elvish person, he/him)",
+            "👴 elderly elvish person, he/him",
+            "👴 `Potato Johnson` (elderly elvish person, he/him)",
+            "👨 human, he/him",
+            "👨 `Potato Johnson` (human, he/him)",
+            "👴 elderly human, he/him",
+            "👴 `Potato Johnson` (elderly human, he/him)",
         ]
         .iter()
         .enumerate()
@@ -231,14 +248,14 @@ mod test_display_for_npc_details_view {
             npc.name = Field::new_generated("Potato Johnson".to_string());
         }
         if bitmask & AGE > 0 {
-            npc.age = Field::new_generated(Age::Adult);
-            npc.age_years = Field::new_generated(40);
+            npc.age = Field::new_generated(Age::Elderly);
+            npc.age_years = Field::new_generated(60);
         }
         if bitmask & SPECIES > 0 {
             npc.species = Field::new_generated(Species::Human);
         }
         if bitmask & GENDER > 0 {
-            npc.gender = Field::new_generated(Gender::NonBinaryThey);
+            npc.gender = Field::new_generated(Gender::Masculine);
         }
         if bitmask & ETHNICITY > 0 {
             npc.ethnicity = Field::new_generated(Ethnicity::Elvish);

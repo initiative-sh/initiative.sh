@@ -89,7 +89,7 @@ fn generated_content_is_persisted() {
             .filter(|line| line.starts_with('~'))
             .map(|s| {
                 if let Some(pos) = s.find('(') {
-                    let name = &s[5..(pos - 2)];
+                    let name = &s[10..(pos - 2)];
                     assert_eq!(
                         format!("# {}", name),
                         app.command(&format!("load {}", name))
@@ -126,7 +126,7 @@ fn numeric_aliases_exist_for_npcs() {
                 let digit = &s[1..2];
                 let digit_output = app.command(digit).unwrap();
 
-                let name = &s[5..(pos - 2)];
+                let name = &s[10..(pos - 2)];
 
                 assert_eq!(format!("# {}", name), digit_output.lines().nth(2).unwrap());
 
@@ -216,7 +216,7 @@ fn create_npc_with_custom_attributes() {
     {
         let output = app.command("a boy named sue").unwrap_err();
         assert_eq!(
-            "That name is already in use by `Sue` (young adult elf, they/them).",
+            "That name is already in use by 🧑 `Sue` (young adult elf, they/them).",
             output,
         );
     }

@@ -1,4 +1,5 @@
-* **Enhancement:** Added box displays when generating a `character` or `place`.
+* **Enhancement:** Added box displays when generating a `character` or `place`,
+  as well as emoji icons to differentiate people by age/gender.
 * **Enhancement:** Creating and editing things will now proceed even if not all
   words are recognized, so long as the parser can make a reasonable guess about
   what you meant. If it guesses wrong, that's what `undo` is for.

@@ -170,7 +170,10 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
                 .map(|term| parsed.suggestion(term))
                 .filter_map(|suggestion| {
                     if let Ok(thing) = suggestion.parse::<T>().map(|t| t.into()) {
-                        Some((suggestion, format!("create {}", thing.display_summary())))
+                        Some((
+                            suggestion,
+                            format!("create {}", thing.display_description()),
+                        ))
                     } else {
                         None
                     }
@@ -203,7 +206,7 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
                 suggestion.parse::<T>().ok().map(|thing| {
                     (
                         suggestion,
-                        format!("create {}", thing.into().display_summary()),
+                        format!("create {}", thing.into().display_description()),
                     )
                 })
             })
@@ -252,7 +255,7 @@ impl Autocomplete for Npc {
                     .and_then(|pt| {
                         pt.thing
                             .npc()
-                            .map(|npc| format!("create {}", npc.display_summary()))
+                            .map(|npc| format!("create {}", npc.display_description()))
                     })
             {
                 vec![(suggestion, description)]

@@ -318,7 +318,7 @@ fn journal_shows_alphabetized_results() {
                 "{}",
                 app.command(&format!(
                     "save {}",
-                    line.find('(').map(|pos| &line[1..(pos - 2)]).unwrap()
+                    line.find('(').map(|pos| &line[6..(pos - 2)]).unwrap()
                 ))
                 .unwrap(),
             );
@@ -326,7 +326,7 @@ fn journal_shows_alphabetized_results() {
         })
         .collect();
 
-    npcs.sort();
+    npcs.sort_by(|a, b| a[6..].cmp(&b[6..]));
 
     let inn_list = app.command("inn").unwrap();
     println!("{}", inn_list);
