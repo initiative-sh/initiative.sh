@@ -11,8 +11,8 @@ fn results_are_random() {
     );
 
     assert_ne!(
-        sync_app().command("building").unwrap(),
-        sync_app().command("building").unwrap(),
+        sync_app().command("inn").unwrap(),
+        sync_app().command("inn").unwrap(),
     );
 }
 
@@ -573,4 +573,24 @@ fn edit_with_unknown_words() {
         "{}",
         output,
     );
+}
+
+#[test]
+fn generate_location_with_no_name_generator() {
+    let mut app = sync_app();
+
+    assert_eq!(
+        "The only place name generator currently implemented is `inn`. For other types, you must specify a name using `kingdom named [name]`.",
+        app.command("kingdom").unwrap_err(),
+    );
+
+    {
+        let output = app.command("kingdom named Narnia").unwrap();
+        assert!(output.contains("# Narnia"), "{}", output);
+    }
+
+    {
+        let output = app.command("Narnia").unwrap();
+        assert!(output.contains("# Narnia"), "{}", output);
+    }
 }

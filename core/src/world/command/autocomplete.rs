@@ -224,7 +224,7 @@ impl Autocomplete for Place {
             &[(
                 "place type",
                 "specify a place type (eg. inn)",
-                PlaceType::get_words(),
+                &PlaceType::get_words().collect::<Vec<_>>(),
             )],
         )
     }
@@ -267,17 +267,25 @@ impl Autocomplete for Npc {
                 input,
                 &["character", "npc", "person"],
                 &[
-                    ("age", "specify an age (eg. \"elderly\")", Age::get_words()),
+                    (
+                        "age",
+                        "specify an age (eg. \"elderly\")",
+                        &Age::get_words().collect::<Vec<_>>(),
+                    ),
                     (
                         "ethnicity",
                         "specify an ethnicity (eg. \"elvish\")",
-                        Ethnicity::get_words(),
+                        &Ethnicity::get_words().collect::<Vec<_>>(),
                     ),
-                    ("gender", "specify a gender", Gender::get_words()),
+                    (
+                        "gender",
+                        "specify a gender",
+                        &Gender::get_words().collect::<Vec<_>>(),
+                    ),
                     (
                         "species",
                         "specify a species (eg. \"dwarf\")",
-                        Species::get_words(),
+                        &Species::get_words().collect::<Vec<_>>(),
                     ),
                 ],
             )
@@ -379,12 +387,20 @@ mod test {
     #[test]
     fn place_autocomplete_test() {
         assert_autocomplete(
-            &[("inn", "create inn")][..],
+            &[
+                ("inn", "create inn"),
+                ("imports-shop", "create imports-shop"),
+                ("island", "create island"),
+            ][..],
             Place::autocomplete("i", &app_meta()),
         );
 
         assert_autocomplete(
-            &[("an inn", "create inn")][..],
+            &[
+                ("an inn", "create inn"),
+                ("an imports-shop", "create imports-shop"),
+                ("an island", "create island"),
+            ][..],
             Place::autocomplete("an i", &app_meta()),
         );
 

@@ -115,7 +115,7 @@ mod test {
     #[test]
     fn view_test_subtype_only() {
         let place = Place {
-            subtype: PlaceType::Inn.into(),
+            subtype: "inn".parse::<PlaceType>().ok().into(),
             ..Default::default()
         };
         assert_eq!("inn", format!("{}", place.display_summary()));
@@ -143,7 +143,7 @@ mod test {
     #[test]
     fn view_test_name_subtype() {
         let place = Place {
-            subtype: PlaceType::Inn.into(),
+            subtype: "inn".parse::<PlaceType>().ok().into(),
             name: "Oaken Mermaid Inn".into(),
             ..Default::default()
         };
@@ -179,7 +179,7 @@ mod test {
     #[test]
     fn view_test_subtype_description() {
         let place = Place {
-            subtype: PlaceType::Inn.into(),
+            subtype: "inn".parse::<PlaceType>().ok().into(),
             description: "You can check out any time you like.".into(),
             ..Default::default()
         };
@@ -194,7 +194,7 @@ mod test {
     #[test]
     fn view_test_name_subtype_description() {
         let place = Place {
-            subtype: PlaceType::Inn.into(),
+            subtype: "inn".parse::<PlaceType>().ok().into(),
             name: "Oaken Mermaid Inn".into(),
             description: "I am Mordenkainen.".into(),
             ..Default::default()

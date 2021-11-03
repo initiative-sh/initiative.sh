@@ -64,8 +64,6 @@ impl FromStr for ParsedThing<Place> {
 
             if ["a", "an"].contains(word_str) {
                 word_count -= 1;
-            } else if ["building", "place"].contains(word_str) {
-                // ignore
             } else if let Ok(place_type) = word_str.parse() {
                 place.subtype = Field::new(place_type);
             } else {
@@ -160,7 +158,10 @@ mod test {
     fn place_from_str_test() {
         {
             let place: ParsedThing<Place> = "inn".parse().unwrap();
-            assert_eq!(Field::Locked(Some(PlaceType::Inn)), place.thing.subtype);
+            assert_eq!(
+                Field::Locked("inn".parse::<PlaceType>().ok()),
+                place.thing.subtype,
+            );
             assert_eq!(0, place.unknown_words.len());
             assert_eq!(1, place.word_count);
         }
@@ -183,7 +184,10 @@ mod test {
                 Field::Locked(Some("The Prancing Pony".to_string())),
                 place.thing.name,
             );
-            assert_eq!(Field::Locked(Some(PlaceType::Inn)), place.thing.subtype);
+            assert_eq!(
+                Field::Locked("inn".parse::<PlaceType>().ok()),
+                place.thing.subtype,
+            );
             assert_eq!(0, place.unknown_words.len());
             assert_eq!(1, place.word_count);
         }
@@ -194,7 +198,10 @@ mod test {
                 Field::Locked(Some("The Prancing Pony".to_string())),
                 place.thing.name,
             );
-            assert_eq!(Field::Locked(Some(PlaceType::Inn)), place.thing.subtype);
+            assert_eq!(
+                Field::Locked("inn".parse::<PlaceType>().ok()),
+                place.thing.subtype,
+            );
             assert_eq!(0, place.unknown_words.len());
             assert_eq!(1, place.word_count);
         }
@@ -202,7 +209,7 @@ mod test {
         {
             let place: ParsedThing<Place> = "a place called home".parse().unwrap();
             assert_eq!(Field::Locked(Some("Home".to_string())), place.thing.name);
-            assert!(place.thing.subtype.is_none());
+            assert_eq!(Some(&PlaceType::Any), place.thing.subtype.value());
             assert_eq!(0, place.unknown_words.len());
             assert_eq!(1, place.word_count);
         }

@@ -20,6 +20,7 @@ use std::fmt;
 use std::ops::RangeInclusive;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, WordList, Serialize, Deserialize)]
+#[serde(into = "&'static str", try_from = "&str")]
 pub enum Species {
     Dragonborn,
     Dwarf,
@@ -288,9 +289,9 @@ mod test {
 
     #[test]
     fn serialize_deserialize_test() {
-        assert_eq!("\"Human\"", serde_json::to_string(&Species::Human).unwrap());
+        assert_eq!("\"human\"", serde_json::to_string(&Species::Human).unwrap());
 
-        let value: Species = serde_json::from_str("\"Human\"").unwrap();
+        let value: Species = serde_json::from_str("\"human\"").unwrap();
         assert_eq!(Species::Human, value);
     }
 }

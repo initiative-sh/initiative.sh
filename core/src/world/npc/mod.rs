@@ -28,7 +28,7 @@ pub struct Npc {
     pub size: Field<Size>,
     pub species: Field<Species>,
     pub ethnicity: Field<Ethnicity>,
-    // pub home: Field<RegionUuid>,
+    // pub home: Field<PlaceUuid>,
     // pub occupation: Field<Role>,
     // pub languages: Field<Vec<String>>,
     // pub parents: Field<Vec<Uuid>>,
@@ -166,11 +166,11 @@ mod test {
         let npc = gandalf();
 
         assert_eq!(
-            r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"Neuter","age":"Geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"Human","ethnicity":"Human"}"#,
+            r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"neuter","age":"geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"human","ethnicity":"human"}"#,
             serde_json::to_string(&npc).unwrap()
         );
 
-        let value: Npc = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"Neuter","age":"Geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"Human","ethnicity":"Human"}"#).unwrap();
+        let value: Npc = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"neuter","age":"geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"human","ethnicity":"human"}"#).unwrap();
 
         assert_eq!(npc, value);
     }

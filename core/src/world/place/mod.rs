@@ -1,7 +1,8 @@
-mod inn;
+mod building;
+mod location;
+mod region;
 mod view;
 
-use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
 use initiative_macros::WordList;
 use rand::prelude::*;
@@ -14,7 +15,7 @@ initiative_macros::uuid!();
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Place {
     pub uuid: Option<Uuid>,
-    pub parent_uuid: Field<RegionUuid>,
+    pub parent_uuid: Field<Uuid>,
     pub subtype: Field<PlaceType>,
 
     pub name: Field<String>,
@@ -31,11 +32,14 @@ pub struct Place {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
+#[serde(into = "&'static str", try_from = "&str")]
 pub enum PlaceType {
-    #[alias = "bar"]
-    #[alias = "pub"]
-    #[alias = "tavern"]
-    Inn,
+    #[term = "place"]
+    Any,
+
+    Building(building::BuildingType),
+    Location(location::LocationType),
+    Region(region::RegionType),
 }
 
 impl Place {
@@ -88,12 +92,17 @@ impl Place {
 
 impl Generate for Place {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
-        self.subtype
-            .replace_with(|_| PlaceType::generate(rng, demographics));
+        if !self.name.is_locked() || self.subtype.is_none() {
+            self.subtype
+                .replace_with(|_| PlaceType::generate(rng, demographics));
+        }
 
-        if let Some(value) = self.subtype.value_mut() {
+        #[allow(clippy::collapsible_match)]
+        if let Some(value) = self.subtype.value() {
+            #[allow(clippy::single_match)]
             match value {
-                PlaceType::Inn => inn::generate(self, rng, demographics),
+                PlaceType::Building(_) => building::generate(self, rng, demographics),
+                _ => {}
             }
         }
     }
@@ -101,13 +110,17 @@ impl Generate for Place {
 
 impl Default for PlaceType {
     fn default() -> Self {
-        Self::Inn
+        Self::Any
     }
 }
 
 impl Generate for PlaceType {
-    fn regenerate(&mut self, _rng: &mut impl Rng, _demographics: &Demographics) {
-        *self = Self::Inn;
+    fn regenerate(&mut self, rng: &mut impl Rng, _demographics: &Demographics) {
+        *self = Self::get_words()
+            .nth(rng.gen_range(0..Self::word_count()))
+            .unwrap()
+            .parse()
+            .unwrap();
     }
 }
 
@@ -125,9 +138,8 @@ mod test {
     fn generate_test() {
         let demographics = Demographics::default();
 
-        // This should fail when we start re-adding place types.
-        let mut rng = SmallRng::seed_from_u64(0);
-        assert_eq!(
+        let mut rng = SmallRng::seed_from_u64(1);
+        assert_ne!(
             Place::generate(&mut rng, &demographics).subtype,
             Place::generate(&mut rng, &demographics).subtype,
         );
@@ -142,25 +154,43 @@ mod test {
 
     #[test]
     fn default_test() {
-        assert_eq!(PlaceType::Inn, PlaceType::default());
-    }
-
-    #[test]
-    fn display_test() {
-        assert_eq!("inn", format!("{}", PlaceType::Inn));
-    }
-
-    #[test]
-    fn try_from_noun_test() {
-        assert_eq!(Ok(PlaceType::Inn), "inn".parse(),);
-
-        let place_type: Result<PlaceType, ()> = "npc".parse();
-        assert_eq!(Err(()), place_type);
+        assert_eq!(PlaceType::Any, PlaceType::default());
     }
 
     #[test]
     fn place_type_serialize_deserialize_test() {
-        assert_eq!(r#""Inn""#, serde_json::to_string(&PlaceType::Inn).unwrap(),);
+        {
+            let inn: PlaceType = "inn".parse().unwrap();
+            assert_eq!(r#""inn""#, serde_json::to_string(&inn).unwrap());
+            assert_eq!(inn, serde_json::from_str::<PlaceType>(r#""inn""#).unwrap());
+        }
+
+        {
+            let business: PlaceType = "business".parse().unwrap();
+            assert_eq!(r#""business""#, serde_json::to_string(&business).unwrap());
+            assert_eq!(
+                business,
+                serde_json::from_str::<PlaceType>(r#""business""#).unwrap()
+            );
+        }
+
+        {
+            let building: PlaceType = "building".parse().unwrap();
+            assert_eq!(r#""building""#, serde_json::to_string(&building).unwrap());
+            assert_eq!(
+                building,
+                serde_json::from_str::<PlaceType>(r#""building""#).unwrap(),
+            );
+        }
+
+        {
+            let place: PlaceType = "place".parse().unwrap();
+            assert_eq!(r#""place""#, serde_json::to_string(&place).unwrap());
+            assert_eq!(
+                place,
+                serde_json::from_str::<PlaceType>(r#""place""#).unwrap(),
+            );
+        }
     }
 
     #[test]
@@ -168,11 +198,11 @@ mod test {
         let place = oaken_mermaid_inn();
 
         assert_eq!(
-            r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"Inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#,
+            r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#,
             serde_json::to_string(&place).unwrap(),
         );
 
-        let value: Place = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"Inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
+        let value: Place = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
 
         assert_eq!(place, value);
     }
@@ -208,8 +238,8 @@ mod test {
     fn oaken_mermaid_inn() -> Place {
         Place {
             uuid: Some(uuid::Uuid::nil().into()),
-            parent_uuid: RegionUuid::from(uuid::Uuid::nil()).into(),
-            subtype: PlaceType::Inn.into(),
+            parent_uuid: Uuid::from(uuid::Uuid::nil()).into(),
+            subtype: "inn".parse::<PlaceType>().ok().into(),
 
             name: "Oaken Mermaid Inn".into(),
             description: "I am Mordenkainen".into(),

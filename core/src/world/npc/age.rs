@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
+#[serde(into = "&'static str", try_from = "&str")]
 pub enum Age {
     #[alias = "baby"]
     Infant,
@@ -230,9 +231,9 @@ mod test {
 
     #[test]
     fn serialize_deserialize_test() {
-        assert_eq!(r#""Adult""#, serde_json::to_string(&Age::Adult).unwrap());
+        assert_eq!(r#""adult""#, serde_json::to_string(&Age::Adult).unwrap());
 
-        let value: Age = serde_json::from_str(r#""Adult""#).unwrap();
+        let value: Age = serde_json::from_str(r#""adult""#).unwrap();
         assert_eq!(Age::Adult, value);
     }
 
