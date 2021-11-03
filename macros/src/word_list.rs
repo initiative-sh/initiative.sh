@@ -10,8 +10,9 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
     let name = &ast.ident;
 
     if let syn::Data::Enum(data_enum) = &ast.data {
-        let mut words_to_variants = Vec::new();
-        let mut variants_to_words = Vec::new();
+        let mut from_str_match_cases = Vec::new();
+        let mut from_str_if_cases = Vec::new();
+        let mut as_str_cases = Vec::new();
         let mut words = Vec::new();
 
         data_enum.variants.iter().try_for_each(|variant| {
@@ -38,7 +39,7 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
                     syn::Meta::NameValue(name_value) if name_value.path.is_ident("alias") => {
                         let lit = name_value.lit;
                         words.push(quote! { #lit, });
-                        words_to_variants.push(quote! { #lit => Ok(#name::#ident), });
+                        from_str_match_cases.push(quote! { #lit => Ok(#name::#ident), });
                     }
                     syn::Meta::NameValue(name_value) if name_value.path.is_ident("term") => {
                         if let syn::Lit::Str(lit_str) = name_value.lit {
@@ -51,9 +52,28 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
                 }
             }
 
-            words.push(quote! { #term, });
-            variants_to_words.push(quote! { #name::#ident => #term, });
-            words_to_variants.push(quote! { #term => Ok(#name::#ident), });
+            match &variant.fields {
+                syn::Fields::Unit => {
+                    words.push(quote! { #term, });
+                    as_str_cases.push(quote! { #name::#ident => #term, });
+                    from_str_match_cases.push(quote! { #term => Ok(#name::#ident), });
+                }
+                syn::Fields::Unnamed(fields) => {
+                    if fields.unnamed.len() != 1 {
+                        return Err("Only single-variant tuple enums are supported.".to_string());
+                    }
+
+                    as_str_cases.push(quote! { #name::#ident(value) => value.as_str(), });
+                    from_str_if_cases.push(quote! {
+                        if let Ok(value) = input.parse() {
+                            Ok(#name::#ident(value))
+                        } else
+                    });
+                }
+                syn::Fields::Named(_) => {
+                    return Err("Named enum variants are not supported.".to_string())
+                }
+            }
 
             Result::<(), String>::Ok(())
         })?;
@@ -61,14 +81,14 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
         let gen = quote! {
             impl #name {
                 pub fn get_words() -> &'static [&'static str] {
-                    return &[
+                    &[
                         #(#words)*
-                    ];
+                    ]
                 }
 
                 pub fn as_str(&self) -> &'static str {
                     match self {
-                        #(#variants_to_words)*
+                        #(#as_str_cases)*
                     }
                 }
             }
@@ -76,10 +96,14 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
             impl std::str::FromStr for #name {
                 type Err = ();
 
-                fn from_str(raw: &str) -> Result<#name, ()> {
-                    match raw {
-                        #(#words_to_variants)*
-                        _ => Err(()),
+                fn from_str(input: &str) -> Result<#name, ()> {
+                    #(#from_str_if_cases)*
+
+                    {
+                        match input {
+                            #(#from_str_match_cases)*
+                            _ => Err(()),
+                        }
                     }
                 }
             }
