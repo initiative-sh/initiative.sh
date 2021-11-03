@@ -186,6 +186,32 @@ fn more_alias() {
 }
 
 #[test]
+fn more_alias_exists_with_invalid_data_store() {
+    let mut app = sync_app_with_data_store(NullDataStore::default());
+
+    let output = app.command("npc").unwrap();
+    assert!(output.contains("~more~"), "{}", output);
+    app.command("more").unwrap();
+}
+
+#[test]
+fn more_alias_does_not_exist_with_name() {
+    {
+        let mut app = sync_app();
+        let output = app.command("place called Home").unwrap();
+        assert!(!output.contains("~more~"), "{}", output);
+        app.command("more").unwrap_err();
+    }
+
+    {
+        let mut app = sync_app_with_data_store(NullDataStore::default());
+        let output = app.command("place called Home").unwrap();
+        assert!(!output.contains("~more~"), "{}", output);
+        app.command("more").unwrap_err();
+    }
+}
+
+#[test]
 fn numeric_aliases() {
     let mut app = sync_app();
 

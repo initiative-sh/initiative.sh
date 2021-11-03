@@ -1,3 +1,6 @@
+* **Bug:** Fixed the "more" command not being available when generating a
+  `person` or `place` in a browser that lacks IndexedDB, such as an older
+  browser or one with private browsing active.
 * **Enhancement:** When you generate a `person` or `place`, alternative
   suggestions aren't offered automatically, but are instead available via the
   "more" command. Also updated the `tutorial` and `help` to cover the latest
