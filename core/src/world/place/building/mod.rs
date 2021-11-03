@@ -1,8 +1,6 @@
 mod business;
 mod education;
+mod government;
 mod military;
-mod police;
-mod political;
 mod religious;
-mod trade;
-mod transportation;
+mod travel;

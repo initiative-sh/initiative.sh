@@ -1,5 +1,5 @@
-mod inn;
 mod building;
+mod inn;
 mod location;
 mod region;
 mod view;

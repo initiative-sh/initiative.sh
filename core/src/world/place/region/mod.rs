@@ -1,2 +1,2 @@
-mod geographical;
+mod geography;
 mod political;
