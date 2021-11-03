@@ -1,4 +1,7 @@
 mod inn;
+mod building;
+mod location;
+mod region;
 mod view;
 
 use super::{Demographics, Field, Generate};
