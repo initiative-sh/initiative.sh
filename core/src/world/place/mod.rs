@@ -1,7 +1,6 @@
 mod inn;
 mod view;
 
-use super::region::Uuid as RegionUuid;
 use super::{Demographics, Field, Generate};
 use initiative_macros::WordList;
 use rand::prelude::*;
@@ -14,7 +13,7 @@ initiative_macros::uuid!();
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Place {
     pub uuid: Option<Uuid>,
-    pub parent_uuid: Field<RegionUuid>,
+    pub parent_uuid: Field<Uuid>,
     pub subtype: Field<PlaceType>,
 
     pub name: Field<String>,
@@ -208,7 +207,7 @@ mod test {
     fn oaken_mermaid_inn() -> Place {
         Place {
             uuid: Some(uuid::Uuid::nil().into()),
-            parent_uuid: RegionUuid::from(uuid::Uuid::nil()).into(),
+            parent_uuid: Uuid::from(uuid::Uuid::nil()).into(),
             subtype: PlaceType::Inn.into(),
 
             name: "Oaken Mermaid Inn".into(),

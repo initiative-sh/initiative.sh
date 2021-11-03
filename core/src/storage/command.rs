@@ -83,7 +83,7 @@ impl Runnable for StorageCommand {
                 }
 
                 let mut output = "# Journal".to_string();
-                let [mut npcs, mut places, mut regions] = [Vec::new(), Vec::new(), Vec::new()];
+                let [mut npcs, mut places] = [Vec::new(), Vec::new()];
 
                 let record_count = app_meta
                     .repository
@@ -91,7 +91,6 @@ impl Runnable for StorageCommand {
                     .map(|thing| match thing {
                         Thing::Npc(_) => npcs.push(thing),
                         Thing::Place(_) => places.push(thing),
-                        Thing::Region(_) => regions.push(thing),
                     })
                     .count();
 
@@ -114,7 +113,6 @@ impl Runnable for StorageCommand {
 
                 add_section("NPCs", npcs);
                 add_section("Places", places);
-                add_section("Regions", regions);
 
                 if record_count == 0 {
                     output.push_str("\n\n*Your journal is currently empty.*");
@@ -450,7 +448,6 @@ mod test {
     use crate::storage::NullDataStore;
     use crate::world::npc::{Age, Gender, Npc, Species};
     use crate::world::place::{Place, PlaceType};
-    use crate::world::Thing;
     use tokio_test::block_on;
     use uuid::Uuid;
 
@@ -525,38 +522,6 @@ mod test {
                     },
                 }
                 .summarize(Some(&npc), None, None),
-            );
-        }
-
-        {
-            let mut region = Thing::Region(Default::default());
-
-            assert_eq!(
-                "region (unsaved)",
-                StorageCommand::Load {
-                    name: String::new(),
-                }
-                .summarize(Some(&region), None, None),
-            );
-
-            region.set_uuid(Uuid::new_v4());
-
-            assert_eq!(
-                "region",
-                StorageCommand::Load {
-                    name: String::new(),
-                }
-                .summarize(Some(&region), None, None),
-            );
-
-            assert_eq!(
-                "save region to journal",
-                StorageCommand::Change {
-                    change: Change::Save {
-                        name: String::new(),
-                    }
-                }
-                .summarize(Some(&region), None, None),
             );
         }
 

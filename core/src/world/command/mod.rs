@@ -262,7 +262,6 @@ impl ContextAwareParse for WorldCommand {
                         Thing::Place(_) => description
                             .parse::<ParsedThing<Place>>()
                             .map(|npc| npc.into_thing()),
-                        Thing::Region(_) => unimplemented!(),
                     }
                     .or_else(|_| description.parse()),
                     Some(thing),
@@ -314,7 +313,6 @@ impl Autocomplete for WorldCommand {
                     Thing::Place(_) => {
                         Place::autocomplete(input[split_pos..].trim_start(), app_meta)
                     }
-                    Thing::Region(_) => unimplemented!(),
                 };
 
                 suggestions.reserve(edit_suggestions.len());

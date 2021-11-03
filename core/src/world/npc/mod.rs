@@ -28,7 +28,7 @@ pub struct Npc {
     pub size: Field<Size>,
     pub species: Field<Species>,
     pub ethnicity: Field<Ethnicity>,
-    // pub home: Field<RegionUuid>,
+    // pub home: Field<PlaceUuid>,
     // pub occupation: Field<Role>,
     // pub languages: Field<Vec<String>>,
     // pub parents: Field<Vec<Uuid>>,

@@ -1,14 +1,12 @@
 pub mod demographics;
 pub mod npc;
 pub mod place;
-pub mod region;
 
 pub use command::{ParsedThing, WorldCommand};
 pub use demographics::Demographics;
 pub use field::Field;
 pub use npc::Npc;
 pub use place::Place;
-pub use region::Region;
 pub use thing::Thing;
 
 mod command;
