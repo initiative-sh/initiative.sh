@@ -32,7 +32,7 @@ pub struct Place {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
-#[serde(untagged)]
+#[serde(into = "&'static str", try_from = "&str")]
 pub enum PlaceType {
     #[term = "place"]
     Any,
@@ -159,10 +159,38 @@ mod test {
 
     #[test]
     fn place_type_serialize_deserialize_test() {
-        assert_eq!(
-            r#""Inn""#,
-            serde_json::to_string(&"inn".parse::<PlaceType>().unwrap()).unwrap(),
-        );
+        {
+            let inn: PlaceType = "inn".parse().unwrap();
+            assert_eq!(r#""inn""#, serde_json::to_string(&inn).unwrap());
+            assert_eq!(inn, serde_json::from_str::<PlaceType>(r#""inn""#).unwrap());
+        }
+
+        {
+            let business: PlaceType = "business".parse().unwrap();
+            assert_eq!(r#""business""#, serde_json::to_string(&business).unwrap());
+            assert_eq!(
+                business,
+                serde_json::from_str::<PlaceType>(r#""business""#).unwrap()
+            );
+        }
+
+        {
+            let building: PlaceType = "building".parse().unwrap();
+            assert_eq!(r#""building""#, serde_json::to_string(&building).unwrap());
+            assert_eq!(
+                building,
+                serde_json::from_str::<PlaceType>(r#""building""#).unwrap(),
+            );
+        }
+
+        {
+            let place: PlaceType = "place".parse().unwrap();
+            assert_eq!(r#""place""#, serde_json::to_string(&place).unwrap());
+            assert_eq!(
+                place,
+                serde_json::from_str::<PlaceType>(r#""place""#).unwrap(),
+            );
+        }
     }
 
     #[test]
@@ -170,11 +198,11 @@ mod test {
         let place = oaken_mermaid_inn();
 
         assert_eq!(
-            r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"Inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#,
+            r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#,
             serde_json::to_string(&place).unwrap(),
         );
 
-        let value: Place = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"Inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
+        let value: Place = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
 
         assert_eq!(place, value);
     }

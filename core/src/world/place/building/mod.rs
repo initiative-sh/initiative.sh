@@ -12,7 +12,7 @@ use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
-#[serde(untagged)]
+#[serde(into = "&'static str", try_from = "&str")]
 pub enum BuildingType {
     #[term = "building"]
     Any,

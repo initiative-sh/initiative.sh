@@ -2,6 +2,57 @@ import Dexie from "dexie"
 
 const dexie = new Dexie("initiative")
 
+dexie.version(7).stores({
+  things: "&uuid, &name, type",
+  keyValue: "&key",
+}).upgrade((tx) => {
+  return tx.table("things").toCollection().modify((thing) => {
+    switch (thing.age) {
+      case "YoungAdult":
+        thing.age = "young-adult"
+        break
+      case "MiddleAged":
+        thing.age = "middle-aged"
+        break
+      default:
+        if (thing.age) {
+          thing.age = thing.age.toLowerCase()
+        }
+    }
+
+    if (thing.ethnicity) {
+      thing.ethnicity = thing.ethnicity.toLowerCase()
+    }
+
+    switch (thing.gender) {
+      case "NonBinaryThey":
+        thing.gender = "non-binary"
+        break
+      default:
+        if (thing.gender) {
+          thing.gender = thing.gender.toLowerCase()
+        }
+    }
+
+    switch (thing.species) {
+      case "HalfElf":
+        thing.species = "half-elf"
+        break
+      case "HalfOrc":
+        thing.species = "half-orc"
+        break
+      default:
+        if (thing.species) {
+          thing.species = thing.species.toLowerCase()
+        }
+    }
+
+    if (thing.subtype) {
+      thing.subtype = thing.subtype.toLowerCase()
+    }
+  })
+})
+
 dexie.version(6).stores({
   things: "&uuid, &name, type",
   keyValue: "&key",

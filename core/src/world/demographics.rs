@@ -400,7 +400,7 @@ mod test {
         let demographics = demographics();
 
         let value: Demographics = serde_json::from_str(
-            r#"{"groups":[["Gnome","Gnomish",50],["Human","Gnomish",20],["Human","Human",30]]}"#,
+            r#"{"groups":[["gnome","gnomish",50],["human","gnomish",20],["human","human",30]]}"#,
         )
         .unwrap();
         assert_eq!(demographics, value);

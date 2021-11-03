@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Copy, Clone, Debug, PartialEq, WordList, Serialize, Deserialize)]
+#[serde(into = "&'static str", try_from = "&str")]
 pub enum Gender {
     #[alias = "female"]
     #[alias = "woman"]
@@ -289,21 +290,21 @@ mod test {
     fn serialize_deserialize_test() {
         let [f, m, n, t] = variants();
 
-        assert_eq!("\"Feminine\"", serde_json::to_string(&f).unwrap());
-        assert_eq!("\"Masculine\"", serde_json::to_string(&m).unwrap());
-        assert_eq!("\"Neuter\"", serde_json::to_string(&n).unwrap());
-        assert_eq!("\"NonBinaryThey\"", serde_json::to_string(&t).unwrap());
+        assert_eq!("\"feminine\"", serde_json::to_string(&f).unwrap());
+        assert_eq!("\"masculine\"", serde_json::to_string(&m).unwrap());
+        assert_eq!("\"neuter\"", serde_json::to_string(&n).unwrap());
+        assert_eq!("\"non-binary\"", serde_json::to_string(&t).unwrap());
 
-        let value: Gender = serde_json::from_str("\"Feminine\"").unwrap();
+        let value: Gender = serde_json::from_str("\"feminine\"").unwrap();
         assert_eq!(f, value);
 
-        let value: Gender = serde_json::from_str("\"Masculine\"").unwrap();
+        let value: Gender = serde_json::from_str("\"masculine\"").unwrap();
         assert_eq!(m, value);
 
-        let value: Gender = serde_json::from_str("\"Neuter\"").unwrap();
+        let value: Gender = serde_json::from_str("\"neuter\"").unwrap();
         assert_eq!(n, value);
 
-        let value: Gender = serde_json::from_str("\"NonBinaryThey\"").unwrap();
+        let value: Gender = serde_json::from_str("\"non-binary\"").unwrap();
         assert_eq!(t, value);
     }
 

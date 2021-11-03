@@ -8,6 +8,7 @@ use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
+#[serde(into = "&'static str", try_from = "&str")]
 pub enum BusinessType {
     #[term = "business"]
     #[alias = "shop"]

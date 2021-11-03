@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, WordList, Serialize, Deserialize)]
+#[serde(into = "&'static str", try_from = "&str")]
 pub enum Ethnicity {
     Dragonborn,
     Dwarvish,
@@ -196,11 +197,11 @@ mod test {
     #[test]
     fn serialize_deserialize_test() {
         assert_eq!(
-            "\"Elvish\"",
+            "\"elvish\"",
             serde_json::to_string(&Ethnicity::Elvish).unwrap()
         );
 
-        let value: Ethnicity = serde_json::from_str("\"Elvish\"").unwrap();
+        let value: Ethnicity = serde_json::from_str("\"elvish\"").unwrap();
         assert_eq!(Ethnicity::Elvish, value);
     }
 

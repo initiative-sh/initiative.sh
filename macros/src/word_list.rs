@@ -122,6 +122,14 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
                 }
             }
 
+            impl std::convert::TryFrom<&str> for #name {
+                type Error = &'static str;
+
+                fn try_from(value: &str) -> Result<Self, Self::Error> {
+                    value.parse().map_err(|_| "Not a recognized variant.")
+                }
+            }
+
             impl From<#name> for &'static str {
                 fn from(variant: #name) -> &'static str {
                     variant.as_str()
