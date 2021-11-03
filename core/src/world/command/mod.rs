@@ -494,12 +494,12 @@ mod test {
         let app_meta = AppMeta::new(NullDataStore::default());
 
         assert_eq!(
-            (None, vec![create(Npc::default())],),
+            (None, vec![create(Npc::default())]),
             WorldCommand::parse_input("npc", &app_meta),
         );
 
         assert_eq!(
-            (Some(create(Npc::default())), Vec::new(),),
+            (Some(create(Npc::default())), Vec::new()),
             WorldCommand::parse_input("create npc", &app_meta),
         );
 
@@ -596,18 +596,27 @@ mod test {
             )
         });
 
-        {
-            let expected = vec![
-                ("baby".to_string(), "create infant".to_string()),
-                ("bar".to_string(), "create inn".to_string()),
-                ("boy".to_string(), "create child, he/him".to_string()),
-            ];
-
-            let mut actual = WorldCommand::autocomplete("b", &app_meta);
-            actual.sort();
-
-            assert_eq!(expected, actual);
-        }
+        assert_autocomplete(
+            &[
+                ("baby", "create infant"),
+                ("bakery", "create bakery"),
+                ("bank", "create bank"),
+                ("bar", "create tavern"),
+                ("barony", "create barony"),
+                ("barracks", "create barracks"),
+                ("barrens", "create barrens"),
+                ("base", "create base"),
+                ("bathhouse", "create bathhouse"),
+                ("beach", "create beach"),
+                ("blacksmith", "create blacksmith"),
+                ("boy", "create child, he/him"),
+                ("brewery", "create brewery"),
+                ("bridge", "create bridge"),
+                ("building", "create building"),
+                ("business", "create business"),
+            ][..],
+            WorldCommand::autocomplete("b", &app_meta),
+        );
 
         assert_autocomplete(
             &[(
@@ -642,7 +651,7 @@ mod test {
 
         vec![
             create(Place {
-                subtype: PlaceType::Inn.into(),
+                subtype: "inn".parse::<PlaceType>().ok().into(),
                 ..Default::default()
             }),
             create(Npc::default()),

@@ -14,6 +14,8 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
         let mut from_str_if_cases = Vec::new();
         let mut as_str_cases = Vec::new();
         let mut words = Vec::new();
+        let mut words_chain = Vec::new();
+        let mut word_count_chain = Vec::new();
 
         data_enum.variants.iter().try_for_each(|variant| {
             let ident = &variant.ident;
@@ -63,12 +65,16 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
                         return Err("Only single-variant tuple enums are supported.".to_string());
                     }
 
+                    let field_type = &fields.unnamed.first().unwrap().ty;
+
                     as_str_cases.push(quote! { #name::#ident(value) => value.as_str(), });
                     from_str_if_cases.push(quote! {
                         if let Ok(value) = input.parse() {
                             Ok(#name::#ident(value))
                         } else
                     });
+                    words_chain.push(quote! { .chain(#field_type::get_words()) });
+                    word_count_chain.push(quote! { + #field_type::word_count() });
                 }
                 syn::Fields::Named(_) => {
                     return Err("Named enum variants are not supported.".to_string())
@@ -78,18 +84,26 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
             Result::<(), String>::Ok(())
         })?;
 
+        let word_count = words.len();
+
         let gen = quote! {
             impl #name {
-                pub fn get_words() -> &'static [&'static str] {
-                    &[
+                pub fn get_words() -> impl Iterator<Item = &'static str> {
+                    [
                         #(#words)*
                     ]
+                    .into_iter()
+                    #(#words_chain)*
                 }
 
-                pub fn as_str(&self) -> &'static str {
+                pub const fn as_str(&self) -> &'static str {
                     match self {
                         #(#as_str_cases)*
                     }
+                }
+
+                pub const fn word_count() -> usize {
+                    #word_count #(#word_count_chain)*
                 }
             }
 

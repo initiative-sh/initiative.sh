@@ -1,3 +1,7 @@
+* **Enhancement:** Added tons of new place types, from `kingdom` to `pet-store`
+  and everything in between (183 types and aliases in total). However, lacking
+  name generators for all of these new types, their current purpose is just to
+  make it easier to keep a coherent `journal`.
 * **Bug:** Fixed the "more" command not being available when generating a
   `person` or `place` in a browser that lacks IndexedDB, such as an older
   browser or one with private browsing active.

@@ -455,7 +455,7 @@ mod test {
     fn summarize_test() {
         {
             let mut place = Place {
-                subtype: PlaceType::Inn.into(),
+                subtype: "inn".parse::<PlaceType>().ok().into(),
                 ..Default::default()
             }
             .into();
@@ -666,7 +666,7 @@ mod test {
             app_meta.repository.modify(Change::Create {
                 thing: Place {
                     name: "Potato & Meat".into(),
-                    subtype: PlaceType::Inn.into(),
+                    subtype: "inn".parse::<PlaceType>().ok().into(),
                     ..Default::default()
                 }
                 .into(),

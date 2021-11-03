@@ -1,6 +1,7 @@
 use initiative_macros::WordList;
+use serde::{Deserialize, Serialize};
 
-#[derive(WordList)]
+#[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
 pub enum LandmarkType {
     Farm,
     Fountain,

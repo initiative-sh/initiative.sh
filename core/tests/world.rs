@@ -11,8 +11,8 @@ fn results_are_random() {
     );
 
     assert_ne!(
-        sync_app().command("building").unwrap(),
-        sync_app().command("building").unwrap(),
+        sync_app().command("inn").unwrap(),
+        sync_app().command("inn").unwrap(),
     );
 }
 

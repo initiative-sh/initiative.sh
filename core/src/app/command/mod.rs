@@ -325,8 +325,15 @@ mod test {
         let expected = [
             ("date", "get the current time"),
             ("delete [name]", "remove an entry from journal"),
+            ("desert", "create desert"),
+            ("distillery", "create distillery"),
+            ("district", "create district"),
+            ("domain", "create domain"),
             ("dragonborn", "create dragonborn"),
             ("druidic foci", "SRD item category"),
+            ("duchy", "create duchy"),
+            ("duty-house", "create duty-house"),
+            // ("dungeon", "create dungeon"),
             ("dwarf", "create dwarf"),
             ("dwarvish", "create dwarvish person"),
         ]
