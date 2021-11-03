@@ -1,6 +1,7 @@
 mod common;
 
-use common::sync_app;
+use common::{sync_app, sync_app_with_data_store};
+use initiative_core::NullDataStore;
 
 const TUTORIAL_STEPS: usize = 16;
 
@@ -16,6 +17,37 @@ fn happy_path() {
     for i in 0..100 {
         println!("> {}\n", command);
         let output = app.command(&command).unwrap();
+        println!("{}", output);
+
+        let tutorial_pos = output.find("# Tutorial").unwrap();
+
+        if output.contains("# Tutorial: Conclusion") {
+            assert_eq!(TUTORIAL_STEPS - 2, i);
+            return;
+        }
+
+        command = output[tutorial_pos..]
+            .split(&['`', '~'][..])
+            .nth(1)
+            .unwrap()
+            .to_string();
+    }
+
+    panic!("Broke out of infinite loop!");
+}
+
+#[test]
+fn works_without_local_storage() {
+    let mut app = sync_app_with_data_store(NullDataStore::default());
+
+    let output = app.command("tutorial").unwrap();
+    println!("{}", output);
+
+    let mut command = "next".to_string();
+
+    for i in 0..100 {
+        println!("> {}\n", command);
+        let output = app.command(&command).unwrap_or_else(|e| e);
         println!("{}", output);
 
         let tutorial_pos = output.find("# Tutorial").unwrap();

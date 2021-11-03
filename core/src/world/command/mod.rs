@@ -45,7 +45,7 @@ impl Runnable for WorldCommand {
                     let mut thing = diff.clone();
                     thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
                     let mut temp_output = format!("{}", thing.display_details());
-                    let mut command_aliases = None;
+                    let mut command_alias = None;
 
                     let change = if app_meta.repository.data_store_enabled() {
                         match thing.name() {
@@ -65,32 +65,44 @@ impl Runnable for WorldCommand {
                                     them = thing.gender().them(),
                                 ));
 
-                                command_aliases = Some([
-                                    CommandAlias::literal(
-                                        "save".to_string(),
-                                        format!("save {}", name),
-                                        StorageCommand::Change {
-                                            change: Change::Save {
-                                                name: name.to_string(),
-                                            },
-                                        }
-                                        .into(),
-                                    ),
-                                    CommandAlias::literal(
-                                        "more".to_string(),
-                                        format!("create {}", diff.display_description()),
-                                        WorldCommand::CreateMultiple {
-                                            thing: diff.clone(),
-                                        }
-                                        .into(),
-                                    ),
-                                ]);
+                                command_alias = Some(CommandAlias::literal(
+                                    "save".to_string(),
+                                    format!("save {}", name),
+                                    StorageCommand::Change {
+                                        change: Change::Save {
+                                            name: name.to_string(),
+                                        },
+                                    }
+                                    .into(),
+                                ));
+
+                                app_meta.command_aliases.insert(CommandAlias::literal(
+                                    "more".to_string(),
+                                    format!("create {}", diff.display_description()),
+                                    WorldCommand::CreateMultiple {
+                                        thing: diff.clone(),
+                                    }
+                                    .into(),
+                                ));
 
                                 Change::Create { thing }
                             }
                             _ => Change::Create { thing },
                         }
                     } else {
+                        if matches!(thing.name(), Field::Unlocked(Some(_))) {
+                            temp_output.push_str("\n\n_For more suggestions, type ~more~._");
+
+                            app_meta.command_aliases.insert(CommandAlias::literal(
+                                "more".to_string(),
+                                format!("create {}", diff.display_description()),
+                                WorldCommand::CreateMultiple {
+                                    thing: diff.clone(),
+                                }
+                                .into(),
+                            ));
+                        }
+
                         Change::Create { thing }
                     };
 
@@ -98,10 +110,8 @@ impl Runnable for WorldCommand {
                         Ok(_) => {
                             output = Some(temp_output);
 
-                            if let Some(command_aliases) = command_aliases {
-                                command_aliases.into_iter().for_each(|alias| {
-                                    app_meta.command_aliases.insert(alias);
-                                });
+                            if let Some(alias) = command_alias {
+                                app_meta.command_aliases.insert(alias);
                             }
 
                             break;
