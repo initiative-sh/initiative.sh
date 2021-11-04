@@ -19,6 +19,9 @@ pub enum BusinessType {
     Armorer,
     Bakery,
     Bank,
+    #[alias = "nightclub"]
+    #[alias = "pub"]
+    Bar,
     Bathhouse,
     Blacksmith,
     Brewery,
@@ -34,6 +37,10 @@ pub enum BusinessType {
     GeneralStore,
     GuildHall,
     ImportsShop,
+    #[alias = "caravansary"]
+    #[alias = "hotel"]
+    #[alias = "lodge"]
+    #[alias = "tavern"]
     Inn,
     Jeweller,
     Lumberyard,
@@ -45,9 +52,6 @@ pub enum BusinessType {
     SpecialtyShop,
     SpiritsShop,
     Stable,
-    #[alias = "bar"]
-    #[alias = "nightclub"]
-    Tavern,
     TextilesShop,
     Theater,
     TradingPost,

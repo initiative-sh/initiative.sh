@@ -23,7 +23,6 @@ pub enum BuildingType {
     Military(military::MilitaryType),
     Religious(religious::ReligiousType),
     #[alias = "house"]
-    #[alias = "lodge"]
     #[alias = "manor"]
     #[alias = "mansion"]
     Residence,
