@@ -609,7 +609,7 @@ mod test {
                 ("baby", "create infant"),
                 ("bakery", "create bakery"),
                 ("bank", "create bank"),
-                ("bar", "create tavern"),
+                ("bar", "create bar"),
                 ("barony", "create barony"),
                 ("barracks", "create barracks"),
                 ("barrens", "create barrens"),

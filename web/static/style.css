@@ -173,7 +173,7 @@ body {
 #output .thing-box {
     background: var(--solarized-scheme01);
     box-shadow: var(--solarized-scheme2) 2ch 1rem;
-    color: var(--solarized-scheme3);
+    color: var(--solarized-base3);
     max-width: 50ch;
 }
 
@@ -205,6 +205,7 @@ body {
 #prompt {
     background: none;
     border: none;
+    color: var(--solarized-scheme02);
     font-weight: bold;
     height: 1.2rem;
     margin-bottom: 0;

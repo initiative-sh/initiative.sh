@@ -1,3 +1,5 @@
+* **Bug:** Fix the text colour of the input box when browsing in dark mode.
+  Black on black is hard to read, I guess???
 * **Enhancement:** Minor updates to vocabulary (somehow I missed `hotel` and
   `pub`, both of which I ran into during last night's game). I've also added a
   [Buy Me a Coffee](https://www.buymeacoffee.com/initiative) link for those who
