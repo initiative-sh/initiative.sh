@@ -1,3 +1,8 @@
+* **Enhancement:** Minor updates to vocabulary (somehow I missed `hotel` and
+  `pub`, both of which I ran into during last night's game). I've also added a
+  [Buy Me a Coffee](https://www.buymeacoffee.com/initiative) link for those who
+  would like to support development, though I currently have no premium features
+  to offer supporters. Just the same site with extra gratitude!
 * **Enhancement:** Added tons of new place types, from `kingdom` to `pet-store`
   and everything in between (183 types and aliases in total). However, lacking
   name generators for all of these new types, their current purpose is just to
