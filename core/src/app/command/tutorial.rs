@@ -5,6 +5,7 @@ use crate::app::{
 use crate::reference::{ItemCategory, ReferenceCommand, Spell};
 use crate::storage::{Change, StorageCommand};
 use crate::time::TimeCommand;
+use crate::utils::CaseInsensitiveStr;
 use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
 use crate::world::{ParsedThing, Thing, WorldCommand};
 use async_trait::async_trait;
@@ -272,18 +273,27 @@ impl TutorialCommand {
         }
     }
 
-    fn is_correct_command(&self, input: &str, command: Option<&CommandType>) -> bool {
+    fn is_correct_command(&self, command: Option<&CommandType>) -> bool {
         match self {
             Self::Cancel { .. } | Self::Resume => false,
             Self::Introduction | Self::Restart { .. } => true,
             Self::Inn => matches!(command, Some(CommandType::Tutorial(Self::Inn))),
-            Self::Save => input == "inn",
+            Self::Save => {
+                if let Some(CommandType::World(WorldCommand::Create {
+                    thing: parsed_thing,
+                })) = command
+                {
+                    parsed_thing.thing == "inn".parse::<ParsedThing<Thing>>().unwrap().thing
+                } else {
+                    false
+                }
+            }
             Self::Npc { inn_name } => {
                 if let Some(CommandType::Storage(StorageCommand::Change {
                     change: Change::Save { name },
                 })) = command
                 {
-                    name == inn_name
+                    name.eq_ci(inn_name)
                 } else {
                     false
                 }
@@ -326,7 +336,7 @@ impl TutorialCommand {
             }
             Self::Editing { npc_name, .. } => {
                 if let Some(CommandType::Storage(StorageCommand::Load { name })) = command {
-                    name == npc_name
+                    name.eq_ci(npc_name)
                 } else {
                     false
                 }
@@ -342,7 +352,7 @@ impl TutorialCommand {
                         },
                 })) = command
                 {
-                    name == npc_name
+                    name.eq_ci(npc_name)
                         && thing.npc()
                             == Some(&Npc {
                                 species: Species::HalfElf.into(),
@@ -357,7 +367,7 @@ impl TutorialCommand {
             }
             Self::Spell { npc_name, .. } => {
                 if let Some(CommandType::Storage(StorageCommand::Load { name })) = command {
-                    name == npc_name
+                    name.eq_ci(npc_name)
                 } else {
                     false
                 }
@@ -384,7 +394,7 @@ impl TutorialCommand {
                     change: Change::Delete { name, .. },
                 })) = command
                 {
-                    name == inn_name
+                    name.eq_ci(inn_name)
                 } else {
                     false
                 }
@@ -432,7 +442,7 @@ impl Runnable for TutorialCommand {
 
         app_meta.command_aliases.clear();
 
-        let (result, next_command) = if self.is_correct_command(input, input_command.get_type()) {
+        let (result, next_command) = if self.is_correct_command(input_command.get_type()) {
             match self {
                 Self::Cancel { .. } | Self::Resume => unreachable!(),
                 Self::Introduction | Self::Restart { .. } => {
@@ -687,7 +697,7 @@ impl Runnable for TutorialCommand {
 impl ContextAwareParse for TutorialCommand {
     fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         (
-            if input == "tutorial" {
+            if input.eq_ci("tutorial") {
                 Some(TutorialCommand::Introduction)
             } else {
                 None
@@ -699,7 +709,7 @@ impl ContextAwareParse for TutorialCommand {
 
 impl Autocomplete for TutorialCommand {
     fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
-        if "tutorial".starts_with(input) {
+        if "tutorial".starts_with_ci(input) {
             vec![("tutorial".to_string(), "feature walkthrough".to_string())]
         } else {
             Vec::new()

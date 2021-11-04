@@ -1,4 +1,5 @@
 use crate::app::{autocomplete_phrase, AppMeta, Autocomplete, ContextAwareParse, Runnable};
+use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use caith::Roller;
 use initiative_macros::changelog;
@@ -63,19 +64,23 @@ impl ContextAwareParse for AppCommand {
         let mut fuzzy_matches = Vec::new();
 
         (
-            match input {
-                "about" => Some(Self::About),
-                "changelog" => Some(Self::Changelog),
-                "debug" => Some(Self::Debug),
-                "help" => Some(Self::Help),
-                s if s.starts_with("roll ") => Some(Self::Roll(s[5..].to_string())),
-                s if !s.chars().all(|c| c.is_ascii_digit())
-                    && Roller::new(s).map_or(false, |r| r.roll().is_ok()) =>
-                {
-                    fuzzy_matches.push(Self::Roll(s.to_string()));
-                    None
-                }
-                _ => None,
+            if input.eq_ci("about") {
+                Some(Self::About)
+            } else if input.eq_ci("changelog") {
+                Some(Self::Changelog)
+            } else if input.eq_ci("debug") {
+                Some(Self::Debug)
+            } else if input.eq_ci("help") {
+                Some(Self::Help)
+            } else if input.starts_with_ci("roll ") {
+                Some(Self::Roll(input[5..].to_string()))
+            } else if !input.chars().all(|c| c.is_ascii_digit())
+                && Roller::new(input).map_or(false, |r| r.roll().is_ok())
+            {
+                fuzzy_matches.push(Self::Roll(input.to_string()));
+                None
+            } else {
+                None
             },
             fuzzy_matches,
         )
@@ -94,7 +99,7 @@ impl Autocomplete for AppCommand {
             .chain(
                 ["roll"]
                     .iter()
-                    .filter(|s| s.starts_with(input))
+                    .filter(|s| s.starts_with_ci(input))
                     .filter_map(|s| {
                         let suggestion = format!("{} [dice]", s);
                         Self::parse_input(&suggestion, app_meta)
@@ -174,12 +179,22 @@ mod test {
             assert_eq!(
                 vec![(word.to_string(), summary.to_string())],
                 AppCommand::autocomplete(word, &app_meta),
-            )
+            );
+
+            assert_eq!(
+                AppCommand::autocomplete(word, &app_meta),
+                AppCommand::autocomplete(&word.to_uppercase(), &app_meta),
+            );
         });
 
         assert_eq!(
             vec![("about".to_string(), "about initiative.sh".to_string())],
             AppCommand::autocomplete("a", &app_meta),
+        );
+
+        assert_eq!(
+            vec![("about".to_string(), "about initiative.sh".to_string())],
+            AppCommand::autocomplete("A", &app_meta),
         );
 
         assert_eq!(
@@ -206,18 +221,37 @@ mod test {
             AppCommand::Changelog,
             AppCommand::Debug,
             AppCommand::Help,
-            AppCommand::Roll("d20".to_string()),
         ]
         .drain(..)
         .for_each(|command| {
             let command_string = command.to_string();
             assert_ne!("", command_string);
+
             assert_eq!(
-                (Some(command), Vec::new()),
+                (Some(command.clone()), Vec::new()),
                 AppCommand::parse_input(&command_string, &app_meta),
                 "{}",
                 command_string,
             );
+
+            assert_eq!(
+                (Some(command), Vec::new()),
+                AppCommand::parse_input(&command_string.to_uppercase(), &app_meta),
+                "{}",
+                command_string.to_uppercase(),
+            );
         });
+
+        assert_eq!("roll d20", AppCommand::Roll("d20".to_string()).to_string());
+
+        assert_eq!(
+            (Some(AppCommand::Roll("d20".to_string())), Vec::new()),
+            AppCommand::parse_input("roll d20", &app_meta),
+        );
+
+        assert_eq!(
+            (Some(AppCommand::Roll("D20".to_string())), Vec::new()),
+            AppCommand::parse_input("ROLL D20", &app_meta),
+        );
     }
 }

@@ -56,9 +56,10 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
 
             match &variant.fields {
                 syn::Fields::Unit => {
+                    let term_lc = term.to_lowercase();
                     words.push(quote! { #term, });
                     as_str_cases.push(quote! { #name::#ident => #term, });
-                    from_str_match_cases.push(quote! { #term => Ok(#name::#ident), });
+                    from_str_match_cases.push(quote! { #term_lc => Ok(#name::#ident), });
                 }
                 syn::Fields::Unnamed(fields) => {
                     if fields.unnamed.len() != 1 {
@@ -69,7 +70,7 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
 
                     as_str_cases.push(quote! { #name::#ident(value) => value.as_str(), });
                     from_str_if_cases.push(quote! {
-                        if let Ok(value) = input.parse() {
+                        if let Ok(value) = #field_type::parse_cs(input) {
                             Ok(#name::#ident(value))
                         } else
                     });
@@ -105,12 +106,8 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
                 pub const fn word_count() -> usize {
                     #word_count #(#word_count_chain)*
                 }
-            }
 
-            impl std::str::FromStr for #name {
-                type Err = ();
-
-                fn from_str(input: &str) -> Result<#name, ()> {
+                pub fn parse_cs(input: &str) -> Result<Self, ()> {
                     #(#from_str_if_cases)*
 
                     {
@@ -118,6 +115,18 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
                             #(#from_str_match_cases)*
                             _ => Err(()),
                         }
+                    }
+                }
+            }
+
+            impl std::str::FromStr for #name {
+                type Err = ();
+
+                fn from_str(input: &str) -> Result<#name, ()> {
+                    if input.chars().any(char::is_uppercase) {
+                        Self::parse_cs(&input.to_lowercase())
+                    } else {
+                        Self::parse_cs(input)
                     }
                 }
             }

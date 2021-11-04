@@ -1,5 +1,6 @@
 use super::{Autocomplete, Command, ContextAwareParse, Runnable};
 use crate::app::AppMeta;
+use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -43,7 +44,13 @@ impl CommandAlias {
 impl Hash for CommandAlias {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            Self::Literal { term, .. } => term.hash(state),
+            Self::Literal { term, .. } => {
+                if term.chars().any(char::is_uppercase) {
+                    term.to_lowercase().hash(state);
+                } else {
+                    term.hash(state);
+                }
+            }
             Self::StrictWildcard { .. } => {}
         }
     }
@@ -57,7 +64,7 @@ impl PartialEq for CommandAlias {
                 Self::Literal {
                     term: other_term, ..
                 },
-            ) => term == other_term,
+            ) => term.eq_ci(other_term),
             (Self::StrictWildcard { .. }, Self::StrictWildcard { .. }) => true,
             _ => false,
         }
@@ -111,7 +118,7 @@ impl ContextAwareParse for CommandAlias {
                         .command_aliases
                         .iter()
                         .find(|command| match command {
-                            Self::Literal { term, .. } => term == input,
+                            Self::Literal { term, .. } => term.eq_ci(input),
                             Self::StrictWildcard { .. } => false,
                         })
                 })
@@ -128,7 +135,7 @@ impl Autocomplete for CommandAlias {
             .iter()
             .filter_map(|command| match command {
                 Self::Literal { term, summary, .. } => {
-                    if term.starts_with(input) {
+                    if term.starts_with_ci(input) {
                         Some((term.clone(), summary.clone()))
                     } else {
                         None
@@ -162,7 +169,7 @@ mod tests {
     use tokio_test::block_on;
 
     #[test]
-    fn literal_test() {
+    fn literal_constructor_test() {
         let alias = CommandAlias::literal(
             "term".to_string(),
             "summary".to_string(),
@@ -184,7 +191,7 @@ mod tests {
     }
 
     #[test]
-    fn wildcard_test() {
+    fn wildcard_constructor_test() {
         let alias = CommandAlias::strict_wildcard(AppCommand::About.into());
 
         if let CommandAlias::StrictWildcard { command } = alias {
@@ -223,6 +230,7 @@ mod tests {
         assert!(set.insert(literal("bar", "", AppCommand::About.into())));
         assert!(set.insert(strict_wildcard(AppCommand::About.into())));
         assert!(!set.insert(literal("foo", "", AppCommand::Help.into())));
+        assert!(!set.insert(literal("FOO", "", AppCommand::Help.into())));
         assert!(!set.insert(strict_wildcard(AppCommand::Help.into())));
     }
 
@@ -241,6 +249,11 @@ mod tests {
         assert_eq!(
             vec![("about alias".to_string(), "about summary".to_string())],
             CommandAlias::autocomplete("a", &app_meta),
+        );
+
+        assert_eq!(
+            CommandAlias::autocomplete("a", &app_meta),
+            CommandAlias::autocomplete("A", &app_meta),
         );
 
         assert_eq!(

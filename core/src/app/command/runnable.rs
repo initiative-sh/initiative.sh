@@ -1,4 +1,5 @@
 use crate::app::AppMeta;
+use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 
 #[async_trait(?Send)]
@@ -22,7 +23,7 @@ pub fn autocomplete_phrase(
         Vec::new()
     } else {
         let mut suggestions: Vec<String> = vocabulary
-            .filter(|word| word.starts_with(input))
+            .filter(|word| word.starts_with_ci(input))
             .map(|&s| s.to_string())
             .collect();
 
@@ -89,7 +90,7 @@ mod test {
         );
 
         assert_eq!(
-            vec!["Tamarillo", "Turkey berry"],
+            vec!["Tamarillo", "Turkey berry", "tomato"],
             autocomplete_phrase("T", &mut words.iter()),
         );
 

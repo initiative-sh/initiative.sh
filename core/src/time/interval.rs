@@ -85,7 +85,7 @@ impl FromStr for Interval {
                         if part.is_empty() {
                             Ok(())
                         } else if let Some((part_index, c)) = part.char_indices().last() {
-                            if !used_chars.insert(c) {
+                            if !used_chars.insert(c.to_ascii_lowercase()) {
                                 return Err(());
                             }
 
@@ -100,11 +100,11 @@ impl FromStr for Interval {
                             };
 
                             match c {
-                                'd' => interval += Self::new_days(value),
-                                'h' => interval += Self::new_hours(value),
-                                'm' => interval += Self::new_minutes(value),
-                                's' => interval += Self::new_seconds(value),
-                                'r' => interval += Self::new_rounds(value),
+                                'd' | 'D' => interval += Self::new_days(value),
+                                'h' | 'H' => interval += Self::new_hours(value),
+                                'm' | 'M' => interval += Self::new_minutes(value),
+                                's' | 'S' => interval += Self::new_seconds(value),
+                                'r' | 'R' => interval += Self::new_rounds(value),
                                 _ => return Err(()),
                             }
 
@@ -216,11 +216,23 @@ mod test {
         assert_eq!(Ok(seconds(10)), "10s".parse());
         assert_eq!(Ok(rounds(10)), "10r".parse());
 
+        assert_eq!(Ok(days(10)), "10D".parse());
+        assert_eq!(Ok(hours(10)), "10H".parse());
+        assert_eq!(Ok(minutes(10)), "10M".parse());
+        assert_eq!(Ok(seconds(10)), "10S".parse());
+        assert_eq!(Ok(rounds(10)), "10R".parse());
+
         assert_eq!(Ok(days(1)), "d".parse());
         assert_eq!(Ok(hours(1)), "h".parse());
         assert_eq!(Ok(minutes(1)), "m".parse());
         assert_eq!(Ok(seconds(1)), "s".parse());
         assert_eq!(Ok(rounds(1)), "r".parse());
+
+        assert_eq!(Ok(days(1)), "D".parse());
+        assert_eq!(Ok(hours(1)), "H".parse());
+        assert_eq!(Ok(minutes(1)), "M".parse());
+        assert_eq!(Ok(seconds(1)), "S".parse());
+        assert_eq!(Ok(rounds(1)), "R".parse());
 
         assert_eq!(Ok(days(0)), "0d".parse());
         assert_eq!(Ok(days(1)), "01d".parse());

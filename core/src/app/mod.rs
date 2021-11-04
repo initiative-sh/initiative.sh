@@ -7,6 +7,7 @@ pub use meta::AppMeta;
 mod command;
 mod meta;
 
+use crate::utils::CaseInsensitiveStr;
 use initiative_macros::motd;
 
 pub struct App {
@@ -37,7 +38,8 @@ impl App {
 
     pub async fn autocomplete(&self, input: &str) -> Vec<(String, String)> {
         let mut suggestions: Vec<_> = Command::autocomplete(input, &self.meta);
-        suggestions.sort_by(|(a, _), (b, _)| a.cmp(b));
+        suggestions.sort_by(|(a, _), (b, _)| a.cmp_ci(b));
+        suggestions.truncate(10);
         suggestions
     }
 }

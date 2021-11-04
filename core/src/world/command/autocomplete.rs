@@ -1,6 +1,6 @@
 use super::ParsedThing;
 use crate::app::{AppMeta, Autocomplete};
-use crate::utils::quoted_words;
+use crate::utils::{quoted_words, CaseInsensitiveStr};
 use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
 use crate::world::place::{Place, PlaceType};
 use crate::world::Thing;
@@ -11,12 +11,21 @@ struct ParsedInput<'a> {
     name_desc: &'a str,
     name: &'a str,
     desc: &'a str,
+    desc_lower: Option<String>,
     partial: &'a str,
 }
 
 impl<'a> ParsedInput<'a> {
     fn suggestion(&self, suggestion: &str) -> String {
         format!("{}{}", self.name_desc, suggestion)
+    }
+
+    fn desc_lower(&self) -> &str {
+        if let Some(s) = &self.desc_lower {
+            s.as_str()
+        } else {
+            self.desc
+        }
     }
 }
 
@@ -42,10 +51,17 @@ impl<'a> From<&'a str> for ParsedInput<'a> {
                 .map_or_else(|| input.len(), |word| word.range().start)
         };
 
+        let desc = &input[name_desc_split..desc_partial_split];
+
         Self {
             name_desc: &input[..desc_partial_split],
             name: &input[..name_desc_split],
-            desc: &input[name_desc_split..desc_partial_split],
+            desc,
+            desc_lower: if desc.chars().any(char::is_uppercase) {
+                Some(desc.to_lowercase())
+            } else {
+                None
+            },
             partial: &input[desc_partial_split..],
         }
     }
@@ -54,7 +70,7 @@ impl<'a> From<&'a str> for ParsedInput<'a> {
 fn autocomplete_trailing_name<T: FromStr + Into<Thing>>(input: &str) -> Option<(String, String)> {
     if !quoted_words(input)
         .skip(1)
-        .any(|word| ["named", "called"].contains(&word.as_str()))
+        .any(|word| word.as_str().in_ci(&["named", "called"]))
     {
         return None;
     }
@@ -62,7 +78,7 @@ fn autocomplete_trailing_name<T: FromStr + Into<Thing>>(input: &str) -> Option<(
     let mut input_iter = input.split_inclusive(char::is_whitespace).rev();
     let len_named = input_iter
         .find_map(|s| {
-            if ["named", "called"].contains(&s.trim()) {
+            if s.trim().in_ci(&["named", "called"]) {
                 Some(s.len())
             } else {
                 None
@@ -104,9 +120,9 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
 
     let parsed: ParsedInput = input.into();
 
-    if parsed.partial.is_empty() || ARTICLES.contains(&parsed.partial) {
+    if parsed.partial.is_empty() || parsed.partial.in_ci(ARTICLES) {
         // Ends with a space or ignored word - suggest new word categories
-        if quoted_words(parsed.desc).all(|word| ARTICLES.contains(&word.as_str())) {
+        if quoted_words(parsed.desc).all(|word| word.as_str().in_ci(ARTICLES)) {
             let thing: Thing = T::default().into();
 
             let suggestion = format!(
@@ -127,8 +143,8 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
         } else if let Ok(thing) = parsed.name_desc.parse::<T>().map(|t| t.into()) {
             let mut suggestions = Vec::new();
 
-            let words: HashSet<&str> = quoted_words(parsed.desc)
-                .map(|w| w.as_own_str(parsed.desc))
+            let words: HashSet<&str> = quoted_words(parsed.desc_lower())
+                .map(|w| w.as_own_str(parsed.desc_lower()))
                 .collect();
 
             if thing.name().is_none() {
@@ -154,9 +170,9 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
     } else if !parsed.desc.is_empty() {
         // Multiple words: make suggestions if existing words made sense.
         let words: HashSet<&str> = {
-            quoted_words(parsed.desc)
-                .map(|w| w.as_own_str(parsed.desc))
-                .filter(|s| s != &parsed.partial && !ARTICLES.contains(s))
+            quoted_words(parsed.desc_lower())
+                .map(|w| w.as_own_str(parsed.desc_lower()))
+                .filter(|s| s != &parsed.partial && !s.in_ci(ARTICLES))
                 .collect()
         };
 
@@ -166,7 +182,7 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
                 .filter(|(_, _, terms)| !terms.iter().any(|term| words.contains(term)))
                 .flat_map(|(_, _, terms)| terms.iter())
                 .chain(basic_terms.iter().filter(|term| !words.contains(*term)))
-                .filter(|term| term.starts_with(parsed.partial))
+                .filter(|term| term.starts_with_ci(parsed.partial))
                 .map(|term| parsed.suggestion(term))
                 .filter_map(|suggestion| {
                     if let Ok(thing) = suggestion.parse::<T>().map(|t| t.into()) {
@@ -185,7 +201,7 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
                         &[][..]
                     }
                     .iter()
-                    .filter(|s| s.starts_with(parsed.partial))
+                    .filter(|s| s.starts_with_ci(parsed.partial))
                     .map(|s| (parsed.suggestion(s), "specify a name".to_string())),
                 )
                 .collect::<HashSet<_>>()
@@ -200,7 +216,7 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
             .iter()
             .flat_map(|(_, _, terms)| terms.iter())
             .chain(basic_terms.iter())
-            .filter(|s| s.starts_with(parsed.partial))
+            .filter(|s| s.starts_with_ci(parsed.partial))
             .filter_map(|term| {
                 let suggestion = parsed.suggestion(term);
                 suggestion.parse::<T>().ok().map(|thing| {
@@ -235,7 +251,7 @@ impl Autocomplete for Npc {
         if let Some(word) = quoted_words(input).last().filter(|w| {
             let s = w.as_str();
             s.starts_with(|c: char| c.is_ascii_digit())
-                && "-year-old".starts_with(s.trim_start_matches(|c: char| c.is_ascii_digit()))
+                && "-year-old".starts_with_ci(s.trim_start_matches(|c: char| c.is_ascii_digit()))
         }) {
             let suggestion = {
                 let word_str = word.as_str();
@@ -306,6 +322,7 @@ mod test {
                 name_desc: "Foo, an ",
                 name: "Foo, ",
                 desc: "an ",
+                desc_lower: None,
                 partial: "i",
             }
             .suggestion("inn"),

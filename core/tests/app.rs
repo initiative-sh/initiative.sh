@@ -12,18 +12,16 @@ fn about() {
 fn autocomplete_command() {
     assert_eq!(
         [
+            ("Dagger", "SRD item"),
+            ("Dagger Of Venom", "SRD magic item"),
+            ("Dancing Lights", "SRD spell"),
+            ("Dancing Sword", "SRD magic item"),
+            ("Darkness", "SRD spell"),
+            ("Darkvision", "SRD spell"),
+            ("Dart", "SRD item"),
             ("date", "get the current time"),
-            ("delete [name]", "remove an entry from journal"),
-            ("desert", "create desert"),
-            ("distillery", "create distillery"),
-            ("district", "create district"),
-            ("domain", "create domain"),
-            ("dragonborn", "create dragonborn"),
-            ("druidic foci", "SRD item category"),
-            ("duchy", "create duchy"),
-            ("duty-house", "create duty-house"),
-            ("dwarf", "create dwarf"),
-            ("dwarvish", "create dwarvish person"),
+            ("Daylight", "SRD spell"),
+            ("Death Ward", "SRD spell"),
         ]
         .iter()
         .map(|(a, b)| (a.to_string(), b.to_string()))

@@ -1,5 +1,6 @@
 use super::{Item, ItemCategory, MagicItem, Spell};
 use crate::app::{autocomplete_phrase, AppMeta, Autocomplete, ContextAwareParse, Runnable};
+use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use caith::Roller;
 use std::fmt;
@@ -53,32 +54,38 @@ impl Runnable for ReferenceCommand {
 
 impl ContextAwareParse for ReferenceCommand {
     fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut exact_match = None;
-        let mut fuzzy_matches = Vec::new();
+        let exact_match = if input.eq_ci("Open Game License") {
+            Some(Self::OpenGameLicense)
+        } else if input.eq_ci("srd spells") {
+            Some(Self::Spells)
+        } else {
+            None.or_else(|| {
+                input
+                    .strip_prefix_ci("srd spell ")
+                    .and_then(|s| s.parse().ok())
+                    .map(Self::Spell)
+            })
+            .or_else(|| {
+                input
+                    .strip_prefix_ci("srd item category ")
+                    .and_then(|s| s.parse().ok())
+                    .map(Self::ItemCategory)
+            })
+            .or_else(|| {
+                input
+                    .strip_prefix_ci("srd item ")
+                    .and_then(|s| s.parse().ok())
+                    .map(Self::Item)
+            })
+            .or_else(|| {
+                input
+                    .strip_prefix_ci("srd magic item ")
+                    .and_then(|s| s.parse().ok())
+                    .map(Self::MagicItem)
+            })
+        };
 
-        match input {
-            "Open Game License" => exact_match = Some(Self::OpenGameLicense),
-            "srd spells" => exact_match = Some(Self::Spells),
-            _ => {
-                if let Some(spell) = input.strip_prefix("srd spell ") {
-                    if let Ok(spell) = spell.parse() {
-                        exact_match = Some(Self::Spell(spell));
-                    }
-                } else if let Some(category) = input.strip_prefix("srd item category ") {
-                    if let Ok(category) = category.parse() {
-                        exact_match = Some(Self::ItemCategory(category));
-                    }
-                } else if let Some(item) = input.strip_prefix("srd item ") {
-                    if let Ok(item) = item.parse() {
-                        exact_match = Some(Self::Item(item));
-                    }
-                } else if let Some(item) = input.strip_prefix("srd magic item ") {
-                    if let Ok(item) = item.parse() {
-                        exact_match = Some(Self::MagicItem(item));
-                    }
-                }
-            }
-        }
+        let mut fuzzy_matches = Vec::new();
 
         if let Ok(spell) = input.parse() {
             fuzzy_matches.push(Self::Spell(spell));
@@ -145,7 +152,10 @@ fn linkify_dice(input: &str) -> String {
     let mut hold_active = false;
 
     for part in input.split_inclusive(|c: char| c.is_whitespace() || c.is_ascii_punctuation()) {
-        if !hold_active && part.contains(|c: char| c.is_ascii_digit()) && part.contains('d') {
+        if !hold_active
+            && part.contains(|c: char| c.is_ascii_digit())
+            && part.contains(&['d', 'D'][..])
+        {
             hold_active = true;
             hold_offset = input_offset;
         } else if hold_active && part.contains(char::is_alphabetic) {
@@ -157,7 +167,7 @@ fn linkify_dice(input: &str) -> String {
         } else {
             while !hold.is_empty() {
                 let hold_trimmed = hold.trim();
-                if hold_trimmed.contains('d')
+                if hold_trimmed.contains(&['d', 'D'][..])
                     && Roller::new(hold_trimmed).map_or(false, |r| r.roll().is_ok())
                 {
                     result.push('`');
@@ -213,11 +223,19 @@ mod test {
         .for_each(|command| {
             let command_string = command.to_string();
             assert_ne!("", command_string);
+
             assert_eq!(
-                (Some(command), Vec::new()),
+                (Some(command.clone()), Vec::new()),
                 ReferenceCommand::parse_input(&command_string, &app_meta),
                 "{}",
                 command_string,
+            );
+
+            assert_eq!(
+                (Some(command), Vec::new()),
+                ReferenceCommand::parse_input(&command_string.to_uppercase(), &app_meta),
+                "{}",
+                command_string.to_uppercase(),
             );
         });
     }

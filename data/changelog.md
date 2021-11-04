@@ -1,3 +1,5 @@
+* **Enhancement:** By popular request, autocomplete and command parsing are now
+  completely case-insensitive!
 * **Bug:** Fix the text colour of the input box when browsing in dark mode.
   Black on black is hard to read, I guess???
 * **Enhancement:** Minor updates to vocabulary (somehow I missed `hotel` and

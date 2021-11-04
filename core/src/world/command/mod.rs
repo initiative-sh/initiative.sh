@@ -1,7 +1,7 @@
 use super::{Field, Npc, Place, Thing};
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use crate::storage::{Change, RepositoryError, StorageCommand};
-use crate::utils::quoted_words;
+use crate::utils::{quoted_words, CaseInsensitiveStr};
 use async_trait::async_trait;
 use std::fmt;
 use std::ops::Range;
@@ -240,7 +240,7 @@ impl ContextAwareParse for WorldCommand {
         let mut fuzzy_matches = Vec::new();
 
         if let Some(Ok(thing)) = input
-            .strip_prefix("create ")
+            .strip_prefix_ci("create ")
             .map(|s| s.parse::<ParsedThing<Thing>>())
         {
             if thing.unknown_words.is_empty() {
@@ -254,7 +254,7 @@ impl ContextAwareParse for WorldCommand {
 
         if let Some(word) = quoted_words(input)
             .skip(1)
-            .find(|word| word.as_str() == "is")
+            .find(|word| word.as_str().eq_ci("is"))
         {
             let (name, description) = (
                 input[..word.range().start].trim(),
@@ -307,7 +307,7 @@ impl Autocomplete for WorldCommand {
         let mut input_words = quoted_words(input).skip(1);
 
         if let Some((is_word, next_word)) = input_words
-            .find(|word| word.as_str() == "is")
+            .find(|word| word.as_str().eq_ci("is"))
             .and_then(|word| input_words.next().map(|next_word| (word, next_word)))
         {
             if let Some(thing) = app_meta
@@ -335,8 +335,7 @@ impl Autocomplete for WorldCommand {
                     })
                     .for_each(|suggestion| suggestions.push(suggestion));
 
-                if ["named", "called"].contains(&next_word.as_str()) && input_words.next().is_some()
-                {
+                if next_word.as_str().in_ci(&["named", "called"]) && input_words.next().is_some() {
                     suggestions.push((input.to_string(), format!("rename {}", thing.as_str())));
                 }
             }
@@ -354,7 +353,7 @@ impl Autocomplete for WorldCommand {
         } else if let Some((last_word_index, last_word)) =
             quoted_words(input).enumerate().skip(1).last()
         {
-            if "is".starts_with(last_word.as_str()) {
+            if "is".starts_with_ci(last_word.as_str()) {
                 if let Some(thing) = app_meta
                     .repository
                     .load(&input[..last_word.range().start].trim().into())
@@ -374,11 +373,11 @@ impl Autocomplete for WorldCommand {
                 }
             } else if let Some(suggestion) = ["named", "called"]
                 .iter()
-                .find(|s| s.starts_with(last_word.as_str()))
+                .find(|s| s.starts_with_ci(last_word.as_str()))
             {
                 let second_last_word = quoted_words(input).nth(last_word_index - 1).unwrap();
 
-                if second_last_word.as_str() == "is" {
+                if second_last_word.as_str().eq_ci("is") {
                     if let Some(thing) = app_meta
                         .repository
                         .load(&input[..second_last_word.range().start].trim().into())
@@ -601,7 +600,12 @@ mod test {
             assert_eq!(
                 vec![(word.to_string(), summary.to_string())],
                 WorldCommand::autocomplete(word, &app_meta),
-            )
+            );
+
+            assert_eq!(
+                vec![(word.to_string(), summary.to_string())],
+                WorldCommand::autocomplete(&word.to_uppercase(), &app_meta),
+            );
         });
 
         assert_autocomplete(
@@ -672,11 +676,19 @@ mod test {
         .for_each(|command| {
             let command_string = command.to_string();
             assert_ne!("", command_string);
+
             assert_eq!(
-                (Some(command), Vec::new()),
+                (Some(command.clone()), Vec::new()),
                 WorldCommand::parse_input(&command_string, &app_meta),
                 "{}",
                 command_string,
+            );
+
+            assert_eq!(
+                (Some(command), Vec::new()),
+                WorldCommand::parse_input(&command_string.to_uppercase(), &app_meta),
+                "{}",
+                command_string.to_uppercase(),
             );
         });
     }
