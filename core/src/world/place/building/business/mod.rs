@@ -62,6 +62,12 @@ pub enum BusinessType {
     Woodshop,
 }
 
+impl BusinessType {
+    pub const fn get_emoji(&self) -> Option<&'static str> {
+        None
+    }
+}
+
 pub fn generate(place: &mut Place, rng: &mut impl Rng, demographics: &Demographics) {
     #[allow(clippy::collapsible_match)]
     if let Some(PlaceType::Building(BuildingType::Business(subtype))) = place.subtype.value() {

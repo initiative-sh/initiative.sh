@@ -15,3 +15,14 @@ pub enum LocationType {
     Landmark(landmark::LandmarkType),
     Settlement(settlement::SettlementType),
 }
+
+impl LocationType {
+    pub const fn get_emoji(&self) -> Option<&'static str> {
+        match self {
+            Self::Any => None,
+            Self::Geographical(subtype) => subtype.get_emoji(),
+            Self::Landmark(subtype) => subtype.get_emoji(),
+            Self::Settlement(subtype) => subtype.get_emoji(),
+        }
+    }
+}

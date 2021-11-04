@@ -26,3 +26,9 @@ pub enum GeographyType {
     Wasteland,
     World,
 }
+
+impl GeographyType {
+    pub const fn get_emoji(&self) -> Option<&'static str> {
+        None
+    }
+}

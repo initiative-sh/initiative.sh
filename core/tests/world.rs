@@ -375,7 +375,7 @@ fn create_place_with_custom_attributes() {
     {
         let output = app.command("a place named the prancing pony").unwrap_err();
         assert_eq!(
-            "That name is already in use by `The Prancing Pony`, an inn.",
+            "That name is already in use by 📍 `The Prancing Pony`, an inn.",
             output,
         );
     }

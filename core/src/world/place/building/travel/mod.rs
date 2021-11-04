@@ -14,3 +14,9 @@ pub enum TravelType {
     Portal,
     Shipyard,
 }
+
+impl TravelType {
+    pub const fn get_emoji(&self) -> Option<&'static str> {
+        None
+    }
+}

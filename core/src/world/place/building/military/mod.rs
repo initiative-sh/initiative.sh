@@ -14,3 +14,9 @@ pub enum MilitaryType {
     Stronghold,
     Tower,
 }
+
+impl MilitaryType {
+    pub const fn get_emoji(&self) -> Option<&'static str> {
+        None
+    }
+}

@@ -20,3 +20,9 @@ pub enum ReligiousType {
     Temple,
     Tomb,
 }
+
+impl ReligiousType {
+    pub const fn get_emoji(&self) -> Option<&'static str> {
+        None
+    }
+}

@@ -1,4 +1,4 @@
-use super::Place;
+use super::{Place, PlaceType};
 use std::fmt;
 
 pub struct SummaryView<'a>(&'a Place);
@@ -28,6 +28,12 @@ impl<'a> DetailsView<'a> {
 impl<'a> fmt::Display for SummaryView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let place = self.0;
+
+        write!(
+            f,
+            "{} ",
+            place.subtype.value().unwrap_or(&PlaceType::Any).get_emoji(),
+        )?;
 
         match (place.subtype.value(), place.name.value()) {
             (Some(subtype), Some(name)) => {
@@ -87,7 +93,7 @@ mod test {
     #[test]
     fn view_test_empty() {
         let place = Place::default();
-        assert_eq!("place", format!("{}", place.display_summary()));
+        assert_eq!("📍 place", format!("{}", place.display_summary()));
         assert_eq!("place", format!("{}", place.display_description()));
         assert_eq!(
             "# Unnamed place\n*place*",
@@ -102,7 +108,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            "`The Invulnerable Vagrant`, a place",
+            "📍 `The Invulnerable Vagrant`, a place",
             format!("{}", place.display_summary()),
         );
         assert_eq!("place", format!("{}", place.display_description()));
@@ -118,7 +124,7 @@ mod test {
             subtype: "inn".parse::<PlaceType>().ok().into(),
             ..Default::default()
         };
-        assert_eq!("inn", format!("{}", place.display_summary()));
+        assert_eq!("📍 inn", format!("{}", place.display_summary()));
         assert_eq!("inn", format!("{}", place.display_description()));
         assert_eq!(
             "# Unnamed inn\n*inn*",
@@ -132,7 +138,7 @@ mod test {
             description: "A street with no name.".into(),
             ..Default::default()
         };
-        assert_eq!("place", format!("{}", place.display_summary()));
+        assert_eq!("📍 place", format!("{}", place.display_summary()));
         assert_eq!("place", format!("{}", place.display_description()));
         assert_eq!(
             "# Unnamed place\n*place*\n\nA street with no name.",
@@ -148,7 +154,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            "`Oaken Mermaid Inn`, an inn",
+            "📍 `Oaken Mermaid Inn`, an inn",
             format!("{}", place.display_summary()),
         );
         assert_eq!("inn", format!("{}", place.display_description()));
@@ -166,7 +172,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            "`The Invulnerable Vagrant`, a place",
+            "📍 `The Invulnerable Vagrant`, a place",
             format!("{}", place.display_summary()),
         );
         assert_eq!("place", format!("{}", place.display_description()));
@@ -183,7 +189,7 @@ mod test {
             description: "You can check out any time you like.".into(),
             ..Default::default()
         };
-        assert_eq!("inn", format!("{}", place.display_summary()));
+        assert_eq!("📍 inn", format!("{}", place.display_summary()));
         assert_eq!("inn", format!("{}", place.display_description()));
         assert_eq!(
             "# Unnamed inn\n*inn*\n\nYou can check out any time you like.",
@@ -200,7 +206,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            "`Oaken Mermaid Inn`, an inn",
+            "📍 `Oaken Mermaid Inn`, an inn",
             format!("{}", place.display_summary()),
         );
         assert_eq!("inn", format!("{}", place.display_description()));

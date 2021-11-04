@@ -19,3 +19,9 @@ pub enum SettlementType {
     #[alias = "parish"]
     Town,
 }
+
+impl SettlementType {
+    pub const fn get_emoji(&self) -> Option<&'static str> {
+        None
+    }
+}

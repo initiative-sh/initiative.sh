@@ -29,6 +29,21 @@ pub enum BuildingType {
     Travel(travel::TravelType),
 }
 
+impl BuildingType {
+    pub const fn get_emoji(&self) -> Option<&'static str> {
+        match self {
+            Self::Any => None,
+            Self::Business(subtype) => subtype.get_emoji(),
+            Self::Education(subtype) => subtype.get_emoji(),
+            Self::Government(subtype) => subtype.get_emoji(),
+            Self::Military(subtype) => subtype.get_emoji(),
+            Self::Religious(subtype) => subtype.get_emoji(),
+            Self::Residence => None,
+            Self::Travel(subtype) => subtype.get_emoji(),
+        }
+    }
+}
+
 pub fn generate(place: &mut Place, rng: &mut impl Rng, demographics: &Demographics) {
     #[allow(clippy::collapsible_match)]
     if let Some(PlaceType::Building(subtype)) = place.subtype.value() {

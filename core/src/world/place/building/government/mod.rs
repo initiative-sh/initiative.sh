@@ -13,3 +13,9 @@ pub enum GovernmentType {
     #[alias = "jail"]
     Prison,
 }
+
+impl GovernmentType {
+    pub const fn get_emoji(&self) -> Option<&'static str> {
+        None
+    }
+}

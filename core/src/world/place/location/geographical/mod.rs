@@ -25,3 +25,9 @@ pub enum GeographicalType {
     #[alias = "vale"]
     Valley,
 }
+
+impl GeographicalType {
+    pub const fn get_emoji(&self) -> Option<&'static str> {
+        None
+    }
+}

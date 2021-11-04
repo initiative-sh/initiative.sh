@@ -15,3 +15,9 @@ pub enum LandmarkType {
     Street,
     Wall,
 }
+
+impl LandmarkType {
+    pub const fn get_emoji(&self) -> Option<&'static str> {
+        None
+    }
+}
