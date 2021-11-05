@@ -256,6 +256,7 @@ impl From<WorldCommand> for CommandType {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
+    use crate::utils::CaseInsensitiveStr;
     use crate::world::{Npc, ParsedThing};
 
     #[test]
@@ -323,17 +324,25 @@ mod test {
     #[test]
     fn autocomplete_test() {
         let expected = [
+            ("Dagger", "SRD item"),
+            ("Dagger Of Venom", "SRD magic item"),
+            ("Dancing Lights", "SRD spell"),
+            ("Dancing Sword", "SRD magic item"),
+            ("Darkness", "SRD spell"),
+            ("Darkvision", "SRD spell"),
+            ("Dart", "SRD item"),
             ("date", "get the current time"),
+            ("Daylight", "SRD spell"),
+            ("Death Ward", "SRD spell"),
+            ("Decanter Of Endless Water", "SRD magic item"),
             ("delete [name]", "remove an entry from journal"),
             ("desert", "create desert"),
             ("distillery", "create distillery"),
             ("district", "create district"),
             ("domain", "create domain"),
             ("dragonborn", "create dragonborn"),
-            ("druidic foci", "SRD item category"),
             ("duchy", "create duchy"),
             ("duty-house", "create duty-house"),
-            // ("dungeon", "create dungeon"),
             ("dwarf", "create dwarf"),
             ("dwarvish", "create dwarvish person"),
         ]
@@ -342,7 +351,7 @@ mod test {
         .collect::<Vec<_>>();
 
         let mut actual = Command::autocomplete("d", &AppMeta::new(NullDataStore::default()));
-        actual.sort();
+        actual.sort_by(|a, b| a.0.cmp_ci(&b.0).then_with(|| a.1.cmp_ci(&b.1)));
 
         assert_eq!(expected, actual);
     }

@@ -95,11 +95,16 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     let variants = data.iter().map(|(variant, _, _, _)| quote! { #variant, });
 
     let inputs_to_ok_variants = data.iter().flat_map(|(variant, name, alt_names, _)| {
-        std::iter::once(quote! { #name => Ok(#ident::#variant), }).chain(
+        let name_lc = name.to_lowercase();
+
+        std::iter::once(quote! { #name_lc => Ok(#ident::#variant), }).chain(
             alt_names
                 .iter()
                 .zip(std::iter::repeat(variant))
-                .map(|(alt_name, variant)| quote! { #alt_name => Ok(#ident::#variant), }),
+                .map(|(alt_name, variant)| {
+                    let alt_name_lc = alt_name.to_lowercase();
+                    quote! { #alt_name_lc => Ok(#ident::#variant), }
+                }),
         )
     });
 
@@ -155,15 +160,23 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                     #(#variants_to_outputs)*
                 }
             }
+
+            pub fn parse_cs(input: &str) -> Result<Self, ()> {
+                match input {
+                    #(#inputs_to_ok_variants)*
+                    _ => Err(()),
+                }
+            }
         }
 
         impl std::str::FromStr for #ident {
             type Err = ();
 
-            fn from_str(raw: &str) -> Result<#ident, ()> {
-                match raw {
-                    #(#inputs_to_ok_variants)*
-                    _ => Err(()),
+            fn from_str(input: &str) -> Result<#ident, ()> {
+                if input.chars().any(char::is_uppercase) {
+                    Self::parse_cs(&input.to_lowercase())
+                } else {
+                    Self::parse_cs(input)
                 }
             }
         }

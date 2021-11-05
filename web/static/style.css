@@ -53,11 +53,15 @@ body {
 }
 
 #output a {
-    color: var(--solarized-red);
+    color: var(--solarized-orange);
     text-decoration: underline;
 }
 #output a::after {
     content: '\29c9';
+}
+#output a.donate {
+    color: var(--solarized-base3);
+    background: var(--solarized-orange);
 }
 
 #output p {

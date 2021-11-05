@@ -1,5 +1,6 @@
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use crate::storage::{Change, RepositoryError};
+use crate::utils::CaseInsensitiveStr;
 use crate::world::Thing;
 use async_trait::async_trait;
 use std::fmt;
@@ -135,7 +136,11 @@ impl Runnable for StorageCommand {
                     | Change::Edit { name, .. }
                     | Change::EditAndUnsave { name, .. }
                     | Change::Save { name }
-                    | Change::Unsave { name, .. } => name.to_owned(),
+                    | Change::Unsave { name, .. } => app_meta
+                        .repository
+                        .load(&name.into())
+                        .and_then(|t| t.name().value())
+                        .map_or(name.to_owned(), |s| s.to_string()),
                 };
 
                 match &change {
@@ -308,39 +313,38 @@ impl ContextAwareParse for StorageCommand {
     fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut fuzzy_matches = Vec::new();
 
-        if input.starts_with(char::is_uppercase)
-            && app_meta.repository.load(&input.into()).is_some()
-        {
+        if app_meta.repository.load(&input.into()).is_some() {
             fuzzy_matches.push(Self::Load {
                 name: input.to_string(),
             });
         }
 
         (
-            if let Some(name) = input.strip_prefix("delete ") {
+            if let Some(name) = input.strip_prefix_ci("delete ") {
                 Some(Self::Change {
                     change: Change::Delete {
                         id: name.into(),
                         name: name.to_string(),
                     },
                 })
-            } else if let Some(name) = input.strip_prefix("load ") {
+            } else if let Some(name) = input.strip_prefix_ci("load ") {
                 Some(Self::Load {
                     name: name.to_string(),
                 })
-            } else if let Some(name) = input.strip_prefix("save ") {
+            } else if let Some(name) = input.strip_prefix_ci("save ") {
                 Some(Self::Change {
                     change: Change::Save {
                         name: name.to_string(),
                     },
                 })
+            } else if input.eq_ci("journal") {
+                Some(Self::Journal)
+            } else if input.eq_ci("undo") {
+                Some(Self::Undo)
+            } else if input.eq_ci("redo") {
+                Some(Self::Redo)
             } else {
-                match input {
-                    "journal" => Some(Self::Journal),
-                    "undo" => Some(Self::Undo),
-                    "redo" => Some(Self::Redo),
-                    _ => None,
-                }
+                None
             },
             fuzzy_matches,
         )
@@ -353,7 +357,7 @@ impl Autocomplete for StorageCommand {
 
         ["delete", "load", "save"]
             .iter()
-            .filter(|s| s.starts_with(input))
+            .filter(|s| s.starts_with_ci(input))
             .filter_map(|s| {
                 let suggestion = format!("{} [name]", s);
                 Self::parse_input(&suggestion, app_meta)
@@ -363,7 +367,7 @@ impl Autocomplete for StorageCommand {
             .chain(
                 ["journal", "undo", "redo"]
                     .iter()
-                    .filter(|s| s.starts_with(input))
+                    .filter(|s| s.starts_with_ci(input))
                     .filter_map(|s| Self::parse_input(s, app_meta).0.map(|c| (s.to_string(), c))),
             )
             .for_each(|(s, command)| {
@@ -379,7 +383,7 @@ impl Autocomplete for StorageCommand {
 
         let (input_prefix, input_name) = if let Some(parts) = ["delete ", "load ", "save "]
             .iter()
-            .find_map(|prefix| input.strip_prefix(prefix).map(|name| (*prefix, name)))
+            .find_map(|prefix| input.strip_prefix_ci(prefix).map(|name| (*prefix, name)))
         {
             parts
         } else {
@@ -394,12 +398,12 @@ impl Autocomplete for StorageCommand {
                     .name()
                     .value()
                     .map(|name| {
-                        if name.starts_with(input_name) {
+                        if name.starts_with_ci(input_name) {
                             match (input_prefix, thing.uuid()) {
                                 ("save ", Some(_)) | ("delete ", None) => None,
                                 _ => Some((input_prefix, thing)),
                             }
-                        } else if name.starts_with(input) {
+                        } else if name.starts_with_ci(input) {
                             Some(("", thing))
                         } else {
                             None
@@ -601,6 +605,11 @@ mod test {
         );
 
         assert_eq!(
+            StorageCommand::parse_input("delete Gandalf the Grey", &app_meta),
+            StorageCommand::parse_input("DELETE Gandalf the Grey", &app_meta),
+        );
+
+        assert_eq!(
             (
                 Some(StorageCommand::Change {
                     change: Change::Save {
@@ -610,6 +619,11 @@ mod test {
                 Vec::new(),
             ),
             StorageCommand::parse_input("save Gandalf the Grey", &app_meta),
+        );
+
+        assert_eq!(
+            StorageCommand::parse_input("save Gandalf the Grey", &app_meta),
+            StorageCommand::parse_input("SAVE Gandalf the Grey", &app_meta),
         );
 
         assert_eq!(
@@ -623,8 +637,18 @@ mod test {
         );
 
         assert_eq!(
+            StorageCommand::parse_input("load Gandalf the Grey", &app_meta),
+            StorageCommand::parse_input("LOAD Gandalf the Grey", &app_meta),
+        );
+
+        assert_eq!(
             (Some(StorageCommand::Journal), Vec::new()),
             StorageCommand::parse_input("journal", &app_meta),
+        );
+
+        assert_eq!(
+            (Some(StorageCommand::Journal), Vec::new()),
+            StorageCommand::parse_input("JOURNAL", &app_meta),
         );
 
         assert_eq!(
@@ -654,7 +678,7 @@ mod test {
         block_on(
             app_meta.repository.modify(Change::Create {
                 thing: Npc {
-                    name: "potato should be capitalized".into(),
+                    name: "potato can be lowercase".into(),
                     ..Default::default()
                 }
                 .into(),
@@ -674,34 +698,34 @@ mod test {
         )
         .unwrap();
 
-        assert_autocomplete(
-            &[
-                ("Potato Johnson", "adult elf, they/them (unsaved)"),
-                ("Potato & Meat", "inn (unsaved)"),
-            ][..],
-            StorageCommand::autocomplete("P", &app_meta),
-        );
-
         assert!(StorageCommand::autocomplete("delete P", &app_meta).is_empty());
 
         assert_autocomplete(
             &[
                 ("save Potato Johnson", "save character to journal"),
-                (
-                    "save potato should be capitalized",
-                    "save character to journal",
-                ),
+                ("save potato can be lowercase", "save character to journal"),
                 ("save Potato & Meat", "save place to journal"),
             ][..],
             StorageCommand::autocomplete("save ", &app_meta),
+        );
+
+        assert_eq!(
+            StorageCommand::autocomplete("save ", &app_meta),
+            StorageCommand::autocomplete("SAve ", &app_meta),
         );
 
         assert_autocomplete(
             &[
                 ("load Potato Johnson", "adult elf, they/them (unsaved)"),
                 ("load Potato & Meat", "inn (unsaved)"),
+                ("load potato can be lowercase", "person (unsaved)"),
             ][..],
             StorageCommand::autocomplete("load P", &app_meta),
+        );
+
+        assert_eq!(
+            StorageCommand::autocomplete("load P", &app_meta),
+            StorageCommand::autocomplete("LOad p", &app_meta),
         );
 
         assert_autocomplete(
@@ -710,8 +734,18 @@ mod test {
         );
 
         assert_autocomplete(
+            &[("delete [name]", "remove an entry from journal")][..],
+            StorageCommand::autocomplete("DELete", &app_meta),
+        );
+
+        assert_autocomplete(
             &[("load [name]", "load an entry")][..],
             StorageCommand::autocomplete("load", &app_meta),
+        );
+
+        assert_autocomplete(
+            &[("load [name]", "load an entry")][..],
+            StorageCommand::autocomplete("LOad", &app_meta),
         );
 
         assert_autocomplete(
@@ -720,15 +754,42 @@ mod test {
         );
 
         assert_autocomplete(
+            &[("save [name]", "save an entry to journal")][..],
+            StorageCommand::autocomplete("S", &app_meta),
+        );
+
+        assert_autocomplete(
             &[("journal", "list journal contents")][..],
             StorageCommand::autocomplete("j", &app_meta),
         );
 
-        assert!(StorageCommand::autocomplete("p", &app_meta).is_empty());
+        assert_autocomplete(
+            &[("journal", "list journal contents")][..],
+            StorageCommand::autocomplete("J", &app_meta),
+        );
+
+        assert_autocomplete(
+            &[
+                ("Potato & Meat", "inn (unsaved)"),
+                ("Potato Johnson", "adult elf, they/them (unsaved)"),
+                ("potato can be lowercase", "person (unsaved)"),
+            ][..],
+            StorageCommand::autocomplete("p", &app_meta),
+        );
+
+        assert_eq!(
+            StorageCommand::autocomplete("p", &app_meta),
+            StorageCommand::autocomplete("P", &app_meta),
+        );
 
         assert_autocomplete(
             &[("Potato Johnson", "adult elf, they/them (unsaved)")][..],
             StorageCommand::autocomplete("Potato Johnson", &app_meta),
+        );
+
+        assert_autocomplete(
+            &[("Potato Johnson", "adult elf, they/them (unsaved)")][..],
+            StorageCommand::autocomplete("pOTATO jOHNSON", &app_meta),
         );
     }
 

@@ -37,6 +37,37 @@ fn happy_path() {
 }
 
 #[test]
+fn shouting_happy_path() {
+    let mut app = sync_app();
+
+    let output = app.command("TUTORIAL").unwrap();
+    println!("{}", output);
+
+    let mut command = "NEXT".to_string();
+
+    for i in 0..100 {
+        println!("> {}\n", command);
+        let output = app.command(&command).unwrap();
+        println!("{}", output);
+
+        let tutorial_pos = output.find("# Tutorial").unwrap();
+
+        if output.contains("# Tutorial: Conclusion") {
+            assert_eq!(TUTORIAL_STEPS - 2, i);
+            return;
+        }
+
+        command = output[tutorial_pos..]
+            .split(&['`', '~'][..])
+            .nth(1)
+            .unwrap()
+            .to_uppercase();
+    }
+
+    panic!("Broke out of infinite loop!");
+}
+
+#[test]
 fn works_without_local_storage() {
     let mut app = sync_app_with_data_store(NullDataStore::default());
 

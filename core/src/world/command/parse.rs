@@ -1,15 +1,18 @@
-use crate::utils::{capitalize, quoted_words};
+use crate::utils::{capitalize, quoted_words, CaseInsensitiveStr};
 use crate::world::command::ParsedThing;
 use crate::world::{Field, Npc, Place};
 use std::str::FromStr;
 
 fn split_name(input: &str) -> Option<(&str, &str)> {
-    let (named, comma) =
-        quoted_words(input).fold((None, None), |(named, comma), word| match word.as_str() {
-            "named" | "called" if named.is_none() => (Some(word), comma),
-            s if s.ends_with(',') => (named, Some(word)),
-            _ => (named, comma),
-        });
+    let (named, comma) = quoted_words(input).fold((None, None), |(named, comma), word| {
+        if named.is_none() && word.as_str().in_ci(&["named", "called"]) {
+            (Some(word), comma)
+        } else if word.as_str().ends_with(',') {
+            (named, Some(word))
+        } else {
+            (named, comma)
+        }
+    });
 
     let (name, description) = if let Some(word) = named {
         // "a boy named Sue"
@@ -62,7 +65,7 @@ impl FromStr for ParsedThing<Place> {
             let word_str = &word.as_str();
             word_count += 1;
 
-            if ["a", "an"].contains(word_str) {
+            if word_str.in_ci(&["a", "an"]) {
                 word_count -= 1;
             } else if let Ok(place_type) = word_str.parse() {
                 place.subtype = Field::new(place_type);
@@ -102,9 +105,9 @@ impl FromStr for ParsedThing<Npc> {
             let word_str = &word.as_str();
             word_count += 1;
 
-            if ["a", "an"].contains(word_str) {
+            if word_str.in_ci(&["a", "an"]) {
                 word_count -= 1;
-            } else if ["character", "npc", "person"].contains(word_str) {
+            } else if word_str.in_ci(&["character", "npc", "person"]) {
                 // ignore
             } else if let Ok(gender) = word_str.parse() {
                 npc.gender = Field::new(gender);
@@ -128,7 +131,7 @@ impl FromStr for ParsedThing<Npc> {
             } else if let Ok(ethnicity) = word_str.parse() {
                 npc.ethnicity = Field::new(ethnicity);
             } else if let Some(Ok(age_years)) =
-                word_str.strip_suffix("-year-old").map(|s| s.parse())
+                word_str.strip_suffix_ci("-year-old").map(|s| s.parse())
             {
                 npc.age_years = Field::new(age_years);
             } else {
@@ -223,6 +226,10 @@ mod test {
             assert_eq!(0, npc.unknown_words.len());
             assert_eq!(1, npc.word_count);
         }
+        assert_eq!(
+            "npc".parse::<ParsedThing<Npc>>().unwrap(),
+            "NPC".parse::<ParsedThing<Npc>>().unwrap(),
+        );
 
         {
             let npc: ParsedThing<Npc> = "elf".parse().unwrap();
@@ -230,6 +237,10 @@ mod test {
             assert_eq!(0, npc.unknown_words.len());
             assert_eq!(1, npc.word_count);
         }
+        assert_eq!(
+            "elf".parse::<ParsedThing<Npc>>().unwrap(),
+            "ELF".parse::<ParsedThing<Npc>>().unwrap(),
+        );
 
         {
             let npc: ParsedThing<Npc> = "Potato Johnson, a non-binary elf".parse().unwrap();
@@ -242,6 +253,14 @@ mod test {
             assert_eq!(0, npc.unknown_words.len());
             assert_eq!(2, npc.word_count);
         }
+        assert_eq!(
+            "Potato Johnson, a non-binary elf"
+                .parse::<ParsedThing<Npc>>()
+                .unwrap(),
+            "Potato Johnson, A NON-BINARY ELF"
+                .parse::<ParsedThing<Npc>>()
+                .unwrap(),
+        );
 
         {
             let npc: ParsedThing<Npc> = "37-year-old boy named sue".parse().unwrap();
@@ -252,6 +271,14 @@ mod test {
             assert_eq!(0, npc.unknown_words.len());
             assert_eq!(2, npc.word_count);
         }
+        assert_eq!(
+            "37-year-old boy named sue"
+                .parse::<ParsedThing<Npc>>()
+                .unwrap(),
+            "37-YEAR-OLD BOY NAMED sue"
+                .parse::<ParsedThing<Npc>>()
+                .unwrap(),
+        );
 
         {
             assert!("potato".parse::<ParsedThing<Npc>>().is_err());
