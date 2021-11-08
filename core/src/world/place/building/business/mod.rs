@@ -23,6 +23,7 @@ pub enum BusinessType {
     #[alias = "pub"]
     Bar,
     Bathhouse,
+    #[alias = "smithy"]
     Blacksmith,
     Brewery,
     #[alias = "gambling-hall"]
@@ -48,7 +49,6 @@ pub enum BusinessType {
     Mill,
     PetStore,
     Restaurant,
-    Smithy,
     SpecialtyShop,
     SpiritsShop,
     Stable,
@@ -64,7 +64,45 @@ pub enum BusinessType {
 
 impl BusinessType {
     pub const fn get_emoji(&self) -> Option<&'static str> {
-        None
+        match self {
+            Self::Arena => Some("🏛"),
+            Self::Armorer => Some("🛡"),
+            Self::Bakery => Some("🍞"),
+            Self::Bank | Self::Vault => Some("🏦"),
+            Self::Bar => Some("🍻"),
+            Self::Bathhouse => Some("🛁"),
+            Self::Blacksmith | Self::Weaponsmith => Some("🗡"),
+            Self::Brewery => Some("🍻"),
+            Self::Casino => Some("🃏"),
+            Self::Club => Some(""),
+            Self::Distillery => Some("🥃"),
+            Self::FightingPit => Some("⚔"),
+            Self::FoodCounter => Some("🍲"),
+            Self::Forge => Some("🔥"),
+            Self::FurnitureShop => Some("🪑"),
+            Self::Furrier => Some("🦊"),
+            Self::Inn => Some("🏨"),
+            Self::Jeweller => Some("💍"),
+            Self::Lumberyard => Some("🪵"),
+            Self::MagicShop => Some("🪄"),
+            Self::Mill => Some("🌾"),
+            Self::PetStore => Some("🐶"),
+            Self::Restaurant => Some("🍽"),
+            Self::SpiritsShop => Some("🥃"),
+            Self::Stable => Some("🐎"),
+            Self::Theater => Some("🎭"),
+            Self::Warehouse => Some("📦"),
+            Self::Woodshop => Some("🪚"),
+
+            Self::Any
+            | Self::GeneralStore
+            | Self::GuildHall
+            | Self::ImportsShop
+            | Self::SpecialtyShop
+            | Self::TextilesShop
+            | Self::TradingPost
+            | Self::Wainwright => Some("🪙"),
+        }
     }
 }
 

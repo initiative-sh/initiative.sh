@@ -124,7 +124,7 @@ mod test {
             subtype: "inn".parse::<PlaceType>().ok().into(),
             ..Default::default()
         };
-        assert_eq!("📍 inn", format!("{}", place.display_summary()));
+        assert_eq!("🏨 inn", format!("{}", place.display_summary()));
         assert_eq!("inn", format!("{}", place.display_description()));
         assert_eq!(
             "# Unnamed inn\n*inn*",
@@ -154,7 +154,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            "📍 `Oaken Mermaid Inn`, an inn",
+            "🏨 `Oaken Mermaid Inn`, an inn",
             format!("{}", place.display_summary()),
         );
         assert_eq!("inn", format!("{}", place.display_description()));
@@ -189,7 +189,7 @@ mod test {
             description: "You can check out any time you like.".into(),
             ..Default::default()
         };
-        assert_eq!("📍 inn", format!("{}", place.display_summary()));
+        assert_eq!("🏨 inn", format!("{}", place.display_summary()));
         assert_eq!("inn", format!("{}", place.display_description()));
         assert_eq!(
             "# Unnamed inn\n*inn*\n\nYou can check out any time you like.",
@@ -206,7 +206,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            "📍 `Oaken Mermaid Inn`, an inn",
+            "🏨 `Oaken Mermaid Inn`, an inn",
             format!("{}", place.display_summary()),
         );
         assert_eq!("inn", format!("{}", place.display_description()));

@@ -1,3 +1,5 @@
+* **Enhancement:** All place types now include an emoji icon in summary view,
+  such as in the `journal` listing.
 * **Enhancement:** You can now navigate backwards and forwards through your
   command history with the up and down arrow keys while the autocomplete popup
   is closed. The history doesn't (yet!) persist between sessions.

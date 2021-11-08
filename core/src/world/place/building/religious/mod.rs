@@ -23,6 +23,9 @@ pub enum ReligiousType {
 
 impl ReligiousType {
     pub const fn get_emoji(&self) -> Option<&'static str> {
-        None
+        match self {
+            Self::Abbey | Self::Monastery | Self::Shrine | Self::Temple => Some("🙏"),
+            Self::Cemetery | Self::Crypt | Self::Mausoleum | Self::Tomb => Some("🪦"),
+        }
     }
 }

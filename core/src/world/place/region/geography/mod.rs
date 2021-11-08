@@ -29,6 +29,22 @@ pub enum GeographyType {
 
 impl GeographyType {
     pub const fn get_emoji(&self) -> Option<&'static str> {
-        None
+        match self {
+            Self::Archipelago => Some("🏝"),
+            Self::Barrens | Self::Desert | Self::Wasteland => Some("🏜"),
+            Self::Coastline | Self::Lake | Self::Sea | Self::Ocean => Some("🌊"),
+            Self::Forest | Self::Jungle => Some("🌳"),
+            Self::Mountain => Some("⛰"),
+            Self::Tundra => Some("❄"),
+            Self::World => Some("🌐"),
+            Self::Continent
+            | Self::Marsh
+            | Self::Mesa
+            | Self::Moor
+            | Self::Plain
+            | Self::Plateau
+            | Self::Reef
+            | Self::Swamp => None,
+        }
     }
 }

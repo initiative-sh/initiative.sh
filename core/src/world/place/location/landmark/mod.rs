@@ -18,6 +18,13 @@ pub enum LandmarkType {
 
 impl LandmarkType {
     pub const fn get_emoji(&self) -> Option<&'static str> {
-        None
+        match self {
+            Self::Farm | Self::Garden => Some("🌱"),
+            Self::Fountain => Some("⛲"),
+            Self::Harbor => Some("⛵"),
+            Self::Mine => Some("⚒"),
+            Self::Wall => Some("🧱"),
+            Self::Monument | Self::Ruin | Self::Street => None,
+        }
     }
 }

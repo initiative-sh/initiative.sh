@@ -13,6 +13,9 @@ pub enum EducationType {
 
 impl EducationType {
     pub const fn get_emoji(&self) -> Option<&'static str> {
-        None
+        match self {
+            Self::Academy | Self::College | Self::School | Self::University => Some("🎓"),
+            Self::Library => Some("📚"),
+        }
     }
 }

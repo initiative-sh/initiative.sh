@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
 #[serde(into = "&'static str", try_from = "&str")]
 pub enum SettlementType {
+    #[alias = "campsite"]
     Camp,
-    Campsite,
     Capital,
     #[alias = "metropolis"]
     City,
@@ -22,6 +22,12 @@ pub enum SettlementType {
 
 impl SettlementType {
     pub const fn get_emoji(&self) -> Option<&'static str> {
-        None
+        match self {
+            Self::Camp => Some("🏕"),
+            Self::Capital | Self::City => Some("🏙"),
+            Self::Outpost => Some("🚩"),
+            Self::Town => Some("🏘"),
+            Self::District => None,
+        }
     }
 }

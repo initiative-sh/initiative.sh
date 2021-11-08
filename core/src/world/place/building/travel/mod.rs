@@ -17,6 +17,13 @@ pub enum TravelType {
 
 impl TravelType {
     pub const fn get_emoji(&self) -> Option<&'static str> {
-        None
+        match self {
+            Self::Bridge => Some("🌉"),
+            Self::DutyHouse | Self::Market => Some("🪙"),
+            Self::Ferry => Some("⛴"),
+            Self::Gate => Some("🚪"),
+            Self::Lighthouse | Self::Pier | Self::Shipyard => Some("⛵"),
+            Self::Portal => None,
+        }
     }
 }

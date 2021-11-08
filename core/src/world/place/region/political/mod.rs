@@ -23,6 +23,6 @@ pub enum PoliticalType {
 
 impl PoliticalType {
     pub const fn get_emoji(&self) -> Option<&'static str> {
-        None
+        Some("👑")
     }
 }
