@@ -29,6 +29,9 @@ const reducedMotion = (() => {
   return mediaQuery && mediaQuery.matches
 })()
 
+const commandHistory = []
+var commandHistoryIndex = -1
+
 marked.use({
   renderer: {
     del: (text) => `<code class="temp-link">${text}</code>`,
@@ -68,6 +71,36 @@ const autoCompleteJS = new autoComplete({
       }
     }),
     keys: ["suggestion"],
+  },
+  events: {
+    input: {
+      keydown: (event) => {
+        switch (event.key) {
+          case "ArrowUp":
+          case "ArrowDown":
+            if (autoCompleteJS.isOpen) {
+              event.preventDefault()
+              event.key === "ArrowUp" ? autoCompleteJS.previous() : autoCompleteJS.next()
+            } else if (commandHistory.length > 0) {
+              historyEvent(event)
+            }
+            event.stopPropagation()
+            break
+          case "Tab":
+            event.preventDefault()
+            tabEvent(event)
+            break
+          case "Escape":
+            if (autoCompleteJS.isOpen) {
+              autoCompleteJS.close()
+            } else {
+              promptElement.value = ""
+            }
+
+            break
+        }
+      },
+    },
   },
   query: (input) => input.split("[")[0],
   resultsList: {
@@ -126,8 +159,55 @@ const runCommand = async (command) => {
       behavior: reducedMotion ? "auto" : "smooth",
     })
 
+    if (
+      commandHistory.length === 0
+      || command !== commandHistory[commandHistory.length - 1]
+    ) {
+      commandHistory.push(command)
+    }
+    commandHistoryIndex = -1
+
     output(await wasm.command(command))
   }
+}
+
+const historyEvent = (event) => {
+  event.preventDefault()
+  commandHistoryIndex += event.key === "ArrowUp" ? -1 : 1
+
+  if (commandHistoryIndex < -1) {
+    commandHistoryIndex = commandHistory.length - 1
+  } else if (commandHistoryIndex >= commandHistory.length) {
+    commandHistoryIndex = -1
+  }
+
+  promptElement.value = commandHistory[commandHistoryIndex] ?? ""
+}
+
+const tabEvent = (event) => {
+  if (autoCompleteJS.cursor > -1) {
+    console.log(autoCompleteJS.feedback.results[autoCompleteJS.cursor].value.suggestion)
+    selectBracketedExpression(
+      autoCompleteJS.feedback.results[autoCompleteJS.cursor].value.suggestion
+    )
+  } else {
+    const commonPrefix = autoCompleteJS.feedback.results
+      .map((result) => result.value.suggestion)
+      .reduce((a, b) => {
+        let acc = ""
+        for (let i = 0; i < a.length && i < b.length; i++) {
+          if (a[i] == b[i]) {
+            acc += a[i]
+          } else {
+            break
+          }
+        }
+        return acc
+      })
+
+    selectBracketedExpression(commonPrefix)
+  }
+  autoCompleteJS.start()
 }
 
 const output = (text) => {
@@ -161,37 +241,18 @@ promptFormElement.addEventListener("selection", async (event) => {
 })
 
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Tab") {
-    event.preventDefault()
-
-    if (autoCompleteJS.isOpen) {
-      if (autoCompleteJS.cursor > -1) {
-        selectBracketedExpression(
-          autoCompleteJS.feedback.results[autoCompleteJS.cursor].value.suggestion
-        )
-
-        autoCompleteJS.start()
-      } else {
-        const commonPrefix = autoCompleteJS.feedback.results
-          .map((result) => result.value.suggestion)
-          .reduce((a, b) => {
-            let acc = ""
-            for (let i = 0; i < Math.min(a.length, b.length); i++) {
-              if (a[i] == b[i]) {
-                acc += a[i]
-              } else {
-                break
-              }
-            }
-            return acc
-          })
-
-        selectBracketedExpression(commonPrefix)
-        autoCompleteJS.start()
-      }
-    }
-  } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
+  if (!event.ctrlKey && !event.metaKey) {
     promptElement.focus()
+
+    switch (event.key) {
+      case "ArrowUp":
+      case "ArrowDown":
+        historyEvent(event)
+        break
+      case "Tab":
+        tabEvent(event)
+        break
+    }
   }
 })
 

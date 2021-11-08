@@ -1,3 +1,6 @@
+* **Enhancement:** You can now navigate backwards and forwards through your
+  command history with the up and down arrow keys while the autocomplete popup
+  is closed. The history doesn't (yet!) persist between sessions.
 * **Enhancement:** By popular request, autocomplete and command parsing are now
   completely case-insensitive!
 * **Bug:** Fix the text colour of the input box when browsing in dark mode.
