@@ -13,3 +13,13 @@ pub enum RegionType {
     Geography(geography::GeographyType),
     Political(political::PoliticalType),
 }
+
+impl RegionType {
+    pub const fn get_emoji(&self) -> Option<&'static str> {
+        match self {
+            Self::Any => None,
+            Self::Geography(subtype) => subtype.get_emoji(),
+            Self::Political(subtype) => subtype.get_emoji(),
+        }
+    }
+}

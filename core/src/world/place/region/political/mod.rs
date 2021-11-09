@@ -20,3 +20,9 @@ pub enum PoliticalType {
     Region,
     Territory,
 }
+
+impl PoliticalType {
+    pub const fn get_emoji(&self) -> Option<&'static str> {
+        Some("👑")
+    }
+}

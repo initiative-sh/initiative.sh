@@ -20,3 +20,12 @@ pub enum ReligiousType {
     Temple,
     Tomb,
 }
+
+impl ReligiousType {
+    pub const fn get_emoji(&self) -> Option<&'static str> {
+        match self {
+            Self::Abbey | Self::Monastery | Self::Shrine | Self::Temple => Some("🙏"),
+            Self::Cemetery | Self::Crypt | Self::Mausoleum | Self::Tomb => Some("🪦"),
+        }
+    }
+}

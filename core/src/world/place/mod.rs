@@ -108,6 +108,21 @@ impl Generate for Place {
     }
 }
 
+impl PlaceType {
+    pub const fn get_emoji(&self) -> &'static str {
+        if let Some(emoji) = match self {
+            Self::Any => None,
+            Self::Building(subtype) => subtype.get_emoji(),
+            Self::Location(subtype) => subtype.get_emoji(),
+            Self::Region(subtype) => subtype.get_emoji(),
+        } {
+            emoji
+        } else {
+            "📍"
+        }
+    }
+}
+
 impl Default for PlaceType {
     fn default() -> Self {
         Self::Any
@@ -235,17 +250,6 @@ mod test {
         assert_eq!(empty_locked, diff);
     }
 
-    fn oaken_mermaid_inn() -> Place {
-        Place {
-            uuid: Some(uuid::Uuid::nil().into()),
-            parent_uuid: Uuid::from(uuid::Uuid::nil()).into(),
-            subtype: "inn".parse::<PlaceType>().ok().into(),
-
-            name: "Oaken Mermaid Inn".into(),
-            description: "I am Mordenkainen".into(),
-        }
-    }
-
     #[test]
     fn lock_all_test() {
         let mut place = Place::default();
@@ -261,5 +265,218 @@ mod test {
             },
             place,
         );
+    }
+
+    #[test]
+    fn get_emoji_test() {
+        let mut words_emoji: Vec<(String, String)> = PlaceType::get_words()
+            .map(|word| {
+                (
+                    word.to_string(),
+                    PlaceType::parse_cs(word).unwrap().get_emoji().to_string(),
+                )
+            })
+            .collect();
+        words_emoji.sort();
+
+        let expect_words_emoji: Vec<(String, String)> = [
+            ("abbey", "🙏"),
+            ("academy", "🎓"),
+            ("archipelago", "🏝"),
+            ("arena", "🏛"),
+            ("armorer", "🛡"),
+            ("bakery", "🍞"),
+            ("bank", "🏦"),
+            ("bar", "🍻"),
+            ("barony", "👑"),
+            ("barracks", "⚔"),
+            ("barrens", "🏜"),
+            ("base", "⚔"),
+            ("bathhouse", "🛁"),
+            ("beach", "🏖"),
+            ("blacksmith", "🗡"),
+            ("brewery", "🍻"),
+            ("bridge", "🌉"),
+            ("building", "📍"),
+            ("business", "🪙"),
+            ("camp", "🏕"),
+            ("campsite", "🏕"),
+            ("canyon", "📍"),
+            ("capital", "🏙"),
+            ("caravansary", "🏨"),
+            ("casino", "🃏"),
+            ("castle", "🏰"),
+            ("cave", "📍"),
+            ("cavern", "📍"),
+            ("cemetery", "🪦"),
+            ("chasm", "📍"),
+            ("church", "🙏"),
+            ("citadel", "🏰"),
+            ("city", "🏙"),
+            ("city-state", "👑"),
+            ("club", ""),
+            ("coastline", "🌊"),
+            ("college", "🎓"),
+            ("confederation", "👑"),
+            ("continent", "📍"),
+            ("country", "👑"),
+            ("county", "👑"),
+            ("court", "🏰"),
+            ("crypt", "🪦"),
+            ("desert", "🏜"),
+            ("distillery", "🥃"),
+            ("district", "📍"),
+            ("domain", "👑"),
+            ("duchy", "👑"),
+            ("duty-house", "🪙"),
+            ("embassy", "🚩"),
+            ("empire", "👑"),
+            ("farm", "🌱"),
+            ("ferry", "⛴"),
+            ("fighting-pit", "⚔"),
+            ("food-counter", "🍲"),
+            ("forest", "🌳"),
+            ("forge", "🔥"),
+            ("fort", "🏰"),
+            ("fortress", "🏰"),
+            ("fountain", "⛲"),
+            ("furniture-shop", "🪑"),
+            ("furrier", "🦊"),
+            ("gambling-hall", "🃏"),
+            ("garden", "🌱"),
+            ("gate", "🚪"),
+            ("general-store", "🪙"),
+            ("glacier", "🏔"),
+            ("gorge", "📍"),
+            ("graveyard", "🪦"),
+            ("grove", "🌳"),
+            ("guardhouse", "🛡"),
+            ("guild-hall", "🪙"),
+            ("hamlet", "🏘"),
+            ("harbor", "⛵"),
+            ("hermitage", "🙏"),
+            ("hill", "📍"),
+            ("hotel", "🏨"),
+            ("house", "📍"),
+            ("imports-shop", "🪙"),
+            ("inn", "🏨"),
+            ("island", "🏝"),
+            ("jail", "🛡"),
+            ("jeweller", "💍"),
+            ("jungle", "🌳"),
+            ("keep", "🏰"),
+            ("kingdom", "👑"),
+            ("lake", "🌊"),
+            ("library", "📚"),
+            ("lighthouse", "⛵"),
+            ("location", "📍"),
+            ("lodge", "🏨"),
+            ("lumberyard", "🪵"),
+            ("magic-shop", "🪄"),
+            ("manor", "📍"),
+            ("mansion", "📍"),
+            ("market", "🪙"),
+            ("marsh", "📍"),
+            ("mausoleum", "🪦"),
+            ("mesa", "📍"),
+            ("metropolis", "🏙"),
+            ("mill", "🌾"),
+            ("mine", "⚒"),
+            ("monastery", "🙏"),
+            ("monolith", "🗿"),
+            ("monument", "📍"),
+            ("moor", "📍"),
+            ("mosque", "🙏"),
+            ("mountain", "⛰"),
+            ("nation", "👑"),
+            ("necropolis", "🪦"),
+            ("neighborhood", "📍"),
+            ("nightclub", "🍻"),
+            ("nunnery", "🙏"),
+            ("oasis", "🌴"),
+            ("ocean", "🌊"),
+            ("outpost", "🚩"),
+            ("palace", "🏰"),
+            ("parish", "🏘"),
+            ("pass", "⛰"),
+            ("peninsula", "🏝"),
+            ("pet-store", "🐶"),
+            ("pier", "⛵"),
+            ("place", "📍"),
+            ("plain", "📍"),
+            ("plateau", "📍"),
+            ("portal", "📍"),
+            ("principality", "👑"),
+            ("prison", "🛡"),
+            ("province", "👑"),
+            ("pub", "🍻"),
+            ("quarter", "📍"),
+            ("realm", "👑"),
+            ("reef", "📍"),
+            ("region", "👑"),
+            ("region", "👑"),
+            ("residence", "📍"),
+            ("restaurant", "🍽"),
+            ("ridge", "⛰"),
+            ("rift", "📍"),
+            ("river", "🏞"),
+            ("ruin", "📍"),
+            ("school", "🎓"),
+            ("sea", "🌊"),
+            ("shipyard", "⛵"),
+            ("shop", "🪙"),
+            ("shrine", "🙏"),
+            ("smithy", "🗡"),
+            ("specialty-shop", "🪙"),
+            ("spirits-shop", "🥃"),
+            ("stable", "🐎"),
+            ("statue", "📍"),
+            ("store", "🪙"),
+            ("street", "📍"),
+            ("stronghold", "🏰"),
+            ("swamp", "📍"),
+            ("synagogue", "🙏"),
+            ("tavern", "🏨"),
+            ("temple", "🙏"),
+            ("territory", "👑"),
+            ("textiles-shop", "🪙"),
+            ("theater", "🎭"),
+            ("tomb", "🪦"),
+            ("tower", "🏰"),
+            ("town", "🏘"),
+            ("trading-post", "🪙"),
+            ("tree", "🌳"),
+            ("tundra", "❄"),
+            ("university", "🎓"),
+            ("vale", "📍"),
+            ("valley", "📍"),
+            ("vault", "🏦"),
+            ("village", "🏘"),
+            ("wainwright", "🪙"),
+            ("wall", "🧱"),
+            ("ward", "📍"),
+            ("warehouse", "📦"),
+            ("wasteland", "🏜"),
+            ("watch-house", "🛡"),
+            ("weaponsmith", "🗡"),
+            ("woodshop", "🪚"),
+            ("world", "🌐"),
+        ]
+        .iter()
+        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .collect();
+
+        assert_eq!(expect_words_emoji, words_emoji);
+    }
+
+    fn oaken_mermaid_inn() -> Place {
+        Place {
+            uuid: Some(uuid::Uuid::nil().into()),
+            parent_uuid: Uuid::from(uuid::Uuid::nil()).into(),
+            subtype: "inn".parse::<PlaceType>().ok().into(),
+
+            name: "Oaken Mermaid Inn".into(),
+            description: "I am Mordenkainen".into(),
+        }
     }
 }

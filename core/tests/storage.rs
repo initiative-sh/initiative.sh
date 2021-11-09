@@ -344,7 +344,7 @@ fn journal_shows_alphabetized_results() {
                 "{}",
                 app.command(&format!(
                     "save {}",
-                    line.find(',').map(|pos| &line[1..pos - 1]).unwrap()
+                    line.find(',').map(|pos| &line[6..pos - 1]).unwrap()
                 ))
                 .unwrap(),
             );
