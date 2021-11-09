@@ -56,6 +56,10 @@ module.exports = {
           from: path.resolve(__dirname, 'static/*.css'),
           to: path.resolve(__dirname, 'dist/[name].[contenthash][ext]'),
         },
+        {
+          from: path.resolve(__dirname, 'static/favicon.ico'),
+          to: path.resolve(__dirname, 'dist/favicon.ico'),
+        },
       ],
     }),
   ],
