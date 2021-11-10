@@ -1,6 +1,8 @@
 use crate::storage::{DataStore, MemoryDataStore};
 use crate::time::Time;
+use crate::utils::CaseInsensitiveStr;
 use crate::{Thing, Uuid};
+use futures::join;
 use std::collections::{HashMap, VecDeque};
 use std::fmt;
 
@@ -118,10 +120,7 @@ impl Repository {
 
     pub async fn load(&self, id: &Id) -> Result<Thing, Error> {
         match id {
-            Id::Name(name) => self
-                .load_thing_by_name(name)
-                .cloned()
-                .ok_or(Error::NotFound),
+            Id::Name(name) => self.load_thing_by_name(name).await,
             Id::Uuid(uuid) => self.load_thing_by_uuid(uuid).await,
         }
     }
@@ -192,6 +191,7 @@ impl Repository {
         match change {
             Change::Create { thing } => self
                 .create_thing(thing)
+                .await
                 .map(|name| Change::Delete {
                     id: name.as_str().into(),
                     name: name.to_owned(),
@@ -377,9 +377,9 @@ impl Repository {
         }
     }
 
-    fn create_thing(&mut self, thing: Thing) -> Result<String, (Thing, Error)> {
+    async fn create_thing(&mut self, thing: Thing) -> Result<String, (Thing, Error)> {
         if let Some(name) = thing.name().value() {
-            if self.load_thing_by_name(&name.to_lowercase()).is_some() {
+            if self.load_thing_by_name(name).await.is_ok() {
                 Err((thing, Error::NameAlreadyExists))
             } else {
                 let name = name.to_string();
@@ -393,7 +393,7 @@ impl Repository {
 
     async fn create_and_save_thing(&mut self, thing: Thing) -> Result<Uuid, (Thing, Error)> {
         if let Some(name) = thing.name().value() {
-            if self.load_thing_by_name(&name.to_lowercase()).is_some() {
+            if self.load_thing_by_name(name).await.is_ok() {
                 Err((thing, Error::NameAlreadyExists))
             } else {
                 self.save_thing(thing).await
@@ -406,17 +406,12 @@ impl Repository {
     async fn delete_thing_by_name(&mut self, name: &str) -> Result<Thing, Error> {
         let name_matches = |s: &String| s.to_lowercase() == name;
 
-        let cached_uuid = if let Some((uuid, _)) = self
-            .cache
-            .iter()
-            .find(|(_, t)| t.name().value().map_or(false, name_matches))
+        if let Some(uuid) = self
+            .load_thing_by_name(name)
+            .await
+            .ok()
+            .and_then(|t| t.uuid().cloned())
         {
-            Some(*uuid)
-        } else {
-            None
-        };
-
-        if let Some(uuid) = cached_uuid {
             self.delete_thing_by_uuid(&uuid).await.map_err(|(_, e)| e)
         } else if let Some(thing) =
             self.take_recent(|t| t.name().value().map_or(false, name_matches))
@@ -438,9 +433,21 @@ impl Repository {
         }
     }
 
-    fn load_thing_by_name<'a>(&'a self, name: &str) -> Option<&'a Thing> {
-        self.all()
-            .find(|t| t.name().value().map_or(false, |s| s.to_lowercase() == name))
+    async fn load_thing_by_name(&self, name: &str) -> Result<Thing, Error> {
+        let (saved_thing, recent_thing) = join!(self.data_store.get_thing_by_name(name), async {
+            self.recent()
+                .find(|t| t.name().value().map_or(false, |s| s.eq_ci(name)))
+        });
+
+        if let Some(thing) = recent_thing {
+            Ok(thing.clone())
+        } else {
+            match saved_thing {
+                Ok(Some(thing)) => Ok(thing),
+                Ok(None) => Err(Error::NotFound),
+                Err(()) => Err(Error::DataStoreFailed),
+            }
+        }
     }
 
     async fn load_thing_by_uuid(&self, uuid: &Uuid) -> Result<Thing, Error> {
@@ -497,7 +504,7 @@ impl Repository {
 
         thing.clear_uuid();
 
-        match (self.create_thing(thing), error) {
+        match (self.create_thing(thing).await, error) {
             (Ok(s), None) => Ok(s),
             (Ok(s), Some(e)) => Err((Some(s), e)),
             (Err((t, e)), None) | (Err((t, _)), Some(e)) => {
@@ -1244,27 +1251,21 @@ mod test {
             .into(),
         };
 
-        {
-            let result = block_on(repo.modify(change));
-            assert!(block_on(repo.load(&"Hades".into())).is_ok());
-            assert_eq!(Err(Error::NotFound), block_on(repo.load(&"Olympus".into())));
-
-            assert_eq!(
-                Err((
-                    Change::Edit {
-                        id: "Hades".into(),
-                        name: "Hades".into(),
-                        diff: Place {
-                            name: "Olympus".into(),
-                            ..Default::default()
-                        }
-                        .into(),
-                    },
-                    Error::DataStoreFailed,
-                )),
-                result,
-            );
-        }
+        assert_eq!(
+            Err((
+                Change::Edit {
+                    id: "Hades".into(),
+                    name: "Hades".into(),
+                    diff: Place {
+                        name: "Olympus".into(),
+                        ..Default::default()
+                    }
+                    .into(),
+                },
+                Error::DataStoreFailed,
+            )),
+            block_on(repo.modify(change)),
+        );
     }
 
     #[test]
@@ -1394,33 +1395,23 @@ mod test {
             .into(),
         };
 
-        {
-            let result = block_on(repo.modify(change));
-            assert!(block_on(repo.load(&"Hades".into())).is_ok());
-            assert_eq!(
-                Err(Error::DataStoreFailed),
-                block_on(repo.load(&TEST_UUID.into())),
-            );
-            assert_eq!(Err(Error::NotFound), block_on(repo.load(&"Olympus".into())));
-
-            assert_eq!(
-                Err((
-                    Change::Edit {
-                        id: TEST_UUID.into(),
+        assert_eq!(
+            Err((
+                Change::Edit {
+                    id: TEST_UUID.into(),
+                    name: "Olympus".into(),
+                    diff: Place {
+                        // FIXME
                         name: "Olympus".into(),
-                        diff: Place {
-                            // FIXME
-                            name: "Olympus".into(),
-                            // name: "Hades".into(),
-                            ..Default::default()
-                        }
-                        .into(),
-                    },
-                    Error::DataStoreFailed,
-                )),
-                result,
-            );
-        }
+                        // name: "Hades".into(),
+                        ..Default::default()
+                    }
+                    .into(),
+                },
+                Error::DataStoreFailed,
+            )),
+            block_on(repo.modify(change)),
+        );
     }
 
     #[test]
@@ -1998,6 +1989,11 @@ mod test {
         async fn get_thing_by_uuid(&self, uuid: &Uuid) -> Result<Option<Thing>, ()> {
             self.tick()?;
             self.data_store.get_thing_by_uuid(uuid).await
+        }
+
+        async fn get_thing_by_name(&self, name: &str) -> Result<Option<Thing>, ()> {
+            self.tick()?;
+            self.data_store.get_thing_by_name(name).await
         }
 
         async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()> {

@@ -1,3 +1,4 @@
+use crate::utils::CaseInsensitiveStr;
 use crate::{Thing, Uuid};
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -26,6 +27,10 @@ impl DataStore for NullDataStore {
     }
 
     async fn get_thing_by_uuid(&self, _uuid: &Uuid) -> Result<Option<Thing>, ()> {
+        Err(())
+    }
+
+    async fn get_thing_by_name(&self, _name: &str) -> Result<Option<Thing>, ()> {
         Err(())
     }
 
@@ -73,6 +78,15 @@ impl DataStore for MemoryDataStore {
         Ok(self.things.borrow().get(uuid).cloned())
     }
 
+    async fn get_thing_by_name(&self, name: &str) -> Result<Option<Thing>, ()> {
+        Ok(self
+            .things
+            .borrow()
+            .values()
+            .find(|thing| thing.name().value().map_or(false, |s| s.eq_ci(name)))
+            .cloned())
+    }
+
     async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()> {
         if let Some(uuid) = thing.uuid() {
             let mut things = self.things.borrow_mut();
@@ -116,6 +130,8 @@ pub trait DataStore {
 
     async fn get_thing_by_uuid(&self, uuid: &Uuid) -> Result<Option<Thing>, ()>;
 
+    async fn get_thing_by_name(&self, name: &str) -> Result<Option<Thing>, ()>;
+
     async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()>;
 
     async fn set_value(&mut self, key: &str, value: &str) -> Result<(), ()>;
@@ -154,6 +170,25 @@ mod test {
         assert_eq!(
             Ok(Some(person(TEST_UUID))),
             block_on(ds.get_thing_by_uuid(&TEST_UUID)),
+        );
+    }
+
+    #[test]
+    fn memory_get_thing_by_name_test() {
+        let mut ds = MemoryDataStore::default();
+
+        let gandalf_the_grey = Npc {
+            uuid: Some(TEST_UUID.into()),
+            name: "Gandalf the Grey".into(),
+            ..Default::default()
+        }
+        .into();
+
+        assert_eq!(Ok(None), block_on(ds.get_thing_by_name("gANDALF THE gREY")));
+        assert_eq!(Ok(()), block_on(ds.save_thing(&gandalf_the_grey)));
+        assert_eq!(
+            Ok(Some(gandalf_the_grey)),
+            block_on(ds.get_thing_by_name("gANDALF THE gREY")),
         );
     }
 
