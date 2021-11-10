@@ -288,6 +288,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "caith",
+ "futures",
  "initiative-macros",
  "rand",
  "rand_distr",

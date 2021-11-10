@@ -4,6 +4,7 @@ use crate::utils::{quoted_words, CaseInsensitiveStr};
 use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
 use crate::world::place::{Place, PlaceType};
 use crate::world::Thing;
+use async_trait::async_trait;
 use std::collections::HashSet;
 use std::str::FromStr;
 
@@ -232,8 +233,9 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
     }
 }
 
+#[async_trait(?Send)]
 impl Autocomplete for Place {
-    fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
         autocomplete_terms::<ParsedThing<Place>>(
             input,
             &["place"],
@@ -246,8 +248,9 @@ impl Autocomplete for Place {
     }
 }
 
+#[async_trait(?Send)]
 impl Autocomplete for Npc {
-    fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
         if let Some(word) = quoted_words(input).last().filter(|w| {
             let s = w.as_str();
             s.starts_with(|c: char| c.is_ascii_digit())
@@ -313,6 +316,7 @@ impl Autocomplete for Npc {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
+    use tokio_test::block_on;
 
     #[test]
     fn parsed_input_suggestion_test() {
@@ -409,7 +413,7 @@ mod test {
                 ("imports-shop", "create imports-shop"),
                 ("island", "create island"),
             ][..],
-            Place::autocomplete("i", &app_meta()),
+            block_on(Place::autocomplete("i", &app_meta())),
         );
 
         assert_autocomplete(
@@ -418,22 +422,22 @@ mod test {
                 ("an imports-shop", "create imports-shop"),
                 ("an island", "create island"),
             ][..],
-            Place::autocomplete("an i", &app_meta()),
+            block_on(Place::autocomplete("an i", &app_meta())),
         );
 
         assert_autocomplete(
             &[("an inn named [name]", "specify a name")][..],
-            Place::autocomplete("an inn n", &app_meta()),
+            block_on(Place::autocomplete("an inn n", &app_meta())),
         );
 
         assert_eq!(
             Vec::<(String, String)>::new(),
-            Place::autocomplete("a streetcar named desire", &app_meta()),
+            block_on(Place::autocomplete("a streetcar named desire", &app_meta())),
         );
 
         assert_eq!(
             Vec::<(String, String)>::new(),
-            Place::autocomplete("Foo, an inn n", &app_meta()),
+            block_on(Place::autocomplete("Foo, an inn n", &app_meta())),
         );
     }
 
@@ -446,7 +450,7 @@ mod test {
             for i in 2..input.len() {
                 assert_ne!(
                     Vec::<(String, String)>::new(),
-                    Place::autocomplete(&input[..i], &app_meta),
+                    block_on(Place::autocomplete(&input[..i], &app_meta)),
                     "Input: {}",
                     &input[..i],
                 );
@@ -460,7 +464,7 @@ mod test {
             for i in 4..input.len() {
                 assert_ne!(
                     Vec::<(String, String)>::new(),
-                    Place::autocomplete(&input[..i], &app_meta),
+                    block_on(Place::autocomplete(&input[..i], &app_meta)),
                     "Input: {}",
                     &input[..i],
                 );
@@ -477,7 +481,7 @@ mod test {
                 ("elf [gender]", "specify a gender"),
                 ("elf named [name]", "specify a name"),
             ][..],
-            Npc::autocomplete("elf ", &app_meta()),
+            block_on(Npc::autocomplete("elf ", &app_meta())),
         );
 
         assert_autocomplete(
@@ -486,7 +490,7 @@ mod test {
                 ("human [gender]", "specify a gender"),
                 ("human named [name]", "specify a name"),
             ][..],
-            Npc::autocomplete("human ", &app_meta()),
+            block_on(Npc::autocomplete("human ", &app_meta())),
         );
     }
 
@@ -498,7 +502,7 @@ mod test {
         for i in 3..input.len() {
             assert_ne!(
                 Vec::<(String, String)>::new(),
-                Npc::autocomplete(&input[..i], &app_meta),
+                block_on(Npc::autocomplete(&input[..i], &app_meta)),
                 "Input: {}",
                 &input[..i],
             );

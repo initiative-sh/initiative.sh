@@ -3,6 +3,7 @@ use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnabl
 use crate::storage::{Change, RepositoryError, StorageCommand};
 use crate::utils::{quoted_words, CaseInsensitiveStr};
 use async_trait::async_trait;
+use futures::join;
 use std::fmt;
 use std::ops::Range;
 
@@ -217,8 +218,9 @@ impl Runnable for WorldCommand {
     }
 }
 
+#[async_trait(?Send)]
 impl ContextAwareParse for WorldCommand {
-    fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut exact_match = None;
         let mut fuzzy_matches = Vec::new();
 
@@ -280,12 +282,18 @@ impl ContextAwareParse for WorldCommand {
     }
 }
 
+#[async_trait(?Send)]
 impl Autocomplete for WorldCommand {
-    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         let mut suggestions = Vec::new();
 
-        suggestions.append(&mut Place::autocomplete(input, app_meta));
-        suggestions.append(&mut Npc::autocomplete(input, app_meta));
+        let (mut place_suggestions, mut npc_suggestions) = join!(
+            Place::autocomplete(input, app_meta),
+            Npc::autocomplete(input, app_meta),
+        );
+
+        suggestions.append(&mut place_suggestions);
+        suggestions.append(&mut npc_suggestions);
 
         let mut input_words = quoted_words(input).skip(1);
 
@@ -304,7 +312,8 @@ impl Autocomplete for WorldCommand {
                     Thing::Place(_) => {
                         Place::autocomplete(input[split_pos..].trim_start(), app_meta)
                     }
-                };
+                }
+                .await;
 
                 suggestions.reserve(edit_suggestions.len());
 
@@ -485,12 +494,12 @@ mod test {
 
         assert_eq!(
             (None, vec![create(Npc::default())]),
-            WorldCommand::parse_input("npc", &app_meta),
+            block_on(WorldCommand::parse_input("npc", &app_meta)),
         );
 
         assert_eq!(
             (Some(create(Npc::default())), Vec::new()),
-            WorldCommand::parse_input("create npc", &app_meta),
+            block_on(WorldCommand::parse_input("create npc", &app_meta)),
         );
 
         assert_eq!(
@@ -501,12 +510,12 @@ mod test {
                     ..Default::default()
                 })],
             ),
-            WorldCommand::parse_input("elf", &app_meta),
+            block_on(WorldCommand::parse_input("elf", &app_meta)),
         );
 
         assert_eq!(
             (None, Vec::<WorldCommand>::new()),
-            WorldCommand::parse_input("potato", &app_meta),
+            block_on(WorldCommand::parse_input("potato", &app_meta)),
         );
 
         {
@@ -540,7 +549,7 @@ mod test {
                         },
                     }],
                 ),
-                WorldCommand::parse_input("Spot is a good boy", &app_meta),
+                block_on(WorldCommand::parse_input("Spot is a good boy", &app_meta)),
             );
         }
     }
@@ -582,12 +591,12 @@ mod test {
         .for_each(|(word, summary)| {
             assert_eq!(
                 vec![(word.to_string(), summary.to_string())],
-                WorldCommand::autocomplete(word, &app_meta),
+                block_on(WorldCommand::autocomplete(word, &app_meta)),
             );
 
             assert_eq!(
                 vec![(word.to_string(), summary.to_string())],
-                WorldCommand::autocomplete(&word.to_uppercase(), &app_meta),
+                block_on(WorldCommand::autocomplete(&word.to_uppercase(), &app_meta)),
             );
         });
 
@@ -610,7 +619,7 @@ mod test {
                 ("building", "create building"),
                 ("business", "create business"),
             ][..],
-            WorldCommand::autocomplete("b", &app_meta),
+            block_on(WorldCommand::autocomplete("b", &app_meta)),
         );
 
         assert_autocomplete(
@@ -618,7 +627,7 @@ mod test {
                 "Potato Johnson is [character description]",
                 "edit character",
             )][..],
-            WorldCommand::autocomplete("Potato Johnson", &app_meta),
+            block_on(WorldCommand::autocomplete("Potato Johnson", &app_meta)),
         );
 
         assert_autocomplete(
@@ -626,7 +635,10 @@ mod test {
                 "Potato Johnson is a [character description]",
                 "edit character",
             )][..],
-            WorldCommand::autocomplete("Potato Johnson is a ", &app_meta),
+            block_on(WorldCommand::autocomplete(
+                "Potato Johnson is a ",
+                &app_meta,
+            )),
         );
 
         assert_autocomplete(
@@ -636,7 +648,10 @@ mod test {
                 ("Potato Johnson is an elvish", "edit character"),
                 ("Potato Johnson is an enby", "edit character"),
             ][..],
-            WorldCommand::autocomplete("Potato Johnson is an e", &app_meta),
+            block_on(WorldCommand::autocomplete(
+                "Potato Johnson is an e",
+                &app_meta,
+            )),
         );
     }
 
@@ -662,14 +677,17 @@ mod test {
 
             assert_eq!(
                 (Some(command.clone()), Vec::new()),
-                WorldCommand::parse_input(&command_string, &app_meta),
+                block_on(WorldCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,
             );
 
             assert_eq!(
                 (Some(command), Vec::new()),
-                WorldCommand::parse_input(&command_string.to_uppercase(), &app_meta),
+                block_on(WorldCommand::parse_input(
+                    &command_string.to_uppercase(),
+                    &app_meta
+                )),
                 "{}",
                 command_string.to_uppercase(),
             );

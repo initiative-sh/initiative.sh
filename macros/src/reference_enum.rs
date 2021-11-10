@@ -143,8 +143,8 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
         }
 
         impl #ident {
-            pub fn get_words() -> &'static [&'static str] {
-                &[#(#words)*]
+            pub fn get_words() -> impl Iterator<Item = &'static str> {
+                [#(#words)*].into_iter()
             }
 
             #get_list

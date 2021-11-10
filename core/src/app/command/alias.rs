@@ -106,8 +106,9 @@ impl Runnable for CommandAlias {
     }
 }
 
+#[async_trait(?Send)]
 impl ContextAwareParse for CommandAlias {
-    fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         (
             app_meta
                 .command_aliases
@@ -128,8 +129,9 @@ impl ContextAwareParse for CommandAlias {
     }
 }
 
+#[async_trait(?Send)]
 impl Autocomplete for CommandAlias {
-    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         app_meta
             .command_aliases
             .iter()
@@ -248,21 +250,22 @@ mod tests {
 
         assert_eq!(
             vec![("about alias".to_string(), "about summary".to_string())],
-            CommandAlias::autocomplete("a", &app_meta),
+            block_on(CommandAlias::autocomplete("a", &app_meta)),
         );
 
         assert_eq!(
-            CommandAlias::autocomplete("a", &app_meta),
-            CommandAlias::autocomplete("A", &app_meta),
+            block_on(CommandAlias::autocomplete("a", &app_meta)),
+            block_on(CommandAlias::autocomplete("A", &app_meta)),
         );
 
         assert_eq!(
             (None, Vec::new()),
-            CommandAlias::parse_input("blah", &app_meta),
+            block_on(CommandAlias::parse_input("blah", &app_meta)),
         );
 
         {
-            let (parsed_exact, parsed_fuzzy) = CommandAlias::parse_input("about alias", &app_meta);
+            let (parsed_exact, parsed_fuzzy) =
+                block_on(CommandAlias::parse_input("about alias", &app_meta));
 
             assert!(parsed_fuzzy.is_empty(), "{:?}", parsed_fuzzy);
             assert_eq!(about_alias, parsed_exact.unwrap());
@@ -296,7 +299,7 @@ mod tests {
         {
             // Should be caught by the wildcard, not the literal alias
             let (parsed_exact, parsed_fuzzy) =
-                CommandAlias::parse_input("literal alias", &app_meta);
+                block_on(CommandAlias::parse_input("literal alias", &app_meta));
 
             assert!(parsed_fuzzy.is_empty(), "{:?}", parsed_fuzzy);
             assert_eq!(about_alias, parsed_exact.unwrap());

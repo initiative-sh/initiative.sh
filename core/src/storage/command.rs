@@ -14,66 +14,6 @@ pub enum StorageCommand {
     Undo,
 }
 
-impl StorageCommand {
-    fn summarize(
-        &self,
-        thing: Option<&Thing>,
-        undo_change: Option<&Change>,
-        redo_change: Option<&Change>,
-    ) -> String {
-        match (self, thing) {
-            (
-                Self::Change {
-                    change: Change::Delete { .. },
-                },
-                Some(thing),
-            ) => format!("remove {} from journal", thing.as_str()),
-            (
-                Self::Change {
-                    change: Change::Delete { .. },
-                },
-                None,
-            ) => "remove an entry from journal".to_string(),
-            (
-                Self::Change {
-                    change: Change::Save { .. },
-                },
-                Some(thing),
-            ) => format!("save {} to journal", thing.as_str()),
-            (
-                Self::Change {
-                    change: Change::Save { .. },
-                },
-                None,
-            ) => "save an entry to journal".to_string(),
-            (Self::Change { .. }, _) => unreachable!(),
-            (Self::Journal { .. }, _) => "list journal contents".to_string(),
-            (Self::Load { .. }, Some(thing)) => {
-                if thing.uuid().is_some() {
-                    format!("{}", thing.display_description())
-                } else {
-                    format!("{} (unsaved)", thing.display_description())
-                }
-            }
-            (Self::Load { .. }, None) => "load an entry".to_string(),
-            (Self::Redo, _) => {
-                if let Some(change) = redo_change {
-                    format!("redo {}", change.display_redo())
-                } else {
-                    "nothing to redo".to_string()
-                }
-            }
-            (Self::Undo, _) => {
-                if let Some(change) = undo_change {
-                    format!("undo {}", change.display_undo())
-                } else {
-                    "nothing to undo".to_string()
-                }
-            }
-        }
-    }
-}
-
 #[async_trait(?Send)]
 impl Runnable for StorageCommand {
     async fn run(self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
@@ -305,8 +245,9 @@ impl Runnable for StorageCommand {
     }
 }
 
+#[async_trait(?Send)]
 impl ContextAwareParse for StorageCommand {
-    fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut fuzzy_matches = Vec::new();
 
         if app_meta.repository.load(&input.into()).is_some() {
@@ -347,35 +288,47 @@ impl ContextAwareParse for StorageCommand {
     }
 }
 
+#[async_trait(?Send)]
 impl Autocomplete for StorageCommand {
-    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
-        let mut suggestions = Vec::new();
-
-        ["delete", "load", "save"]
-            .iter()
-            .filter(|s| s.starts_with_ci(input))
-            .filter_map(|s| {
-                let suggestion = format!("{} [name]", s);
-                Self::parse_input(&suggestion, app_meta)
-                    .0
-                    .map(|command| (suggestion, command))
-            })
-            .chain(
-                ["journal", "undo", "redo"]
-                    .iter()
-                    .filter(|s| s.starts_with_ci(input))
-                    .filter_map(|s| Self::parse_input(s, app_meta).0.map(|c| (s.to_string(), c))),
-            )
-            .for_each(|(s, command)| {
-                suggestions.push((
-                    s,
-                    command.summarize(
-                        None,
-                        app_meta.repository.undo_history().next(),
-                        app_meta.repository.get_redo(),
-                    ),
-                ))
-            });
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
+        let mut suggestions: Vec<(String, String)> = [
+            ("delete", "delete [name]", "remove an entry from journal"),
+            ("load", "load [name]", "load an entry"),
+            ("save", "save [name]", "save an entry to journal"),
+            ("journal", "journal", "list journal contents"),
+        ]
+        .into_iter()
+        .filter(|(s, _, _)| s.starts_with_ci(input))
+        .map(|(_, b, c)| (b.to_string(), c.to_string()))
+        .chain(
+            ["undo"]
+                .into_iter()
+                .filter(|s| s.starts_with_ci(input))
+                .map(|s| {
+                    (
+                        s.to_string(),
+                        app_meta.repository.undo_history().next().map_or_else(
+                            || "Nothing to undo.".to_string(),
+                            |change| format!("undo {}", change.display_undo()),
+                        ),
+                    )
+                }),
+        )
+        .chain(
+            ["redo"]
+                .into_iter()
+                .filter(|s| s.starts_with_ci(input))
+                .map(|s| {
+                    (
+                        s.to_string(),
+                        app_meta.repository.get_redo().map_or_else(
+                            || "Nothing to redo.".to_string(),
+                            |change| format!("redo {}", change.display_redo()),
+                        ),
+                    )
+                }),
+        )
+        .collect();
 
         let (input_prefix, input_name) = if let Some(parts) = ["delete ", "load ", "save "]
             .iter()
@@ -386,7 +339,7 @@ impl Autocomplete for StorageCommand {
             ("", input)
         };
 
-        app_meta
+        for (prefix, thing) in app_meta
             .repository
             .all()
             .filter_map(|thing| {
@@ -407,18 +360,33 @@ impl Autocomplete for StorageCommand {
                     })
                     .flatten()
             })
-            .filter_map(|(prefix, thing)| {
-                let suggestion = format!("{}{}", prefix, thing.name());
-                let (exact_match, mut fuzzy_matches) = Self::parse_input(&suggestion, app_meta);
-
-                exact_match
-                    .or_else(|| fuzzy_matches.drain(..).next())
-                    .map(|command| (suggestion, thing, command))
-            })
             .take(10)
-            .for_each(|(suggestion, thing, command)| {
-                suggestions.push((suggestion, command.summarize(Some(thing), None, None)))
-            });
+        {
+            let suggestion = format!("{}{}", prefix, thing.name());
+            let (exact_match, mut fuzzy_matches) = Self::parse_input(&suggestion, app_meta).await;
+
+            if let Some(command) = exact_match.or_else(|| fuzzy_matches.drain(..).next()) {
+                suggestions.push((
+                    suggestion,
+                    match command {
+                        Self::Change {
+                            change: Change::Delete { .. },
+                        } => format!("remove {} from journal", thing.as_str()),
+                        Self::Change {
+                            change: Change::Save { .. },
+                        } => format!("save {} to journal", thing.as_str()),
+                        Self::Load { .. } => {
+                            if thing.uuid().is_some() {
+                                format!("{}", thing.display_description())
+                            } else {
+                                format!("{} (unsaved)", thing.display_description())
+                            }
+                        }
+                        _ => unreachable!(),
+                    },
+                ))
+            }
+        }
 
         suggestions
     }
@@ -449,134 +417,6 @@ mod test {
     use crate::world::npc::{Age, Gender, Npc, Species};
     use crate::world::place::{Place, PlaceType};
     use tokio_test::block_on;
-    use uuid::Uuid;
-
-    #[test]
-    fn summarize_test() {
-        {
-            let mut place = Place {
-                subtype: "inn".parse::<PlaceType>().ok().into(),
-                ..Default::default()
-            }
-            .into();
-
-            assert_eq!(
-                "inn (unsaved)",
-                StorageCommand::Load {
-                    name: String::new(),
-                }
-                .summarize(Some(&place), None, None),
-            );
-
-            place.set_uuid(Uuid::new_v4());
-
-            assert_eq!(
-                "inn",
-                StorageCommand::Load {
-                    name: String::new(),
-                }
-                .summarize(Some(&place), None, None),
-            );
-
-            assert_eq!(
-                "save place to journal",
-                StorageCommand::Change {
-                    change: Change::Save {
-                        name: String::new(),
-                    },
-                }
-                .summarize(Some(&place), None, None),
-            );
-        }
-
-        {
-            let mut npc = Npc {
-                species: Species::Gnome.into(),
-                ..Default::default()
-            }
-            .into();
-
-            assert_eq!(
-                "gnome (unsaved)",
-                StorageCommand::Load {
-                    name: String::new(),
-                }
-                .summarize(Some(&npc), None, None),
-            );
-
-            npc.set_uuid(Uuid::new_v4());
-
-            assert_eq!(
-                "gnome",
-                StorageCommand::Load {
-                    name: String::new(),
-                }
-                .summarize(Some(&npc), None, None),
-            );
-
-            assert_eq!(
-                "save character to journal",
-                StorageCommand::Change {
-                    change: Change::Save {
-                        name: String::new(),
-                    },
-                }
-                .summarize(Some(&npc), None, None),
-            );
-        }
-
-        {
-            assert_eq!(
-                "load an entry",
-                StorageCommand::Load {
-                    name: String::new(),
-                }
-                .summarize(None, None, None),
-            );
-
-            assert_eq!(
-                "save an entry to journal",
-                StorageCommand::Change {
-                    change: Change::Save {
-                        name: String::new(),
-                    }
-                }
-                .summarize(None, None, None),
-            );
-        }
-
-        {
-            let change = Change::Save {
-                name: "Potato Johnson".to_string(),
-            };
-
-            assert_eq!(
-                "undo removing Potato Johnson from journal",
-                StorageCommand::Undo.summarize(None, Some(&change), None),
-            );
-
-            assert_eq!(
-                "nothing to undo",
-                StorageCommand::Undo.summarize(None, None, None),
-            );
-        }
-
-        {
-            let change = Change::Save {
-                name: "Potato Johnson".to_string(),
-            };
-
-            assert_eq!(
-                "redo saving Potato Johnson to journal",
-                StorageCommand::Redo.summarize(None, None, Some(&change)),
-            );
-
-            assert_eq!(
-                "nothing to redo",
-                StorageCommand::Redo.summarize(None, None, None),
-            );
-        }
-    }
 
     #[test]
     fn parse_input_test() {
@@ -584,7 +424,7 @@ mod test {
 
         assert_eq!(
             (Option::<StorageCommand>::None, Vec::new()),
-            StorageCommand::parse_input("Gandalf the Grey", &app_meta),
+            block_on(StorageCommand::parse_input("Gandalf the Grey", &app_meta)),
         );
 
         assert_eq!(
@@ -597,12 +437,21 @@ mod test {
                 }),
                 Vec::new(),
             ),
-            StorageCommand::parse_input("delete Gandalf the Grey", &app_meta),
+            block_on(StorageCommand::parse_input(
+                "delete Gandalf the Grey",
+                &app_meta
+            )),
         );
 
         assert_eq!(
-            StorageCommand::parse_input("delete Gandalf the Grey", &app_meta),
-            StorageCommand::parse_input("DELETE Gandalf the Grey", &app_meta),
+            block_on(StorageCommand::parse_input(
+                "delete Gandalf the Grey",
+                &app_meta
+            )),
+            block_on(StorageCommand::parse_input(
+                "DELETE Gandalf the Grey",
+                &app_meta
+            )),
         );
 
         assert_eq!(
@@ -614,12 +463,21 @@ mod test {
                 }),
                 Vec::new(),
             ),
-            StorageCommand::parse_input("save Gandalf the Grey", &app_meta),
+            block_on(StorageCommand::parse_input(
+                "save Gandalf the Grey",
+                &app_meta
+            )),
         );
 
         assert_eq!(
-            StorageCommand::parse_input("save Gandalf the Grey", &app_meta),
-            StorageCommand::parse_input("SAVE Gandalf the Grey", &app_meta),
+            block_on(StorageCommand::parse_input(
+                "save Gandalf the Grey",
+                &app_meta
+            )),
+            block_on(StorageCommand::parse_input(
+                "SAVE Gandalf the Grey",
+                &app_meta
+            )),
         );
 
         assert_eq!(
@@ -629,27 +487,36 @@ mod test {
                 }),
                 Vec::new(),
             ),
-            StorageCommand::parse_input("load Gandalf the Grey", &app_meta),
+            block_on(StorageCommand::parse_input(
+                "load Gandalf the Grey",
+                &app_meta
+            )),
         );
 
         assert_eq!(
-            StorageCommand::parse_input("load Gandalf the Grey", &app_meta),
-            StorageCommand::parse_input("LOAD Gandalf the Grey", &app_meta),
+            block_on(StorageCommand::parse_input(
+                "load Gandalf the Grey",
+                &app_meta
+            )),
+            block_on(StorageCommand::parse_input(
+                "LOAD Gandalf the Grey",
+                &app_meta
+            )),
         );
 
         assert_eq!(
             (Some(StorageCommand::Journal), Vec::new()),
-            StorageCommand::parse_input("journal", &app_meta),
+            block_on(StorageCommand::parse_input("journal", &app_meta)),
         );
 
         assert_eq!(
             (Some(StorageCommand::Journal), Vec::new()),
-            StorageCommand::parse_input("JOURNAL", &app_meta),
+            block_on(StorageCommand::parse_input("JOURNAL", &app_meta)),
         );
 
         assert_eq!(
             (None, Vec::<StorageCommand>::new()),
-            StorageCommand::parse_input("potato", &app_meta),
+            block_on(StorageCommand::parse_input("potato", &app_meta)),
         );
     }
 
@@ -694,7 +561,7 @@ mod test {
         )
         .unwrap();
 
-        assert!(StorageCommand::autocomplete("delete P", &app_meta).is_empty());
+        assert!(block_on(StorageCommand::autocomplete("delete P", &app_meta)).is_empty());
 
         assert_autocomplete(
             &[
@@ -702,12 +569,12 @@ mod test {
                 ("save potato can be lowercase", "save character to journal"),
                 ("save Potato & Meat", "save place to journal"),
             ][..],
-            StorageCommand::autocomplete("save ", &app_meta),
+            block_on(StorageCommand::autocomplete("save ", &app_meta)),
         );
 
         assert_eq!(
-            StorageCommand::autocomplete("save ", &app_meta),
-            StorageCommand::autocomplete("SAve ", &app_meta),
+            block_on(StorageCommand::autocomplete("save ", &app_meta)),
+            block_on(StorageCommand::autocomplete("SAve ", &app_meta)),
         );
 
         assert_autocomplete(
@@ -716,52 +583,52 @@ mod test {
                 ("load Potato & Meat", "inn (unsaved)"),
                 ("load potato can be lowercase", "person (unsaved)"),
             ][..],
-            StorageCommand::autocomplete("load P", &app_meta),
+            block_on(StorageCommand::autocomplete("load P", &app_meta)),
         );
 
         assert_eq!(
-            StorageCommand::autocomplete("load P", &app_meta),
-            StorageCommand::autocomplete("LOad p", &app_meta),
+            block_on(StorageCommand::autocomplete("load P", &app_meta)),
+            block_on(StorageCommand::autocomplete("LOad p", &app_meta)),
         );
 
         assert_autocomplete(
             &[("delete [name]", "remove an entry from journal")][..],
-            StorageCommand::autocomplete("delete", &app_meta),
+            block_on(StorageCommand::autocomplete("delete", &app_meta)),
         );
 
         assert_autocomplete(
             &[("delete [name]", "remove an entry from journal")][..],
-            StorageCommand::autocomplete("DELete", &app_meta),
+            block_on(StorageCommand::autocomplete("DELete", &app_meta)),
         );
 
         assert_autocomplete(
             &[("load [name]", "load an entry")][..],
-            StorageCommand::autocomplete("load", &app_meta),
+            block_on(StorageCommand::autocomplete("load", &app_meta)),
         );
 
         assert_autocomplete(
             &[("load [name]", "load an entry")][..],
-            StorageCommand::autocomplete("LOad", &app_meta),
+            block_on(StorageCommand::autocomplete("LOad", &app_meta)),
         );
 
         assert_autocomplete(
             &[("save [name]", "save an entry to journal")][..],
-            StorageCommand::autocomplete("s", &app_meta),
+            block_on(StorageCommand::autocomplete("s", &app_meta)),
         );
 
         assert_autocomplete(
             &[("save [name]", "save an entry to journal")][..],
-            StorageCommand::autocomplete("S", &app_meta),
+            block_on(StorageCommand::autocomplete("S", &app_meta)),
         );
 
         assert_autocomplete(
             &[("journal", "list journal contents")][..],
-            StorageCommand::autocomplete("j", &app_meta),
+            block_on(StorageCommand::autocomplete("j", &app_meta)),
         );
 
         assert_autocomplete(
             &[("journal", "list journal contents")][..],
-            StorageCommand::autocomplete("J", &app_meta),
+            block_on(StorageCommand::autocomplete("J", &app_meta)),
         );
 
         assert_autocomplete(
@@ -770,22 +637,22 @@ mod test {
                 ("Potato Johnson", "adult elf, they/them (unsaved)"),
                 ("potato can be lowercase", "person (unsaved)"),
             ][..],
-            StorageCommand::autocomplete("p", &app_meta),
+            block_on(StorageCommand::autocomplete("p", &app_meta)),
         );
 
         assert_eq!(
-            StorageCommand::autocomplete("p", &app_meta),
-            StorageCommand::autocomplete("P", &app_meta),
+            block_on(StorageCommand::autocomplete("p", &app_meta)),
+            block_on(StorageCommand::autocomplete("P", &app_meta)),
         );
 
         assert_autocomplete(
             &[("Potato Johnson", "adult elf, they/them (unsaved)")][..],
-            StorageCommand::autocomplete("Potato Johnson", &app_meta),
+            block_on(StorageCommand::autocomplete("Potato Johnson", &app_meta)),
         );
 
         assert_autocomplete(
             &[("Potato Johnson", "adult elf, they/them (unsaved)")][..],
-            StorageCommand::autocomplete("pOTATO jOHNSON", &app_meta),
+            block_on(StorageCommand::autocomplete("pOTATO jOHNSON", &app_meta)),
         );
     }
 
@@ -816,7 +683,7 @@ mod test {
             assert_ne!("", command_string);
             assert_eq!(
                 (Some(command), Vec::new()),
-                StorageCommand::parse_input(&command_string, &app_meta),
+                block_on(StorageCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,
             );

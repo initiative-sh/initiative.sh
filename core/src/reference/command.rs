@@ -1,9 +1,10 @@
 use super::{Item, ItemCategory, MagicItem, Spell};
-use crate::app::{autocomplete_phrase, AppMeta, Autocomplete, ContextAwareParse, Runnable};
+use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use caith::Roller;
 use std::fmt;
+use std::iter::repeat;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ReferenceCommand {
@@ -13,19 +14,6 @@ pub enum ReferenceCommand {
     ItemCategory(ItemCategory),
     MagicItem(MagicItem),
     OpenGameLicense,
-}
-
-impl ReferenceCommand {
-    fn summarize(&self) -> &str {
-        match self {
-            Self::Spell(_) => "SRD spell",
-            Self::Spells => "SRD index",
-            Self::Item(_) => "SRD item",
-            Self::ItemCategory(_) => "SRD item category",
-            Self::MagicItem(_) => "SRD magic item",
-            Self::OpenGameLicense => "SRD license",
-        }
-    }
 }
 
 #[async_trait(?Send)]
@@ -52,8 +40,9 @@ impl Runnable for ReferenceCommand {
     }
 }
 
+#[async_trait(?Send)]
 impl ContextAwareParse for ReferenceCommand {
-    fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+    async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let exact_match = if input.eq_ci("Open Game License") {
             Some(Self::OpenGameLicense)
         } else if input.eq_ci("srd spells") {
@@ -107,25 +96,21 @@ impl ContextAwareParse for ReferenceCommand {
     }
 }
 
+#[async_trait(?Send)]
 impl Autocomplete for ReferenceCommand {
-    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
-        autocomplete_phrase(
-            input,
-            &mut ["Open Game License", "spells"]
-                .iter()
-                .chain(Spell::get_words().iter())
-                .chain(Item::get_words().iter())
-                .chain(ItemCategory::get_words().iter())
-                .chain(MagicItem::get_words().iter()),
-        )
-        .drain(..)
-        .filter_map(|s| {
-            let (exact_match, mut fuzzy_matches) = Self::parse_input(&s, app_meta);
-
-            exact_match
-                .or_else(|| fuzzy_matches.drain(..).next())
-                .map(|c| (s.clone(), c.summarize().to_string()))
-        })
+    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
+        [
+            ("Open Game License", "SRD license"),
+            ("spells", "SRD index"),
+        ]
+        .into_iter()
+        .chain(Spell::get_words().zip(repeat("SRD spell")))
+        .chain(Item::get_words().zip(repeat("SRD item")))
+        .chain(ItemCategory::get_words().zip(repeat("SRD item category")))
+        .chain(MagicItem::get_words().zip(repeat("SRD magic item")))
+        .filter(|(s, _)| s.starts_with_ci(input))
+        .take(10)
+        .map(|(a, b)| (a.to_string(), b.to_string()))
         .collect()
     }
 }
@@ -206,6 +191,7 @@ fn linkify_dice(input: &str) -> String {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
+    use tokio_test::block_on;
 
     #[test]
     fn display_test() {
@@ -226,14 +212,17 @@ mod test {
 
             assert_eq!(
                 (Some(command.clone()), Vec::new()),
-                ReferenceCommand::parse_input(&command_string, &app_meta),
+                block_on(ReferenceCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,
             );
 
             assert_eq!(
                 (Some(command), Vec::new()),
-                ReferenceCommand::parse_input(&command_string.to_uppercase(), &app_meta),
+                block_on(ReferenceCommand::parse_input(
+                    &command_string.to_uppercase(),
+                    &app_meta,
+                )),
                 "{}",
                 command_string.to_uppercase(),
             );
