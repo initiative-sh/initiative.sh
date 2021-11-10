@@ -1,5 +1,5 @@
 pub use command::StorageCommand;
-pub use data_store::{DataStore, NullDataStore};
+pub use data_store::{DataStore, MemoryDataStore, NullDataStore};
 pub use repository::{Change, Error as RepositoryError, Repository};
 
 mod command;

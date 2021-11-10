@@ -1,7 +1,7 @@
 mod common;
 
-use common::{sync_app, sync_app_with_data_store, MemoryDataStore};
-use initiative_core::NullDataStore;
+use common::{sync_app, sync_app_with_data_store};
+use initiative_core::{MemoryDataStore, NullDataStore};
 
 #[test]
 fn npc_is_saved_to_storage() {
