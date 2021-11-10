@@ -86,6 +86,7 @@ impl Runnable for StorageCommand {
                         .map(|t| t.name().value().map(|s| s.to_string()))
                         .unwrap_or(None)
                         .unwrap_or_else(|| name.to_owned()),
+                    Change::SetKeyValue { key_value } => key_value.key_raw().to_string(),
                 };
 
                 match &change {
@@ -122,7 +123,7 @@ impl Runnable for StorageCommand {
                             .modify(change)
                             .await
                         {
-                            Ok(id) => {
+                            Ok(Some(id)) => {
                                 let thing = app_meta.repository.load(&id).await.unwrap();
 
                                 if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) {
@@ -140,7 +141,7 @@ impl Runnable for StorageCommand {
                                 }
                             }
                             Err((_, RepositoryError::NotFound)) => Err(format!("There is no {} named \"{}\".", thing_type, name)),
-                            Err(_) => Err(format!("Couldn't edit `{}`.", name)),
+                            _ => Err(format!("Couldn't edit `{}`.", name)),
                         }
                     }
                     Change::Save { .. } => app_meta
@@ -164,6 +165,7 @@ impl Runnable for StorageCommand {
                         .await
                         .map(|_| format!("{} was successfully removed from the journal. Use `undo` to reverse this.", name))
                         .map_err(|_| format!("Couldn't remove {} from the journal.", name)),
+                    Change::SetKeyValue { .. } => unreachable!(),
                 }
             }
             Self::Load { name } => {
@@ -208,7 +210,13 @@ impl Runnable for StorageCommand {
                         .unwrap()
                         .display_undo();
 
-                    if let Ok(thing) = app_meta.repository.load(&id).await {
+                    let thing = if let Some(id) = id {
+                        app_meta.repository.load(&id).await.ok()
+                    } else {
+                        None
+                    };
+
+                    if let Some(thing) = thing {
                         Ok(format!(
                             "{}\n\n_Successfully redid {}. Use `undo` to reverse this._",
                             thing.display_details(),
@@ -228,7 +236,13 @@ impl Runnable for StorageCommand {
                 Some(Ok(id)) => {
                     let action = app_meta.repository.get_redo().unwrap().display_redo();
 
-                    if let Ok(thing) = app_meta.repository.load(&id).await {
+                    let thing = if let Some(id) = id {
+                        app_meta.repository.load(&id).await.ok()
+                    } else {
+                        None
+                    };
+
+                    if let Some(thing) = thing {
                         Ok(format!(
                             "{}\n\n_Successfully undid {}. Use `redo` to reverse this._",
                             thing.display_details(),

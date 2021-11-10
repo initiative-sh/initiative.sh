@@ -1,5 +1,6 @@
 use super::Interval;
-use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
+use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
+use crate::storage::{Change, KeyValue};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use std::fmt;
@@ -15,49 +16,47 @@ pub enum TimeCommand {
 #[async_trait(?Send)]
 impl Runnable for TimeCommand {
     async fn run(self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
-        let time = match &self {
-            Self::Add { interval } => app_meta.repository.get_time().checked_add(interval),
-            Self::Sub { interval } => app_meta.repository.get_time().checked_sub(interval),
-            Self::Now => {
-                return Ok(format!(
-                    "It is currently {}.",
-                    app_meta.repository.get_time().display_long(),
-                ))
+        let time = {
+            let current_time = app_meta
+                .repository
+                .get_key_value(&KeyValue::Time(None))
+                .await
+                .map_err(|_| "Storage error.".to_string())?
+                .time()
+                .unwrap_or_default();
+
+            match &self {
+                Self::Add { interval } => current_time.checked_add(interval),
+                Self::Sub { interval } => current_time.checked_sub(interval),
+                Self::Now => {
+                    return Ok(format!("It is currently {}.", current_time.display_long(),))
+                }
             }
         };
 
         if let Some(time) = time {
-            app_meta.command_aliases.insert(CommandAlias::literal(
-                "undo".to_string(),
-                format!(
-                    "change time to {}",
-                    app_meta.repository.get_time().display_short(),
-                ),
-                match self {
-                    Self::Add { interval } => Self::Sub { interval }.into(),
-                    Self::Sub { interval } => Self::Add { interval }.into(),
-                    Self::Now => unreachable!(),
-                },
-            ));
-            app_meta.repository.set_time(time).await;
+            let response = format!("It is now {}. Use `undo` to reverse.", time.display_long());
 
-            Ok(format!(
-                "It is now {}. Use ~undo~ to reverse.",
-                app_meta.repository.get_time().display_long(),
-            ))
+            app_meta
+                .repository
+                .modify(Change::SetKeyValue {
+                    key_value: KeyValue::Time(Some(time)),
+                })
+                .await
+                .map(|_| response)
+                .map_err(|_| ())
         } else {
-            match &self {
-                Self::Add { interval } => Err(format!(
-                    "Unable to advance time by {}.",
-                    interval.display_long(),
-                )),
-                Self::Sub { interval } => Err(format!(
-                    "Unable to rewind time by {}.",
-                    interval.display_long(),
-                )),
-                Self::Now => unreachable!(),
-            }
+            Err(())
         }
+        .map_err(|_| match &self {
+            Self::Add { interval } => {
+                format!("Unable to advance time by {}.", interval.display_long(),)
+            }
+            Self::Sub { interval } => {
+                format!("Unable to rewind time by {}.", interval.display_long(),)
+            }
+            Self::Now => unreachable!(),
+        })
     }
 }
 

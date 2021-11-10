@@ -1,3 +1,5 @@
+* **Enhancement:** Changes to the `time` are now properly integrated in the
+  `undo` history and available at all times.
 * **Enhancement:** Refactored out the local cache. In practice, the only effect
   this should have right now is that if you have multiple tabs/windows open at
   once, the journal should remain in sync between all of them.
