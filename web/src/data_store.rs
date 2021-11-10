@@ -26,6 +26,13 @@ impl initiative_core::DataStore for DataStore {
         get_all_the_things().await.into_serde().map_err(|_| ())
     }
 
+    async fn get_thing_by_uuid(&self, uuid: &Uuid) -> Result<Option<Thing>, ()> {
+        get_thing_by_uuid(uuid.to_string().into())
+            .await
+            .into_serde()
+            .map_err(|_| ())
+    }
+
     async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()> {
         if save_thing(JsValue::from_serde(thing).unwrap())
             .await
@@ -69,6 +76,8 @@ extern "C" {
     async fn delete_thing_by_uuid(uuid: JsValue) -> JsValue;
 
     async fn get_all_the_things() -> JsValue;
+
+    async fn get_thing_by_uuid(uuid: JsValue) -> JsValue;
 
     async fn save_thing(thing: JsValue) -> JsValue;
 

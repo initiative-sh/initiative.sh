@@ -25,6 +25,10 @@ impl DataStore for NullDataStore {
         Err(())
     }
 
+    async fn get_thing_by_uuid(&self, _uuid: &Uuid) -> Result<Option<Thing>, ()> {
+        Err(())
+    }
+
     async fn save_thing(&mut self, _thing: &Thing) -> Result<(), ()> {
         Err(())
     }
@@ -63,6 +67,10 @@ impl DataStore for MemoryDataStore {
 
     async fn get_all_the_things(&self) -> Result<Vec<Thing>, ()> {
         Ok(self.things.borrow().values().cloned().collect())
+    }
+
+    async fn get_thing_by_uuid(&self, uuid: &Uuid) -> Result<Option<Thing>, ()> {
+        Ok(self.things.borrow().get(uuid).cloned())
     }
 
     async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()> {
@@ -106,6 +114,8 @@ pub trait DataStore {
 
     async fn get_all_the_things(&self) -> Result<Vec<Thing>, ()>;
 
+    async fn get_thing_by_uuid(&self, uuid: &Uuid) -> Result<Option<Thing>, ()>;
+
     async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()>;
 
     async fn set_value(&mut self, key: &str, value: &str) -> Result<(), ()>;
@@ -133,6 +143,18 @@ mod test {
         assert_eq!(Ok(1), block_on(ds.get_all_the_things()).map(|v| v.len()));
         assert_eq!(Ok(()), block_on(ds.delete_thing_by_uuid(&TEST_UUID)));
         assert_eq!(Ok(0), block_on(ds.get_all_the_things()).map(|v| v.len()));
+    }
+
+    #[test]
+    fn memory_get_thing_by_uuid_test() {
+        let mut ds = MemoryDataStore::default();
+
+        assert_eq!(Ok(None), block_on(ds.get_thing_by_uuid(&TEST_UUID)));
+        assert_eq!(Ok(()), block_on(ds.save_thing(&person(TEST_UUID))));
+        assert_eq!(
+            Ok(Some(person(TEST_UUID))),
+            block_on(ds.get_thing_by_uuid(&TEST_UUID)),
+        );
     }
 
     #[test]

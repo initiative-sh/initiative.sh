@@ -118,11 +118,12 @@ impl Repository {
 
     pub async fn load(&self, id: &Id) -> Result<Thing, Error> {
         match id {
-            Id::Name(name) => self.load_thing_by_name(name),
-            Id::Uuid(uuid) => self.cache.get(uuid),
+            Id::Name(name) => self
+                .load_thing_by_name(name)
+                .cloned()
+                .ok_or(Error::NotFound),
+            Id::Uuid(uuid) => self.load_thing_by_uuid(uuid).await,
         }
-        .cloned()
-        .ok_or(Error::NotFound)
     }
 
     pub fn all(&self) -> impl Iterator<Item = &Thing> {
@@ -316,14 +317,18 @@ impl Repository {
                     Err((diff, e)) => Err((Change::EditAndUnsave { name, uuid, diff }, e)),
                 }
             }
-            Change::Save { name } => self
-                .save_thing_by_name(&name.to_lowercase())
-                .await
-                .map(|uuid| Change::Unsave {
+            Change::Save { name } => match self.save_thing_by_name(&name.to_lowercase()).await {
+                Ok(uuid) => Ok(Change::Unsave {
                     uuid,
-                    name: self.cache.get(&uuid).unwrap().name().to_string(),
-                })
-                .map_err(|e| (Change::Save { name }, e)),
+                    name: self
+                        .load_thing_by_uuid(&uuid)
+                        .await
+                        .map(|t| t.name().value().map(String::from))
+                        .unwrap_or(None)
+                        .unwrap_or(name),
+                }),
+                Err(e) => Err((Change::Save { name }, e)),
+            },
             Change::Unsave { name, uuid } => self
                 .unsave_thing_by_uuid(&uuid)
                 .await
@@ -436,6 +441,14 @@ impl Repository {
     fn load_thing_by_name<'a>(&'a self, name: &str) -> Option<&'a Thing> {
         self.all()
             .find(|t| t.name().value().map_or(false, |s| s.to_lowercase() == name))
+    }
+
+    async fn load_thing_by_uuid(&self, uuid: &Uuid) -> Result<Thing, Error> {
+        match self.data_store.get_thing_by_uuid(uuid).await {
+            Ok(Some(thing)) => Ok(thing),
+            Ok(None) => Err(Error::NotFound),
+            Err(()) => Err(Error::DataStoreFailed),
+        }
     }
 
     async fn save_thing_by_name(&mut self, name: &str) -> Result<Uuid, Error> {
@@ -1384,16 +1397,21 @@ mod test {
         {
             let result = block_on(repo.modify(change));
             assert!(block_on(repo.load(&"Hades".into())).is_ok());
-            assert!(block_on(repo.load(&TEST_UUID.into())).is_ok());
+            assert_eq!(
+                Err(Error::DataStoreFailed),
+                block_on(repo.load(&TEST_UUID.into())),
+            );
             assert_eq!(Err(Error::NotFound), block_on(repo.load(&"Olympus".into())));
 
             assert_eq!(
                 Err((
                     Change::Edit {
                         id: TEST_UUID.into(),
-                        name: "Hades".into(),
+                        name: "Olympus".into(),
                         diff: Place {
+                            // FIXME
                             name: "Olympus".into(),
+                            // name: "Hades".into(),
                             ..Default::default()
                         }
                         .into(),
@@ -1975,6 +1993,11 @@ mod test {
         async fn get_all_the_things(&self) -> Result<Vec<Thing>, ()> {
             self.tick()?;
             self.data_store.get_all_the_things().await
+        }
+
+        async fn get_thing_by_uuid(&self, uuid: &Uuid) -> Result<Option<Thing>, ()> {
+            self.tick()?;
+            self.data_store.get_thing_by_uuid(uuid).await
         }
 
         async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()> {

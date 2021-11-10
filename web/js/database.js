@@ -123,6 +123,10 @@ const get_all_the_things = async () => {
     .catch(() => {})
 }
 
+const get_thing_by_uuid = async (uuid) => {
+  return dexie.things.get({ uuid }).catch(() => {})
+}
+
 const save_thing = async (thing) => {
   return dexie.things.put(thing)
     .then(() => true)
@@ -151,6 +155,7 @@ export {
   delete_thing_by_uuid,
   delete_value,
   get_all_the_things,
+  get_thing_by_uuid,
   get_value,
   save_thing,
   set_value,
