@@ -3,7 +3,9 @@ use crate::storage::{Change, RepositoryError};
 use crate::utils::CaseInsensitiveStr;
 use crate::world::Thing;
 use async_trait::async_trait;
+use futures::join;
 use std::fmt;
+use std::iter::repeat;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StorageCommand {
@@ -326,38 +328,46 @@ impl Autocomplete for StorageCommand {
         )
         .collect();
 
-        let (input_prefix, input_name) = if let Some(parts) = ["delete ", "load ", "save "]
-            .iter()
-            .find_map(|prefix| input.strip_prefix_ci(prefix).map(|name| (*prefix, name)))
+        let ((full_matches, partial_matches), prefix) = if let Some((prefix, name)) =
+            ["delete ", "load ", "save "]
+                .iter()
+                .find_map(|prefix| input.strip_prefix_ci(prefix).map(|name| (*prefix, name)))
         {
-            parts
+            (
+                join!(
+                    app_meta.repository.get_by_name_start(input, Some(10)),
+                    app_meta.repository.get_by_name_start(name, Some(10)),
+                ),
+                prefix,
+            )
         } else {
-            ("", input)
+            (
+                (
+                    app_meta.repository.get_by_name_start(input, Some(10)).await,
+                    Ok(Vec::new()),
+                ),
+                "",
+            )
         };
 
-        for (prefix, thing) in app_meta
-            .repository
-            .all()
-            .filter_map(|thing| {
-                thing
-                    .name()
-                    .value()
-                    .map(|name| {
-                        if name.starts_with_ci(input_name) {
-                            match (input_prefix, thing.uuid()) {
-                                ("save ", Some(_)) | ("delete ", None) => None,
-                                _ => Some((input_prefix, thing)),
-                            }
-                        } else if name.starts_with_ci(input) {
-                            Some(("", thing))
-                        } else {
-                            None
-                        }
-                    })
-                    .flatten()
-            })
-            .take(10)
+        for (thing, prefix) in full_matches
+            .unwrap_or_default()
+            .iter()
+            .zip(repeat(""))
+            .chain(
+                partial_matches
+                    .unwrap_or_default()
+                    .iter()
+                    .zip(repeat(prefix)),
+            )
         {
+            if matches!(
+                (prefix, thing.uuid()),
+                ("save ", Some(_)) | ("delete ", None)
+            ) {
+                continue;
+            }
+
             let suggestion = format!("{}{}", prefix, thing.name());
             let (exact_match, mut fuzzy_matches) = Self::parse_input(&suggestion, app_meta).await;
 
@@ -409,14 +419,14 @@ impl fmt::Display for StorageCommand {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::storage::NullDataStore;
+    use crate::storage::MemoryDataStore;
     use crate::world::npc::{Age, Gender, Npc, Species};
     use crate::world::place::{Place, PlaceType};
     use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = AppMeta::new(MemoryDataStore::default());
 
         assert_eq!(
             (Option::<StorageCommand>::None, Vec::new()),
@@ -518,7 +528,7 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        let mut app_meta = AppMeta::new(NullDataStore::default());
+        let mut app_meta = AppMeta::new(MemoryDataStore::default());
 
         block_on(
             app_meta.repository.modify(Change::Create {
@@ -654,7 +664,7 @@ mod test {
 
     #[test]
     fn display_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = AppMeta::new(MemoryDataStore::default());
 
         vec![
             StorageCommand::Change {

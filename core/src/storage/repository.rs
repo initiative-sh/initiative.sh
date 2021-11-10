@@ -125,8 +125,32 @@ impl Repository {
         }
     }
 
-    pub fn all(&self) -> impl Iterator<Item = &Thing> {
-        self.journal().chain(self.recent())
+    pub async fn get_by_name_start(
+        &self,
+        name: &str,
+        limit: Option<usize>,
+    ) -> Result<Vec<Thing>, Error> {
+        let mut things = self
+            .data_store
+            .get_things_by_name_start(&name.to_string(), limit)
+            .await
+            .map_err(|_| Error::DataStoreFailed)?;
+
+        self.recent()
+            .filter(|t| {
+                t.name()
+                    .value()
+                    .map_or(false, |s| s.starts_with_ci(&name.to_string()))
+            })
+            .take(
+                limit
+                    .unwrap_or(usize::MAX)
+                    .checked_sub(things.len())
+                    .unwrap_or_default(),
+            )
+            .for_each(|t| things.push(t.clone()));
+
+        Ok(things)
     }
 
     pub fn recent(&self) -> impl Iterator<Item = &Thing> {
@@ -751,11 +775,10 @@ mod test {
     }
 
     #[test]
-    fn all_journal_test() {
+    fn journal_recent_test() {
         let repo = repo();
-        assert_eq!(1, repo.recent().count());
         assert_eq!(1, repo.journal().count());
-        assert_eq!(2, repo.all().count());
+        assert_eq!(1, repo.recent().count());
     }
 
     #[test]
@@ -1994,6 +2017,15 @@ mod test {
         async fn get_thing_by_name(&self, name: &str) -> Result<Option<Thing>, ()> {
             self.tick()?;
             self.data_store.get_thing_by_name(name).await
+        }
+
+        async fn get_things_by_name_start(
+            &self,
+            name: &str,
+            limit: Option<usize>,
+        ) -> Result<Vec<Thing>, ()> {
+            self.tick()?;
+            self.data_store.get_things_by_name_start(name, limit).await
         }
 
         async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()> {

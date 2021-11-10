@@ -37,6 +37,17 @@ impl initiative_core::DataStore for DataStore {
         get_thing_by_name(name).await.into_serde().map_err(|_| ())
     }
 
+    async fn get_things_by_name_start(
+        &self,
+        name: &str,
+        limit: Option<usize>,
+    ) -> Result<Vec<Thing>, ()> {
+        get_things_by_name_start(name, limit.unwrap_or(usize::MAX))
+            .await
+            .into_serde()
+            .map_err(|_| ())
+    }
+
     async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()> {
         if save_thing(JsValue::from_serde(thing).unwrap())
             .await
@@ -84,6 +95,8 @@ extern "C" {
     async fn get_thing_by_uuid(uuid: JsValue) -> JsValue;
 
     async fn get_thing_by_name(name: &str) -> JsValue;
+
+    async fn get_things_by_name_start(name: &str, limit: usize) -> JsValue;
 
     async fn save_thing(thing: JsValue) -> JsValue;
 

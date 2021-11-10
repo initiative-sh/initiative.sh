@@ -34,6 +34,14 @@ impl DataStore for NullDataStore {
         Err(())
     }
 
+    async fn get_things_by_name_start(
+        &self,
+        _name: &str,
+        _limit: Option<usize>,
+    ) -> Result<Vec<Thing>, ()> {
+        Err(())
+    }
+
     async fn save_thing(&mut self, _thing: &Thing) -> Result<(), ()> {
         Err(())
     }
@@ -87,6 +95,26 @@ impl DataStore for MemoryDataStore {
             .cloned())
     }
 
+    async fn get_things_by_name_start(
+        &self,
+        name: &str,
+        limit: Option<usize>,
+    ) -> Result<Vec<Thing>, ()> {
+        Ok(self
+            .things
+            .borrow()
+            .values()
+            .filter(|thing| {
+                thing
+                    .name()
+                    .value()
+                    .map_or(false, |s| s.starts_with_ci(name))
+            })
+            .take(limit.unwrap_or(usize::MAX))
+            .cloned()
+            .collect())
+    }
+
     async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()> {
         if let Some(uuid) = thing.uuid() {
             let mut things = self.things.borrow_mut();
@@ -131,6 +159,12 @@ pub trait DataStore {
     async fn get_thing_by_uuid(&self, uuid: &Uuid) -> Result<Option<Thing>, ()>;
 
     async fn get_thing_by_name(&self, name: &str) -> Result<Option<Thing>, ()>;
+
+    async fn get_things_by_name_start(
+        &self,
+        name: &str,
+        limit: Option<usize>,
+    ) -> Result<Vec<Thing>, ()>;
 
     async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()>;
 
@@ -189,6 +223,45 @@ mod test {
         assert_eq!(
             Ok(Some(gandalf_the_grey)),
             block_on(ds.get_thing_by_name("gANDALF THE gREY")),
+        );
+    }
+
+    #[test]
+    fn memory_get_things_by_name_start_test() {
+        let mut ds = MemoryDataStore::default();
+
+        for name in ["Gandalf the Grey", "gANDALF THE wHITE", "Frodo Baggins"] {
+            block_on(
+                ds.save_thing(
+                    &Npc {
+                        uuid: Some(Uuid::new_v4().into()),
+                        name: name.into(),
+                        ..Default::default()
+                    }
+                    .into(),
+                ),
+            )
+            .unwrap();
+        }
+
+        let mut results = block_on(ds.get_things_by_name_start("gan", None)).unwrap();
+        results.sort_by(|a, b| a.name().value().cmp(&b.name().value()));
+        let mut result_iter = results.iter();
+        assert_eq!(
+            "Gandalf the Grey",
+            result_iter.next().and_then(|t| t.name().value()).unwrap(),
+        );
+        assert_eq!(
+            "gANDALF THE wHITE",
+            result_iter.next().and_then(|t| t.name().value()).unwrap(),
+        );
+        assert_eq!(None, result_iter.next());
+
+        assert_eq!(
+            1,
+            block_on(ds.get_things_by_name_start("gan", Some(1)))
+                .unwrap()
+                .len(),
         );
     }
 

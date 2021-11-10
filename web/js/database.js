@@ -135,6 +135,15 @@ const get_thing_by_name = async (name) => {
     .catch(() => {})
 }
 
+const get_things_by_name_start = async (name, limit) => {
+  return dexie.things
+    .where("name")
+    .startsWithIgnoreCase(name)
+    .limit(limit)
+    .toArray()
+    .catch(() => {})
+}
+
 const save_thing = async (thing) => {
   return dexie.things.put(thing)
     .then(() => true)
@@ -165,6 +174,7 @@ export {
   get_all_the_things,
   get_thing_by_uuid,
   get_thing_by_name,
+  get_things_by_name_start,
   get_value,
   save_thing,
   set_value,
