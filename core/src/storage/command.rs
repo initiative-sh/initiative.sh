@@ -79,10 +79,6 @@ impl Runnable for StorageCommand {
     async fn run(self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
             Self::Journal => {
-                if !app_meta.repository.data_store_enabled() {
-                    return Err("The journal is not supported by your browser.".to_string());
-                }
-
                 let mut output = "# Journal".to_string();
                 let [mut npcs, mut places] = [Vec::new(), Vec::new()];
 
@@ -122,12 +118,6 @@ impl Runnable for StorageCommand {
                 Ok(output)
             }
             Self::Change { change } => {
-                if matches!(change, Change::Save { .. } | Change::Unsave { .. })
-                    && !app_meta.repository.data_store_enabled()
-                {
-                    return Err("The journal is not supported by your browser.".to_string());
-                }
-
                 let name = match &change {
                     Change::Create { thing } | Change::CreateAndSave { thing } => {
                         thing.name().to_string()
@@ -231,7 +221,7 @@ impl Runnable for StorageCommand {
                 let thing = app_meta.repository.load(&name.as_str().into());
                 let mut save_command = None;
                 let output = if let Some(thing) = thing {
-                    if thing.uuid().is_none() && app_meta.repository.data_store_enabled() {
+                    if thing.uuid().is_none() {
                         save_command = Some(CommandAlias::literal(
                             "save".to_string(),
                             format!("save {}", name),
@@ -306,6 +296,12 @@ impl Runnable for StorageCommand {
                 None => Err("Nothing to undo.".to_string()),
             },
         }
+        .map(|mut s| {
+            if !app_meta.repository.data_store_enabled() {
+                s.push_str("\n\n! Your browser does not support local storage. Any changes will not persist beyond this session.");
+            }
+            s
+        })
     }
 }
 

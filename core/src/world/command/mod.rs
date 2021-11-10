@@ -55,51 +55,33 @@ impl Runnable for WorldCommand {
                     let mut temp_output = format!("{}", thing.display_details());
                     let mut command_alias = None;
 
-                    let change = if app_meta.repository.data_store_enabled() {
-                        match thing.name() {
-                            Field::Locked(Some(name)) => {
-                                temp_output.push_str(&format!(
+                    let change = match thing.name() {
+                        Field::Locked(Some(name)) => {
+                            temp_output.push_str(&format!(
                                     "\n\n_Because you specified a name, {name} has been automatically added to your `journal`. Use `undo` to remove {them}._",
                                     name = name,
                                     them = thing.gender().them(),
                                 ));
 
-                                Change::CreateAndSave { thing }
-                            }
-                            Field::Unlocked(Some(name)) => {
-                                temp_output.push_str(&format!(
+                            Change::CreateAndSave { thing }
+                        }
+                        Field::Unlocked(Some(name)) => {
+                            temp_output.push_str(&format!(
                                     "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`. For more suggestions, type ~more~._",
                                     name = name,
                                     them = thing.gender().them(),
                                 ));
 
-                                command_alias = Some(CommandAlias::literal(
-                                    "save".to_string(),
-                                    format!("save {}", name),
-                                    StorageCommand::Change {
-                                        change: Change::Save {
-                                            name: name.to_string(),
-                                        },
-                                    }
-                                    .into(),
-                                ));
-
-                                app_meta.command_aliases.insert(CommandAlias::literal(
-                                    "more".to_string(),
-                                    format!("create {}", diff.display_description()),
-                                    WorldCommand::CreateMultiple {
-                                        thing: diff.clone(),
-                                    }
-                                    .into(),
-                                ));
-
-                                Change::Create { thing }
-                            }
-                            _ => Change::Create { thing },
-                        }
-                    } else {
-                        if matches!(thing.name(), Field::Unlocked(Some(_))) {
-                            temp_output.push_str("\n\n_For more suggestions, type ~more~._");
+                            command_alias = Some(CommandAlias::literal(
+                                "save".to_string(),
+                                format!("save {}", name),
+                                StorageCommand::Change {
+                                    change: Change::Save {
+                                        name: name.to_string(),
+                                    },
+                                }
+                                .into(),
+                            ));
 
                             app_meta.command_aliases.insert(CommandAlias::literal(
                                 "more".to_string(),
@@ -109,9 +91,10 @@ impl Runnable for WorldCommand {
                                 }
                                 .into(),
                             ));
-                        }
 
-                        Change::Create { thing }
+                            Change::Create { thing }
+                        }
+                        _ => Change::Create { thing },
                     };
 
                     match app_meta.repository.modify(change).await {

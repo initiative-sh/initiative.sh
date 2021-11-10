@@ -280,16 +280,27 @@ fn save_alias() {
 }
 
 #[test]
-fn save_alias_does_not_exist_with_invalid_data_store() {
+fn save_alias_exists_with_invalid_data_store() {
     let mut app = sync_app_with_data_store(NullDataStore::default());
 
-    let output = app.command("npc").unwrap();
-    assert!(!output.contains("has not yet been saved"), "{}", output);
+    {
+        let output = app.command("npc").unwrap();
+        let name = output.lines().nth(2).unwrap().trim_start_matches("# ");
 
-    assert_eq!(
-        "Unknown command: \"save\"",
-        app.command("save").unwrap_err(),
-    );
+        let output = app.command(&format!("load {}", name)).unwrap();
+        assert!(output.contains("has not yet been saved"), "{}", output);
+    }
+
+    {
+        let output = app.command("npc").unwrap();
+        let name = output.lines().nth(2).unwrap().trim_start_matches("# ");
+
+        let output = app.command("save").unwrap();
+        assert!(output.contains("was successfully saved."), "{}", output);
+
+        let output = app.command(&format!("load {}", name)).unwrap();
+        assert!(!output.contains("has not yet been saved"), "{}", output);
+    }
 }
 
 #[test]

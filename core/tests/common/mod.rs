@@ -8,7 +8,7 @@ pub fn sync_app() -> SyncApp {
 
 #[allow(dead_code)]
 pub fn sync_app_with_data_store(data_store: impl DataStore + 'static) -> SyncApp {
-    let mut app = SyncApp(app(data_store));
+    let mut app = SyncApp::new(data_store);
     app.init();
     app
 }
@@ -17,6 +17,10 @@ pub struct SyncApp(App);
 
 #[allow(dead_code)]
 impl SyncApp {
+    pub fn new(data_store: impl DataStore + 'static) -> Self {
+        Self(app(data_store))
+    }
+
     pub fn init(&mut self) -> &'static str {
         block_on(self.0.init())
     }

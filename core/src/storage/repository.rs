@@ -1,4 +1,4 @@
-use crate::storage::DataStore;
+use crate::storage::{DataStore, MemoryDataStore};
 use crate::time::Time;
 use crate::{Thing, Uuid};
 use std::collections::{HashMap, VecDeque};
@@ -105,6 +105,8 @@ impl Repository {
                 })
                 .collect();
             self.data_store_enabled = true;
+        } else {
+            self.data_store = Box::new(MemoryDataStore::default());
         }
 
         if let Ok(Some(time_str)) = self.data_store.get_value("time").await {

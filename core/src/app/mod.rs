@@ -21,7 +21,7 @@ impl App {
 
     pub async fn init(&mut self) -> &'static str {
         self.meta.repository.init().await;
-        let (motd, motd_len) = motd!("! Local storage is not available in your browser. You will be able to use initiative.sh, but saving and loading won't work.");
+        let (motd, motd_len) = motd!("! Local storage is not available in your browser. You will be able to use initiative.sh, but anything you save will not persist beyond this session.");
 
         if self.meta.repository.data_store_enabled() {
             &motd[..motd_len]
