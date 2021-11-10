@@ -25,7 +25,10 @@ fn npc_is_saved_to_storage() {
 
     let things = data_store.things.borrow();
     assert_eq!(1, things.len());
-    assert_eq!(npc_name, things.first().unwrap().name().value().unwrap());
+    assert_eq!(
+        npc_name,
+        things.values().next().unwrap().name().value().unwrap(),
+    );
 }
 
 #[test]
@@ -50,7 +53,10 @@ fn npc_is_saved_to_storage_by_alias() {
 
     let things = data_store.things.borrow();
     assert_eq!(1, things.len());
-    assert_eq!(npc_name, things.first().unwrap().name().value().unwrap());
+    assert_eq!(
+        npc_name,
+        things.values().next().unwrap().name().value().unwrap(),
+    );
 }
 
 #[test]

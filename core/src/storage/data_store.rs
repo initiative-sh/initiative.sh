@@ -1,12 +1,13 @@
 use crate::{Thing, Uuid};
 use async_trait::async_trait;
+use std::collections::HashMap;
 
 #[derive(Default)]
 pub struct NullDataStore;
 
 #[derive(Clone, Default)]
 pub struct MemoryDataStore {
-    pub things: std::rc::Rc<std::cell::RefCell<Vec<Thing>>>,
+    pub things: std::rc::Rc<std::cell::RefCell<HashMap<Uuid, Thing>>>,
     pub key_values: std::rc::Rc<std::cell::RefCell<std::collections::HashMap<String, String>>>,
 }
 
@@ -44,46 +45,39 @@ impl DataStore for NullDataStore {
 #[async_trait(?Send)]
 impl DataStore for MemoryDataStore {
     async fn delete_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<(), ()> {
-        let mut things = self.things.borrow_mut();
+        self.things.borrow_mut().remove(uuid).map(|_| ()).ok_or(())
+    }
 
-        if let Some((index, _)) = things
-            .iter()
-            .enumerate()
-            .find(|(_, t)| t.uuid() == Some(uuid))
-        {
-            things.swap_remove(index);
+    async fn edit_thing(&mut self, thing: &Thing) -> Result<(), ()> {
+        if let Some(uuid) = thing.uuid() {
+            self.things
+                .borrow_mut()
+                .entry(*uuid)
+                .and_modify(|t| *t = thing.clone())
+                .or_insert_with(|| thing.clone());
             Ok(())
         } else {
             Err(())
         }
     }
 
-    async fn edit_thing(&mut self, thing: &Thing) -> Result<(), ()> {
-        if let Some(uuid) = thing.uuid() {
-            if let Some(existing_thing) = self
-                .things
-                .borrow_mut()
-                .iter_mut()
-                .find(|t| t.uuid() == Some(uuid))
-            {
-                *existing_thing = thing.clone();
-                return Ok(());
-            }
-
-            self.save_thing(thing).await
-        } else {
-            Err(())
-        }
-    }
-
     async fn get_all_the_things(&self) -> Result<Vec<Thing>, ()> {
-        Ok(self.things.borrow().to_vec())
+        Ok(self.things.borrow().values().cloned().collect())
     }
 
     async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()> {
-        let mut things = self.things.borrow_mut();
-        things.push(thing.clone());
-        Ok(())
+        if let Some(uuid) = thing.uuid() {
+            let mut things = self.things.borrow_mut();
+
+            if things.contains_key(uuid) {
+                Err(())
+            } else {
+                things.insert(*uuid, thing.clone());
+                Ok(())
+            }
+        } else {
+            Err(())
+        }
     }
 
     async fn set_value(&mut self, key: &str, value: &str) -> Result<(), ()> {
@@ -184,15 +178,13 @@ mod test {
         assert_eq!(Ok(()), block_on(ds.save_thing(&person(Uuid::from_u128(2)))));
         assert_eq!(Ok(()), block_on(ds.save_thing(&person(Uuid::from_u128(3)))));
 
-        assert_eq!(
-            3,
-            block_on(ds.get_all_the_things())
-                .unwrap()
-                .iter()
-                .zip(1u128..)
-                .map(|(t, i)| assert_eq!(Some(&Uuid::from_u128(i)), t.uuid()))
-                .count(),
-        );
+        let mut all_the_things = block_on(ds.get_all_the_things()).unwrap();
+        all_the_things.sort_by(|a, b| a.uuid().cmp(&b.uuid()));
+        assert_eq!(3, all_the_things.len());
+        all_the_things
+            .iter()
+            .zip(1u128..)
+            .for_each(|(t, i)| assert_eq!(Some(&Uuid::from_u128(i)), t.uuid()));
     }
 
     #[test]
@@ -200,10 +192,9 @@ mod test {
         let mut ds = MemoryDataStore::default();
 
         assert_eq!(Ok(()), block_on(ds.save_thing(&person(TEST_UUID))));
-        assert_eq!(Ok(()), block_on(ds.save_thing(&place(TEST_UUID))));
+        assert_eq!(Err(()), block_on(ds.save_thing(&place(TEST_UUID))));
 
-        // There should be a UUID conflict, but there isn't.
-        assert_eq!(Ok(2), block_on(ds.get_all_the_things()).map(|v| v.len()));
+        assert_eq!(Ok(1), block_on(ds.get_all_the_things()).map(|v| v.len()));
     }
 
     #[test]
