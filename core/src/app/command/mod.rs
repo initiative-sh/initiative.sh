@@ -1,6 +1,6 @@
 pub use alias::CommandAlias;
 pub use app::AppCommand;
-pub use runnable::{autocomplete_phrase, Autocomplete, ContextAwareParse, Runnable};
+pub use runnable::{Autocomplete, ContextAwareParse, Runnable};
 pub use tutorial::TutorialCommand;
 
 mod alias;
@@ -14,6 +14,7 @@ use crate::storage::StorageCommand;
 use crate::time::TimeCommand;
 use crate::world::WorldCommand;
 use async_trait::async_trait;
+use futures::join;
 use std::fmt;
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -53,15 +54,25 @@ impl Command {
         }
     }
 
-    pub fn parse_input_irrefutable(input: &str, app_meta: &AppMeta) -> Self {
+    pub async fn parse_input_irrefutable(input: &str, app_meta: &AppMeta) -> Self {
+        let results = join!(
+            CommandAlias::parse_input(input, app_meta),
+            AppCommand::parse_input(input, app_meta),
+            ReferenceCommand::parse_input(input, app_meta),
+            StorageCommand::parse_input(input, app_meta),
+            TimeCommand::parse_input(input, app_meta),
+            TutorialCommand::parse_input(input, app_meta),
+            WorldCommand::parse_input(input, app_meta),
+        );
+
         Command::default()
-            .union(CommandAlias::parse_input(input, app_meta).into())
-            .union(AppCommand::parse_input(input, app_meta).into())
-            .union(ReferenceCommand::parse_input(input, app_meta).into())
-            .union(StorageCommand::parse_input(input, app_meta).into())
-            .union(TimeCommand::parse_input(input, app_meta).into())
-            .union(TutorialCommand::parse_input(input, app_meta).into())
-            .union(WorldCommand::parse_input(input, app_meta).into())
+            .union(results.0.into())
+            .union(results.1.into())
+            .union(results.2.into())
+            .union(results.3.into())
+            .union(results.4.into())
+            .union(results.5.into())
+            .union(results.6.into())
     }
 }
 
@@ -135,25 +146,37 @@ impl Runnable for Command {
     }
 }
 
+#[async_trait(?Send)]
 impl ContextAwareParse for Command {
-    fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         (
-            Some(Self::parse_input_irrefutable(input, app_meta)),
+            Some(Self::parse_input_irrefutable(input, app_meta).await),
             Vec::new(),
         )
     }
 }
 
+#[async_trait(?Send)]
 impl Autocomplete for Command {
-    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
+        let mut results = join!(
+            CommandAlias::autocomplete(input, app_meta),
+            AppCommand::autocomplete(input, app_meta),
+            ReferenceCommand::autocomplete(input, app_meta),
+            StorageCommand::autocomplete(input, app_meta),
+            TimeCommand::autocomplete(input, app_meta),
+            TutorialCommand::autocomplete(input, app_meta),
+            WorldCommand::autocomplete(input, app_meta),
+        );
+
         std::iter::empty()
-            .chain(CommandAlias::autocomplete(input, app_meta).drain(..))
-            .chain(AppCommand::autocomplete(input, app_meta).drain(..))
-            .chain(ReferenceCommand::autocomplete(input, app_meta).drain(..))
-            .chain(StorageCommand::autocomplete(input, app_meta).drain(..))
-            .chain(TimeCommand::autocomplete(input, app_meta).drain(..))
-            .chain(TutorialCommand::autocomplete(input, app_meta).drain(..))
-            .chain(WorldCommand::autocomplete(input, app_meta).drain(..))
+            .chain(results.0.drain(..))
+            .chain(results.1.drain(..))
+            .chain(results.2.drain(..))
+            .chain(results.3.drain(..))
+            .chain(results.4.drain(..))
+            .chain(results.5.drain(..))
+            .chain(results.6.drain(..))
             .collect()
     }
 }
@@ -258,6 +281,7 @@ mod test {
     use crate::storage::NullDataStore;
     use crate::utils::CaseInsensitiveStr;
     use crate::world::{Npc, ParsedThing};
+    use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
@@ -271,7 +295,7 @@ mod test {
                 ),
                 Vec::new(),
             ),
-            Command::parse_input("about", &app_meta),
+            block_on(Command::parse_input("about", &app_meta)),
         );
 
         assert_eq!(
@@ -287,7 +311,7 @@ mod test {
                 ),
                 Vec::new(),
             ),
-            Command::parse_input("Open Game License", &app_meta),
+            block_on(Command::parse_input("Open Game License", &app_meta)),
         );
 
         assert_eq!(
@@ -295,7 +319,7 @@ mod test {
                 Some(Command::default().union((Option::<StorageCommand>::None, Vec::new()).into())),
                 Vec::new(),
             ),
-            Command::parse_input("Gandalf the Grey", &app_meta),
+            block_on(Command::parse_input("Gandalf the Grey", &app_meta)),
         );
 
         assert_eq!(
@@ -317,26 +341,26 @@ mod test {
                 ),
                 Vec::new(),
             ),
-            Command::parse_input("create npc", &app_meta),
+            block_on(Command::parse_input("create npc", &app_meta)),
         );
     }
 
     #[test]
     fn autocomplete_test() {
         let expected = [
-            ("Dagger", "SRD item"),
-            ("Dagger Of Venom", "SRD magic item"),
             ("Dancing Lights", "SRD spell"),
-            ("Dancing Sword", "SRD magic item"),
             ("Darkness", "SRD spell"),
             ("Darkvision", "SRD spell"),
-            ("Dart", "SRD item"),
             ("date", "get the current time"),
             ("Daylight", "SRD spell"),
             ("Death Ward", "SRD spell"),
-            ("Decanter Of Endless Water", "SRD magic item"),
+            ("Delayed Blast Fireball", "SRD spell"),
             ("delete [name]", "remove an entry from journal"),
+            ("Demiplane", "SRD spell"),
             ("desert", "create desert"),
+            ("Detect Evil And Good", "SRD spell"),
+            ("Detect Magic", "SRD spell"),
+            ("Detect Poison And Disease", "SRD spell"),
             ("distillery", "create distillery"),
             ("district", "create district"),
             ("domain", "create domain"),
@@ -350,7 +374,10 @@ mod test {
         .map(|(a, b)| (a.to_string(), b.to_string()))
         .collect::<Vec<_>>();
 
-        let mut actual = Command::autocomplete("d", &AppMeta::new(NullDataStore::default()));
+        let mut actual = block_on(Command::autocomplete(
+            "d",
+            &AppMeta::new(NullDataStore::default()),
+        ));
         actual.sort_by(|a, b| a.0.cmp_ci(&b.0).then_with(|| a.1.cmp_ci(&b.1)));
 
         assert_eq!(expected, actual);

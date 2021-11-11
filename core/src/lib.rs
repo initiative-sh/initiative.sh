@@ -1,7 +1,7 @@
 pub mod app;
 
 pub use app::App;
-pub use storage::{DataStore, NullDataStore};
+pub use storage::{DataStore, MemoryDataStore, NullDataStore};
 pub use uuid::Uuid;
 pub use world::Thing;
 

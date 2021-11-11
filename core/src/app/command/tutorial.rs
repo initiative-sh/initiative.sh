@@ -410,7 +410,7 @@ impl TutorialCommand {
 #[async_trait(?Send)]
 impl Runnable for TutorialCommand {
     async fn run(self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
-        let input_command = Command::parse_input_irrefutable(input, app_meta);
+        let input_command = Command::parse_input_irrefutable(input, app_meta).await;
 
         if let Some(CommandType::Tutorial(
             TutorialCommand::Cancel { inn_name, npc_name }
@@ -694,8 +694,9 @@ impl Runnable for TutorialCommand {
     }
 }
 
+#[async_trait(?Send)]
 impl ContextAwareParse for TutorialCommand {
-    fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+    async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         (
             if input.eq_ci("tutorial") {
                 Some(TutorialCommand::Introduction)
@@ -707,8 +708,9 @@ impl ContextAwareParse for TutorialCommand {
     }
 }
 
+#[async_trait(?Send)]
 impl Autocomplete for TutorialCommand {
-    fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
         if "tutorial".starts_with_ci(input) {
             vec![("tutorial".to_string(), "feature walkthrough".to_string())]
         } else {

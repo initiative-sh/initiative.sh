@@ -3,6 +3,7 @@ use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnabl
 use crate::storage::{Change, RepositoryError, StorageCommand};
 use crate::utils::{quoted_words, CaseInsensitiveStr};
 use async_trait::async_trait;
+use futures::join;
 use std::fmt;
 use std::ops::Range;
 
@@ -55,51 +56,33 @@ impl Runnable for WorldCommand {
                     let mut temp_output = format!("{}", thing.display_details());
                     let mut command_alias = None;
 
-                    let change = if app_meta.repository.data_store_enabled() {
-                        match thing.name() {
-                            Field::Locked(Some(name)) => {
-                                temp_output.push_str(&format!(
+                    let change = match thing.name() {
+                        Field::Locked(Some(name)) => {
+                            temp_output.push_str(&format!(
                                     "\n\n_Because you specified a name, {name} has been automatically added to your `journal`. Use `undo` to remove {them}._",
                                     name = name,
                                     them = thing.gender().them(),
                                 ));
 
-                                Change::CreateAndSave { thing }
-                            }
-                            Field::Unlocked(Some(name)) => {
-                                temp_output.push_str(&format!(
+                            Change::CreateAndSave { thing }
+                        }
+                        Field::Unlocked(Some(name)) => {
+                            temp_output.push_str(&format!(
                                     "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`. For more suggestions, type ~more~._",
                                     name = name,
                                     them = thing.gender().them(),
                                 ));
 
-                                command_alias = Some(CommandAlias::literal(
-                                    "save".to_string(),
-                                    format!("save {}", name),
-                                    StorageCommand::Change {
-                                        change: Change::Save {
-                                            name: name.to_string(),
-                                        },
-                                    }
-                                    .into(),
-                                ));
-
-                                app_meta.command_aliases.insert(CommandAlias::literal(
-                                    "more".to_string(),
-                                    format!("create {}", diff.display_description()),
-                                    WorldCommand::CreateMultiple {
-                                        thing: diff.clone(),
-                                    }
-                                    .into(),
-                                ));
-
-                                Change::Create { thing }
-                            }
-                            _ => Change::Create { thing },
-                        }
-                    } else {
-                        if matches!(thing.name(), Field::Unlocked(Some(_))) {
-                            temp_output.push_str("\n\n_For more suggestions, type ~more~._");
+                            command_alias = Some(CommandAlias::literal(
+                                "save".to_string(),
+                                format!("save {}", name),
+                                StorageCommand::Change {
+                                    change: Change::Save {
+                                        name: name.to_string(),
+                                    },
+                                }
+                                .into(),
+                            ));
 
                             app_meta.command_aliases.insert(CommandAlias::literal(
                                 "more".to_string(),
@@ -109,9 +92,10 @@ impl Runnable for WorldCommand {
                                 }
                                 .into(),
                             ));
-                        }
 
-                        Change::Create { thing }
+                            Change::Create { thing }
+                        }
+                        _ => Change::Create { thing },
                     };
 
                     match app_meta.repository.modify(change).await {
@@ -130,9 +114,10 @@ impl Runnable for WorldCommand {
                             RepositoryError::NameAlreadyExists,
                         )) => {
                             if thing.name().is_locked() {
-                                if let Some(other_thing) = app_meta
+                                if let Ok(other_thing) = app_meta
                                     .repository
                                     .load(&thing.name().value().unwrap().into())
+                                    .await
                                 {
                                     return Err(format!(
                                         "That name is already in use by {}.",
@@ -234,8 +219,9 @@ impl Runnable for WorldCommand {
     }
 }
 
+#[async_trait(?Send)]
 impl ContextAwareParse for WorldCommand {
-    fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut exact_match = None;
         let mut fuzzy_matches = Vec::new();
 
@@ -261,7 +247,7 @@ impl ContextAwareParse for WorldCommand {
                 input[word.range().end..].trim(),
             );
 
-            let (diff, thing) = if let Some(thing) = app_meta.repository.load(&name.into()) {
+            let (diff, thing) = if let Ok(thing) = app_meta.repository.load(&name.into()).await {
                 (
                     match thing {
                         Thing::Npc(_) => description
@@ -297,12 +283,18 @@ impl ContextAwareParse for WorldCommand {
     }
 }
 
+#[async_trait(?Send)]
 impl Autocomplete for WorldCommand {
-    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         let mut suggestions = Vec::new();
 
-        suggestions.append(&mut Place::autocomplete(input, app_meta));
-        suggestions.append(&mut Npc::autocomplete(input, app_meta));
+        let (mut place_suggestions, mut npc_suggestions) = join!(
+            Place::autocomplete(input, app_meta),
+            Npc::autocomplete(input, app_meta),
+        );
+
+        suggestions.append(&mut place_suggestions);
+        suggestions.append(&mut npc_suggestions);
 
         let mut input_words = quoted_words(input).skip(1);
 
@@ -310,9 +302,10 @@ impl Autocomplete for WorldCommand {
             .find(|word| word.as_str().eq_ci("is"))
             .and_then(|word| input_words.next().map(|next_word| (word, next_word)))
         {
-            if let Some(thing) = app_meta
+            if let Ok(thing) = app_meta
                 .repository
                 .load(&input[..is_word.range().start].trim().into())
+                .await
             {
                 let split_pos = input.len() - input[is_word.range().end..].trim_start().len();
 
@@ -321,7 +314,8 @@ impl Autocomplete for WorldCommand {
                     Thing::Place(_) => {
                         Place::autocomplete(input[split_pos..].trim_start(), app_meta)
                     }
-                };
+                }
+                .await;
 
                 suggestions.reserve(edit_suggestions.len());
 
@@ -341,7 +335,7 @@ impl Autocomplete for WorldCommand {
             }
         }
 
-        if let Some(thing) = app_meta.repository.load(&input.trim_end().into()) {
+        if let Ok(thing) = app_meta.repository.load(&input.trim_end().into()).await {
             suggestions.push((
                 if input.ends_with(char::is_whitespace) {
                     format!("{}is [{} description]", input, thing.as_str())
@@ -354,9 +348,10 @@ impl Autocomplete for WorldCommand {
             quoted_words(input).enumerate().skip(1).last()
         {
             if "is".starts_with_ci(last_word.as_str()) {
-                if let Some(thing) = app_meta
+                if let Ok(thing) = app_meta
                     .repository
                     .load(&input[..last_word.range().start].trim().into())
+                    .await
                 {
                     suggestions.push((
                         if last_word.range().end == input.len() {
@@ -378,9 +373,10 @@ impl Autocomplete for WorldCommand {
                 let second_last_word = quoted_words(input).nth(last_word_index - 1).unwrap();
 
                 if second_last_word.as_str().eq_ci("is") {
-                    if let Some(thing) = app_meta
+                    if let Ok(thing) = app_meta
                         .repository
                         .load(&input[..second_last_word.range().start].trim().into())
+                        .await
                     {
                         suggestions.push((
                             if last_word.range().end == input.len() {
@@ -502,12 +498,12 @@ mod test {
 
         assert_eq!(
             (None, vec![create(Npc::default())]),
-            WorldCommand::parse_input("npc", &app_meta),
+            block_on(WorldCommand::parse_input("npc", &app_meta)),
         );
 
         assert_eq!(
             (Some(create(Npc::default())), Vec::new()),
-            WorldCommand::parse_input("create npc", &app_meta),
+            block_on(WorldCommand::parse_input("create npc", &app_meta)),
         );
 
         assert_eq!(
@@ -518,12 +514,12 @@ mod test {
                     ..Default::default()
                 })],
             ),
-            WorldCommand::parse_input("elf", &app_meta),
+            block_on(WorldCommand::parse_input("elf", &app_meta)),
         );
 
         assert_eq!(
             (None, Vec::<WorldCommand>::new()),
-            WorldCommand::parse_input("potato", &app_meta),
+            block_on(WorldCommand::parse_input("potato", &app_meta)),
         );
 
         {
@@ -557,7 +553,7 @@ mod test {
                         },
                     }],
                 ),
-                WorldCommand::parse_input("Spot is a good boy", &app_meta),
+                block_on(WorldCommand::parse_input("Spot is a good boy", &app_meta)),
             );
         }
     }
@@ -599,12 +595,12 @@ mod test {
         .for_each(|(word, summary)| {
             assert_eq!(
                 vec![(word.to_string(), summary.to_string())],
-                WorldCommand::autocomplete(word, &app_meta),
+                block_on(WorldCommand::autocomplete(word, &app_meta)),
             );
 
             assert_eq!(
                 vec![(word.to_string(), summary.to_string())],
-                WorldCommand::autocomplete(&word.to_uppercase(), &app_meta),
+                block_on(WorldCommand::autocomplete(&word.to_uppercase(), &app_meta)),
             );
         });
 
@@ -627,7 +623,7 @@ mod test {
                 ("building", "create building"),
                 ("business", "create business"),
             ][..],
-            WorldCommand::autocomplete("b", &app_meta),
+            block_on(WorldCommand::autocomplete("b", &app_meta)),
         );
 
         assert_autocomplete(
@@ -635,7 +631,7 @@ mod test {
                 "Potato Johnson is [character description]",
                 "edit character",
             )][..],
-            WorldCommand::autocomplete("Potato Johnson", &app_meta),
+            block_on(WorldCommand::autocomplete("Potato Johnson", &app_meta)),
         );
 
         assert_autocomplete(
@@ -643,7 +639,10 @@ mod test {
                 "Potato Johnson is a [character description]",
                 "edit character",
             )][..],
-            WorldCommand::autocomplete("Potato Johnson is a ", &app_meta),
+            block_on(WorldCommand::autocomplete(
+                "Potato Johnson is a ",
+                &app_meta,
+            )),
         );
 
         assert_autocomplete(
@@ -653,7 +652,10 @@ mod test {
                 ("Potato Johnson is an elvish", "edit character"),
                 ("Potato Johnson is an enby", "edit character"),
             ][..],
-            WorldCommand::autocomplete("Potato Johnson is an e", &app_meta),
+            block_on(WorldCommand::autocomplete(
+                "Potato Johnson is an e",
+                &app_meta,
+            )),
         );
     }
 
@@ -679,14 +681,17 @@ mod test {
 
             assert_eq!(
                 (Some(command.clone()), Vec::new()),
-                WorldCommand::parse_input(&command_string, &app_meta),
+                block_on(WorldCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,
             );
 
             assert_eq!(
                 (Some(command), Vec::new()),
-                WorldCommand::parse_input(&command_string.to_uppercase(), &app_meta),
+                block_on(WorldCommand::parse_input(
+                    &command_string.to_uppercase(),
+                    &app_meta
+                )),
                 "{}",
                 command_string.to_uppercase(),
             );

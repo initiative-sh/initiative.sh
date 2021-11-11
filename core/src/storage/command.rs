@@ -3,7 +3,10 @@ use crate::storage::{Change, RepositoryError};
 use crate::utils::CaseInsensitiveStr;
 use crate::world::Thing;
 use async_trait::async_trait;
+use futures::join;
+use std::cmp::Ordering;
 use std::fmt;
+use std::iter::repeat;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StorageCommand {
@@ -14,93 +17,39 @@ pub enum StorageCommand {
     Undo,
 }
 
-impl StorageCommand {
-    fn summarize(
-        &self,
-        thing: Option<&Thing>,
-        undo_change: Option<&Change>,
-        redo_change: Option<&Change>,
-    ) -> String {
-        match (self, thing) {
-            (
-                Self::Change {
-                    change: Change::Delete { .. },
-                },
-                Some(thing),
-            ) => format!("remove {} from journal", thing.as_str()),
-            (
-                Self::Change {
-                    change: Change::Delete { .. },
-                },
-                None,
-            ) => "remove an entry from journal".to_string(),
-            (
-                Self::Change {
-                    change: Change::Save { .. },
-                },
-                Some(thing),
-            ) => format!("save {} to journal", thing.as_str()),
-            (
-                Self::Change {
-                    change: Change::Save { .. },
-                },
-                None,
-            ) => "save an entry to journal".to_string(),
-            (Self::Change { .. }, _) => unreachable!(),
-            (Self::Journal { .. }, _) => "list journal contents".to_string(),
-            (Self::Load { .. }, Some(thing)) => {
-                if thing.uuid().is_some() {
-                    format!("{}", thing.display_description())
-                } else {
-                    format!("{} (unsaved)", thing.display_description())
-                }
-            }
-            (Self::Load { .. }, None) => "load an entry".to_string(),
-            (Self::Redo, _) => {
-                if let Some(change) = redo_change {
-                    format!("redo {}", change.display_redo())
-                } else {
-                    "nothing to redo".to_string()
-                }
-            }
-            (Self::Undo, _) => {
-                if let Some(change) = undo_change {
-                    format!("undo {}", change.display_undo())
-                } else {
-                    "nothing to undo".to_string()
-                }
-            }
-        }
-    }
-}
-
 #[async_trait(?Send)]
 impl Runnable for StorageCommand {
     async fn run(self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
             Self::Journal => {
-                if !app_meta.repository.data_store_enabled() {
-                    return Err("The journal is not supported by your browser.".to_string());
-                }
-
                 let mut output = "# Journal".to_string();
                 let [mut npcs, mut places] = [Vec::new(), Vec::new()];
 
                 let record_count = app_meta
                     .repository
                     .journal()
+                    .await
+                    .map_err(|_| "Couldn't access the journal.".to_string())?
+                    .drain(..)
                     .map(|thing| match thing {
                         Thing::Npc(_) => npcs.push(thing),
                         Thing::Place(_) => places.push(thing),
                     })
                     .count();
 
-                let mut add_section = |title: &str, mut things: Vec<&Thing>| {
+                let mut add_section = |title: &str, mut things: Vec<Thing>| {
                     if !things.is_empty() {
                         output.push_str("\n\n## ");
                         output.push_str(title);
 
-                        things.sort_unstable_by_key(|t| t.name().value());
+                        things.sort_unstable_by(|a, b| {
+                            if let (Some(a), Some(b)) = (a.name().value(), b.name().value()) {
+                                a.cmp_ci(b)
+                            } else {
+                                // This shouldn't happen.
+                                Ordering::Equal
+                            }
+                        });
 
                         things.drain(..).enumerate().for_each(|(i, thing)| {
                             if i > 0 {
@@ -122,12 +71,6 @@ impl Runnable for StorageCommand {
                 Ok(output)
             }
             Self::Change { change } => {
-                if matches!(change, Change::Save { .. } | Change::Unsave { .. })
-                    && !app_meta.repository.data_store_enabled()
-                {
-                    return Err("The journal is not supported by your browser.".to_string());
-                }
-
                 let name = match &change {
                     Change::Create { thing } | Change::CreateAndSave { thing } => {
                         thing.name().to_string()
@@ -139,8 +82,10 @@ impl Runnable for StorageCommand {
                     | Change::Unsave { name, .. } => app_meta
                         .repository
                         .load(&name.into())
-                        .and_then(|t| t.name().value())
-                        .map_or(name.to_owned(), |s| s.to_string()),
+                        .await
+                        .map(|t| t.name().value().map(|s| s.to_string()))
+                        .unwrap_or(None)
+                        .unwrap_or_else(|| name.to_owned()),
                 };
 
                 match &change {
@@ -172,37 +117,31 @@ impl Runnable for StorageCommand {
                             unreachable!()
                         };
 
-                        app_meta
-                        .repository
-                        .modify(change)
-                        .await
-                        .map(|id| {
-                            let thing = app_meta.repository.load(&id).unwrap();
+                        match app_meta
+                            .repository
+                            .modify(change)
+                            .await
+                        {
+                            Ok(id) => {
+                                let thing = app_meta.repository.load(&id).await.unwrap();
 
-                            if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) {
-                                format!(
-                                    "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
-                                    thing.display_details(),
-                                    name,
-                                )
-                            } else {
-                                format!(
-                                    "{}\n\n_{} was successfully edited. Use `undo` to reverse this._",
-                                    thing.display_details(),
-                                    name,
-                                )
-                            }
-                        })
-                        .map_err(|(_, e)| match e {
-                            RepositoryError::NotFound => {
-                                format!("There is no {} named \"{}\".", thing_type, name)
-                            }
-                            RepositoryError::DataStoreFailed
-                                | RepositoryError::MissingName
-                                | RepositoryError::NameAlreadyExists => {
-                                format!("Couldn't edit `{}`.", name)
+                                if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) {
+                                    Ok(format!(
+                                        "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
+                                        thing.display_details(),
+                                        name,
+                                    ))
+                                } else {
+                                    Ok(format!(
+                                        "{}\n\n_{} was successfully edited. Use `undo` to reverse this._",
+                                        thing.display_details(),
+                                        name,
+                                    ))
                                 }
-                        })
+                            }
+                            Err((_, RepositoryError::NotFound)) => Err(format!("There is no {} named \"{}\".", thing_type, name)),
+                            Err(_) => Err(format!("Couldn't edit `{}`.", name)),
+                        }
                     }
                     Change::Save { .. } => app_meta
                         .repository
@@ -228,10 +167,10 @@ impl Runnable for StorageCommand {
                 }
             }
             Self::Load { name } => {
-                let thing = app_meta.repository.load(&name.as_str().into());
+                let thing = app_meta.repository.load(&name.as_str().into()).await;
                 let mut save_command = None;
-                let output = if let Some(thing) = thing {
-                    if thing.uuid().is_none() && app_meta.repository.data_store_enabled() {
+                let output = if let Ok(thing) = thing {
+                    if thing.uuid().is_none() {
                         save_command = Some(CommandAlias::literal(
                             "save".to_string(),
                             format!("save {}", name),
@@ -269,7 +208,7 @@ impl Runnable for StorageCommand {
                         .unwrap()
                         .display_undo();
 
-                    if let Some(thing) = app_meta.repository.load(&id) {
+                    if let Ok(thing) = app_meta.repository.load(&id).await {
                         Ok(format!(
                             "{}\n\n_Successfully redid {}. Use `undo` to reverse this._",
                             thing.display_details(),
@@ -289,7 +228,7 @@ impl Runnable for StorageCommand {
                 Some(Ok(id)) => {
                     let action = app_meta.repository.get_redo().unwrap().display_redo();
 
-                    if let Some(thing) = app_meta.repository.load(&id) {
+                    if let Ok(thing) = app_meta.repository.load(&id).await {
                         Ok(format!(
                             "{}\n\n_Successfully undid {}. Use `redo` to reverse this._",
                             thing.display_details(),
@@ -306,14 +245,21 @@ impl Runnable for StorageCommand {
                 None => Err("Nothing to undo.".to_string()),
             },
         }
+        .map(|mut s| {
+            if !app_meta.repository.data_store_enabled() {
+                s.push_str("\n\n! Your browser does not support local storage. Any changes will not persist beyond this session.");
+            }
+            s
+        })
     }
 }
 
+#[async_trait(?Send)]
 impl ContextAwareParse for StorageCommand {
-    fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut fuzzy_matches = Vec::new();
 
-        if app_meta.repository.load(&input.into()).is_some() {
+        if app_meta.repository.load(&input.into()).await.is_ok() {
             fuzzy_matches.push(Self::Load {
                 name: input.to_string(),
             });
@@ -351,78 +297,113 @@ impl ContextAwareParse for StorageCommand {
     }
 }
 
+#[async_trait(?Send)]
 impl Autocomplete for StorageCommand {
-    fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
-        let mut suggestions = Vec::new();
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
+        let mut suggestions: Vec<(String, String)> = [
+            ("delete", "delete [name]", "remove an entry from journal"),
+            ("load", "load [name]", "load an entry"),
+            ("save", "save [name]", "save an entry to journal"),
+            ("journal", "journal", "list journal contents"),
+        ]
+        .into_iter()
+        .filter(|(s, _, _)| s.starts_with_ci(input))
+        .map(|(_, b, c)| (b.to_string(), c.to_string()))
+        .chain(
+            ["undo"]
+                .into_iter()
+                .filter(|s| s.starts_with_ci(input))
+                .map(|s| {
+                    (
+                        s.to_string(),
+                        app_meta.repository.undo_history().next().map_or_else(
+                            || "Nothing to undo.".to_string(),
+                            |change| format!("undo {}", change.display_undo()),
+                        ),
+                    )
+                }),
+        )
+        .chain(
+            ["redo"]
+                .into_iter()
+                .filter(|s| s.starts_with_ci(input))
+                .map(|s| {
+                    (
+                        s.to_string(),
+                        app_meta.repository.get_redo().map_or_else(
+                            || "Nothing to redo.".to_string(),
+                            |change| format!("redo {}", change.display_redo()),
+                        ),
+                    )
+                }),
+        )
+        .collect();
 
-        ["delete", "load", "save"]
-            .iter()
-            .filter(|s| s.starts_with_ci(input))
-            .filter_map(|s| {
-                let suggestion = format!("{} [name]", s);
-                Self::parse_input(&suggestion, app_meta)
-                    .0
-                    .map(|command| (suggestion, command))
-            })
-            .chain(
-                ["journal", "undo", "redo"]
-                    .iter()
-                    .filter(|s| s.starts_with_ci(input))
-                    .filter_map(|s| Self::parse_input(s, app_meta).0.map(|c| (s.to_string(), c))),
-            )
-            .for_each(|(s, command)| {
-                suggestions.push((
-                    s,
-                    command.summarize(
-                        None,
-                        app_meta.repository.undo_history().next(),
-                        app_meta.repository.get_redo(),
-                    ),
-                ))
-            });
-
-        let (input_prefix, input_name) = if let Some(parts) = ["delete ", "load ", "save "]
-            .iter()
-            .find_map(|prefix| input.strip_prefix_ci(prefix).map(|name| (*prefix, name)))
+        let ((full_matches, partial_matches), prefix) = if let Some((prefix, name)) =
+            ["delete ", "load ", "save "]
+                .iter()
+                .find_map(|prefix| input.strip_prefix_ci(prefix).map(|name| (*prefix, name)))
         {
-            parts
+            (
+                join!(
+                    app_meta.repository.get_by_name_start(input, Some(10)),
+                    app_meta.repository.get_by_name_start(name, Some(10)),
+                ),
+                prefix,
+            )
         } else {
-            ("", input)
+            (
+                (
+                    app_meta.repository.get_by_name_start(input, Some(10)).await,
+                    Ok(Vec::new()),
+                ),
+                "",
+            )
         };
 
-        app_meta
-            .repository
-            .all()
-            .filter_map(|thing| {
-                thing
-                    .name()
-                    .value()
-                    .map(|name| {
-                        if name.starts_with_ci(input_name) {
-                            match (input_prefix, thing.uuid()) {
-                                ("save ", Some(_)) | ("delete ", None) => None,
-                                _ => Some((input_prefix, thing)),
-                            }
-                        } else if name.starts_with_ci(input) {
-                            Some(("", thing))
-                        } else {
-                            None
-                        }
-                    })
-                    .flatten()
-            })
-            .filter_map(|(prefix, thing)| {
-                let suggestion = format!("{}{}", prefix, thing.name());
-                let (exact_match, mut fuzzy_matches) = Self::parse_input(&suggestion, app_meta);
+        for (thing, prefix) in full_matches
+            .unwrap_or_default()
+            .iter()
+            .zip(repeat(""))
+            .chain(
+                partial_matches
+                    .unwrap_or_default()
+                    .iter()
+                    .zip(repeat(prefix)),
+            )
+        {
+            if matches!(
+                (prefix, thing.uuid()),
+                ("save ", Some(_)) | ("delete ", None)
+            ) {
+                continue;
+            }
 
-                exact_match
-                    .or_else(|| fuzzy_matches.drain(..).next())
-                    .map(|command| (suggestion, thing, command))
-            })
-            .take(10)
-            .for_each(|(suggestion, thing, command)| {
-                suggestions.push((suggestion, command.summarize(Some(thing), None, None)))
-            });
+            let suggestion = format!("{}{}", prefix, thing.name());
+            let (exact_match, mut fuzzy_matches) = Self::parse_input(&suggestion, app_meta).await;
+
+            if let Some(command) = exact_match.or_else(|| fuzzy_matches.drain(..).next()) {
+                suggestions.push((
+                    suggestion,
+                    match command {
+                        Self::Change {
+                            change: Change::Delete { .. },
+                        } => format!("remove {} from journal", thing.as_str()),
+                        Self::Change {
+                            change: Change::Save { .. },
+                        } => format!("save {} to journal", thing.as_str()),
+                        Self::Load { .. } => {
+                            if thing.uuid().is_some() {
+                                format!("{}", thing.display_description())
+                            } else {
+                                format!("{} (unsaved)", thing.display_description())
+                            }
+                        }
+                        _ => unreachable!(),
+                    },
+                ))
+            }
+        }
 
         suggestions
     }
@@ -449,146 +430,18 @@ impl fmt::Display for StorageCommand {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::storage::NullDataStore;
+    use crate::storage::MemoryDataStore;
     use crate::world::npc::{Age, Gender, Npc, Species};
     use crate::world::place::{Place, PlaceType};
     use tokio_test::block_on;
-    use uuid::Uuid;
-
-    #[test]
-    fn summarize_test() {
-        {
-            let mut place = Place {
-                subtype: "inn".parse::<PlaceType>().ok().into(),
-                ..Default::default()
-            }
-            .into();
-
-            assert_eq!(
-                "inn (unsaved)",
-                StorageCommand::Load {
-                    name: String::new(),
-                }
-                .summarize(Some(&place), None, None),
-            );
-
-            place.set_uuid(Uuid::new_v4());
-
-            assert_eq!(
-                "inn",
-                StorageCommand::Load {
-                    name: String::new(),
-                }
-                .summarize(Some(&place), None, None),
-            );
-
-            assert_eq!(
-                "save place to journal",
-                StorageCommand::Change {
-                    change: Change::Save {
-                        name: String::new(),
-                    },
-                }
-                .summarize(Some(&place), None, None),
-            );
-        }
-
-        {
-            let mut npc = Npc {
-                species: Species::Gnome.into(),
-                ..Default::default()
-            }
-            .into();
-
-            assert_eq!(
-                "gnome (unsaved)",
-                StorageCommand::Load {
-                    name: String::new(),
-                }
-                .summarize(Some(&npc), None, None),
-            );
-
-            npc.set_uuid(Uuid::new_v4());
-
-            assert_eq!(
-                "gnome",
-                StorageCommand::Load {
-                    name: String::new(),
-                }
-                .summarize(Some(&npc), None, None),
-            );
-
-            assert_eq!(
-                "save character to journal",
-                StorageCommand::Change {
-                    change: Change::Save {
-                        name: String::new(),
-                    },
-                }
-                .summarize(Some(&npc), None, None),
-            );
-        }
-
-        {
-            assert_eq!(
-                "load an entry",
-                StorageCommand::Load {
-                    name: String::new(),
-                }
-                .summarize(None, None, None),
-            );
-
-            assert_eq!(
-                "save an entry to journal",
-                StorageCommand::Change {
-                    change: Change::Save {
-                        name: String::new(),
-                    }
-                }
-                .summarize(None, None, None),
-            );
-        }
-
-        {
-            let change = Change::Save {
-                name: "Potato Johnson".to_string(),
-            };
-
-            assert_eq!(
-                "undo removing Potato Johnson from journal",
-                StorageCommand::Undo.summarize(None, Some(&change), None),
-            );
-
-            assert_eq!(
-                "nothing to undo",
-                StorageCommand::Undo.summarize(None, None, None),
-            );
-        }
-
-        {
-            let change = Change::Save {
-                name: "Potato Johnson".to_string(),
-            };
-
-            assert_eq!(
-                "redo saving Potato Johnson to journal",
-                StorageCommand::Redo.summarize(None, None, Some(&change)),
-            );
-
-            assert_eq!(
-                "nothing to redo",
-                StorageCommand::Redo.summarize(None, None, None),
-            );
-        }
-    }
 
     #[test]
     fn parse_input_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = AppMeta::new(MemoryDataStore::default());
 
         assert_eq!(
             (Option::<StorageCommand>::None, Vec::new()),
-            StorageCommand::parse_input("Gandalf the Grey", &app_meta),
+            block_on(StorageCommand::parse_input("Gandalf the Grey", &app_meta)),
         );
 
         assert_eq!(
@@ -601,12 +454,21 @@ mod test {
                 }),
                 Vec::new(),
             ),
-            StorageCommand::parse_input("delete Gandalf the Grey", &app_meta),
+            block_on(StorageCommand::parse_input(
+                "delete Gandalf the Grey",
+                &app_meta
+            )),
         );
 
         assert_eq!(
-            StorageCommand::parse_input("delete Gandalf the Grey", &app_meta),
-            StorageCommand::parse_input("DELETE Gandalf the Grey", &app_meta),
+            block_on(StorageCommand::parse_input(
+                "delete Gandalf the Grey",
+                &app_meta
+            )),
+            block_on(StorageCommand::parse_input(
+                "DELETE Gandalf the Grey",
+                &app_meta
+            )),
         );
 
         assert_eq!(
@@ -618,12 +480,21 @@ mod test {
                 }),
                 Vec::new(),
             ),
-            StorageCommand::parse_input("save Gandalf the Grey", &app_meta),
+            block_on(StorageCommand::parse_input(
+                "save Gandalf the Grey",
+                &app_meta
+            )),
         );
 
         assert_eq!(
-            StorageCommand::parse_input("save Gandalf the Grey", &app_meta),
-            StorageCommand::parse_input("SAVE Gandalf the Grey", &app_meta),
+            block_on(StorageCommand::parse_input(
+                "save Gandalf the Grey",
+                &app_meta
+            )),
+            block_on(StorageCommand::parse_input(
+                "SAVE Gandalf the Grey",
+                &app_meta
+            )),
         );
 
         assert_eq!(
@@ -633,33 +504,42 @@ mod test {
                 }),
                 Vec::new(),
             ),
-            StorageCommand::parse_input("load Gandalf the Grey", &app_meta),
+            block_on(StorageCommand::parse_input(
+                "load Gandalf the Grey",
+                &app_meta
+            )),
         );
 
         assert_eq!(
-            StorageCommand::parse_input("load Gandalf the Grey", &app_meta),
-            StorageCommand::parse_input("LOAD Gandalf the Grey", &app_meta),
+            block_on(StorageCommand::parse_input(
+                "load Gandalf the Grey",
+                &app_meta
+            )),
+            block_on(StorageCommand::parse_input(
+                "LOAD Gandalf the Grey",
+                &app_meta
+            )),
         );
 
         assert_eq!(
             (Some(StorageCommand::Journal), Vec::new()),
-            StorageCommand::parse_input("journal", &app_meta),
+            block_on(StorageCommand::parse_input("journal", &app_meta)),
         );
 
         assert_eq!(
             (Some(StorageCommand::Journal), Vec::new()),
-            StorageCommand::parse_input("JOURNAL", &app_meta),
+            block_on(StorageCommand::parse_input("JOURNAL", &app_meta)),
         );
 
         assert_eq!(
             (None, Vec::<StorageCommand>::new()),
-            StorageCommand::parse_input("potato", &app_meta),
+            block_on(StorageCommand::parse_input("potato", &app_meta)),
         );
     }
 
     #[test]
     fn autocomplete_test() {
-        let mut app_meta = AppMeta::new(NullDataStore::default());
+        let mut app_meta = AppMeta::new(MemoryDataStore::default());
 
         block_on(
             app_meta.repository.modify(Change::Create {
@@ -698,7 +578,7 @@ mod test {
         )
         .unwrap();
 
-        assert!(StorageCommand::autocomplete("delete P", &app_meta).is_empty());
+        assert!(block_on(StorageCommand::autocomplete("delete P", &app_meta)).is_empty());
 
         assert_autocomplete(
             &[
@@ -706,12 +586,12 @@ mod test {
                 ("save potato can be lowercase", "save character to journal"),
                 ("save Potato & Meat", "save place to journal"),
             ][..],
-            StorageCommand::autocomplete("save ", &app_meta),
+            block_on(StorageCommand::autocomplete("save ", &app_meta)),
         );
 
         assert_eq!(
-            StorageCommand::autocomplete("save ", &app_meta),
-            StorageCommand::autocomplete("SAve ", &app_meta),
+            block_on(StorageCommand::autocomplete("save ", &app_meta)),
+            block_on(StorageCommand::autocomplete("SAve ", &app_meta)),
         );
 
         assert_autocomplete(
@@ -720,52 +600,52 @@ mod test {
                 ("load Potato & Meat", "inn (unsaved)"),
                 ("load potato can be lowercase", "person (unsaved)"),
             ][..],
-            StorageCommand::autocomplete("load P", &app_meta),
+            block_on(StorageCommand::autocomplete("load P", &app_meta)),
         );
 
         assert_eq!(
-            StorageCommand::autocomplete("load P", &app_meta),
-            StorageCommand::autocomplete("LOad p", &app_meta),
+            block_on(StorageCommand::autocomplete("load P", &app_meta)),
+            block_on(StorageCommand::autocomplete("LOad p", &app_meta)),
         );
 
         assert_autocomplete(
             &[("delete [name]", "remove an entry from journal")][..],
-            StorageCommand::autocomplete("delete", &app_meta),
+            block_on(StorageCommand::autocomplete("delete", &app_meta)),
         );
 
         assert_autocomplete(
             &[("delete [name]", "remove an entry from journal")][..],
-            StorageCommand::autocomplete("DELete", &app_meta),
+            block_on(StorageCommand::autocomplete("DELete", &app_meta)),
         );
 
         assert_autocomplete(
             &[("load [name]", "load an entry")][..],
-            StorageCommand::autocomplete("load", &app_meta),
+            block_on(StorageCommand::autocomplete("load", &app_meta)),
         );
 
         assert_autocomplete(
             &[("load [name]", "load an entry")][..],
-            StorageCommand::autocomplete("LOad", &app_meta),
+            block_on(StorageCommand::autocomplete("LOad", &app_meta)),
         );
 
         assert_autocomplete(
             &[("save [name]", "save an entry to journal")][..],
-            StorageCommand::autocomplete("s", &app_meta),
+            block_on(StorageCommand::autocomplete("s", &app_meta)),
         );
 
         assert_autocomplete(
             &[("save [name]", "save an entry to journal")][..],
-            StorageCommand::autocomplete("S", &app_meta),
+            block_on(StorageCommand::autocomplete("S", &app_meta)),
         );
 
         assert_autocomplete(
             &[("journal", "list journal contents")][..],
-            StorageCommand::autocomplete("j", &app_meta),
+            block_on(StorageCommand::autocomplete("j", &app_meta)),
         );
 
         assert_autocomplete(
             &[("journal", "list journal contents")][..],
-            StorageCommand::autocomplete("J", &app_meta),
+            block_on(StorageCommand::autocomplete("J", &app_meta)),
         );
 
         assert_autocomplete(
@@ -774,28 +654,28 @@ mod test {
                 ("Potato Johnson", "adult elf, they/them (unsaved)"),
                 ("potato can be lowercase", "person (unsaved)"),
             ][..],
-            StorageCommand::autocomplete("p", &app_meta),
+            block_on(StorageCommand::autocomplete("p", &app_meta)),
         );
 
         assert_eq!(
-            StorageCommand::autocomplete("p", &app_meta),
-            StorageCommand::autocomplete("P", &app_meta),
+            block_on(StorageCommand::autocomplete("p", &app_meta)),
+            block_on(StorageCommand::autocomplete("P", &app_meta)),
         );
 
         assert_autocomplete(
             &[("Potato Johnson", "adult elf, they/them (unsaved)")][..],
-            StorageCommand::autocomplete("Potato Johnson", &app_meta),
+            block_on(StorageCommand::autocomplete("Potato Johnson", &app_meta)),
         );
 
         assert_autocomplete(
             &[("Potato Johnson", "adult elf, they/them (unsaved)")][..],
-            StorageCommand::autocomplete("pOTATO jOHNSON", &app_meta),
+            block_on(StorageCommand::autocomplete("pOTATO jOHNSON", &app_meta)),
         );
     }
 
     #[test]
     fn display_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = AppMeta::new(MemoryDataStore::default());
 
         vec![
             StorageCommand::Change {
@@ -820,7 +700,7 @@ mod test {
             assert_ne!("", command_string);
             assert_eq!(
                 (Some(command), Vec::new()),
-                StorageCommand::parse_input(&command_string, &app_meta),
+                block_on(StorageCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,
             );

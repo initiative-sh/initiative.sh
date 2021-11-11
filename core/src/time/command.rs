@@ -61,8 +61,9 @@ impl Runnable for TimeCommand {
     }
 }
 
+#[async_trait(?Send)]
 impl ContextAwareParse for TimeCommand {
-    fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+    async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut fuzzy_matches = Vec::new();
 
         (
@@ -88,8 +89,9 @@ impl ContextAwareParse for TimeCommand {
     }
 }
 
+#[async_trait(?Send)]
 impl Autocomplete for TimeCommand {
-    fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
         if input.starts_with(&['+', '-'][..]) {
             let suggest = |suffix: &str| -> Result<(String, String), ()> {
                 let suggestion = format!("{}{}", input, suffix);
@@ -153,6 +155,7 @@ impl fmt::Display for TimeCommand {
 mod test {
     use super::*;
     use crate::NullDataStore;
+    use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
@@ -165,7 +168,7 @@ mod test {
                 }),
                 Vec::<TimeCommand>::new(),
             ),
-            TimeCommand::parse_input("+1m", &app_meta),
+            block_on(TimeCommand::parse_input("+1m", &app_meta)),
         );
 
         assert_eq!(
@@ -175,7 +178,7 @@ mod test {
                 }),
                 Vec::<TimeCommand>::new(),
             ),
-            TimeCommand::parse_input("+d", &app_meta),
+            block_on(TimeCommand::parse_input("+d", &app_meta)),
         );
 
         assert_eq!(
@@ -185,12 +188,12 @@ mod test {
                 }),
                 Vec::<TimeCommand>::new(),
             ),
-            TimeCommand::parse_input("-10h", &app_meta),
+            block_on(TimeCommand::parse_input("-10h", &app_meta)),
         );
 
         assert_eq!(
             (None, Vec::<TimeCommand>::new()),
-            TimeCommand::parse_input("1d2h", &app_meta),
+            block_on(TimeCommand::parse_input("1d2h", &app_meta)),
         );
     }
 
@@ -200,7 +203,7 @@ mod test {
 
         assert_eq!(
             Vec::<(String, String)>::new(),
-            TimeCommand::autocomplete("", &app_meta),
+            block_on(TimeCommand::autocomplete("", &app_meta)),
         );
 
         assert_eq!(
@@ -215,7 +218,7 @@ mod test {
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
             .collect::<Vec<_>>(),
-            TimeCommand::autocomplete("+", &app_meta),
+            block_on(TimeCommand::autocomplete("+", &app_meta)),
         );
 
         assert_eq!(
@@ -230,7 +233,7 @@ mod test {
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
             .collect::<Vec<_>>(),
-            TimeCommand::autocomplete("-", &app_meta),
+            block_on(TimeCommand::autocomplete("-", &app_meta)),
         );
 
         assert_eq!(
@@ -244,7 +247,7 @@ mod test {
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
             .collect::<Vec<_>>(),
-            TimeCommand::autocomplete("+1", &app_meta),
+            block_on(TimeCommand::autocomplete("+1", &app_meta)),
         );
 
         assert_eq!(
@@ -258,7 +261,7 @@ mod test {
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
             .collect::<Vec<_>>(),
-            TimeCommand::autocomplete("+10", &app_meta),
+            block_on(TimeCommand::autocomplete("+10", &app_meta)),
         );
 
         assert_eq!(
@@ -271,7 +274,7 @@ mod test {
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
             .collect::<Vec<_>>(),
-            TimeCommand::autocomplete("+10d5", &app_meta),
+            block_on(TimeCommand::autocomplete("+10d5", &app_meta)),
         );
 
         assert_eq!(
@@ -284,48 +287,48 @@ mod test {
             .iter()
             .map(|(a, b)| (a.to_string(), b.to_string()))
             .collect::<Vec<_>>(),
-            TimeCommand::autocomplete("+10D5", &app_meta),
+            block_on(TimeCommand::autocomplete("+10D5", &app_meta)),
         );
 
         assert_eq!(
             vec![("+1d".to_string(), "advance time by 1 day".to_string())],
-            TimeCommand::autocomplete("+1d", &app_meta),
+            block_on(TimeCommand::autocomplete("+1d", &app_meta)),
         );
         assert_eq!(
             vec![("+1D".to_string(), "advance time by 1 day".to_string())],
-            TimeCommand::autocomplete("+1D", &app_meta),
+            block_on(TimeCommand::autocomplete("+1D", &app_meta)),
         );
         assert_eq!(
             vec![("+1h".to_string(), "advance time by 1 hour".to_string())],
-            TimeCommand::autocomplete("+1h", &app_meta),
+            block_on(TimeCommand::autocomplete("+1h", &app_meta)),
         );
         assert_eq!(
             vec![("+1H".to_string(), "advance time by 1 hour".to_string())],
-            TimeCommand::autocomplete("+1H", &app_meta),
+            block_on(TimeCommand::autocomplete("+1H", &app_meta)),
         );
         assert_eq!(
             vec![("+1m".to_string(), "advance time by 1 minute".to_string())],
-            TimeCommand::autocomplete("+1m", &app_meta),
+            block_on(TimeCommand::autocomplete("+1m", &app_meta)),
         );
         assert_eq!(
             vec![("+1M".to_string(), "advance time by 1 minute".to_string())],
-            TimeCommand::autocomplete("+1M", &app_meta),
+            block_on(TimeCommand::autocomplete("+1M", &app_meta)),
         );
         assert_eq!(
             vec![("+1s".to_string(), "advance time by 1 second".to_string())],
-            TimeCommand::autocomplete("+1s", &app_meta),
+            block_on(TimeCommand::autocomplete("+1s", &app_meta)),
         );
         assert_eq!(
             vec![("+1S".to_string(), "advance time by 1 second".to_string())],
-            TimeCommand::autocomplete("+1S", &app_meta),
+            block_on(TimeCommand::autocomplete("+1S", &app_meta)),
         );
         assert_eq!(
             vec![("+1r".to_string(), "advance time by 1 round".to_string())],
-            TimeCommand::autocomplete("+1r", &app_meta),
+            block_on(TimeCommand::autocomplete("+1r", &app_meta)),
         );
         assert_eq!(
             vec![("+1R".to_string(), "advance time by 1 round".to_string())],
-            TimeCommand::autocomplete("+1R", &app_meta),
+            block_on(TimeCommand::autocomplete("+1R", &app_meta)),
         );
     }
 
@@ -349,14 +352,17 @@ mod test {
 
             assert_eq!(
                 (Some(command.clone()), Vec::new()),
-                TimeCommand::parse_input(&command_string, &app_meta),
+                block_on(TimeCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,
             );
 
             assert_eq!(
                 (Some(command), Vec::new()),
-                TimeCommand::parse_input(&command_string.to_uppercase(), &app_meta),
+                block_on(TimeCommand::parse_input(
+                    &command_string.to_uppercase(),
+                    &app_meta
+                )),
                 "{}",
                 command_string.to_uppercase(),
             );

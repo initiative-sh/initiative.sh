@@ -1,6 +1,7 @@
 mod common;
 
-use common::{sync_app, sync_app_with_data_store, MemoryDataStore};
+use common::{sync_app, sync_app_with_data_store};
+use initiative_core::MemoryDataStore;
 
 #[test]
 fn time_is_initialized() {

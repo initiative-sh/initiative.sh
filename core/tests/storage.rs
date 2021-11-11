@@ -1,7 +1,7 @@
 mod common;
 
-use common::{sync_app, sync_app_with_data_store, MemoryDataStore};
-use initiative_core::NullDataStore;
+use common::{sync_app, sync_app_with_data_store, SyncApp};
+use initiative_core::{MemoryDataStore, NullDataStore};
 
 #[test]
 fn npc_is_saved_to_storage() {
@@ -15,14 +15,20 @@ fn npc_is_saved_to_storage() {
         .unwrap()
         .trim_start_matches("# ");
 
-    {
-        let output = app.command(&format!("save {}", npc_name)).unwrap();
-        assert!(output.contains("was successfully saved."), "{}", output);
-    }
+    assert_eq!(
+        format!(
+            "{} was successfully saved. Use `undo` to reverse this.",
+            npc_name,
+        ),
+        app.command(&format!("save {}", npc_name)).unwrap(),
+    );
 
     let things = data_store.things.borrow();
     assert_eq!(1, things.len());
-    assert_eq!(npc_name, things.first().unwrap().name().value().unwrap());
+    assert_eq!(
+        npc_name,
+        things.values().next().unwrap().name().value().unwrap(),
+    );
 }
 
 #[test]
@@ -37,15 +43,24 @@ fn npc_is_saved_to_storage_by_alias() {
         .unwrap()
         .trim_start_matches("# ");
 
-    app.command("save").unwrap();
+    assert_eq!(
+        format!(
+            "{} was successfully saved. Use `undo` to reverse this.",
+            npc_name,
+        ),
+        app.command("save").unwrap(),
+    );
 
     let things = data_store.things.borrow();
     assert_eq!(1, things.len());
-    assert_eq!(npc_name, things.first().unwrap().name().value().unwrap());
+    assert_eq!(
+        npc_name,
+        things.values().next().unwrap().name().value().unwrap(),
+    );
 }
 
 #[test]
-fn npc_cannot_be_saved_with_invalid_data_store() {
+fn npc_can_be_saved_with_invalid_data_store() {
     let mut app = sync_app_with_data_store(NullDataStore::default());
 
     let generated_output = app.command("npc").unwrap();
@@ -56,11 +71,13 @@ fn npc_cannot_be_saved_with_invalid_data_store() {
         .trim_start_matches("# ");
 
     assert_eq!(
-        "The journal is not supported by your browser.",
-        app.command(&format!("save {}", npc_name)).unwrap_err(),
+        format!(
+            "{} was successfully saved. Use `undo` to reverse this.\n\n! Your browser does not support local storage. Any changes will not persist beyond this session.",
+            npc_name,
+        ),
+        app.command(&format!("save {}", npc_name)).unwrap(),
     );
 
-    // The NPC should still be in the recent store.
     assert_eq!(
         format!("# {}", npc_name),
         app.command(&format!("load {}", npc_name))
@@ -72,7 +89,7 @@ fn npc_cannot_be_saved_with_invalid_data_store() {
 }
 
 #[test]
-fn npc_cannot_be_saved_by_alias_with_invalid_data_store() {
+fn npc_can_be_saved_by_alias_with_invalid_data_store() {
     let mut app = sync_app_with_data_store(NullDataStore::default());
 
     let generated_output = app.command("npc").unwrap();
@@ -82,12 +99,21 @@ fn npc_cannot_be_saved_by_alias_with_invalid_data_store() {
         .unwrap()
         .trim_start_matches("# ");
 
-    let output = app.command(&npc_name).unwrap();
-
-    assert!(!output.contains("has not yet been saved"), "{}", output);
     assert_eq!(
-        "Unknown command: \"save\"",
-        app.command("save").unwrap_err(),
+        format!(
+            "{} was successfully saved. Use `undo` to reverse this.\n\n! Your browser does not support local storage. Any changes will not persist beyond this session.",
+            npc_name,
+        ),
+        app.command("save").unwrap(),
+    );
+
+    assert_eq!(
+        format!("# {}", npc_name),
+        app.command(&format!("load {}", npc_name))
+            .unwrap()
+            .lines()
+            .nth(2)
+            .unwrap(),
     );
 }
 
@@ -238,7 +264,7 @@ fn delete_works_with_unusable_data_store() {
     app.command("npc named Potato Johnson").unwrap();
 
     assert_eq!(
-        "Potato Johnson was successfully deleted. Use `undo` to reverse this.",
+        "Potato Johnson was successfully deleted. Use `undo` to reverse this.\n\n! Your browser does not support local storage. Any changes will not persist beyond this session.",
         app.command("delete Potato Johnson").unwrap(),
     );
 
@@ -247,7 +273,7 @@ fn delete_works_with_unusable_data_store() {
         assert!(output.contains("# Potato Johnson"), "{}", output);
         assert!(
             output.ends_with(
-                "_Successfully undid deleting Potato Johnson. Use `redo` to reverse this._"
+                "_Successfully undid deleting Potato Johnson. Use `redo` to reverse this._\n\n! Your browser does not support local storage. Any changes will not persist beyond this session."
             ),
             "{}",
             output,
@@ -255,7 +281,7 @@ fn delete_works_with_unusable_data_store() {
     }
 
     assert_eq!(
-        "Successfully redid deleting Potato Johnson. Use `undo` to reverse this.",
+        "Successfully redid deleting Potato Johnson. Use `undo` to reverse this.\n\n! Your browser does not support local storage. Any changes will not persist beyond this session.",
         app.command("redo").unwrap(),
     );
 }
@@ -263,7 +289,7 @@ fn delete_works_with_unusable_data_store() {
 #[test]
 fn startup_error_with_unusable_data_store() {
     {
-        let mut app = sync_app_with_data_store(NullDataStore::default());
+        let mut app = SyncApp::new(NullDataStore::default());
         let output = app.init();
         assert!(
             output.contains("Local storage is not available in your browser."),
@@ -298,8 +324,8 @@ fn journal_has_empty_error_message() {
 fn journal_with_invalid_data_store_shows_error_message() {
     let mut app = sync_app_with_data_store(NullDataStore::default());
     assert_eq!(
-        "The journal is not supported by your browser.",
-        app.command("journal").unwrap_err(),
+        "# Journal\n\n*Your journal is currently empty.*\n\n! Your browser does not support local storage. Any changes will not persist beyond this session.",
+        app.command("journal").unwrap(),
     );
 }
 
