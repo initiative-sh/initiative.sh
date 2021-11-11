@@ -116,11 +116,13 @@ impl Repository {
         }
     }
 
-    pub fn load(&self, id: &Id) -> Option<&Thing> {
+    pub async fn load(&self, id: &Id) -> Result<Thing, Error> {
         match id {
             Id::Name(name) => self.load_thing_by_name(name),
             Id::Uuid(uuid) => self.cache.get(uuid),
         }
+        .cloned()
+        .ok_or(Error::NotFound)
     }
 
     pub fn all(&self) -> impl Iterator<Item = &Thing> {
@@ -270,8 +272,10 @@ impl Repository {
                     Ok(diff) => Ok(Change::Edit {
                         name: self
                             .load(&Id::Uuid(uuid))
-                            .and_then(|thing| thing.name().value())
-                            .map_or(name, |s| s.to_string()),
+                            .await
+                            .map(|thing| thing.name().value().map(String::from))
+                            .unwrap_or(None)
+                            .unwrap_or(name),
                         id: Id::Uuid(uuid),
                         diff,
                     }),
@@ -279,8 +283,10 @@ impl Repository {
                         Change::Edit {
                             name: self
                                 .load(&Id::Uuid(uuid))
-                                .and_then(|thing| thing.name().value())
-                                .map_or(name, |s| s.to_string()),
+                                .await
+                                .map(|thing| thing.name().value().map(String::from))
+                                .unwrap_or(None)
+                                .unwrap_or(name),
                             id: Id::Uuid(uuid),
                             diff,
                         },
@@ -736,9 +742,9 @@ mod test {
     fn load_test_from_recent_by_name() {
         assert_eq!(
             "Odysseus",
-            repo()
-                .load(&"ODYSSEUS".into())
-                .and_then(|thing| thing.name().value())
+            block_on(repo().load(&"ODYSSEUS".into()))
+                .map(|thing| thing.name().value().map(String::from))
+                .unwrap()
                 .unwrap(),
         );
     }
@@ -747,25 +753,28 @@ mod test {
     fn load_test_from_journal_by_name() {
         assert_eq!(
             "Olympus",
-            repo()
-                .load(&"OLYMPUS".into())
-                .and_then(|thing| thing.name().value())
+            block_on(repo().load(&"OLYMPUS".into()))
+                .map(|thing| thing.name().value().map(String::from))
+                .unwrap()
                 .unwrap(),
         );
     }
 
     #[test]
     fn load_test_not_found() {
-        assert!(repo().load(&"NOBODY".into()).is_none());
+        assert_eq!(
+            Err(Error::NotFound),
+            block_on(repo().load(&"NOBODY".into())),
+        );
     }
 
     #[test]
     fn load_test_by_uuid() {
         assert_eq!(
             "Olympus",
-            repo()
-                .load(&TEST_UUID.into())
-                .and_then(|thing| thing.name().value())
+            block_on(repo().load(&TEST_UUID.into()))
+                .map(|thing| thing.name().value().map(String::from))
+                .unwrap()
                 .unwrap(),
         );
     }
@@ -801,14 +810,14 @@ mod test {
 
         {
             assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.undo()).unwrap().unwrap());
-            assert!(repo.load(&TEST_UUID.into()).is_some());
-            assert!(repo.load(&"Olympus".into()).is_some());
+            assert!(block_on(repo.load(&TEST_UUID.into())).is_ok());
+            assert!(block_on(repo.load(&"Olympus".into())).is_ok());
             assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
         {
             assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.redo()).unwrap().unwrap());
-            assert!(repo.load(&"Olympus".into()).is_none());
+            assert_eq!(Err(Error::NotFound), block_on(repo.load(&"Olympus".into())));
         }
     }
 
@@ -849,7 +858,7 @@ mod test {
                 }),
                 repo.redo_change,
             );
-            assert!(repo.load(&"odysseus".into()).is_some());
+            assert!(block_on(repo.load(&"odysseus".into())).is_ok());
             assert_eq!(1, repo.recent().count());
         }
     }
@@ -893,7 +902,7 @@ mod test {
                 }),
                 repo.redo_change,
             );
-            assert!(repo.load(&TEST_UUID.into()).is_some());
+            assert!(block_on(repo.load(&TEST_UUID.into())).is_ok());
             assert_eq!(1, repo.journal().count());
             assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
         }
@@ -957,9 +966,9 @@ mod test {
                 result,
             );
 
-            assert!(repo.load(&uuid.to_owned().into()).is_some());
+            assert!(block_on(repo.load(&uuid.to_owned().into())).is_ok());
             assert_eq!("editing Nobody", result.display_undo().to_string());
-            assert!(repo.load(&"Nobody".into()).is_some());
+            assert!(block_on(repo.load(&"Nobody".into())).is_ok());
             assert_eq!(2, repo.journal().count());
             assert_eq!(0, repo.recent().count());
             assert_eq!(2, block_on(data_store.get_all_the_things()).unwrap().len());
@@ -976,15 +985,15 @@ mod test {
                 Id::from("ODYSSEUS"),
                 block_on(repo.undo()).unwrap().unwrap(),
             );
-            assert!(repo.load(&"Odysseus".into()).is_some());
+            assert!(block_on(repo.load(&"Odysseus".into())).is_ok());
             assert_eq!(1, repo.journal().count());
             assert_eq!(1, repo.recent().count());
             assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
         if let Id::Uuid(uuid) = block_on(repo.redo()).unwrap().unwrap() {
-            assert!(repo.load(&"Nobody".into()).is_some());
-            assert!(repo.load(&uuid.into()).is_some());
+            assert!(block_on(repo.load(&"Nobody".into())).is_ok());
+            assert!(block_on(repo.load(&uuid.into())).is_ok());
         } else {
             panic!();
         }
@@ -1005,7 +1014,7 @@ mod test {
         );
         assert_eq!(1, repo.recent().count());
         assert_eq!(1, repo.journal().count());
-        assert!(repo.load(&"Odysseus".into()).is_some());
+        assert!(block_on(repo.load(&"Odysseus".into())).is_ok());
     }
 
     #[test]
@@ -1159,7 +1168,7 @@ mod test {
                 result,
             );
             assert_eq!("editing Hades", result.display_undo().to_string());
-            assert!(repo.load(&"Hades".into()).is_some());
+            assert!(block_on(repo.load(&"Hades".into())).is_ok());
             assert_eq!(
                 "Hades",
                 block_on(data_store.get_all_the_things())
@@ -1174,7 +1183,7 @@ mod test {
 
         {
             assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.undo()).unwrap().unwrap());
-            assert!(repo.load(&"OLYMPUS".into()).is_some());
+            assert!(block_on(repo.load(&"OLYMPUS".into())).is_ok());
             assert_eq!(
                 "Olympus",
                 block_on(data_store.get_all_the_things())
@@ -1189,7 +1198,7 @@ mod test {
 
         {
             assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.redo()).unwrap().unwrap());
-            assert!(repo.load(&"HADES".into()).is_some());
+            assert!(block_on(repo.load(&"HADES".into())).is_ok());
         }
     }
 
@@ -1224,8 +1233,8 @@ mod test {
 
         {
             let result = block_on(repo.modify(change));
-            assert!(repo.load(&"Hades".into()).is_some());
-            assert!(repo.load(&"Olympus".into()).is_none());
+            assert!(block_on(repo.load(&"Hades".into())).is_ok());
+            assert_eq!(Err(Error::NotFound), block_on(repo.load(&"Olympus".into())));
 
             assert_eq!(
                 Err((
@@ -1293,7 +1302,7 @@ mod test {
                 result,
             );
             assert_eq!("editing Hades", result.display_undo().to_string());
-            assert!(repo.load(&"Hades".into()).is_some());
+            assert!(block_on(repo.load(&"Hades".into())).is_ok());
             assert_eq!(
                 "Hades",
                 block_on(data_store.get_all_the_things())
@@ -1309,7 +1318,7 @@ mod test {
         {
             assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.undo()).unwrap().unwrap());
 
-            assert!(repo.load(&"Olympus".into()).is_some());
+            assert!(block_on(repo.load(&"Olympus".into())).is_ok());
             assert_eq!(
                 "Olympus",
                 block_on(data_store.get_all_the_things())
@@ -1324,7 +1333,7 @@ mod test {
 
         {
             assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.redo()).unwrap().unwrap());
-            assert!(repo.load(&"Hades".into()).is_some());
+            assert!(block_on(repo.load(&"Hades".into())).is_ok());
         }
     }
 
@@ -1374,9 +1383,9 @@ mod test {
 
         {
             let result = block_on(repo.modify(change));
-            assert!(repo.load(&"Hades".into()).is_some());
-            assert!(repo.load(&TEST_UUID.into()).is_some());
-            assert!(repo.load(&"Olympus".into()).is_none());
+            assert!(block_on(repo.load(&"Hades".into())).is_ok());
+            assert!(block_on(repo.load(&TEST_UUID.into())).is_ok());
+            assert_eq!(Err(Error::NotFound), block_on(repo.load(&"Olympus".into())));
 
             assert_eq!(
                 Err((
@@ -1429,7 +1438,7 @@ mod test {
                 result,
             );
             assert_eq!("editing Hades", result.display_undo().to_string());
-            assert!(repo.load(&"Hades".into()).is_some());
+            assert!(block_on(repo.load(&"Hades".into())).is_ok());
             assert_eq!(2, repo.recent().count());
             assert_eq!(0, repo.journal().count());
             assert!(block_on(data_store.get_all_the_things())
@@ -1439,8 +1448,8 @@ mod test {
 
         if let Id::Uuid(uuid) = block_on(repo.undo()).unwrap().unwrap() {
             assert_ne!(TEST_UUID, uuid);
-            assert!(repo.load(&"Olympus".into()).is_some());
-            assert!(repo.load(&uuid.into()).is_some());
+            assert!(block_on(repo.load(&"Olympus".into())).is_ok());
+            assert!(block_on(repo.load(&uuid.into())).is_ok());
             assert_eq!(1, repo.recent().count());
             assert_eq!(1, repo.journal().count());
             assert_eq!(
@@ -1459,7 +1468,7 @@ mod test {
 
         {
             assert_eq!(Id::from("Hades"), block_on(repo.redo()).unwrap().unwrap());
-            assert!(repo.load(&"Hades".into()).is_some());
+            assert!(block_on(repo.load(&"Hades".into())).is_ok());
         }
     }
 
@@ -1504,7 +1513,7 @@ mod test {
             ),
             block_on(repo.modify(change)).unwrap_err(),
         );
-        assert!(repo.load(&"Hades".into()).is_some());
+        assert!(block_on(repo.load(&"Hades".into())).is_ok());
     }
 
     #[test]
@@ -1722,7 +1731,7 @@ mod test {
             assert_eq!(0, repo.journal().count());
             assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(2, repo.recent().count());
-            assert_eq!(None, repo.load(&"Olympus".into()).unwrap().uuid());
+            assert_eq!(None, block_on(repo.load(&"Olympus".into())).unwrap().uuid());
         }
 
         {
@@ -1731,7 +1740,7 @@ mod test {
             if let Some(Change::Unsave { ref name, uuid }) = repo.redo_change {
                 assert_eq!("Olympus", name);
                 assert_ne!(TEST_UUID, uuid);
-                assert!(repo.load(&uuid.into()).is_some());
+                assert!(block_on(repo.load(&uuid.into())).is_ok());
             } else {
                 panic!();
             }
@@ -1763,7 +1772,7 @@ mod test {
                 },
                 result,
             );
-            assert!(repo.load(&uuid.to_owned().into()).is_some());
+            assert!(block_on(repo.load(&uuid.to_owned().into())).is_ok());
             assert_eq!("creating Odysseus", result.display_undo().to_string());
             assert_eq!(1, repo.journal().count());
             assert_eq!(

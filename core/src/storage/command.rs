@@ -69,8 +69,10 @@ impl Runnable for StorageCommand {
                     | Change::Unsave { name, .. } => app_meta
                         .repository
                         .load(&name.into())
-                        .and_then(|t| t.name().value())
-                        .map_or(name.to_owned(), |s| s.to_string()),
+                        .await
+                        .map(|t| t.name().value().map(|s| s.to_string()))
+                        .unwrap_or(None)
+                        .unwrap_or_else(|| name.to_owned()),
                 };
 
                 match &change {
@@ -102,37 +104,31 @@ impl Runnable for StorageCommand {
                             unreachable!()
                         };
 
-                        app_meta
-                        .repository
-                        .modify(change)
-                        .await
-                        .map(|id| {
-                            let thing = app_meta.repository.load(&id).unwrap();
+                        match app_meta
+                            .repository
+                            .modify(change)
+                            .await
+                        {
+                            Ok(id) => {
+                                let thing = app_meta.repository.load(&id).await.unwrap();
 
-                            if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) {
-                                format!(
-                                    "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
-                                    thing.display_details(),
-                                    name,
-                                )
-                            } else {
-                                format!(
-                                    "{}\n\n_{} was successfully edited. Use `undo` to reverse this._",
-                                    thing.display_details(),
-                                    name,
-                                )
-                            }
-                        })
-                        .map_err(|(_, e)| match e {
-                            RepositoryError::NotFound => {
-                                format!("There is no {} named \"{}\".", thing_type, name)
-                            }
-                            RepositoryError::DataStoreFailed
-                                | RepositoryError::MissingName
-                                | RepositoryError::NameAlreadyExists => {
-                                format!("Couldn't edit `{}`.", name)
+                                if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) {
+                                    Ok(format!(
+                                        "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
+                                        thing.display_details(),
+                                        name,
+                                    ))
+                                } else {
+                                    Ok(format!(
+                                        "{}\n\n_{} was successfully edited. Use `undo` to reverse this._",
+                                        thing.display_details(),
+                                        name,
+                                    ))
                                 }
-                        })
+                            }
+                            Err((_, RepositoryError::NotFound)) => Err(format!("There is no {} named \"{}\".", thing_type, name)),
+                            Err(_) => Err(format!("Couldn't edit `{}`.", name)),
+                        }
                     }
                     Change::Save { .. } => app_meta
                         .repository
@@ -158,9 +154,9 @@ impl Runnable for StorageCommand {
                 }
             }
             Self::Load { name } => {
-                let thing = app_meta.repository.load(&name.as_str().into());
+                let thing = app_meta.repository.load(&name.as_str().into()).await;
                 let mut save_command = None;
-                let output = if let Some(thing) = thing {
+                let output = if let Ok(thing) = thing {
                     if thing.uuid().is_none() {
                         save_command = Some(CommandAlias::literal(
                             "save".to_string(),
@@ -199,7 +195,7 @@ impl Runnable for StorageCommand {
                         .unwrap()
                         .display_undo();
 
-                    if let Some(thing) = app_meta.repository.load(&id) {
+                    if let Ok(thing) = app_meta.repository.load(&id).await {
                         Ok(format!(
                             "{}\n\n_Successfully redid {}. Use `undo` to reverse this._",
                             thing.display_details(),
@@ -219,7 +215,7 @@ impl Runnable for StorageCommand {
                 Some(Ok(id)) => {
                     let action = app_meta.repository.get_redo().unwrap().display_redo();
 
-                    if let Some(thing) = app_meta.repository.load(&id) {
+                    if let Ok(thing) = app_meta.repository.load(&id).await {
                         Ok(format!(
                             "{}\n\n_Successfully undid {}. Use `redo` to reverse this._",
                             thing.display_details(),
@@ -250,7 +246,7 @@ impl ContextAwareParse for StorageCommand {
     async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut fuzzy_matches = Vec::new();
 
-        if app_meta.repository.load(&input.into()).is_some() {
+        if app_meta.repository.load(&input.into()).await.is_ok() {
             fuzzy_matches.push(Self::Load {
                 name: input.to_string(),
             });

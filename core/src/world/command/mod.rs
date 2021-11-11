@@ -114,9 +114,10 @@ impl Runnable for WorldCommand {
                             RepositoryError::NameAlreadyExists,
                         )) => {
                             if thing.name().is_locked() {
-                                if let Some(other_thing) = app_meta
+                                if let Ok(other_thing) = app_meta
                                     .repository
                                     .load(&thing.name().value().unwrap().into())
+                                    .await
                                 {
                                     return Err(format!(
                                         "That name is already in use by {}.",
@@ -246,7 +247,7 @@ impl ContextAwareParse for WorldCommand {
                 input[word.range().end..].trim(),
             );
 
-            let (diff, thing) = if let Some(thing) = app_meta.repository.load(&name.into()) {
+            let (diff, thing) = if let Ok(thing) = app_meta.repository.load(&name.into()).await {
                 (
                     match thing {
                         Thing::Npc(_) => description
@@ -301,9 +302,10 @@ impl Autocomplete for WorldCommand {
             .find(|word| word.as_str().eq_ci("is"))
             .and_then(|word| input_words.next().map(|next_word| (word, next_word)))
         {
-            if let Some(thing) = app_meta
+            if let Ok(thing) = app_meta
                 .repository
                 .load(&input[..is_word.range().start].trim().into())
+                .await
             {
                 let split_pos = input.len() - input[is_word.range().end..].trim_start().len();
 
@@ -333,7 +335,7 @@ impl Autocomplete for WorldCommand {
             }
         }
 
-        if let Some(thing) = app_meta.repository.load(&input.trim_end().into()) {
+        if let Ok(thing) = app_meta.repository.load(&input.trim_end().into()).await {
             suggestions.push((
                 if input.ends_with(char::is_whitespace) {
                     format!("{}is [{} description]", input, thing.as_str())
@@ -346,9 +348,10 @@ impl Autocomplete for WorldCommand {
             quoted_words(input).enumerate().skip(1).last()
         {
             if "is".starts_with_ci(last_word.as_str()) {
-                if let Some(thing) = app_meta
+                if let Ok(thing) = app_meta
                     .repository
                     .load(&input[..last_word.range().start].trim().into())
+                    .await
                 {
                     suggestions.push((
                         if last_word.range().end == input.len() {
@@ -370,9 +373,10 @@ impl Autocomplete for WorldCommand {
                 let second_last_word = quoted_words(input).nth(last_word_index - 1).unwrap();
 
                 if second_last_word.as_str().eq_ci("is") {
-                    if let Some(thing) = app_meta
+                    if let Ok(thing) = app_meta
                         .repository
                         .load(&input[..second_last_word.range().start].trim().into())
+                        .await
                     {
                         suggestions.push((
                             if last_word.range().end == input.len() {
