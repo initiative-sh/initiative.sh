@@ -1,3 +1,6 @@
+* **Enhancement:** Refactored out the local cache. In practice, the only effect
+  this should have right now is that if you have multiple tabs/windows open at
+  once, the journal should remain in sync between all of them.
 * **Enhancement:** All place types now include an emoji icon in summary view,
   such as in the `journal` listing.
 * **Enhancement:** Just for good measure, added a wee favicon to the site.

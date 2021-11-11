@@ -3,14 +3,13 @@ use crate::time::Time;
 use crate::utils::CaseInsensitiveStr;
 use crate::{Thing, Uuid};
 use futures::join;
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::fmt;
 
 const RECENT_MAX_LEN: usize = 100;
 const UNDO_HISTORY_LEN: usize = 10;
 
 pub struct Repository {
-    cache: HashMap<Uuid, Thing>,
     data_store: Box<dyn DataStore>,
     data_store_enabled: bool,
     recent: VecDeque<Thing>,
@@ -82,7 +81,6 @@ pub enum Error {
 impl Repository {
     pub fn new(data_store: impl DataStore + 'static) -> Self {
         Self {
-            cache: HashMap::default(),
             data_store: Box::new(data_store),
             data_store_enabled: false,
             recent: VecDeque::default(),
@@ -93,19 +91,12 @@ impl Repository {
     }
 
     pub async fn init(&mut self) {
-        let things = self.data_store.get_all_the_things().await;
-
-        if let Ok(mut things) = things {
-            self.cache = things
-                .drain(..)
-                .filter_map(|thing| {
-                    if let Some(&uuid) = thing.uuid() {
-                        Some((uuid, thing))
-                    } else {
-                        None
-                    }
-                })
-                .collect();
+        if self
+            .data_store
+            .get_thing_by_uuid(&Uuid::nil())
+            .await
+            .is_ok()
+        {
             self.data_store_enabled = true;
         } else {
             self.data_store = Box::new(MemoryDataStore::default());
@@ -157,8 +148,11 @@ impl Repository {
         self.recent.as_slices().0.iter()
     }
 
-    pub fn journal(&self) -> impl Iterator<Item = &Thing> {
-        self.cache.values()
+    pub async fn journal(&self) -> Result<Vec<Thing>, Error> {
+        self.data_store
+            .get_all_the_things()
+            .await
+            .map_err(|_| Error::DataStoreFailed)
     }
 
     pub async fn modify(&mut self, change: Change) -> Result<Id, (Change, Error)> {
@@ -267,30 +261,17 @@ impl Repository {
             },
             Change::Edit { name, id, diff } => match id {
                 Id::Name(id_name) => {
-                    let new_name = diff.name().value().map(|s| s.to_string());
-
                     self.edit_thing_by_name(&id_name, diff)
                         .await
                         .map_err(|(diff, e)| {
-                            if let Some(new_name) = new_name {
-                                (
-                                    Change::Edit {
-                                        id: new_name.as_str().into(),
-                                        name: new_name,
-                                        diff,
-                                    },
-                                    e,
-                                )
-                            } else {
-                                (
-                                    Change::Edit {
-                                        id: Id::Name(id_name),
-                                        name,
-                                        diff,
-                                    },
-                                    e,
-                                )
-                            }
+                            (
+                                Change::Edit {
+                                    id: Id::Name(id_name),
+                                    name,
+                                    diff,
+                                },
+                                e,
+                            )
                         })
                 }
                 Id::Uuid(uuid) => match self.edit_thing_by_uuid(&uuid, diff).await {
@@ -448,12 +429,13 @@ impl Repository {
 
     async fn delete_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<Thing, (Option<Thing>, Error)> {
         match (
-            self.cache.remove(uuid),
+            self.data_store.get_thing_by_uuid(uuid).await,
             self.data_store.delete_thing_by_uuid(uuid).await,
         ) {
-            (Some(thing), Ok(())) => Ok(thing),
-            (Some(thing), Err(())) => Err((Some(thing), Error::DataStoreFailed)),
-            (None, _) => Err((None, Error::NotFound)),
+            (Ok(Some(thing)), Ok(())) => Ok(thing),
+            (Ok(Some(thing)), Err(())) => Err((Some(thing), Error::DataStoreFailed)),
+            (Ok(None), _) => Err((None, Error::NotFound)),
+            (Err(_), _) => Err((None, Error::DataStoreFailed)),
         }
     }
 
@@ -505,10 +487,7 @@ impl Repository {
         };
 
         match self.data_store.save_thing(&thing).await {
-            Ok(()) => {
-                self.cache.insert(uuid, thing);
-                Ok(uuid)
-            }
+            Ok(()) => Ok(uuid),
             Err(()) => {
                 thing.clear_uuid();
                 Err((thing, Error::DataStoreFailed))
@@ -542,17 +521,21 @@ impl Repository {
         uuid: &Uuid,
         mut diff: Thing,
     ) -> Result<Thing, (Thing, Error)> {
-        if let Some(thing) = self.cache.get_mut(uuid) {
-            if thing.try_apply_diff(&mut diff).is_err() {
-                return Err((diff, Error::NotFound));
-            }
+        match self.data_store.get_thing_by_uuid(uuid).await {
+            Ok(Some(mut thing)) => {
+                if thing.try_apply_diff(&mut diff).is_err() {
+                    // This fails when the thing types don't match, eg. applying an Npc diff to a
+                    // Place.
+                    return Err((diff, Error::NotFound));
+                }
 
-            match self.data_store.edit_thing(thing).await {
-                Ok(()) => Ok(diff),
-                Err(()) => Err((diff, Error::DataStoreFailed)),
+                match self.data_store.edit_thing(&thing).await {
+                    Ok(()) => Ok(diff),
+                    Err(()) => Err((diff, Error::DataStoreFailed)),
+                }
             }
-        } else {
-            Err((diff, Error::NotFound))
+            Ok(None) => Err((diff, Error::NotFound)),
+            Err(_) => Err((diff, Error::DataStoreFailed)),
         }
     }
 
@@ -561,25 +544,26 @@ impl Repository {
         name: &str,
         mut diff: Thing,
     ) -> Result<Change, (Thing, Error)> {
-        if let Some(thing) = self.cache.values_mut().find(|thing| {
-            thing
-                .name()
-                .value()
-                .map_or(false, |s| s.to_lowercase() == name)
-        }) {
-            if thing.try_apply_diff(&mut diff).is_err() {
-                return Err((diff, Error::NotFound));
-            }
+        let data_store_failed = match self.data_store.get_thing_by_name(name).await {
+            Ok(Some(mut thing)) => {
+                if thing.try_apply_diff(&mut diff).is_err() {
+                    return Err((diff, Error::NotFound));
+                }
 
-            match self.data_store.edit_thing(thing).await {
-                Ok(()) => Ok(Change::Edit {
-                    name: thing.name().to_string(),
-                    id: thing.uuid().unwrap().to_owned().into(),
-                    diff,
-                }),
-                Err(()) => Err((diff, Error::DataStoreFailed)),
+                return match self.data_store.edit_thing(&thing).await {
+                    Ok(()) => Ok(Change::Edit {
+                        name: thing.name().to_string(),
+                        id: thing.uuid().unwrap().to_owned().into(),
+                        diff,
+                    }),
+                    Err(()) => Err((diff, Error::DataStoreFailed)),
+                };
             }
-        } else if let Some(mut thing) = self.take_recent(|thing| {
+            Ok(None) => false,
+            Err(()) => true,
+        };
+
+        if let Some(mut thing) = self.take_recent(|thing| {
             thing
                 .name()
                 .value()
@@ -607,7 +591,14 @@ impl Repository {
 
             Ok(Change::EditAndUnsave { name, uuid, diff })
         } else {
-            Err((diff, Error::NotFound))
+            Err((
+                diff,
+                if data_store_failed {
+                    Error::DataStoreFailed
+                } else {
+                    Error::NotFound
+                },
+            ))
         }
     }
 }
@@ -706,8 +697,8 @@ impl fmt::Debug for Repository {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Repository {{ cache: {:?}, data_store_enabled: {:?}, recent: {:?}, time: {:?} }}",
-            self.cache, self.data_store_enabled, self.recent, self.time,
+            "Repository {{ data_store_enabled: {:?}, recent: {:?}, time: {:?} }}",
+            self.data_store_enabled, self.recent, self.time,
         )
     }
 }
@@ -777,7 +768,7 @@ mod test {
     #[test]
     fn journal_recent_test() {
         let repo = repo();
-        assert_eq!(1, repo.journal().count());
+        assert_eq!(1, block_on(repo.journal()).unwrap().len());
         assert_eq!(1, repo.recent().count());
     }
 
@@ -847,7 +838,7 @@ mod test {
                 result,
             );
             assert_eq!("deleting Olympus", result.display_undo().to_string());
-            assert_eq!(0, repo.journal().count());
+            assert_eq!(0, block_on(repo.journal()).unwrap().len());
             assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
@@ -931,7 +922,7 @@ mod test {
                 result,
             );
             assert_eq!("deleting Olympus", result.display_undo().to_string());
-            assert_eq!(0, repo.journal().count());
+            assert_eq!(0, block_on(repo.journal()).unwrap().len());
             assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
@@ -946,7 +937,7 @@ mod test {
                 repo.redo_change,
             );
             assert!(block_on(repo.load(&TEST_UUID.into())).is_ok());
-            assert_eq!(1, repo.journal().count());
+            assert_eq!(1, block_on(repo.journal()).unwrap().len());
             assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
         }
     }
@@ -965,14 +956,12 @@ mod test {
 
     #[test]
     fn change_test_delete_by_uuid_data_store_failed() {
-        let (mut repo, mut data_store) = repo_data_store();
-        block_on(data_store.delete_thing_by_uuid(&TEST_UUID)).unwrap();
         let change = Change::Delete {
             id: TEST_UUID.into(),
             name: "Olympus".to_string(),
         };
 
-        let result = block_on(repo.modify(change.clone())).unwrap_err();
+        let result = block_on(null_repo().modify(change.clone())).unwrap_err();
 
         assert_eq!((change, Error::DataStoreFailed), result);
     }
@@ -1012,7 +1001,7 @@ mod test {
             assert!(block_on(repo.load(&uuid.to_owned().into())).is_ok());
             assert_eq!("editing Nobody", result.display_undo().to_string());
             assert!(block_on(repo.load(&"Nobody".into())).is_ok());
-            assert_eq!(2, repo.journal().count());
+            assert_eq!(2, block_on(repo.journal()).unwrap().len());
             assert_eq!(0, repo.recent().count());
             assert_eq!(2, block_on(data_store.get_all_the_things()).unwrap().len());
             assert!(block_on(data_store.get_all_the_things())
@@ -1029,7 +1018,7 @@ mod test {
                 block_on(repo.undo()).unwrap().unwrap(),
             );
             assert!(block_on(repo.load(&"Odysseus".into())).is_ok());
-            assert_eq!(1, repo.journal().count());
+            assert_eq!(1, block_on(repo.journal()).unwrap().len());
             assert_eq!(1, repo.recent().count());
             assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
         }
@@ -1056,7 +1045,7 @@ mod test {
             Err((change, Error::NotFound)),
         );
         assert_eq!(1, repo.recent().count());
-        assert_eq!(1, repo.journal().count());
+        assert_eq!(1, block_on(repo.journal()).unwrap().len());
         assert!(block_on(repo.load(&"Odysseus".into())).is_ok());
     }
 
@@ -1277,10 +1266,10 @@ mod test {
         assert_eq!(
             Err((
                 Change::Edit {
-                    id: "Hades".into(),
-                    name: "Hades".into(),
+                    id: "Olympus".into(),
+                    name: "Olympus".into(),
                     diff: Place {
-                        name: "Olympus".into(),
+                        name: "Hades".into(),
                         ..Default::default()
                     }
                     .into(),
@@ -1424,9 +1413,7 @@ mod test {
                     id: TEST_UUID.into(),
                     name: "Olympus".into(),
                     diff: Place {
-                        // FIXME
-                        name: "Olympus".into(),
-                        // name: "Hades".into(),
+                        name: "Hades".into(),
                         ..Default::default()
                     }
                     .into(),
@@ -1472,7 +1459,7 @@ mod test {
             assert_eq!("editing Hades", result.display_undo().to_string());
             assert!(block_on(repo.load(&"Hades".into())).is_ok());
             assert_eq!(2, repo.recent().count());
-            assert_eq!(0, repo.journal().count());
+            assert_eq!(0, block_on(repo.journal()).unwrap().len());
             assert!(block_on(data_store.get_all_the_things())
                 .unwrap()
                 .is_empty());
@@ -1483,7 +1470,7 @@ mod test {
             assert!(block_on(repo.load(&"Olympus".into())).is_ok());
             assert!(block_on(repo.load(&uuid.into())).is_ok());
             assert_eq!(1, repo.recent().count());
-            assert_eq!(1, repo.journal().count());
+            assert_eq!(1, block_on(repo.journal()).unwrap().len());
             assert_eq!(
                 "Olympus",
                 block_on(data_store.get_all_the_things())
@@ -1521,7 +1508,7 @@ mod test {
 
     #[test]
     fn change_test_edit_and_unsave_data_store_failed() {
-        let mut repo = Repository::new(TimeBombDataStore::new(4));
+        let mut repo = Repository::new(TimeBombDataStore::new(6));
         populate_repo(&mut repo);
 
         let change = Change::EditAndUnsave {
@@ -1608,7 +1595,7 @@ mod test {
             block_on(repo.modify(change.clone())),
             Err((change, Error::NameAlreadyExists)),
         );
-        assert_eq!(1, repo.journal().count());
+        assert_eq!(1, block_on(repo.journal()).unwrap().len());
         assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
     }
 
@@ -1656,7 +1643,7 @@ mod test {
                 "saving Odysseus to journal",
                 result.display_undo().to_string(),
             );
-            assert_eq!(2, repo.journal().count());
+            assert_eq!(2, block_on(repo.journal()).unwrap().len());
             assert_eq!(2, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(0, repo.recent().count());
         } else {
@@ -1672,7 +1659,7 @@ mod test {
                 }),
                 repo.redo_change,
             );
-            assert_eq!(1, repo.journal().count());
+            assert_eq!(1, block_on(repo.journal()).unwrap().len());
             assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(1, repo.recent().count());
         }
@@ -1693,7 +1680,6 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(0, repo.journal().count());
         assert_eq!(1, repo.recent().count());
 
         let change = Change::Save {
@@ -1704,7 +1690,6 @@ mod test {
             Err((change, Error::DataStoreFailed)),
         );
 
-        assert_eq!(0, repo.journal().count());
         assert_eq!(1, repo.recent().count());
     }
 
@@ -1760,7 +1745,7 @@ mod test {
                 "removing Olympus from journal",
                 result.display_undo().to_string(),
             );
-            assert_eq!(0, repo.journal().count());
+            assert_eq!(0, block_on(repo.journal()).unwrap().len());
             assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(2, repo.recent().count());
             assert_eq!(None, block_on(repo.load(&"Olympus".into())).unwrap().uuid());
@@ -1776,7 +1761,7 @@ mod test {
             } else {
                 panic!();
             }
-            assert_eq!(1, repo.journal().count());
+            assert_eq!(1, block_on(repo.journal()).unwrap().len());
             assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(1, repo.recent().count());
         }
@@ -1806,7 +1791,7 @@ mod test {
             );
             assert!(block_on(repo.load(&uuid.to_owned().into())).is_ok());
             assert_eq!("creating Odysseus", result.display_undo().to_string());
-            assert_eq!(1, repo.journal().count());
+            assert_eq!(1, block_on(repo.journal()).unwrap().len());
             assert_eq!(
                 &uuid,
                 block_on(data_store.get_all_the_things())
@@ -1821,7 +1806,12 @@ mod test {
         }
 
         {
-            let uuid = *repo.journal().next().unwrap().uuid().unwrap();
+            let uuid = *block_on(repo.journal())
+                .unwrap()
+                .first()
+                .unwrap()
+                .uuid()
+                .unwrap();
             let _undo_result = block_on(repo.undo()).unwrap().unwrap();
 
             assert_eq!(
@@ -1835,7 +1825,7 @@ mod test {
                 }),
                 repo.redo_change,
             );
-            assert_eq!(0, repo.journal().count());
+            assert_eq!(0, block_on(repo.journal()).unwrap().len());
             assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
         }
     }
@@ -1856,7 +1846,7 @@ mod test {
             block_on(repo.modify(change.clone())),
             Err((change, Error::NameAlreadyExists)),
         );
-        assert_eq!(1, repo.journal().count());
+        assert_eq!(1, block_on(repo.journal()).unwrap().len());
         assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
     }
 
@@ -1876,7 +1866,7 @@ mod test {
             block_on(repo.modify(change.clone())),
             Err((change, Error::NameAlreadyExists)),
         );
-        assert_eq!(1, repo.journal().count());
+        assert_eq!(1, block_on(repo.journal()).unwrap().len());
         assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
     }
 
@@ -1896,13 +1886,12 @@ mod test {
             block_on(repo.modify(change.clone())),
             Err((change, Error::DataStoreFailed)),
         );
-        assert_eq!(0, repo.journal().count());
     }
 
     #[test]
     fn debug_test() {
         assert_eq!(
-            "Repository { cache: {}, data_store_enabled: false, recent: [], time: Time { days: 1, hours: 8, minutes: 0, seconds: 0 } }",
+            "Repository { data_store_enabled: false, recent: [], time: Time { days: 1, hours: 8, minutes: 0, seconds: 0 } }",
             format!("{:?}", empty_repo()),
         );
     }

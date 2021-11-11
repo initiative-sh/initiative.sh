@@ -4,6 +4,7 @@ use crate::utils::CaseInsensitiveStr;
 use crate::world::Thing;
 use async_trait::async_trait;
 use futures::join;
+use std::cmp::Ordering;
 use std::fmt;
 use std::iter::repeat;
 
@@ -27,18 +28,28 @@ impl Runnable for StorageCommand {
                 let record_count = app_meta
                     .repository
                     .journal()
+                    .await
+                    .map_err(|_| "Couldn't access the journal.".to_string())?
+                    .drain(..)
                     .map(|thing| match thing {
                         Thing::Npc(_) => npcs.push(thing),
                         Thing::Place(_) => places.push(thing),
                     })
                     .count();
 
-                let mut add_section = |title: &str, mut things: Vec<&Thing>| {
+                let mut add_section = |title: &str, mut things: Vec<Thing>| {
                     if !things.is_empty() {
                         output.push_str("\n\n## ");
                         output.push_str(title);
 
-                        things.sort_unstable_by_key(|t| t.name().value());
+                        things.sort_unstable_by(|a, b| {
+                            if let (Some(a), Some(b)) = (a.name().value(), b.name().value()) {
+                                a.cmp_ci(b)
+                            } else {
+                                // This shouldn't happen.
+                                Ordering::Equal
+                            }
+                        });
 
                         things.drain(..).enumerate().for_each(|(i, thing)| {
                             if i > 0 {

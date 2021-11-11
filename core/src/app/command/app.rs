@@ -21,7 +21,11 @@ impl Runnable for AppCommand {
             Self::About => include_str!("../../../../data/about.md")
                 .trim_end()
                 .to_string(),
-            Self::Debug => format!("{:?}", app_meta),
+            Self::Debug => format!(
+                "{:?}\n\n{:?}",
+                app_meta,
+                app_meta.repository.journal().await,
+            ),
             Self::Changelog => changelog!().to_string(),
             Self::Help => include_str!("../../../../data/help.md")
                 .trim_end()
