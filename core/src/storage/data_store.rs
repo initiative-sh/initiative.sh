@@ -14,6 +14,10 @@ pub struct MemoryDataStore {
 
 #[async_trait(?Send)]
 impl DataStore for NullDataStore {
+    async fn health_check(&self) -> Result<(), ()> {
+        Err(())
+    }
+
     async fn delete_thing_by_uuid(&mut self, _uuid: &Uuid) -> Result<(), ()> {
         Err(())
     }
@@ -61,6 +65,10 @@ impl DataStore for NullDataStore {
 
 #[async_trait(?Send)]
 impl DataStore for MemoryDataStore {
+    async fn health_check(&self) -> Result<(), ()> {
+        Ok(())
+    }
+
     async fn delete_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<(), ()> {
         self.things.borrow_mut().remove(uuid).map(|_| ()).ok_or(())
     }
@@ -150,6 +158,8 @@ impl DataStore for MemoryDataStore {
 
 #[async_trait(?Send)]
 pub trait DataStore {
+    async fn health_check(&self) -> Result<(), ()>;
+
     async fn delete_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<(), ()>;
 
     async fn edit_thing(&mut self, thing: &Thing) -> Result<(), ()>;

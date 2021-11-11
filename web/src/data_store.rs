@@ -7,6 +7,14 @@ pub struct DataStore;
 
 #[async_trait(?Send)]
 impl initiative_core::DataStore for DataStore {
+    async fn health_check(&self) -> Result<(), ()> {
+        if health_check().is_truthy() {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
     async fn delete_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<(), ()> {
         if delete_thing_by_uuid(uuid.to_string().into())
             .await
@@ -88,6 +96,8 @@ impl initiative_core::DataStore for DataStore {
 
 #[wasm_bindgen(module = "/js/database.js")]
 extern "C" {
+    fn health_check() -> JsValue;
+
     async fn delete_thing_by_uuid(uuid: JsValue) -> JsValue;
 
     async fn get_all_the_things() -> JsValue;

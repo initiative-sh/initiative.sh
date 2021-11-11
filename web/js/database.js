@@ -112,6 +112,10 @@ dexie.version(1).stores({
   things: "&uuid, name, type",
 })
 
+dexie.open()
+
+const health_check = () => !dexie.hasFailed();
+
 const delete_thing_by_uuid = async (uuid) => {
   return dexie.things.delete(uuid)
     .then(() => true)
@@ -124,7 +128,7 @@ const get_all_the_things = async () => {
 }
 
 const get_thing_by_uuid = async (uuid) => {
-  return dexie.things.get({ uuid }).catch(() => {})
+  return dexie.things.get({ uuid }).catch(() => {console.log('error')})
 }
 
 const get_thing_by_name = async (name) => {
@@ -176,6 +180,7 @@ export {
   get_thing_by_name,
   get_things_by_name_start,
   get_value,
+  health_check,
   save_thing,
   set_value,
 }

@@ -91,12 +91,7 @@ impl Repository {
     }
 
     pub async fn init(&mut self) {
-        if self
-            .data_store
-            .get_thing_by_uuid(&Uuid::nil())
-            .await
-            .is_ok()
-        {
+        if self.data_store.health_check().await.is_ok() {
             self.data_store_enabled = true;
         } else {
             self.data_store = Box::new(MemoryDataStore::default());
@@ -1508,7 +1503,7 @@ mod test {
 
     #[test]
     fn change_test_edit_and_unsave_data_store_failed() {
-        let mut repo = Repository::new(TimeBombDataStore::new(6));
+        let mut repo = Repository::new(TimeBombDataStore::new(5));
         populate_repo(&mut repo);
 
         let change = Change::EditAndUnsave {
@@ -1983,6 +1978,14 @@ mod test {
 
     #[async_trait(?Send)]
     impl DataStore for TimeBombDataStore {
+        async fn health_check(&self) -> Result<(), ()> {
+            if *self.t_minus.borrow() == 0 {
+                Err(())
+            } else {
+                Ok(())
+            }
+        }
+
         async fn delete_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<(), ()> {
             self.tick()?;
             self.data_store.delete_thing_by_uuid(uuid).await
