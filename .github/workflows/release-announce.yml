@@ -21,7 +21,5 @@ jobs:
           set -euxo pipefail
 
           if git diff --name-only HEAD^ | grep -xq data/changelog.md; then
-            changes="There's a new release on initiative.sh! Please allow ~5 minutes for the release to appear on production."$'\n'"$(git diff HEAD^ data/changelog.md | awk '/^+[^+]/{ sub(/^[+ ]+/, ""); sub(/^\* /, "\n- "); printf "%s ", $0 }')"$'\n\n'"$(git diff --shortstat HEAD^)"
-
-            node -e "const https = require('https'); if (process.env.changes) { const data = JSON.stringify({content: process.env.changes}); https.request(process.env.DISCORD_RELEASE_WEBHOOK_URL, {method: 'POST', headers: {'Content-Type': 'application/json', 'Content-Length': data.length}}, (res) => res.on('data', (d) => { process.stdout.write(d); if (res.statusCode >= 400) { process.exit(1); } })).write(data); }"
+            changes="There's a new release on initiative.sh! Please allow ~5 minutes for the release to appear on production."$'\n'"$(git diff HEAD^ data/changelog.md | awk '/^+[^+]/{ sub(/^[+ ]+/, ""); sub(/^\* /, "\n- "); printf "%s ", $0 }')"$'\n\n'"$(git diff --shortstat HEAD^)" node -e "const https = require('https'); if (process.env.changes) { const data = JSON.stringify({content: process.env.changes}); https.request(process.env.DISCORD_RELEASE_WEBHOOK_URL, {method: 'POST', headers: {'Content-Type': 'application/json', 'Content-Length': data.length}}, (res) => res.on('data', (d) => { process.stdout.write(d); if (res.statusCode >= 400) { process.exit(1); } })).write(data); }"
           fi
