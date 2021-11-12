@@ -19,3 +19,9 @@ jobs:
           fetch-depth: 0
       - name: Check file diff
         run: git diff --name-only origin/main | grep -xq data/changelog.md
+      - name: Preview release announcement
+        run: |
+          set -euo pipefail
+
+          changes="$(git diff origin/main data/changelog.md | awk '/^+[^+]/{ sub(/^[+ ]+/, ""); sub(/^\* /, "\n- "); printf "%s ", $0 }')"$'\n\n'"$(git diff --shortstat origin/main)"
+          echo "There's a new release on initiative.sh! Please allow ~5 minutes for the release to appear on production.$changes"
