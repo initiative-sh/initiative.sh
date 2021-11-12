@@ -1,4 +1,4 @@
-* **Enhancement:** Changes to the `time` are now properly integrated in the
+* **Enhancement:** Changes to the `time` are now properly integrated into the
   `undo` history and available at all times.
 * **Enhancement:** Refactored out the local cache. In practice, the only effect
   this should have right now is that if you have multiple tabs/windows open at
