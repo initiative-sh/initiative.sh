@@ -114,73 +114,49 @@ dexie.version(1).stores({
 
 dexie.open()
 
-const health_check = () => !dexie.hasFailed();
+export function health_check() {
+  return !dexie.hasFailed()
+}
 
-const delete_thing_by_uuid = async (uuid) => {
+export async function delete_thing_by_uuid(uuid) {
   return dexie.things.delete(uuid)
-    .then(() => true)
-    .catch(() => false)
 }
 
-const get_all_the_things = async () => {
+export async function get_all_the_things() {
   return dexie.things.toArray()
-    .catch(() => {})
 }
 
-const get_thing_by_uuid = async (uuid) => {
-  return dexie.things.get({ uuid }).catch(() => {console.log('error')})
+export async function get_thing_by_uuid(uuid) {
+  return dexie.things.get({ uuid })
 }
 
-const get_thing_by_name = async (name) => {
+export async function get_thing_by_name(name) {
   return dexie.things
     .where("name")
     .equalsIgnoreCase(name)
     .first()
-    .catch(() => {})
 }
 
-const get_things_by_name_start = async (name, limit) => {
+export async function get_things_by_name_start(name, limit) {
   return dexie.things
     .where("name")
     .startsWithIgnoreCase(name)
     .limit(limit)
     .toArray()
-    .catch(() => {})
 }
 
-const save_thing = async (thing) => {
+export async function save_thing(thing) {
   return dexie.things.put(thing)
-    .then(() => true)
-    .catch(() => false)
 }
 
-const set_value = async (key, value) => {
+export async function set_value(key, value) {
   return dexie.keyValue.put({key, value})
-    .then(() => true)
-    .catch(() => false)
 }
 
-const get_value = async (key) => {
-  return dexie.keyValue.get(key)
-    .then((result) => result.value)
-    .catch(() => false)
+export async function get_value(key) {
+  return dexie.keyValue.get(key).then((v) => v?.value)
 }
 
-const delete_value = async (key) => {
+export async function delete_value(key) {
   return dexie.keyValue.delete(key)
-    .then(() => true)
-    .catch(() => false)
-}
-
-export {
-  delete_thing_by_uuid,
-  delete_value,
-  get_all_the_things,
-  get_thing_by_uuid,
-  get_thing_by_name,
-  get_things_by_name_start,
-  get_value,
-  health_check,
-  save_thing,
-  set_value,
 }

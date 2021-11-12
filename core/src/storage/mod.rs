@@ -1,6 +1,6 @@
 pub use command::StorageCommand;
 pub use data_store::{DataStore, MemoryDataStore, NullDataStore};
-pub use repository::{Change, Error as RepositoryError, Repository};
+pub use repository::{Change, Error as RepositoryError, KeyValue, Repository};
 
 mod command;
 mod data_store;

@@ -46,7 +46,7 @@ mod test {
         app_meta.demographics = Demographics::new(HashMap::new().into());
 
         assert_eq!(
-            "AppMeta { command_aliases: {}, demographics: Demographics { groups: GroupMapWrapper({}) }, repository: Repository { data_store_enabled: false, recent: [], time: Time { days: 1, hours: 8, minutes: 0, seconds: 0 } } }",
+            "AppMeta { command_aliases: {}, demographics: Demographics { groups: GroupMapWrapper({}) }, repository: Repository { data_store_enabled: false, recent: [] } }",
             format!("{:?}", app_meta),
         );
     }

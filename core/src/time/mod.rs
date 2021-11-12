@@ -7,7 +7,7 @@ mod interval;
 use std::fmt;
 use std::str::FromStr;
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Time {
     days: i32,
     hours: u8,
@@ -106,6 +106,17 @@ impl Time {
     }
 }
 
+impl Default for Time {
+    fn default() -> Self {
+        Self {
+            days: 1,
+            hours: 8,
+            minutes: 0,
+            seconds: 0,
+        }
+    }
+}
+
 impl FromStr for Time {
     type Err = ();
 
@@ -169,6 +180,11 @@ mod test {
     }
 
     #[test]
+    fn time_default_test() {
+        assert_eq!(t(1, 8, 0, 0), Time::default());
+    }
+
+    #[test]
     fn time_checked_add_test() {
         assert_eq!(
             t(3, 6, 9, 12),
@@ -179,23 +195,19 @@ mod test {
 
         assert_eq!(
             t(1, 1, 1, 1),
-            Time::default()
-                .checked_add(&Interval::new_seconds(86400 + 3600 + 60 + 1))
+            t0().checked_add(&Interval::new_seconds(86400 + 3600 + 60 + 1))
                 .unwrap(),
         );
 
         assert_eq!(
             t(1, 1, 1, 0),
-            Time::default()
-                .checked_add(&Interval::new_minutes(1440 + 60 + 1))
+            t0().checked_add(&Interval::new_minutes(1440 + 60 + 1))
                 .unwrap(),
         );
 
         assert_eq!(
             t(1, 1, 0, 0),
-            Time::default()
-                .checked_add(&Interval::new_hours(24 + 1))
-                .unwrap(),
+            t0().checked_add(&Interval::new_hours(24 + 1)).unwrap(),
         );
 
         assert_eq!(

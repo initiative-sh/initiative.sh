@@ -14,7 +14,6 @@ pub struct Repository {
     data_store_enabled: bool,
     recent: VecDeque<Thing>,
     redo_change: Option<Change>,
-    time: Time,
     undo_history: VecDeque<Change>,
 }
 
@@ -58,6 +57,11 @@ pub enum Change {
     ///
     /// Reverse: Save
     Unsave { name: String, uuid: Uuid },
+
+    /// Set a value in the key-value store.
+    ///
+    /// Reverse: SetKeyValue
+    SetKeyValue { key_value: KeyValue },
 }
 
 pub struct DisplayUndo<'a>(&'a Change);
@@ -78,6 +82,11 @@ pub enum Error {
     NotFound,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum KeyValue {
+    Time(Option<Time>),
+}
+
 impl Repository {
     pub fn new(data_store: impl DataStore + 'static) -> Self {
         Self {
@@ -85,7 +94,6 @@ impl Repository {
             data_store_enabled: false,
             recent: VecDeque::default(),
             redo_change: None,
-            time: Time::try_new(1, 8, 0, 0).unwrap(),
             undo_history: VecDeque::default(),
         }
     }
@@ -95,12 +103,6 @@ impl Repository {
             self.data_store_enabled = true;
         } else {
             self.data_store = Box::new(MemoryDataStore::default());
-        }
-
-        if let Ok(Some(time_str)) = self.data_store.get_value("time").await {
-            if let Ok(time) = time_str.parse() {
-                self.set_time(time).await;
-            }
         }
     }
 
@@ -150,7 +152,7 @@ impl Repository {
             .map_err(|_| Error::DataStoreFailed)
     }
 
-    pub async fn modify(&mut self, change: Change) -> Result<Id, (Change, Error)> {
+    pub async fn modify(&mut self, change: Change) -> Result<Option<Id>, (Change, Error)> {
         self.modify_without_undo(change).await.map(|change| {
             let id = change.id();
             while self.undo_history.len() >= UNDO_HISTORY_LEN {
@@ -161,7 +163,7 @@ impl Repository {
         })
     }
 
-    pub async fn undo(&mut self) -> Option<Result<Id, Error>> {
+    pub async fn undo(&mut self) -> Option<Result<Option<Id>, Error>> {
         if let Some(change) = self.undo_history.pop_back() {
             Some(
                 self.modify_without_undo(change)
@@ -185,7 +187,7 @@ impl Repository {
         self.undo_history.iter().rev()
     }
 
-    pub async fn redo(&mut self) -> Option<Result<Id, Error>> {
+    pub async fn redo(&mut self) -> Option<Result<Option<Id>, Error>> {
         if let Some(change) = self.redo_change.take() {
             Some(self.modify(change).await.map_err(|(change, e)| {
                 self.redo_change = Some(change);
@@ -334,23 +336,38 @@ impl Repository {
                 .await
                 .map(|name| Change::Save { name })
                 .map_err(|(_, e)| (Change::Unsave { name, uuid }, e)),
+            Change::SetKeyValue { key_value } => self
+                .set_key_value(&key_value)
+                .await
+                .map(|old_kv| Change::SetKeyValue { key_value: old_kv })
+                .map_err(|e| (Change::SetKeyValue { key_value }, e)),
         }
     }
 
-    pub async fn set_time(&mut self, time: Time) {
-        self.data_store
-            .set_value("time", &time.display_short().to_string())
-            .await
-            .ok();
-        self.time = time;
-    }
+    pub async fn get_key_value(&self, key: &KeyValue) -> Result<KeyValue, Error> {
+        let value_str = self.data_store.get_value(key.key_raw()).await;
 
-    pub fn get_time(&self) -> &Time {
-        &self.time
+        match key {
+            KeyValue::Time(_) => value_str
+                .and_then(|o| o.map(|s| s.parse()).transpose())
+                .map(KeyValue::Time),
+        }
+        .map_err(|_| Error::DataStoreFailed)
     }
 
     pub fn data_store_enabled(&self) -> bool {
         self.data_store_enabled
+    }
+
+    async fn set_key_value(&mut self, key_value: &KeyValue) -> Result<KeyValue, Error> {
+        let old_key_value = self.get_key_value(key_value).await?;
+
+        match key_value.key_value_raw() {
+            (key, Some(value)) => self.data_store.set_value(key, &value).await,
+            (key, None) => self.data_store.delete_value(key).await,
+        }
+        .map(|_| old_key_value)
+        .map_err(|_| Error::DataStoreFailed)
     }
 
     fn push_recent(&mut self, thing: Thing) {
@@ -598,6 +615,32 @@ impl Repository {
     }
 }
 
+impl KeyValue {
+    pub const fn key_raw(&self) -> &'static str {
+        match self {
+            Self::Time(_) => "time",
+        }
+    }
+
+    pub fn key_value_raw(&self) -> (&'static str, Option<String>) {
+        (
+            self.key_raw(),
+            match self {
+                Self::Time(time) => time.as_ref().map(|t| t.display_short().to_string()),
+            },
+        )
+    }
+
+    pub const fn time(self) -> Option<Time> {
+        #[allow(irrefutable_let_patterns)]
+        if let Self::Time(time) = self {
+            time
+        } else {
+            None
+        }
+    }
+}
+
 impl Change {
     pub fn display_undo(&self) -> DisplayUndo {
         DisplayUndo(self)
@@ -615,22 +658,24 @@ impl Change {
             | Self::EditAndUnsave { name, .. }
             | Self::Save { name }
             | Self::Unsave { name, .. } => name.to_owned(),
+            Self::SetKeyValue { key_value } => key_value.key_raw().to_string(),
         }
     }
 
-    pub fn id(&self) -> Id {
+    pub fn id(&self) -> Option<Id> {
         let uuid = match self {
             Change::Create { thing } | Change::CreateAndSave { thing } => thing.uuid(),
-            Change::Delete { id, .. } | Change::Edit { id, .. } => return id.to_owned(),
+            Change::Delete { id, .. } | Change::Edit { id, .. } => return Some(id.to_owned()),
             Change::Unsave { uuid, .. } | Change::EditAndUnsave { uuid, .. } => Some(uuid),
             Change::Save { .. } => None,
+            Change::SetKeyValue { .. } => return None,
         };
 
-        if let Some(uuid) = uuid {
+        Some(if let Some(uuid) = uuid {
             Id::Uuid(uuid.to_owned())
         } else {
             self.name().as_str().into()
-        }
+        })
     }
 }
 
@@ -641,14 +686,17 @@ impl<'a> fmt::Display for DisplayUndo<'a> {
         // Note: these descriptions are _backward_ since they describe the reverse, ie. the action
         // that this Change will undo.
         match change {
-            Change::Create { thing } => write!(f, "deleting {}", thing.name()),
-            Change::CreateAndSave { thing } => write!(f, "deleting {}", thing.name()),
-            Change::Delete { name, .. } => write!(f, "creating {}", name),
-            Change::Edit { name, .. } | Change::EditAndUnsave { name, .. } => {
-                write!(f, "editing {}", name)
+            Change::Create { thing } | Change::CreateAndSave { thing } => {
+                write!(f, "deleting {}", thing.name())
             }
+            Change::Delete { name, .. } => write!(f, "creating {}", name),
             Change::Save { name } => write!(f, "removing {} from journal", name),
             Change::Unsave { name, .. } => write!(f, "saving {} to journal", name),
+
+            // These changes are symmetric, so we can provide the same output in both cases.
+            Change::Edit { .. } | Change::EditAndUnsave { .. } | Change::SetKeyValue { .. } => {
+                write!(f, "{}", DisplayRedo(change))
+            }
         }
     }
 }
@@ -666,6 +714,9 @@ impl<'a> fmt::Display for DisplayRedo<'a> {
             }
             Change::Save { name } => write!(f, "saving {} to journal", name),
             Change::Unsave { name, .. } => write!(f, "removing {} from journal", name),
+            Change::SetKeyValue { key_value } => match key_value {
+                KeyValue::Time(_) => write!(f, "changing the time"),
+            },
         }
     }
 }
@@ -692,8 +743,8 @@ impl fmt::Debug for Repository {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Repository {{ data_store_enabled: {:?}, recent: {:?}, time: {:?} }}",
-            self.data_store_enabled, self.recent, self.time,
+            "Repository {{ data_store_enabled: {:?}, recent: {:?} }}",
+            self.data_store_enabled, self.recent,
         )
     }
 }
@@ -818,7 +869,10 @@ mod test {
         assert_eq!("deleting Olympus", change.display_redo().to_string());
 
         {
-            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.modify(change)).unwrap());
+            assert_eq!(
+                Id::Uuid(TEST_UUID),
+                block_on(repo.modify(change)).unwrap().unwrap(),
+            );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -838,14 +892,20 @@ mod test {
         }
 
         {
-            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.undo()).unwrap().unwrap());
+            assert_eq!(
+                Id::Uuid(TEST_UUID),
+                block_on(repo.undo()).unwrap().unwrap().unwrap(),
+            );
             assert!(block_on(repo.load(&TEST_UUID.into())).is_ok());
             assert!(block_on(repo.load(&"Olympus".into())).is_ok());
             assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
         {
-            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.redo()).unwrap().unwrap());
+            assert_eq!(
+                Id::Uuid(TEST_UUID),
+                block_on(repo.redo()).unwrap().unwrap().unwrap(),
+            );
             assert_eq!(Err(Error::NotFound), block_on(repo.load(&"Olympus".into())));
         }
     }
@@ -860,7 +920,10 @@ mod test {
         assert_eq!("deleting Odysseus", change.display_redo().to_string());
 
         {
-            assert_eq!(Id::from("Odysseus"), block_on(repo.modify(change)).unwrap());
+            assert_eq!(
+                Id::from("Odysseus"),
+                block_on(repo.modify(change)).unwrap().unwrap(),
+            );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -902,7 +965,10 @@ mod test {
         assert_eq!("deleting olympus", change.display_redo().to_string());
 
         {
-            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.modify(change)).unwrap());
+            assert_eq!(
+                Id::Uuid(TEST_UUID),
+                block_on(repo.modify(change)).unwrap().unwrap(),
+            );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -976,7 +1042,7 @@ mod test {
         };
         assert_eq!("editing Odysseus", change.display_redo().to_string());
 
-        if let Id::Uuid(uuid) = block_on(repo.modify(change)).unwrap() {
+        if let Id::Uuid(uuid) = block_on(repo.modify(change)).unwrap().unwrap() {
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1010,7 +1076,7 @@ mod test {
         {
             assert_eq!(
                 Id::from("ODYSSEUS"),
-                block_on(repo.undo()).unwrap().unwrap(),
+                block_on(repo.undo()).unwrap().unwrap().unwrap(),
             );
             assert!(block_on(repo.load(&"Odysseus".into())).is_ok());
             assert_eq!(1, block_on(repo.journal()).unwrap().len());
@@ -1018,7 +1084,7 @@ mod test {
             assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
-        if let Id::Uuid(uuid) = block_on(repo.redo()).unwrap().unwrap() {
+        if let Id::Uuid(uuid) = block_on(repo.redo()).unwrap().unwrap().unwrap() {
             assert!(block_on(repo.load(&"Nobody".into())).is_ok());
             assert!(block_on(repo.load(&uuid.into())).is_ok());
         } else {
@@ -1059,7 +1125,7 @@ mod test {
         };
 
         {
-            assert_eq!(Ok("Odysseus".into()), block_on(repo.modify(change)));
+            assert_eq!(Ok(Some("Odysseus".into())), block_on(repo.modify(change)));
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1087,7 +1153,7 @@ mod test {
         {
             assert_eq!(
                 Id::from("ODYSSEUS"),
-                block_on(repo.undo()).unwrap().unwrap(),
+                block_on(repo.undo()).unwrap().unwrap().unwrap(),
             );
             assert_eq!(
                 Some(false),
@@ -1101,7 +1167,7 @@ mod test {
         {
             assert_eq!(
                 Id::from("ODYSSEUS"),
-                block_on(repo.redo()).unwrap().unwrap(),
+                block_on(repo.redo()).unwrap().unwrap().unwrap(),
             );
             assert_eq!(
                 Some(&Species::Human),
@@ -1128,7 +1194,7 @@ mod test {
         };
 
         {
-            assert_eq!(Ok("NOBODY".into()), block_on(repo.modify(change)));
+            assert_eq!(Ok(Some("NOBODY".into())), block_on(repo.modify(change)));
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1150,14 +1216,17 @@ mod test {
         {
             assert_eq!(
                 Id::from("ODYSSEUS"),
-                block_on(repo.undo()).unwrap().unwrap(),
+                block_on(repo.undo()).unwrap().unwrap().unwrap(),
             );
 
             assert!(repo.recent().any(|t| t.name().to_string() == "Odysseus"));
         }
 
         {
-            assert_eq!(Id::from("NOBODY"), block_on(repo.redo()).unwrap().unwrap());
+            assert_eq!(
+                Id::from("NOBODY"),
+                block_on(repo.redo()).unwrap().unwrap().unwrap(),
+            );
             assert!(repo.recent().any(|t| t.name().to_string() == "Nobody"));
         }
     }
@@ -1178,7 +1247,10 @@ mod test {
         assert_eq!("editing Olympus", change.display_redo().to_string());
 
         {
-            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.modify(change)).unwrap());
+            assert_eq!(
+                Id::Uuid(TEST_UUID),
+                block_on(repo.modify(change)).unwrap().unwrap(),
+            );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1209,7 +1281,10 @@ mod test {
         }
 
         {
-            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.undo()).unwrap().unwrap());
+            assert_eq!(
+                Id::Uuid(TEST_UUID),
+                block_on(repo.undo()).unwrap().unwrap().unwrap(),
+            );
             assert!(block_on(repo.load(&"OLYMPUS".into())).is_ok());
             assert_eq!(
                 "Olympus",
@@ -1224,7 +1299,10 @@ mod test {
         }
 
         {
-            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.redo()).unwrap().unwrap());
+            assert_eq!(
+                Id::Uuid(TEST_UUID),
+                block_on(repo.redo()).unwrap().unwrap().unwrap(),
+            );
             assert!(block_on(repo.load(&"HADES".into())).is_ok());
         }
     }
@@ -1306,7 +1384,10 @@ mod test {
         assert_eq!("editing Olympus", change.display_redo().to_string());
 
         {
-            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.modify(change)).unwrap());
+            assert_eq!(
+                Id::Uuid(TEST_UUID),
+                block_on(repo.modify(change)).unwrap().unwrap(),
+            );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1337,7 +1418,10 @@ mod test {
         }
 
         {
-            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.undo()).unwrap().unwrap());
+            assert_eq!(
+                Id::Uuid(TEST_UUID),
+                block_on(repo.undo()).unwrap().unwrap().unwrap(),
+            );
 
             assert!(block_on(repo.load(&"Olympus".into())).is_ok());
             assert_eq!(
@@ -1353,7 +1437,10 @@ mod test {
         }
 
         {
-            assert_eq!(Id::Uuid(TEST_UUID), block_on(repo.redo()).unwrap().unwrap());
+            assert_eq!(
+                Id::Uuid(TEST_UUID),
+                block_on(repo.redo()).unwrap().unwrap().unwrap(),
+            );
             assert!(block_on(repo.load(&"Hades".into())).is_ok());
         }
     }
@@ -1435,7 +1522,10 @@ mod test {
         assert_eq!("editing Olympus", change.display_redo().to_string());
 
         {
-            assert_eq!(Id::from("Hades"), block_on(repo.modify(change)).unwrap());
+            assert_eq!(
+                Id::from("Hades"),
+                block_on(repo.modify(change)).unwrap().unwrap(),
+            );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1460,7 +1550,7 @@ mod test {
                 .is_empty());
         }
 
-        if let Id::Uuid(uuid) = block_on(repo.undo()).unwrap().unwrap() {
+        if let Id::Uuid(uuid) = block_on(repo.undo()).unwrap().unwrap().unwrap() {
             assert_ne!(TEST_UUID, uuid);
             assert!(block_on(repo.load(&"Olympus".into())).is_ok());
             assert!(block_on(repo.load(&uuid.into())).is_ok());
@@ -1481,7 +1571,10 @@ mod test {
         }
 
         {
-            assert_eq!(Id::from("Hades"), block_on(repo.redo()).unwrap().unwrap());
+            assert_eq!(
+                Id::from("Hades"),
+                block_on(repo.redo()).unwrap().unwrap().unwrap(),
+            );
             assert!(block_on(repo.load(&"Hades".into())).is_ok());
         }
     }
@@ -1503,7 +1596,7 @@ mod test {
 
     #[test]
     fn change_test_edit_and_unsave_data_store_failed() {
-        let mut repo = Repository::new(TimeBombDataStore::new(5));
+        let mut repo = Repository::new(TimeBombDataStore::new(4));
         populate_repo(&mut repo);
 
         let change = Change::EditAndUnsave {
@@ -1543,7 +1636,10 @@ mod test {
         assert_eq!("creating Odysseus", change.display_redo().to_string());
 
         {
-            assert_eq!(Id::from("Odysseus"), block_on(repo.modify(change)).unwrap());
+            assert_eq!(
+                Id::from("Odysseus"),
+                block_on(repo.modify(change)).unwrap().unwrap(),
+            );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1624,7 +1720,7 @@ mod test {
             change.display_redo().to_string(),
         );
 
-        if let Id::Uuid(uuid) = block_on(repo.modify(change)).unwrap() {
+        if let Id::Uuid(uuid) = block_on(repo.modify(change)).unwrap().unwrap() {
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1727,7 +1823,10 @@ mod test {
         );
 
         {
-            assert_eq!(Id::from("Olympus"), block_on(repo.modify(change)).unwrap());
+            assert_eq!(
+                Id::from("Olympus"),
+                block_on(repo.modify(change)).unwrap().unwrap(),
+            );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1774,7 +1873,7 @@ mod test {
         };
         assert_eq!("creating Odysseus", change.display_redo().to_string());
 
-        if let Id::Uuid(uuid) = block_on(repo.modify(change)).unwrap() {
+        if let Id::Uuid(uuid) = block_on(repo.modify(change)).unwrap().unwrap() {
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1884,9 +1983,90 @@ mod test {
     }
 
     #[test]
+    fn change_test_set_key_value_success() {
+        let mut repo = repo();
+
+        let one = Time::try_new(1, 0, 0, 0).unwrap();
+        let two = Time::try_new(2, 0, 0, 0).unwrap();
+
+        assert_eq!(
+            Ok(KeyValue::Time(None)),
+            block_on(repo.get_key_value(&KeyValue::Time(None)))
+        );
+
+        assert_eq!(
+            Ok(None),
+            block_on(repo.modify(Change::SetKeyValue {
+                key_value: KeyValue::Time(Some(one.clone())),
+            })),
+        );
+
+        {
+            let undo_result = repo.undo_history().next().unwrap();
+
+            assert_eq!(
+                &Change::SetKeyValue {
+                    key_value: KeyValue::Time(None),
+                },
+                undo_result,
+            );
+            assert_eq!("changing the time", undo_result.display_undo().to_string());
+            assert_eq!("changing the time", undo_result.display_redo().to_string());
+        }
+
+        block_on(repo.modify(Change::SetKeyValue {
+            key_value: KeyValue::Time(Some(two.clone())),
+        }))
+        .unwrap();
+
+        block_on(repo.modify(Change::SetKeyValue {
+            key_value: KeyValue::Time(None),
+        }))
+        .unwrap();
+
+        assert_eq!(
+            Ok(KeyValue::Time(None)),
+            block_on(repo.get_key_value(&KeyValue::Time(None)))
+        );
+
+        assert_eq!(Some(Ok(None)), block_on(repo.undo()));
+
+        assert_eq!(
+            Ok(KeyValue::Time(Some(two))),
+            block_on(repo.get_key_value(&KeyValue::Time(None)))
+        );
+
+        block_on(repo.undo());
+
+        assert_eq!(
+            Ok(KeyValue::Time(Some(one))),
+            block_on(repo.get_key_value(&KeyValue::Time(None)))
+        );
+
+        block_on(repo.undo());
+
+        assert_eq!(
+            Ok(KeyValue::Time(None)),
+            block_on(repo.get_key_value(&KeyValue::Time(None)))
+        );
+    }
+
+    #[test]
+    fn change_test_set_key_value_data_store_failed() {
+        let change = Change::SetKeyValue {
+            key_value: KeyValue::Time(Some(Time::default())),
+        };
+
+        assert_eq!(
+            block_on(null_repo().modify(change.clone())),
+            Err((change, Error::DataStoreFailed)),
+        );
+    }
+
+    #[test]
     fn debug_test() {
         assert_eq!(
-            "Repository { data_store_enabled: false, recent: [], time: Time { days: 1, hours: 8, minutes: 0, seconds: 0 } }",
+            "Repository { data_store_enabled: false, recent: [] }",
             format!("{:?}", empty_repo()),
         );
     }
