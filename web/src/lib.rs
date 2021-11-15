@@ -32,6 +32,10 @@ pub async fn autocomplete(input: JsValue) -> JsValue {
     }
 }
 
+fn event_dispatcher(event: core::Event) {
+    panic!("Dispatched event: {:?}", event);
+}
+
 static mut APP: Option<core::app::App> = None;
 
 #[no_mangle]
@@ -41,7 +45,7 @@ pub extern "C" fn app() -> &'static mut core::app::App {
     unsafe {
         if APP.is_none() {
             let data_store = DataStore::default();
-            APP = Some(core::app(data_store));
+            APP = Some(core::app(data_store, &event_dispatcher));
         }
 
         APP.as_mut().unwrap()

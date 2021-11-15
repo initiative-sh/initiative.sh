@@ -11,6 +11,9 @@ pub struct App {
     meta: AppMeta,
 }
 
+#[derive(Debug)]
+pub enum Event {}
+
 impl App {
     pub fn new(meta: AppMeta) -> App {
         App { meta }

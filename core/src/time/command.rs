@@ -153,12 +153,12 @@ impl fmt::Display for TimeCommand {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::NullDataStore;
+    use crate::{Event, NullDataStore};
     use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = app_meta();
 
         assert_eq!(
             (
@@ -198,7 +198,7 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = app_meta();
 
         assert_eq!(
             Vec::<(String, String)>::new(),
@@ -333,7 +333,7 @@ mod test {
 
     #[test]
     fn display_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = app_meta();
 
         vec![
             TimeCommand::Add {
@@ -366,5 +366,11 @@ mod test {
                 command_string.to_uppercase(),
             );
         });
+    }
+
+    fn event_dispatcher(_event: Event) {}
+
+    fn app_meta() -> AppMeta {
+        AppMeta::new(NullDataStore::default(), &event_dispatcher)
     }
 }

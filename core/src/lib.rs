@@ -1,6 +1,6 @@
 pub mod app;
 
-pub use app::App;
+pub use app::{App, Event};
 pub use storage::{DataStore, MemoryDataStore, NullDataStore};
 pub use uuid::Uuid;
 pub use world::Thing;
@@ -11,7 +11,10 @@ mod time;
 mod utils;
 mod world;
 
-pub fn app(data_store: impl DataStore + 'static) -> app::App {
-    let app_meta = app::AppMeta::new(data_store);
+pub fn app<F: Fn(Event)>(
+    data_store: impl DataStore + 'static,
+    event_dispatcher: &'static F,
+) -> app::App {
+    let app_meta = app::AppMeta::new(data_store, event_dispatcher);
     app::App::new(app_meta)
 }

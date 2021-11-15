@@ -447,11 +447,12 @@ mod test {
     use crate::storage::MemoryDataStore;
     use crate::world::npc::{Age, Gender, Npc, Species};
     use crate::world::place::{Place, PlaceType};
+    use crate::Event;
     use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
-        let app_meta = AppMeta::new(MemoryDataStore::default());
+        let app_meta = app_meta();
 
         assert_eq!(
             (Option::<StorageCommand>::None, Vec::new()),
@@ -553,7 +554,7 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        let mut app_meta = AppMeta::new(MemoryDataStore::default());
+        let mut app_meta = app_meta();
 
         block_on(
             app_meta.repository.modify(Change::Create {
@@ -689,7 +690,7 @@ mod test {
 
     #[test]
     fn display_test() {
-        let app_meta = AppMeta::new(MemoryDataStore::default());
+        let app_meta = app_meta();
 
         vec![
             StorageCommand::Change {
@@ -735,5 +736,11 @@ mod test {
         actual.sort();
 
         assert_eq!(expected, actual);
+    }
+
+    fn event_dispatcher(_event: Event) {}
+
+    fn app_meta() -> AppMeta {
+        AppMeta::new(MemoryDataStore::default(), &event_dispatcher)
     }
 }

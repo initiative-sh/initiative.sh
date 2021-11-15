@@ -316,6 +316,7 @@ impl Autocomplete for Npc {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
+    use crate::Event;
     use tokio_test::block_on;
 
     #[test]
@@ -509,8 +510,10 @@ mod test {
         }
     }
 
+    fn event_dispatcher(_event: Event) {}
+
     fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore::default())
+        AppMeta::new(NullDataStore::default(), &event_dispatcher)
     }
 
     fn assert_autocomplete(
