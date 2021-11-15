@@ -4,6 +4,7 @@ mod utils;
 use data_store::DataStore;
 use initiative_core as core;
 use wasm_bindgen::prelude::*;
+use web_sys::{window, CustomEvent, CustomEventInit};
 
 #[wasm_bindgen]
 pub async fn initialize() -> String {
@@ -33,7 +34,15 @@ pub async fn autocomplete(input: JsValue) -> JsValue {
 }
 
 fn event_dispatcher(event: core::Event) {
-    panic!("Dispatched event: {:?}", event);
+    let js_event = match event {
+        core::Event::Export(data) => {
+            let mut init = CustomEventInit::new();
+            init.detail(&JsValue::from_serde(&data).unwrap());
+            CustomEvent::new_with_event_init_dict("initiative.export", &init).unwrap()
+        }
+    };
+
+    window().unwrap().dispatch_event(&js_event).unwrap();
 }
 
 static mut APP: Option<core::app::App> = None;

@@ -1,6 +1,7 @@
 import * as wasm from "initiative-web"
 import autoComplete from "@tarekraafat/autocomplete.js"
 import marked from "marked"
+import { export_database } from "./database"
 
 if (window.stillLoadingTimeout) {
   clearTimeout(window.stillLoadingTimeout)
@@ -268,6 +269,7 @@ window.addEventListener("mouseup", async (event) => {
     }
   }
 })
+window.addEventListener("initiative.export", async (event) => await export_database(event.detail))
 
 wasm.initialize()
   .then((motd) => output(motd))
