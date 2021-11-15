@@ -1,7 +1,7 @@
 mod common;
 
 use common::{sync_app, sync_app_with_data_store, SyncApp};
-use initiative_core::{MemoryDataStore, NullDataStore};
+use initiative_core::{Event, MemoryDataStore, NullDataStore};
 
 #[test]
 fn npc_is_saved_to_storage() {
@@ -289,7 +289,7 @@ fn delete_works_with_unusable_data_store() {
 #[test]
 fn startup_error_with_unusable_data_store() {
     {
-        let mut app = SyncApp::new(NullDataStore::default());
+        let mut app = SyncApp::new(NullDataStore::default(), &event_dispatcher);
         let output = app.init();
         assert!(
             output.contains("Local storage is not available in your browser."),
@@ -414,5 +414,55 @@ fn journal_shows_alphabetized_results() {
             }
         });
 
+    assert_eq!(
+        Some("*To export the contents of your journal, use `export`.*"),
+        output_iter.by_ref().skip(1).next(),
+    );
+
     assert!(output_iter.next().is_none());
+}
+
+static mut LAST_EVENT: Option<Event> = None;
+
+fn event_dispatcher(event: Event) {
+    unsafe {
+        LAST_EVENT = Some(event);
+    }
+}
+
+#[test]
+fn export() {
+    let mut app = SyncApp::new(MemoryDataStore::default(), &event_dispatcher);
+    app.command("inn named Foo").unwrap();
+    app.command("npc named Bar").unwrap();
+    app.command("+1d").unwrap();
+    app.command("export").unwrap();
+
+    let data = unsafe {
+        if let Some(Event::Export(data)) = &LAST_EVENT {
+            Some(data)
+        } else {
+            None
+        }
+    }
+    .unwrap();
+
+    assert_eq!(2, data.things.len());
+
+    let data_json = serde_json::to_string(&data).unwrap();
+
+    assert!(
+        data_json.starts_with(r#"{"_":"This document is exported from initiative.sh. Please note that this format is currently undocumented and no guarantees of forward compatibility are provided, although a reasonable effort will be made to ensure that older backups can be safely imported.","things":[{"#),
+        "{}",
+        data_json,
+    );
+
+    assert!(data_json.contains(r#""name":"Foo""#), "{}", data_json);
+    assert!(data_json.contains(r#""name":"Bar""#), "{}", data_json);
+
+    assert!(
+        data_json.ends_with(r#"}],"keyValue":{"time":"2:08:00:00"}}"#),
+        "{}",
+        data_json,
+    );
 }

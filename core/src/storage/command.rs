@@ -1,5 +1,6 @@
-use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
-use crate::storage::{Change, RepositoryError};
+use super::export::export;
+use super::{Change, RepositoryError};
+use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Event, Runnable};
 use crate::utils::CaseInsensitiveStr;
 use crate::world::Thing;
 use async_trait::async_trait;
@@ -11,6 +12,7 @@ use std::iter::repeat;
 #[derive(Clone, Debug, PartialEq)]
 pub enum StorageCommand {
     Change { change: Change },
+    Export,
     Journal,
     Load { name: String },
     Redo,
@@ -66,6 +68,8 @@ impl Runnable for StorageCommand {
 
                 if record_count == 0 {
                     output.push_str("\n\n*Your journal is currently empty.*");
+                } else {
+                    output.push_str("\n\n*To export the contents of your journal, use `export`.*");
                 }
 
                 Ok(output)
@@ -167,6 +171,10 @@ impl Runnable for StorageCommand {
                         .map_err(|_| format!("Couldn't remove {} from the journal.", name)),
                     Change::SetKeyValue { .. } => unreachable!(),
                 }
+            }
+            Self::Export => {
+                (app_meta.event_dispatcher)(Event::Export(export(&app_meta.repository).await));
+                Ok("The journal is exporting. Your download should begin shortly.".to_string())
             }
             Self::Load { name } => {
                 let thing = app_meta.repository.load(&name.as_str().into()).await;
@@ -303,6 +311,8 @@ impl ContextAwareParse for StorageCommand {
                 Some(Self::Undo)
             } else if input.eq_ci("redo") {
                 Some(Self::Redo)
+            } else if input.eq_ci("export") {
+                Some(Self::Export)
             } else {
                 None
             },
@@ -316,9 +326,10 @@ impl Autocomplete for StorageCommand {
     async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         let mut suggestions: Vec<(String, String)> = [
             ("delete", "delete [name]", "remove an entry from journal"),
+            ("export", "export", "export the journal contents"),
+            ("journal", "journal", "list journal contents"),
             ("load", "load [name]", "load an entry"),
             ("save", "save [name]", "save an entry to journal"),
-            ("journal", "journal", "list journal contents"),
         ]
         .into_iter()
         .filter(|(s, _, _)| s.starts_with_ci(input))
@@ -433,6 +444,7 @@ impl fmt::Display for StorageCommand {
                 change: Change::Save { name },
             } => write!(f, "save {}", name),
             Self::Change { .. } => unreachable!(),
+            Self::Export => write!(f, "export"),
             Self::Journal => write!(f, "journal"),
             Self::Load { name } => write!(f, "load {}", name),
             Self::Redo => write!(f, "redo"),
@@ -664,6 +676,16 @@ mod test {
         );
 
         assert_autocomplete(
+            &[("export", "export the journal contents")][..],
+            block_on(StorageCommand::autocomplete("e", &app_meta)),
+        );
+
+        assert_autocomplete(
+            &[("export", "export the journal contents")][..],
+            block_on(StorageCommand::autocomplete("E", &app_meta)),
+        );
+
+        assert_autocomplete(
             &[
                 ("Potato & Meat", "inn (unsaved)"),
                 ("Potato Johnson", "adult elf, they/them (unsaved)"),
@@ -704,6 +726,7 @@ mod test {
                     name: "Potato Johnson".to_string(),
                 },
             },
+            StorageCommand::Export,
             StorageCommand::Journal,
             StorageCommand::Load {
                 name: "Potato Johnson".to_string(),
