@@ -1,4 +1,5 @@
 import Dexie from "dexie"
+import * as download from "downloadjs"
 
 const dexie = new Dexie("initiative")
 
@@ -159,4 +160,8 @@ export async function get_value(key) {
 
 export async function delete_value(key) {
   return dexie.keyValue.delete(key)
+}
+
+export async function export_database(data) {
+  download(JSON.stringify(data), "initiative_export.json", "application/json")
 }

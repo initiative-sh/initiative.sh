@@ -281,11 +281,12 @@ mod test {
     use crate::storage::NullDataStore;
     use crate::utils::CaseInsensitiveStr;
     use crate::world::{Npc, ParsedThing};
+    use crate::Event;
     use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = app_meta();
 
         assert_eq!(
             (
@@ -374,10 +375,7 @@ mod test {
         .map(|(a, b)| (a.to_string(), b.to_string()))
         .collect::<Vec<_>>();
 
-        let mut actual = block_on(Command::autocomplete(
-            "d",
-            &AppMeta::new(NullDataStore::default()),
-        ));
+        let mut actual = block_on(Command::autocomplete("d", &app_meta()));
         actual.sort_by(|a, b| a.0.cmp_ci(&b.0).then_with(|| a.1.cmp_ci(&b.1)));
 
         assert_eq!(expected, actual);
@@ -417,5 +415,11 @@ mod test {
             }
             .into(),
         );
+    }
+
+    fn event_dispatcher(_event: Event) {}
+
+    fn app_meta() -> AppMeta {
+        AppMeta::new(NullDataStore::default(), &event_dispatcher)
     }
 }

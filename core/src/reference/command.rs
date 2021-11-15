@@ -191,11 +191,12 @@ fn linkify_dice(input: &str) -> String {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
+    use crate::Event;
     use tokio_test::block_on;
 
     #[test]
     fn display_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = app_meta();
 
         vec![
             ReferenceCommand::Spell(Spell::Shield),
@@ -227,5 +228,11 @@ mod test {
                 command_string.to_uppercase(),
             );
         });
+    }
+
+    fn event_dispatcher(_event: Event) {}
+
+    fn app_meta() -> AppMeta {
+        AppMeta::new(NullDataStore::default(), &event_dispatcher)
     }
 }

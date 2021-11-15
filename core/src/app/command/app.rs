@@ -121,11 +121,12 @@ impl fmt::Display for AppCommand {
 mod test {
     use super::*;
     use crate::storage::NullDataStore;
+    use crate::Event;
     use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = app_meta();
 
         assert_eq!(
             (Some(AppCommand::Debug), Vec::<AppCommand>::new()),
@@ -153,7 +154,7 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = app_meta();
 
         [
             ("about", "about initiative.sh"),
@@ -200,7 +201,7 @@ mod test {
 
     #[test]
     fn display_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = app_meta();
 
         vec![
             AppCommand::About,
@@ -242,5 +243,11 @@ mod test {
             (Some(AppCommand::Roll("D20".to_string())), Vec::new()),
             block_on(AppCommand::parse_input("ROLL D20", &app_meta)),
         );
+    }
+
+    fn event_dispatcher(_event: Event) {}
+
+    fn app_meta() -> AppMeta {
+        AppMeta::new(NullDataStore::default(), &event_dispatcher)
     }
 }

@@ -165,7 +165,7 @@ impl fmt::Display for CommandAlias {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::{AppCommand, Command};
+    use crate::app::{AppCommand, Command, Event};
     use crate::storage::NullDataStore;
     use std::collections::HashSet;
     use tokio_test::block_on;
@@ -240,7 +240,7 @@ mod tests {
     fn runnable_test_literal() {
         let about_alias = literal("about alias", "about summary", AppCommand::About.into());
 
-        let mut app_meta = AppMeta::new(NullDataStore::default());
+        let mut app_meta = app_meta();
         app_meta.command_aliases.insert(about_alias.clone());
         app_meta.command_aliases.insert(literal(
             "help alias",
@@ -288,7 +288,7 @@ mod tests {
     fn runnable_test_strict_wildcard() {
         let about_alias = strict_wildcard(AppCommand::About.into());
 
-        let mut app_meta = AppMeta::new(NullDataStore::default());
+        let mut app_meta = app_meta();
         app_meta.command_aliases.insert(about_alias.clone());
         app_meta.command_aliases.insert(literal(
             "literal alias",
@@ -309,9 +309,7 @@ mod tests {
             assert_eq!(2, app_meta.command_aliases.len());
 
             let (about_result, about_alias_result) = (
-                block_on(
-                    AppCommand::About.run("about", &mut AppMeta::new(NullDataStore::default())),
-                ),
+                block_on(AppCommand::About.run("about", &mut app_meta)),
                 block_on(about_alias.run("about", &mut app_meta)),
             );
 
@@ -319,6 +317,12 @@ mod tests {
             assert_eq!(about_result, about_alias_result);
             assert!(app_meta.command_aliases.is_empty());
         }
+    }
+
+    fn event_dispatcher(_event: Event) {}
+
+    fn app_meta() -> AppMeta {
+        AppMeta::new(NullDataStore::default(), &event_dispatcher)
     }
 
     fn literal(term: &str, summary: &str, command: Command) -> CommandAlias {

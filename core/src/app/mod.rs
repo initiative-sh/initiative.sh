@@ -4,11 +4,17 @@ pub use meta::AppMeta;
 mod command;
 mod meta;
 
+use crate::storage::ExportData;
 use crate::utils::CaseInsensitiveStr;
 use initiative_macros::motd;
 
 pub struct App {
     meta: AppMeta,
+}
+
+#[derive(Debug)]
+pub enum Event {
+    Export(ExportData),
 }
 
 impl App {

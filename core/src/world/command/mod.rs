@@ -490,11 +490,12 @@ mod test {
     use crate::storage::NullDataStore;
     use crate::world::npc::{Age, Gender, Species};
     use crate::world::place::PlaceType;
+    use crate::Event;
     use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let mut app_meta = app_meta();
 
         assert_eq!(
             (None, vec![create(Npc::default())]),
@@ -523,8 +524,6 @@ mod test {
         );
 
         {
-            let mut app_meta = AppMeta::new(NullDataStore::default());
-
             block_on(
                 app_meta.repository.modify(Change::Create {
                     thing: Npc {
@@ -560,7 +559,7 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        let mut app_meta = AppMeta::new(NullDataStore::default());
+        let mut app_meta = app_meta();
 
         block_on(
             app_meta.repository.modify(Change::Create {
@@ -661,7 +660,7 @@ mod test {
 
     #[test]
     fn display_test() {
-        let app_meta = AppMeta::new(NullDataStore::default());
+        let app_meta = app_meta();
 
         vec![
             create(Place {
@@ -722,5 +721,11 @@ mod test {
         actual.sort();
 
         assert_eq!(expected, actual);
+    }
+
+    fn event_dispatcher(_event: Event) {}
+
+    fn app_meta() -> AppMeta {
+        AppMeta::new(NullDataStore::default(), &event_dispatcher)
     }
 }
