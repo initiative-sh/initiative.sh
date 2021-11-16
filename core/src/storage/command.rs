@@ -1,4 +1,4 @@
-use super::export::export;
+use super::backup::export;
 use super::{Change, RepositoryError};
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Event, Runnable};
 use crate::utils::CaseInsensitiveStr;
