@@ -40,6 +40,7 @@ fn event_dispatcher(event: core::Event) {
             init.detail(&JsValue::from_serde(&data).unwrap());
             CustomEvent::new_with_event_init_dict("initiative.export", &init).unwrap()
         }
+        core::Event::Import => unimplemented!(),
     };
 
     window().unwrap().dispatch_event(&js_event).unwrap();

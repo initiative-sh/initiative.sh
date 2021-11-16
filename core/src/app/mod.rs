@@ -15,6 +15,7 @@ pub struct App {
 #[derive(Debug)]
 pub enum Event {
     Export(BackupData),
+    Import,
 }
 
 impl App {

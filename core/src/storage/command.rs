@@ -13,6 +13,7 @@ use std::iter::repeat;
 pub enum StorageCommand {
     Change { change: Change },
     Export,
+    Import,
     Journal,
     Load { name: String },
     Redo,
@@ -168,6 +169,10 @@ impl Runnable for StorageCommand {
                 (app_meta.event_dispatcher)(Event::Export(export(&app_meta.repository).await));
                 Ok("The journal is exporting. Your download should begin shortly.".to_string())
             }
+            Self::Import => {
+                (app_meta.event_dispatcher)(Event::Import);
+                Ok("The file upload popup should appear momentarily. Please select a compatible JSON file, such as that produced by the `export` command.".to_string())
+            }
             Self::Load { name } => {
                 let thing = app_meta.repository.load(&name.as_str().into()).await;
                 let mut save_command = None;
@@ -305,6 +310,8 @@ impl ContextAwareParse for StorageCommand {
                 Some(Self::Redo)
             } else if input.eq_ci("export") {
                 Some(Self::Export)
+            } else if input.eq_ci("import") {
+                Some(Self::Import)
             } else {
                 None
             },
@@ -319,6 +326,7 @@ impl Autocomplete for StorageCommand {
         let mut suggestions: Vec<(String, String)> = [
             ("delete", "delete [name]", "remove an entry from journal"),
             ("export", "export", "export the journal contents"),
+            ("import", "import", "import a journal backup"),
             ("journal", "journal", "list journal contents"),
             ("load", "load [name]", "load an entry"),
             ("save", "save [name]", "save an entry to journal"),
@@ -437,6 +445,7 @@ impl fmt::Display for StorageCommand {
             } => write!(f, "save {}", name),
             Self::Change { .. } => unreachable!(),
             Self::Export => write!(f, "export"),
+            Self::Import => write!(f, "import"),
             Self::Journal => write!(f, "journal"),
             Self::Load { name } => write!(f, "load {}", name),
             Self::Redo => write!(f, "redo"),
@@ -678,6 +687,16 @@ mod test {
         );
 
         assert_autocomplete(
+            &[("import", "import a journal backup")][..],
+            block_on(StorageCommand::autocomplete("i", &app_meta)),
+        );
+
+        assert_autocomplete(
+            &[("import", "import a journal backup")][..],
+            block_on(StorageCommand::autocomplete("I", &app_meta)),
+        );
+
+        assert_autocomplete(
             &[
                 ("Potato & Meat", "inn (unsaved)"),
                 ("Potato Johnson", "adult elf, they/them (unsaved)"),
@@ -719,6 +738,7 @@ mod test {
                 },
             },
             StorageCommand::Export,
+            StorageCommand::Import,
             StorageCommand::Journal,
             StorageCommand::Load {
                 name: "Potato Johnson".to_string(),

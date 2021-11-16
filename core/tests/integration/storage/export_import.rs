@@ -45,3 +45,17 @@ fn export() {
         data_json,
     );
 }
+
+#[test]
+fn import() {
+    let mut app = sync_app_with_dispatcher(&event_dispatcher);
+    app.init();
+
+    assert_eq!(
+        "The file upload popup should appear momentarily. Please select a compatible JSON file, such as that produced by the `export` command.",
+        app.command("import").unwrap(),
+    );
+
+    let event = unsafe { &LAST_EVENT };
+    assert!(matches!(event, Some(Event::Import)));
+}
