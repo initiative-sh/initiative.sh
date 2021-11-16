@@ -1,6 +1,4 @@
-mod common;
-
-use common::{sync_app, sync_app_with_data_store};
+use crate::common::{sync_app, sync_app_with_data_store};
 use initiative_core::MemoryDataStore;
 
 #[test]

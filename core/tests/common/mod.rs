@@ -1,5 +1,14 @@
-use initiative_core::{app, App, DataStore, Event, MemoryDataStore};
+use initiative_core::{app, App, DataStore, Event, MemoryDataStore, NullDataStore};
 use tokio_test::block_on;
+
+pub fn get_name(output: &str) -> String {
+    output
+        .lines()
+        .nth(2)
+        .unwrap()
+        .trim_start_matches("# ")
+        .to_string()
+}
 
 #[allow(dead_code)]
 pub fn sync_app() -> SyncApp {
@@ -7,8 +16,19 @@ pub fn sync_app() -> SyncApp {
 }
 
 #[allow(dead_code)]
+pub fn sync_app_with_invalid_data_store() -> SyncApp {
+    sync_app_with_data_store(NullDataStore::default())
+}
+
+#[allow(dead_code)]
 pub fn sync_app_with_data_store(data_store: impl DataStore + 'static) -> SyncApp {
     let mut app = SyncApp::new(data_store, &event_dispatcher);
+    app.init();
+    app
+}
+
+pub fn sync_app_with_dispatcher<F: Fn(Event)>(event_dispatcher: &'static F) -> SyncApp {
+    let mut app = SyncApp::new(MemoryDataStore::default(), event_dispatcher);
     app.init();
     app
 }
