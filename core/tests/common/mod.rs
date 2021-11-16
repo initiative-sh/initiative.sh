@@ -1,4 +1,4 @@
-use initiative_core::{app, App, DataStore, Event, MemoryDataStore, NullDataStore};
+use initiative_core::{app, App, BackupData, DataStore, Event, MemoryDataStore, NullDataStore};
 use tokio_test::block_on;
 
 pub fn get_name(output: &str) -> String {
@@ -56,5 +56,9 @@ impl SyncApp {
 
     pub fn autocomplete(&self, input: &str) -> Vec<(String, String)> {
         block_on(self.0.autocomplete(input))
+    }
+
+    pub fn bulk_import(&mut self, data: BackupData) -> Result<String, String> {
+        block_on(self.0.bulk_import(data))
     }
 }

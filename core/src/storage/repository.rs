@@ -202,7 +202,7 @@ impl Repository {
         self.redo_change.as_ref()
     }
 
-    async fn modify_without_undo(&mut self, change: Change) -> Result<Change, (Change, Error)> {
+    pub async fn modify_without_undo(&mut self, change: Change) -> Result<Change, (Change, Error)> {
         match change {
             Change::Create { thing } => self
                 .create_thing(thing)
