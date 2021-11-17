@@ -167,7 +167,7 @@ export async function export_database(data) {
   download(JSON.stringify(data), "initiative_export.json", "application/json")
 }
 
-export async function import_database() {
+export async function import_database(successCallback, failureCallback) {
   const inputElement = document.createElement("input")
   inputElement.accept = "application/json"
   inputElement.style = "display: none"
@@ -175,25 +175,26 @@ export async function import_database() {
 
   inputElement.addEventListener("change", async (event) => {
     if (event.target.files.length !== 1) {
-      console.error("Must upload a file")
+      failureCallback("Please select a file to import.")
       return
     }
 
     const file = event.target.files[0]
 
-    if(/\\.json$/.test(file.name)) {
-      console.error("File must be JSON")
+    if (!/\.json$/.test(file.name)) {
+      failureCallback("The file you selected does not appear to be JSON.")
+      return
     }
 
     const reader = new FileReader()
     reader.addEventListener("loadstart", (event) => console.log(event))
     reader.addEventListener("error", (event) => console.error(event))
-    reader.addEventListener("load", async (event) => {
+    reader.addEventListener("load", (event) => {
       try {
         const data = JSON.parse(event.target.result)
-        console.log(await wasm.bulk_import(data))
+        successCallback(data)
       } catch (e) {
-        console.error(e)
+        failureCallback("The file you selected does not appear to be JSON.")
       }
     })
     reader.readAsText(file)

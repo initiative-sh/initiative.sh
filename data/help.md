@@ -36,7 +36,7 @@ next time you visit initiative.sh.
 * `load [name]` (or just `[name]`) loads the named entry from your journal or
   recently generated entries.
 * `delete [name]` deletes a journal entry.
-* `export` downloads a backup of your journal.
+* `export` and `import` journal backups.
 
 The journal also tracks the current time. When you start a game, the time is day
 1 at 8:00 am.

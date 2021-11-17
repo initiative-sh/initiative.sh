@@ -25,7 +25,18 @@ terminalElement.addEventListener(
 
 terminalElement.addEventListener(
   "initiative.startImport",
-  async (event) => await import_database(),
+  async (event) => await import_database(
+    async (data) => {
+      try {
+        terminal.output(await wasm.bulk_import(data))
+      } catch (e) {
+        console.error(e)
+      }
+    },
+    async (errorMessage) => {
+      terminal.output("! " + errorMessage)
+    }
+  ),
 )
 
 terminalElement.addEventListener(
