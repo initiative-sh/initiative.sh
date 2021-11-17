@@ -215,12 +215,23 @@ function initialize(elementId, autocompleteCallback) {
 
   function historyEvent(event) {
     event.preventDefault()
-    commandHistoryIndex += event.key === "ArrowUp" ? -1 : 1
 
-    if (commandHistoryIndex < -1) {
-      commandHistoryIndex = commandHistory.length - 1
-    } else if (commandHistoryIndex >= commandHistory.length) {
-      commandHistoryIndex = -1
+    switch (commandHistoryIndex) {
+      case -1:
+        if (event.key === "ArrowUp") {
+          commandHistoryIndex = commandHistory.length - 1
+        }
+        break
+      case 0:
+        if (event.key === "ArrowUp") {
+          break
+        }
+        // fall through
+      default:
+        commandHistoryIndex += event.key === "ArrowUp" ? -1 : 1
+        if (commandHistoryIndex < -1 || commandHistoryIndex >= commandHistory.length) {
+          commandHistoryIndex = -1
+        }
     }
 
     promptElement.value = commandHistory[commandHistoryIndex] ?? ""

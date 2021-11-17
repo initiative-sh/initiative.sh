@@ -1,3 +1,5 @@
+* **Bug:** Accessing the command history using the up and down arrows will no
+  longer wrap around when you reach the beginning or end of the history.
 * **Bug:** Clicking the right mouse button no longer runs commands or changes
   the selection. This was particularly annoying when trying to copy from the
   context menu.
