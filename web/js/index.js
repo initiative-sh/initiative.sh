@@ -16,7 +16,9 @@ if (stillLoading) {
   stillLoading.parentNode.removeChild(stillLoading)
 }
 
-document.getElementById("container").insertAdjacentHTML(
+const terminalElement = document.getElementById("terminal")
+
+terminalElement.insertAdjacentHTML(
   "beforeend",
   "<form id=\"prompt-form\"><input type=\"text\" id=\"prompt\" autocomplete=\"off\" autocorrect=\"off\" autocapitalize=\"none\"></form>"
 )
@@ -269,10 +271,10 @@ window.addEventListener("mouseup", async (event) => {
     }
   }
 })
-window.addEventListener("initiative.export", async (event) => await export_database(event.detail))
-window.addEventListener("initiative.startImport", async (event) => await import_database())
+terminalElement.addEventListener("initiative.export", async (event) => await export_database(event.detail))
+terminalElement.addEventListener("initiative.startImport", async (event) => await import_database())
 
-wasm.initialize()
+wasm.initialize("terminal")
   .then((motd) => output(motd))
   .catch((err) => console.log(err))
 
