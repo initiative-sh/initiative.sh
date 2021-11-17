@@ -4,7 +4,7 @@ pub use meta::AppMeta;
 mod command;
 mod meta;
 
-use crate::storage::ExportData;
+use crate::storage::backup::{import, BackupData};
 use crate::utils::CaseInsensitiveStr;
 use initiative_macros::motd;
 
@@ -14,7 +14,8 @@ pub struct App {
 
 #[derive(Debug)]
 pub enum Event {
-    Export(ExportData),
+    Export(BackupData),
+    Import,
 }
 
 impl App {
@@ -45,5 +46,12 @@ impl App {
         suggestions.sort_by(|(a, _), (b, _)| a.cmp_ci(b));
         suggestions.truncate(10);
         suggestions
+    }
+
+    pub async fn bulk_import(&mut self, data: BackupData) -> Result<String, String> {
+        import(&mut self.meta.repository, data)
+            .await
+            .map(|stats| stats.to_string())
+            .map_err(|_| "Failed to import.".to_string())
     }
 }

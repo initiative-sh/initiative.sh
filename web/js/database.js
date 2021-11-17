@@ -1,5 +1,6 @@
 import Dexie from "dexie"
 import * as download from "downloadjs"
+import * as wasm from "initiative-web"
 
 const dexie = new Dexie("initiative")
 
@@ -164,4 +165,42 @@ export async function delete_value(key) {
 
 export async function export_database(data) {
   download(JSON.stringify(data), "initiative_export.json", "application/json")
+}
+
+export async function import_database(successCallback, failureCallback) {
+  const inputElement = document.createElement("input")
+  inputElement.accept = "application/json"
+  inputElement.style = "display: none"
+  inputElement.type = "file"
+
+  inputElement.addEventListener("change", async (event) => {
+    if (event.target.files.length !== 1) {
+      failureCallback("Please select a file to import.")
+      return
+    }
+
+    const file = event.target.files[0]
+
+    if (!/\.json$/.test(file.name)) {
+      failureCallback("The file you selected does not appear to be JSON.")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.addEventListener("loadstart", (event) => console.log(event))
+    reader.addEventListener("error", (event) => console.error(event))
+    reader.addEventListener("load", (event) => {
+      try {
+        const data = JSON.parse(event.target.result)
+        successCallback(data)
+      } catch (e) {
+        failureCallback("The file you selected does not appear to be JSON.")
+      }
+    })
+    reader.readAsText(file)
+  })
+
+  document.body.insertAdjacentElement("beforeend", inputElement)
+  inputElement.click()
+  inputElement.remove()
 }

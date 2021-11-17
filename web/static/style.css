@@ -19,7 +19,7 @@ body {
     color: var(--solarized-scheme02);
 }
 
-#container {
+#terminal {
     background: var(--solarized-scheme3);
     max-width: 100ch;
 }

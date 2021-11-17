@@ -10,14 +10,15 @@ To generate a random thing, simply describe it. This can be simple, as in typing
 the name of the thing you're looking for, or more complex, describing details of
 that thing.
 
-* `npc` (`human`, `elf`, etc.)
-* `building` (`inn`)
+* `character` (`human`, `elf`, etc.)
+* `inn` (currently the only Place for which a name generator exists)
 * `a human boy named Roger`
-* `The Wilted Lily, an inn`
+* `Nevermoor, a moor`
 
 Existing things can be edited by describing them with "is", for instance:
 
-* `Roger is a non-binary halfling`
+* once you have created `a character named Roger`, you can say that
+  `Roger is a halfling`
 
 Proper (capitalized) nouns will give you existing people, places, or reference
 items from the 5th edition D&D Systems Reference Document. For instance:
@@ -26,16 +27,16 @@ items from the 5th edition D&D Systems Reference Document. For instance:
 * `weapons`, `adventuring gear`, `tools`, etc. (`Abacus` to `Yew Wand`)
 * more to come
 
-The journal allows you to save and load generated NPCs, locations, etc. Entries
-in your journal are saved to your browser and will be available next time you
-visit initiative.sh.
+The journal allows you to save and load generated characters, places, etc.
+Entries in your journal are saved locally in your browser and will be available
+next time you visit initiative.sh.
 
 * `journal` lists all journal entries.
-* `save [name]` saves a generated NPC, location, etc. to your journal.
+* `save [name]` saves a generated character, place, etc. to your journal.
 * `load [name]` (or just `[name]`) loads the named entry from your journal or
   recently generated entries.
 * `delete [name]` deletes a journal entry.
-* `export` downloads a backup of your journal.
+* `export` and `import` journal backups.
 
 The journal also tracks the current time. When you start a game, the time is day
 1 at 8:00 am.
@@ -48,8 +49,7 @@ The journal also tracks the current time. When you start a game, the time is day
   advances to the next day.
 
 Of course, no DM tool would be complete without a dice roller: `roll [formula]`
-or simply `[formula]`.
-Some examples to get you started:
+or simply `[formula]`. Here are some examples to get you started:
 
 * `8d6: Fireball`
 * `d20+3: dexterity check with +3 bonus`

@@ -1,12 +1,7 @@
-mod common;
+mod app;
+mod tutorial;
 
-use common::sync_app;
-
-#[test]
-fn about() {
-    let output = sync_app().command("about").unwrap();
-    assert!(output.contains("initiative.sh"), "{}", output);
-}
+use crate::common::{get_name, sync_app};
 
 #[test]
 fn autocomplete_command() {
@@ -39,9 +34,8 @@ fn autocomplete_command() {
 fn autocomplete_proper_noun() {
     let mut app = sync_app();
     let output = app.command("npc").unwrap();
-    let mut output_iter = output.lines();
-    let npc_name = output_iter.nth(2).unwrap().trim_start_matches("# ");
-    let npc_description = output_iter.next().unwrap().trim_matches('*');
+    let npc_name = get_name(&output);
+    let npc_description = output.lines().nth(3).unwrap().trim_matches('*');
     let query = npc_name.split_whitespace().next().unwrap();
     let autocomplete_results = app.autocomplete(query);
 
@@ -58,30 +52,6 @@ fn autocomplete_proper_noun() {
 }
 
 #[test]
-fn debug() {
-    let mut app = sync_app();
-
-    let empty_output = app.command("debug").unwrap();
-    assert!(empty_output.starts_with("AppMeta { "), "{}", empty_output);
-
-    app.command("npc").unwrap();
-
-    let populated_output = app.command("debug").unwrap();
-    assert!(
-        populated_output.len() > empty_output.len(),
-        "Empty:\n{}\n\nPopulated:\n{}",
-        empty_output,
-        populated_output,
-    );
-}
-
-#[test]
-fn help() {
-    let output = sync_app().command("help").unwrap();
-    assert!(output.contains("command"), "{}", output);
-}
-
-#[test]
 fn init() {
     let output = sync_app().init();
     assert!(output.contains("initiative.sh"), "{}", output);
@@ -90,36 +60,11 @@ fn init() {
 }
 
 #[test]
-fn roll() {
-    let mut app = sync_app();
-
-    let output = app.command("roll d1").unwrap();
-    assert_eq!("[1] = **1**", output);
-
-    let output = app.command("(d1)^2").unwrap();
-    assert_eq!("[1] = **1**\\\n[1] = **1**", output);
-
-    let output = app.command("roll banana").unwrap_err();
-    assert_eq!(
-        "\"banana\" is not a valid dice formula. See `help` for some examples.",
-        output,
-    );
-
-    assert_ne!(app.command("roll 100d1000"), app.command("roll 100d1000"));
-}
-
-#[test]
 fn unknown() {
     assert_eq!(
         "Unknown command: \"blah blah\"",
         sync_app().command("blah blah").unwrap_err(),
     );
-}
-
-#[test]
-#[ignore]
-fn command_conflict() {
-    todo!();
 }
 
 #[test]

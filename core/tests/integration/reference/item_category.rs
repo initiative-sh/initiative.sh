@@ -1,75 +1,4 @@
-mod common;
-
-use common::sync_app;
-
-#[test]
-fn open_game_license() {
-    assert_eq!(
-        111,
-        sync_app()
-            .command("Open Game License")
-            .unwrap()
-            .lines()
-            .count()
-    );
-}
-
-#[test]
-fn spell() {
-    assert_eq!(
-        "\
-# Speak With Animals
-*1st-level divination (ritual)*
-
-**Casting Time:** 1 action\\
-**Range:** Self\\
-**Components:** V, S\\
-**Duration:** 10 minutes
-
-You gain the ability to comprehend and verbally communicate with beasts for the duration. The knowledge and awareness of many beasts is limited by their intelligence, but at a minimum, beasts can give you information about nearby locations and monsters, including whatever they can perceive or have perceived within the past day. You might be able to persuade a beast to perform a small favor for you, at the DM's discretion.
-
-*Speak With Animals is Open Game Content subject to the `Open Game License`.*",
-        sync_app().command("Speak With Animals").unwrap(),
-    );
-}
-
-#[test]
-fn spells() {
-    let output = sync_app().command("spells").unwrap();
-    assert_eq!(
-        "\
-# Spells
-* `Acid Arrow` (2nd-level evocation)
-* `Acid Splash` (conjuration cantrip)
-* `Aid` (2nd-level abjuration)
-* `Alarm` (1st-level abjuration)
-",
-        output.split_inclusive('\n').take(5).collect::<String>(),
-    );
-
-    assert_eq!(322, output.lines().count(), "{}", output);
-}
-
-#[test]
-fn item() {
-    let output = sync_app().command("Light Crossbow").unwrap();
-
-    assert_eq!(
-        "\
-# Light Crossbow
-*Weapon (Simple Ranged)*
-
-**Cost:** 25 gp\\
-**Damage:** `1d8` piercing\\
-**Properties:** Ammunition (range 80/320), loading, two-handed\\
-**Weight:** 5 lbs
-
-*Light Crossbow is Open Game Content subject to the `Open Game License`.*",
-        output,
-    );
-
-    assert_eq!(output, sync_app().command("Crossbow, Light").unwrap());
-}
+use crate::common::sync_app;
 
 #[test]
 fn weapons() {
@@ -115,21 +44,6 @@ fn weapons() {
     );
 
     assert_eq!(output, sync_app().command("weapons, melee").unwrap());
-}
-
-#[test]
-fn magic_item() {
-    assert_eq!(
-        "\
-# Rod Of Rulership
-
-*Rod, rare (requires attunement)*
-
-You can use an action to present the rod and command obedience from each creature of your choice that you can see within 120 feet of you. Each target must succeed on a DC 15 Wisdom saving throw or be charmed by you for 8 hours. While charmed in this way, the creature regards you as its trusted leader. If harmed by you or your companions, or commanded to do something contrary to its nature, a target ceases to be charmed in this way. The rod can't be used again until the next dawn.
-
-*Rod Of Rulership is Open Game Content subject to the `Open Game License`.*",
-        sync_app().command("Rod Of Rulership").unwrap(),
-    );
 }
 
 #[test]

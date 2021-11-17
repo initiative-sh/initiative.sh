@@ -1,7 +1,4 @@
-mod common;
-
-use common::{sync_app, sync_app_with_data_store};
-use initiative_core::NullDataStore;
+use crate::common::{sync_app, sync_app_with_invalid_data_store};
 
 const TUTORIAL_STEPS: usize = 16;
 
@@ -69,7 +66,7 @@ fn shouting_happy_path() {
 
 #[test]
 fn works_without_local_storage() {
-    let mut app = sync_app_with_data_store(NullDataStore::default());
+    let mut app = sync_app_with_invalid_data_store();
 
     let output = app.command("tutorial").unwrap();
     println!("{}", output);
