@@ -94,12 +94,6 @@ impl Runnable for StorageCommand {
                 };
 
                 match &change {
-                    Change::Create { .. } | Change::CreateAndSave { .. } => app_meta
-                        .repository
-                        .modify(change)
-                        .await
-                        .map(|_| format!("{} was successfully restored. Use `undo` to reverse this.", name))
-                        .map_err(|_| format!("Couldn't restore {}.", name)),
                     Change::Delete { .. } => app_meta
                         .repository
                         .modify(change)
@@ -115,8 +109,8 @@ impl Runnable for StorageCommand {
                                 format!("Couldn't delete `{}`.", name)
                             }
                         }),
-                    Change::Edit { .. } | Change::EditAndUnsave { .. } => {
-                        let thing_type = if let Change::Edit { ref diff, .. } | Change::EditAndUnsave { ref diff, .. } = change {
+                    Change::Edit { .. } => {
+                        let thing_type = if let Change::Edit { ref diff, .. } = change {
                             diff.as_str()
                         } else {
                             unreachable!()
@@ -163,13 +157,11 @@ impl Runnable for StorageCommand {
                                 format!("Couldn't save `{}`.", name)
                             }
                         }),
-                    Change::Unsave { .. } => app_meta
-                        .repository
-                        .modify(change)
-                        .await
-                        .map(|_| format!("{} was successfully removed from the journal. Use `undo` to reverse this.", name))
-                        .map_err(|_| format!("Couldn't remove {} from the journal.", name)),
-                    Change::SetKeyValue { .. } => unreachable!(),
+                    Change::Create { .. }
+                    | Change::CreateAndSave { .. }
+                    | Change::EditAndUnsave { .. }
+                    | Change::Unsave { .. }
+                    | Change::SetKeyValue { .. } => unreachable!(),
                 }
             }
             Self::Export => {
