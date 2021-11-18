@@ -18,6 +18,7 @@ pub enum Thing {
 
 #[derive(Debug)]
 pub enum ThingRelations {
+    None,
     Npc(NpcRelations),
     Place(PlaceRelations),
 }
@@ -126,10 +127,10 @@ impl Thing {
         DescriptionView(self)
     }
 
-    pub fn display_details(&self) -> DetailsView {
+    pub fn display_details(&self, relations: ThingRelations) -> DetailsView {
         match self {
-            Self::Npc(npc) => DetailsView::Npc(npc.display_details()),
-            Self::Place(place) => DetailsView::Place(place.display_details()),
+            Self::Npc(npc) => DetailsView::Npc(npc.display_details(relations.into())),
+            Self::Place(place) => DetailsView::Place(place.display_details(relations.into())),
         }
     }
 
@@ -161,6 +162,12 @@ impl From<Npc> for Thing {
 impl From<Place> for Thing {
     fn from(place: Place) -> Self {
         Thing::Place(place)
+    }
+}
+
+impl Default for ThingRelations {
+    fn default() -> Self {
+        ThingRelations::None
     }
 }
 

@@ -137,7 +137,7 @@ mod test {
 *place*
 
 </div>"#,
-            format!("{}", place.display_details()),
+            format!("{}", place.display_details(PlaceRelations::default())),
         );
     }
 
@@ -163,7 +163,7 @@ mod test {
 *place*
 
 </div>"#,
-            format!("{}", place.display_details()),
+            format!("{}", place.display_details(PlaceRelations::default())),
         );
     }
 
@@ -183,7 +183,7 @@ mod test {
 *inn*
 
 </div>"#,
-            format!("{}", place.display_details()),
+            format!("{}", place.display_details(PlaceRelations::default())),
         );
     }
 
@@ -205,7 +205,7 @@ mod test {
 A street with no name.
 
 </div>"#,
-            format!("{}", place.display_details()),
+            format!("{}", place.display_details(PlaceRelations::default())),
         );
     }
 
@@ -232,7 +232,7 @@ A street with no name.
 *inn*
 
 </div>"#,
-            format!("{}", place.display_details()),
+            format!("{}", place.display_details(PlaceRelations::default())),
         );
     }
 
@@ -261,7 +261,7 @@ A street with no name.
 Come in and see me, and me, and me!
 
 </div>"#,
-            format!("{}", place.display_details()),
+            format!("{}", place.display_details(PlaceRelations::default())),
         );
     }
 
@@ -284,7 +284,7 @@ Come in and see me, and me, and me!
 You can check out any time you like.
 
 </div>"#,
-            format!("{}", place.display_details()),
+            format!("{}", place.display_details(PlaceRelations::default())),
         );
     }
 
@@ -314,7 +314,7 @@ You can check out any time you like.
 I am Mordenkainen.
 
 </div>"#,
-            format!("{}", place.display_details()),
+            format!("{}", place.display_details(PlaceRelations::default())),
         );
     }
 

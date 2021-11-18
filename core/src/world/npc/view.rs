@@ -241,7 +241,7 @@ mod test {
 **Size:** 5'11", 140 lbs (medium)
 
 </div>"#,
-            format!("{}", npc.display_details())
+            format!("{}", npc.display_details(NpcRelations::default()))
         );
     }
 
@@ -256,7 +256,10 @@ mod test {
 **Species:** human
 
 </div>"#,
-            format!("{}", gen_npc(SPECIES).display_details())
+            format!(
+                "{}",
+                gen_npc(SPECIES).display_details(NpcRelations::default())
+            )
         );
         assert_eq!(
             r#"<div class="thing-box npc">
@@ -267,7 +270,10 @@ mod test {
 **Ethnicity:** elvish
 
 </div>"#,
-            format!("{}", gen_npc(ETHNICITY).display_details())
+            format!(
+                "{}",
+                gen_npc(ETHNICITY).display_details(NpcRelations::default())
+            )
         );
         assert_eq!(
             r#"<div class="thing-box npc">
@@ -278,7 +284,10 @@ mod test {
 **Species:** human (elvish)
 
 </div>"#,
-            format!("{}", gen_npc(ETHNICITY | SPECIES).display_details())
+            format!(
+                "{}",
+                gen_npc(ETHNICITY | SPECIES).display_details(NpcRelations::default())
+            )
         );
     }
 
@@ -293,7 +302,10 @@ mod test {
 **Species:** N/A
 
 </div>"#,
-            format!("{}", &Npc::default().display_details())
+            format!(
+                "{}",
+                &Npc::default().display_details(NpcRelations::default())
+            )
         );
     }
 

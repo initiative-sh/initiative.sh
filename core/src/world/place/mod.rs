@@ -61,8 +61,8 @@ impl Place {
         DescriptionView::new(self)
     }
 
-    pub fn display_details(&self) -> DetailsView {
-        DetailsView::new(self, PlaceRelations::default())
+    pub fn display_details(&self, relations: PlaceRelations) -> DetailsView {
+        DetailsView::new(self, relations)
     }
 
     pub fn get_words() -> &'static [&'static str] {

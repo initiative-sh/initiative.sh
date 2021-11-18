@@ -128,13 +128,13 @@ impl Runnable for StorageCommand {
                                 if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) {
                                     Ok(format!(
                                         "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
-                                        thing.display_details(),
+                                        thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
                                         name,
                                     ))
                                 } else {
                                     Ok(format!(
                                         "{}\n\n_{} was successfully edited. Use `undo` to reverse this._",
-                                        thing.display_details(),
+                                        thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
                                         name,
                                     ))
                                 }
@@ -189,12 +189,12 @@ impl Runnable for StorageCommand {
 
                         Ok(format!(
                             "{}\n\n_{} has not yet been saved. Use ~save~ to save {} to your `journal`._",
-                            thing.display_details(),
+                            thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
                             thing.name(),
                             thing.gender().them(),
                         ))
                     } else {
-                        Ok(format!("{}", thing.display_details()))
+                        Ok(format!("{}", thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default())))
                     }
                 } else {
                     Err(format!("No matches for \"{}\"", name))
@@ -224,7 +224,7 @@ impl Runnable for StorageCommand {
                     if let Some(thing) = thing {
                         Ok(format!(
                             "{}\n\n_Successfully redid {}. Use `undo` to reverse this._",
-                            thing.display_details(),
+                            thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
                             action,
                         ))
                     } else {
@@ -250,7 +250,7 @@ impl Runnable for StorageCommand {
                     if let Some(thing) = thing {
                         Ok(format!(
                             "{}\n\n_Successfully undid {}. Use `redo` to reverse this._",
-                            thing.display_details(),
+                            thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
                             action,
                         ))
                     } else {

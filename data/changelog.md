@@ -1,3 +1,7 @@
+* **New:** If things (people or places) have a location_uuid field defined, the
+  location will now be shown in the details view. Presently the only way to
+  define those relations is to `export` your `journal`, edit the JSON file, then
+  `import` it again.
 * **Enhancement:** Added a few more emoji for different place types. The generic
   pushpin icon is now fairly uncommon.
 * **New:** You can now `import` data that you've previously `export`ed!

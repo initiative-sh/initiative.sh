@@ -52,8 +52,8 @@ impl Npc {
         DescriptionView::new(self)
     }
 
-    pub fn display_details(&self) -> DetailsView {
-        DetailsView::new(self, NpcRelations::default())
+    pub fn display_details(&self, relations: NpcRelations) -> DetailsView {
+        DetailsView::new(self, relations)
     }
 
     pub fn gender(&self) -> Gender {
