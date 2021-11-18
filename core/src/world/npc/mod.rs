@@ -12,7 +12,7 @@ mod size;
 mod species;
 mod view;
 
-use super::{Demographics, Field, Generate, PlaceUuid};
+use super::{Demographics, Field, Generate, Place, PlaceUuid};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -36,6 +36,11 @@ pub struct Npc {
     // pub spouses: Field<Vec<Uuid>>,
     // pub siblings: Field<Vec<Uuid>>,
     // pub children: Field<Vec<Uuid>>,
+}
+
+#[derive(Debug, Default)]
+pub struct NpcRelations {
+    pub location: Option<(Place, Option<Place>)>,
 }
 
 impl Npc {

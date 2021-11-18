@@ -31,6 +31,11 @@ pub struct Place {
     // pub price: something
 }
 
+#[derive(Debug, Default)]
+pub struct PlaceRelations {
+    pub location: Option<(Place, Option<Place>)>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
 #[serde(into = "&'static str", try_from = "&str")]
 pub enum PlaceType {

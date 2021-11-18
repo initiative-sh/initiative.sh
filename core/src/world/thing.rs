@@ -1,6 +1,6 @@
-use super::npc::Gender;
-use super::{Demographics, Field, Generate, Npc, Place};
+use super::{Demographics, Field, Generate, Npc, NpcRelations, Place, PlaceRelations};
 use crate::world::command::ParsedThing;
+use crate::world::npc::Gender;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -11,8 +11,14 @@ use uuid::Uuid;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Thing {
-    Place(Place),
     Npc(Npc),
+    Place(Place),
+}
+
+#[derive(Debug)]
+pub enum ThingRelations {
+    Npc(NpcRelations),
+    Place(PlaceRelations),
 }
 
 pub struct SummaryView<'a>(&'a Thing);
@@ -84,11 +90,27 @@ impl Thing {
         }
     }
 
+    pub fn into_place(self) -> Result<Place, Thing> {
+        if let Self::Place(place) = self {
+            Ok(place)
+        } else {
+            Err(self)
+        }
+    }
+
     pub fn npc(&self) -> Option<&Npc> {
         if let Self::Npc(npc) = self {
             Some(npc)
         } else {
             None
+        }
+    }
+
+    pub fn into_npc(self) -> Result<Npc, Thing> {
+        if let Self::Npc(npc) = self {
+            Ok(npc)
+        } else {
+            Err(self)
         }
     }
 
@@ -123,15 +145,47 @@ impl Thing {
     }
 }
 
+impl From<Npc> for Thing {
+    fn from(npc: Npc) -> Self {
+        Thing::Npc(npc)
+    }
+}
+
 impl From<Place> for Thing {
-    fn from(place: Place) -> Thing {
+    fn from(place: Place) -> Self {
         Thing::Place(place)
     }
 }
 
-impl From<Npc> for Thing {
-    fn from(npc: Npc) -> Thing {
-        Thing::Npc(npc)
+impl From<NpcRelations> for ThingRelations {
+    fn from(input: NpcRelations) -> Self {
+        Self::Npc(input)
+    }
+}
+
+impl From<PlaceRelations> for ThingRelations {
+    fn from(input: PlaceRelations) -> Self {
+        Self::Place(input)
+    }
+}
+
+impl From<ThingRelations> for NpcRelations {
+    fn from(input: ThingRelations) -> Self {
+        if let ThingRelations::Npc(npc) = input {
+            npc
+        } else {
+            NpcRelations::default()
+        }
+    }
+}
+
+impl From<ThingRelations> for PlaceRelations {
+    fn from(input: ThingRelations) -> Self {
+        if let ThingRelations::Place(place) = input {
+            place
+        } else {
+            PlaceRelations::default()
+        }
     }
 }
 
@@ -179,7 +233,9 @@ impl<'a> fmt::Display for DescriptionView<'a> {
 
 impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.0 {
+        let thing = self.0;
+
+        match thing {
             Thing::Place(p) => write!(
                 f,
                 "<div class=\"thing-box place\">\n\n{}\n\n</div>",

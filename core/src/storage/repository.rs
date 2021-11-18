@@ -1,7 +1,10 @@
 use crate::storage::{DataStore, MemoryDataStore};
 use crate::time::Time;
 use crate::utils::CaseInsensitiveStr;
-use crate::{Thing, Uuid};
+use crate::world::{
+    Npc, NpcRelations, NpcUuid, Place, PlaceRelations, PlaceUuid, Thing, ThingRelations,
+};
+use crate::Uuid;
 use futures::join;
 use std::collections::VecDeque;
 use std::fmt;
@@ -110,6 +113,64 @@ impl Repository {
         match id {
             Id::Name(name) => self.load_thing_by_name(name).await,
             Id::Uuid(uuid) => self.load_thing_by_uuid(uuid).await,
+        }
+    }
+
+    pub async fn load_relations(&self, thing: &Thing) -> Result<ThingRelations, Error> {
+        let locations = {
+            let parent_uuid = match thing {
+                Thing::Npc(Npc { location_uuid, .. }) => location_uuid,
+                Thing::Place(Place { location_uuid, .. }) => location_uuid,
+            };
+
+            let parent = {
+                let parent_result = if let Some(uuid) = parent_uuid.value() {
+                    self.load_thing_by_uuid(&uuid.to_owned().into())
+                        .await
+                        .and_then(|thing| thing.into_place().map_err(|_| Error::NotFound))
+                } else {
+                    Err(Error::NotFound)
+                };
+
+                match parent_result {
+                    Ok(parent) => Some(parent),
+                    Err(Error::NotFound) => None,
+                    Err(e) => return Err(e),
+                }
+            };
+
+            if let Some(parent) = parent {
+                let grandparent = {
+                    let grandparent_result = if let Some(uuid) = parent.location_uuid.value() {
+                        self.load_thing_by_uuid(&uuid.to_owned().into())
+                            .await
+                            .and_then(|thing| thing.into_place().map_err(|_| Error::NotFound))
+                    } else {
+                        Err(Error::NotFound)
+                    };
+
+                    match grandparent_result {
+                        Ok(grandparent) => Some(grandparent),
+                        Err(Error::NotFound) => None,
+                        Err(e) => return Err(e),
+                    }
+                };
+
+                Some((parent, grandparent))
+            } else {
+                None
+            }
+        };
+
+        match thing {
+            Thing::Npc(Npc { .. }) => Ok(NpcRelations {
+                location: locations,
+            }
+            .into()),
+            Thing::Place(Place { .. }) => Ok(PlaceRelations {
+                location: locations,
+            }
+            .into()),
         }
     }
 
@@ -727,6 +788,18 @@ impl From<Uuid> for Id {
     }
 }
 
+impl From<NpcUuid> for Id {
+    fn from(input: NpcUuid) -> Self {
+        Uuid::from(input).into()
+    }
+}
+
+impl From<PlaceUuid> for Id {
+    fn from(input: PlaceUuid) -> Self {
+        Uuid::from(input).into()
+    }
+}
+
 impl From<&String> for Id {
     fn from(input: &String) -> Self {
         input.as_str().into()
@@ -760,7 +833,10 @@ mod test {
     use std::rc::Rc;
     use tokio_test::block_on;
 
-    const TEST_UUID: Uuid = Uuid::from_u128(u128::MAX);
+    const OLYMPUS_UUID: Uuid = Uuid::from_u128(1);
+    const THESSALY_UUID: Uuid = Uuid::from_u128(2);
+    const GREECE_UUID: Uuid = Uuid::from_u128(3);
+    const STYX_UUID: Uuid = Uuid::from_u128(4);
 
     #[test]
     fn recent_test() {
@@ -814,7 +890,7 @@ mod test {
     #[test]
     fn journal_recent_test() {
         let repo = repo();
-        assert_eq!(1, block_on(repo.journal()).unwrap().len());
+        assert_eq!(4, block_on(repo.journal()).unwrap().len());
         assert_eq!(1, repo.recent().count());
     }
 
@@ -852,7 +928,7 @@ mod test {
     fn load_test_by_uuid() {
         assert_eq!(
             "Olympus",
-            block_on(repo().load(&TEST_UUID.into()))
+            block_on(repo().load(&OLYMPUS_UUID.into()))
                 .map(|thing| thing.name().value().map(String::from))
                 .unwrap()
                 .unwrap(),
@@ -870,7 +946,7 @@ mod test {
 
         {
             assert_eq!(
-                Id::Uuid(TEST_UUID),
+                Id::Uuid(OLYMPUS_UUID),
                 block_on(repo.modify(change)).unwrap().unwrap(),
             );
             let result = repo.undo_history().next().unwrap();
@@ -878,7 +954,8 @@ mod test {
             assert_eq!(
                 &Change::CreateAndSave {
                     thing: Place {
-                        uuid: Some(TEST_UUID.into()),
+                        uuid: Some(OLYMPUS_UUID.into()),
+                        location_uuid: PlaceUuid::from(THESSALY_UUID).into(),
                         name: "Olympus".into(),
                         ..Default::default()
                     }
@@ -887,23 +964,23 @@ mod test {
                 result,
             );
             assert_eq!("deleting Olympus", result.display_undo().to_string());
-            assert_eq!(0, block_on(repo.journal()).unwrap().len());
-            assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(3, block_on(repo.journal()).unwrap().len());
+            assert_eq!(3, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
         {
             assert_eq!(
-                Id::Uuid(TEST_UUID),
+                Id::Uuid(OLYMPUS_UUID),
                 block_on(repo.undo()).unwrap().unwrap().unwrap(),
             );
-            assert!(block_on(repo.load(&TEST_UUID.into())).is_ok());
+            assert!(block_on(repo.load(&OLYMPUS_UUID.into())).is_ok());
             assert!(block_on(repo.load(&"Olympus".into())).is_ok());
-            assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
         {
             assert_eq!(
-                Id::Uuid(TEST_UUID),
+                Id::Uuid(OLYMPUS_UUID),
                 block_on(repo.redo()).unwrap().unwrap().unwrap(),
             );
             assert_eq!(Err(Error::NotFound), block_on(repo.load(&"Olympus".into())));
@@ -930,6 +1007,7 @@ mod test {
                 &Change::Create {
                     thing: Npc {
                         name: "Odysseus".into(),
+                        location_uuid: PlaceUuid::from(STYX_UUID).into(),
                         ..Default::default()
                     }
                     .into()
@@ -959,14 +1037,14 @@ mod test {
     fn change_test_delete_by_uuid_success() {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::Delete {
-            id: TEST_UUID.into(),
+            id: OLYMPUS_UUID.into(),
             name: "olympus".to_string(),
         };
         assert_eq!("deleting olympus", change.display_redo().to_string());
 
         {
             assert_eq!(
-                Id::Uuid(TEST_UUID),
+                Id::Uuid(OLYMPUS_UUID),
                 block_on(repo.modify(change)).unwrap().unwrap(),
             );
             let result = repo.undo_history().next().unwrap();
@@ -974,7 +1052,8 @@ mod test {
             assert_eq!(
                 &Change::CreateAndSave {
                     thing: Place {
-                        uuid: Some(TEST_UUID.into()),
+                        uuid: Some(OLYMPUS_UUID.into()),
+                        location_uuid: PlaceUuid::from(THESSALY_UUID).into(),
                         name: "Olympus".into(),
                         ..Default::default()
                     }
@@ -983,8 +1062,8 @@ mod test {
                 result,
             );
             assert_eq!("deleting Olympus", result.display_undo().to_string());
-            assert_eq!(0, block_on(repo.journal()).unwrap().len());
-            assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(3, block_on(repo.journal()).unwrap().len());
+            assert_eq!(3, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
         {
@@ -992,14 +1071,14 @@ mod test {
 
             assert_eq!(
                 Some(Change::Delete {
-                    id: TEST_UUID.into(),
+                    id: OLYMPUS_UUID.into(),
                     name: "Olympus".to_string(),
                 }),
                 repo.redo_change,
             );
-            assert!(block_on(repo.load(&TEST_UUID.into())).is_ok());
-            assert_eq!(1, block_on(repo.journal()).unwrap().len());
-            assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert!(block_on(repo.load(&OLYMPUS_UUID.into())).is_ok());
+            assert_eq!(4, block_on(repo.journal()).unwrap().len());
+            assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
         }
     }
 
@@ -1018,7 +1097,7 @@ mod test {
     #[test]
     fn change_test_delete_by_uuid_data_store_failed() {
         let change = Change::Delete {
-            id: TEST_UUID.into(),
+            id: OLYMPUS_UUID.into(),
             name: "Olympus".to_string(),
         };
 
@@ -1062,13 +1141,13 @@ mod test {
             assert!(block_on(repo.load(&uuid.to_owned().into())).is_ok());
             assert_eq!("editing Nobody", result.display_undo().to_string());
             assert!(block_on(repo.load(&"Nobody".into())).is_ok());
-            assert_eq!(2, block_on(repo.journal()).unwrap().len());
+            assert_eq!(5, block_on(repo.journal()).unwrap().len());
             assert_eq!(0, repo.recent().count());
-            assert_eq!(2, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(5, block_on(data_store.get_all_the_things()).unwrap().len());
             assert!(block_on(data_store.get_all_the_things())
                 .unwrap()
                 .iter()
-                .any(|thing| thing.name().to_string() == "Nobody"));
+                .any(|t| t.name().value().map_or(false, |s| s == "Nobody")));
         } else {
             panic!();
         }
@@ -1079,9 +1158,9 @@ mod test {
                 block_on(repo.undo()).unwrap().unwrap().unwrap(),
             );
             assert!(block_on(repo.load(&"Odysseus".into())).is_ok());
-            assert_eq!(1, block_on(repo.journal()).unwrap().len());
+            assert_eq!(4, block_on(repo.journal()).unwrap().len());
             assert_eq!(1, repo.recent().count());
-            assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
         if let Id::Uuid(uuid) = block_on(repo.redo()).unwrap().unwrap().unwrap() {
@@ -1106,7 +1185,7 @@ mod test {
             Err((change, Error::NotFound)),
         );
         assert_eq!(1, repo.recent().count());
-        assert_eq!(1, block_on(repo.journal()).unwrap().len());
+        assert_eq!(4, block_on(repo.journal()).unwrap().len());
         assert!(block_on(repo.load(&"Odysseus".into())).is_ok());
     }
 
@@ -1248,14 +1327,14 @@ mod test {
 
         {
             assert_eq!(
-                Id::Uuid(TEST_UUID),
+                Id::Uuid(OLYMPUS_UUID),
                 block_on(repo.modify(change)).unwrap().unwrap(),
             );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
                 &Change::Edit {
-                    id: TEST_UUID.into(),
+                    id: OLYMPUS_UUID.into(),
                     name: "Hades".into(),
                     diff: Place {
                         name: "Olympus".into(),
@@ -1268,39 +1347,27 @@ mod test {
             );
             assert_eq!("editing Hades", result.display_undo().to_string());
             assert!(block_on(repo.load(&"Hades".into())).is_ok());
-            assert_eq!(
-                "Hades",
-                block_on(data_store.get_all_the_things())
-                    .unwrap()
-                    .first()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap(),
-            );
+            assert!(block_on(data_store.get_all_the_things())
+                .unwrap()
+                .iter()
+                .any(|t| t.name().value().map_or(false, |s| s == "Hades")));
         }
 
         {
             assert_eq!(
-                Id::Uuid(TEST_UUID),
+                Id::Uuid(OLYMPUS_UUID),
                 block_on(repo.undo()).unwrap().unwrap().unwrap(),
             );
             assert!(block_on(repo.load(&"OLYMPUS".into())).is_ok());
-            assert_eq!(
-                "Olympus",
-                block_on(data_store.get_all_the_things())
-                    .unwrap()
-                    .first()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap(),
-            );
+            assert!(block_on(data_store.get_all_the_things())
+                .unwrap()
+                .iter()
+                .any(|t| t.name().value().map_or(false, |s| s == "Olympus")));
         }
 
         {
             assert_eq!(
-                Id::Uuid(TEST_UUID),
+                Id::Uuid(OLYMPUS_UUID),
                 block_on(repo.redo()).unwrap().unwrap().unwrap(),
             );
             assert!(block_on(repo.load(&"HADES".into())).is_ok());
@@ -1372,7 +1439,7 @@ mod test {
     fn change_test_edit_by_uuid_success() {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::Edit {
-            id: TEST_UUID.into(),
+            id: OLYMPUS_UUID.into(),
             name: "Olympus".into(),
             diff: Place {
                 name: "Hades".into(),
@@ -1385,14 +1452,14 @@ mod test {
 
         {
             assert_eq!(
-                Id::Uuid(TEST_UUID),
+                Id::Uuid(OLYMPUS_UUID),
                 block_on(repo.modify(change)).unwrap().unwrap(),
             );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
                 &Change::Edit {
-                    id: TEST_UUID.into(),
+                    id: OLYMPUS_UUID.into(),
                     name: "Hades".into(),
                     diff: Place {
                         name: "Olympus".into(),
@@ -1405,40 +1472,28 @@ mod test {
             );
             assert_eq!("editing Hades", result.display_undo().to_string());
             assert!(block_on(repo.load(&"Hades".into())).is_ok());
-            assert_eq!(
-                "Hades",
-                block_on(data_store.get_all_the_things())
-                    .unwrap()
-                    .first()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap(),
-            );
+            assert!(block_on(data_store.get_all_the_things())
+                .unwrap()
+                .iter()
+                .any(|t| t.name().value().map_or(false, |s| s == "Hades")));
         }
 
         {
             assert_eq!(
-                Id::Uuid(TEST_UUID),
+                Id::Uuid(OLYMPUS_UUID),
                 block_on(repo.undo()).unwrap().unwrap().unwrap(),
             );
 
             assert!(block_on(repo.load(&"Olympus".into())).is_ok());
-            assert_eq!(
-                "Olympus",
-                block_on(data_store.get_all_the_things())
-                    .unwrap()
-                    .first()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap(),
-            );
+            assert!(block_on(data_store.get_all_the_things())
+                .unwrap()
+                .iter()
+                .any(|t| t.name().value().map_or(false, |s| s == "Olympus")));
         }
 
         {
             assert_eq!(
-                Id::Uuid(TEST_UUID),
+                Id::Uuid(OLYMPUS_UUID),
                 block_on(repo.redo()).unwrap().unwrap().unwrap(),
             );
             assert!(block_on(repo.load(&"Hades".into())).is_ok());
@@ -1449,7 +1504,7 @@ mod test {
     fn change_test_edit_by_uuid_wrong_type() {
         let mut repo = repo();
         let change = Change::Edit {
-            id: TEST_UUID.into(),
+            id: OLYMPUS_UUID.into(),
             name: "Olympus".into(),
             diff: Npc::default().into(),
         };
@@ -1480,7 +1535,7 @@ mod test {
         let mut repo = repo();
         repo.data_store = Box::new(NullDataStore::default());
         let change = Change::Edit {
-            id: TEST_UUID.into(),
+            id: OLYMPUS_UUID.into(),
             name: "Olympus".into(),
             diff: Place {
                 name: "Hades".into(),
@@ -1492,7 +1547,7 @@ mod test {
         assert_eq!(
             Err((
                 Change::Edit {
-                    id: TEST_UUID.into(),
+                    id: OLYMPUS_UUID.into(),
                     name: "Olympus".into(),
                     diff: Place {
                         name: "Hades".into(),
@@ -1511,7 +1566,7 @@ mod test {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::EditAndUnsave {
             name: "Olympus".into(),
-            uuid: TEST_UUID.into(),
+            uuid: OLYMPUS_UUID.into(),
             diff: Place {
                 name: "Hades".into(),
                 description: "This really is hell!".into(),
@@ -1544,28 +1599,20 @@ mod test {
             assert_eq!("editing Hades", result.display_undo().to_string());
             assert!(block_on(repo.load(&"Hades".into())).is_ok());
             assert_eq!(2, repo.recent().count());
-            assert_eq!(0, block_on(repo.journal()).unwrap().len());
-            assert!(block_on(data_store.get_all_the_things())
-                .unwrap()
-                .is_empty());
+            assert_eq!(3, block_on(repo.journal()).unwrap().len());
+            assert_eq!(3, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
         if let Id::Uuid(uuid) = block_on(repo.undo()).unwrap().unwrap().unwrap() {
-            assert_ne!(TEST_UUID, uuid);
+            assert_ne!(OLYMPUS_UUID, uuid);
             assert!(block_on(repo.load(&"Olympus".into())).is_ok());
             assert!(block_on(repo.load(&uuid.into())).is_ok());
             assert_eq!(1, repo.recent().count());
-            assert_eq!(1, block_on(repo.journal()).unwrap().len());
-            assert_eq!(
-                "Olympus",
-                block_on(data_store.get_all_the_things())
-                    .unwrap()
-                    .first()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap(),
-            );
+            assert_eq!(4, block_on(repo.journal()).unwrap().len());
+            assert!(block_on(data_store.get_all_the_things())
+                .unwrap()
+                .iter()
+                .any(|t| t.name().value().map_or(false, |s| s == "Olympus")));
         } else {
             panic!();
         }
@@ -1596,12 +1643,12 @@ mod test {
 
     #[test]
     fn change_test_edit_and_unsave_data_store_failed() {
-        let mut repo = Repository::new(TimeBombDataStore::new(4));
+        let mut repo = Repository::new(TimeBombDataStore::new(7));
         populate_repo(&mut repo);
 
         let change = Change::EditAndUnsave {
             name: "Olympus".into(),
-            uuid: TEST_UUID,
+            uuid: OLYMPUS_UUID,
             diff: Place {
                 name: "Hades".into(),
                 description: "This really is hell!".into(),
@@ -1614,7 +1661,7 @@ mod test {
             (
                 Change::Unsave {
                     name: "Hades".into(),
-                    uuid: TEST_UUID,
+                    uuid: OLYMPUS_UUID,
                 },
                 Error::DataStoreFailed,
             ),
@@ -1686,8 +1733,8 @@ mod test {
             block_on(repo.modify(change.clone())),
             Err((change, Error::NameAlreadyExists)),
         );
-        assert_eq!(1, block_on(repo.journal()).unwrap().len());
-        assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+        assert_eq!(4, block_on(repo.journal()).unwrap().len());
+        assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
     }
 
     #[test]
@@ -1734,8 +1781,8 @@ mod test {
                 "saving Odysseus to journal",
                 result.display_undo().to_string(),
             );
-            assert_eq!(2, block_on(repo.journal()).unwrap().len());
-            assert_eq!(2, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(5, block_on(repo.journal()).unwrap().len());
+            assert_eq!(5, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(0, repo.recent().count());
         } else {
             panic!();
@@ -1750,8 +1797,8 @@ mod test {
                 }),
                 repo.redo_change,
             );
-            assert_eq!(1, block_on(repo.journal()).unwrap().len());
-            assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(4, block_on(repo.journal()).unwrap().len());
+            assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(1, repo.recent().count());
         }
     }
@@ -1815,7 +1862,7 @@ mod test {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::Unsave {
             name: "Olympus".to_string(),
-            uuid: TEST_UUID.clone(),
+            uuid: OLYMPUS_UUID.clone(),
         };
         assert_eq!(
             "removing Olympus from journal",
@@ -1839,8 +1886,8 @@ mod test {
                 "removing Olympus from journal",
                 result.display_undo().to_string(),
             );
-            assert_eq!(0, block_on(repo.journal()).unwrap().len());
-            assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(3, block_on(repo.journal()).unwrap().len());
+            assert_eq!(3, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(2, repo.recent().count());
             assert_eq!(None, block_on(repo.load(&"Olympus".into())).unwrap().uuid());
         }
@@ -1850,13 +1897,13 @@ mod test {
 
             if let Some(Change::Unsave { ref name, uuid }) = repo.redo_change {
                 assert_eq!("Olympus", name);
-                assert_ne!(TEST_UUID, uuid);
+                assert_ne!(OLYMPUS_UUID, uuid);
                 assert!(block_on(repo.load(&uuid.into())).is_ok());
             } else {
                 panic!();
             }
-            assert_eq!(1, block_on(repo.journal()).unwrap().len());
-            assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+            assert_eq!(4, block_on(repo.journal()).unwrap().len());
+            assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(1, repo.recent().count());
         }
     }
@@ -1940,8 +1987,8 @@ mod test {
             block_on(repo.modify(change.clone())),
             Err((change, Error::NameAlreadyExists)),
         );
-        assert_eq!(1, block_on(repo.journal()).unwrap().len());
-        assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+        assert_eq!(4, block_on(repo.journal()).unwrap().len());
+        assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
     }
 
     #[test]
@@ -1960,8 +2007,8 @@ mod test {
             block_on(repo.modify(change.clone())),
             Err((change, Error::NameAlreadyExists)),
         );
-        assert_eq!(1, block_on(repo.journal()).unwrap().len());
-        assert_eq!(1, block_on(data_store.get_all_the_things()).unwrap().len());
+        assert_eq!(4, block_on(repo.journal()).unwrap().len());
+        assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
     }
 
     #[test]
@@ -2064,6 +2111,37 @@ mod test {
     }
 
     #[test]
+    fn load_relations_test_with_parent_success() {
+        let repo = repo();
+        let odysseus = block_on(repo.load(&"Odysseus".into())).unwrap();
+
+        match block_on(repo.load_relations(&odysseus)) {
+            Ok(ThingRelations::Npc(NpcRelations {
+                location: Some((parent, None)),
+            })) => {
+                assert_eq!("River Styx", parent.name.value().unwrap());
+            }
+            r => panic!("{:?}", r),
+        }
+    }
+
+    #[test]
+    fn load_relations_test_with_grandparent_success() {
+        let repo = repo();
+        let olympus = block_on(repo.load(&OLYMPUS_UUID.into())).unwrap();
+
+        match block_on(repo.load_relations(&olympus)) {
+            Ok(ThingRelations::Place(PlaceRelations {
+                location: Some((parent, Some(grandparent))),
+            })) => {
+                assert_eq!("Thessaly", parent.name.value().unwrap());
+                assert_eq!("Greece", grandparent.name.value().unwrap());
+            }
+            r => panic!("{:?}", r),
+        }
+    }
+
+    #[test]
     fn debug_test() {
         assert_eq!(
             "Repository { data_store_enabled: false, recent: [] }",
@@ -2113,8 +2191,44 @@ mod test {
         block_on(
             repo.data_store.save_thing(
                 &Place {
-                    uuid: Some(TEST_UUID.into()),
+                    uuid: Some(OLYMPUS_UUID.into()),
+                    location_uuid: PlaceUuid::from(THESSALY_UUID).into(),
                     name: "Olympus".into(),
+                    ..Default::default()
+                }
+                .into(),
+            ),
+        )
+        .unwrap();
+        block_on(
+            repo.data_store.save_thing(
+                &Place {
+                    uuid: Some(THESSALY_UUID.into()),
+                    location_uuid: PlaceUuid::from(GREECE_UUID).into(),
+                    name: "Thessaly".into(),
+                    ..Default::default()
+                }
+                .into(),
+            ),
+        )
+        .unwrap();
+        block_on(
+            repo.data_store.save_thing(
+                &Place {
+                    uuid: Some(GREECE_UUID.into()),
+                    name: "Greece".into(),
+                    ..Default::default()
+                }
+                .into(),
+            ),
+        )
+        .unwrap();
+        block_on(
+            repo.data_store.save_thing(
+                &Place {
+                    uuid: Some(STYX_UUID.into()),
+                    location_uuid: PlaceUuid::from(Uuid::nil()).into(),
+                    name: "River Styx".into(),
                     ..Default::default()
                 }
                 .into(),
@@ -2125,6 +2239,7 @@ mod test {
         repo.recent.push_back(
             Npc {
                 name: "Odysseus".into(),
+                location_uuid: PlaceUuid::from(STYX_UUID).into(),
                 ..Default::default()
             }
             .into(),
