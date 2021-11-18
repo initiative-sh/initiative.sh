@@ -1,11 +1,14 @@
-use super::{Age, Gender, Npc};
+use super::{Age, Gender, Npc, NpcRelations};
 use std::fmt;
 
 pub struct SummaryView<'a>(&'a Npc);
 
 pub struct DescriptionView<'a>(&'a Npc);
 
-pub struct DetailsView<'a>(&'a Npc);
+pub struct DetailsView<'a> {
+    npc: &'a Npc,
+    relations: NpcRelations,
+}
 
 fn write_summary_details(npc: &Npc, f: &mut fmt::Formatter) -> fmt::Result {
     if let Some(age) = npc.age.value() {
@@ -38,8 +41,8 @@ impl<'a> DescriptionView<'a> {
 }
 
 impl<'a> DetailsView<'a> {
-    pub fn new(npc: &'a Npc) -> Self {
-        Self(npc)
+    pub fn new(npc: &'a Npc, relations: NpcRelations) -> Self {
+        Self { npc, relations }
     }
 }
 
@@ -92,7 +95,9 @@ impl<'a> fmt::Display for DescriptionView<'a> {
 
 impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let npc = self.0;
+        let Self { npc, relations } = self;
+
+        writeln!(f, "<div class=\"thing-box npc\">\n")?;
 
         npc.name
             .value()
@@ -125,14 +130,34 @@ impl<'a> fmt::Display for DetailsView<'a> {
             .map(|size| write!(f, "\\\n**Size:** {}", size))
             .transpose()?;
 
+        relations
+            .location
+            .as_ref()
+            .map(|(parent, grandparent)| {
+                if let Some(grandparent) = grandparent {
+                    write!(
+                        f,
+                        "\\\n**Location:** {}, {}",
+                        parent.display_name(),
+                        grandparent.display_name(),
+                    )
+                } else {
+                    write!(f, "\\\n**Location:** {}", parent.display_summary())
+                }
+            })
+            .transpose()?;
+
+        write!(f, "\n\n</div>")?;
+
         Ok(())
     }
 }
 
 #[cfg(test)]
-mod test_display_for_npc_details_view {
+mod test {
     use super::*;
     use crate::world::npc::{Age, Ethnicity, Gender, Size, Species};
+    use crate::world::place::{Place, PlaceType};
     use crate::world::Field;
 
     const NAME: u8 = 0b1;
@@ -205,14 +230,17 @@ mod test_display_for_npc_details_view {
         });
 
         assert_eq!(
-            "\
+            r#"<div class="thing-box npc">
+
 # Potato Johnson
 *adult human, they/them*
 
-**Species:** human (elvish)\\
-**Gender:** non-binary\\
-**Age:** 30 years\\
-**Size:** 5'11\", 140 lbs (medium)",
+**Species:** human (elvish)\
+**Gender:** non-binary\
+**Age:** 30 years\
+**Size:** 5'11", 140 lbs (medium)
+
+</div>"#,
             format!("{}", npc.display_details())
         );
     }
@@ -220,15 +248,36 @@ mod test_display_for_npc_details_view {
     #[test]
     fn details_view_test_species_ethnicity() {
         assert_eq!(
-            "# Unnamed NPC\n*human*\n\n**Species:** human",
+            r#"<div class="thing-box npc">
+
+# Unnamed NPC
+*human*
+
+**Species:** human
+
+</div>"#,
             format!("{}", gen_npc(SPECIES).display_details())
         );
         assert_eq!(
-            "# Unnamed NPC\n*elvish person*\n\n**Ethnicity:** elvish",
+            r#"<div class="thing-box npc">
+
+# Unnamed NPC
+*elvish person*
+
+**Ethnicity:** elvish
+
+</div>"#,
             format!("{}", gen_npc(ETHNICITY).display_details())
         );
         assert_eq!(
-            "# Unnamed NPC\n*human*\n\n**Species:** human (elvish)",
+            r#"<div class="thing-box npc">
+
+# Unnamed NPC
+*human*
+
+**Species:** human (elvish)
+
+</div>"#,
             format!("{}", gen_npc(ETHNICITY | SPECIES).display_details())
         );
     }
@@ -236,8 +285,83 @@ mod test_display_for_npc_details_view {
     #[test]
     fn details_view_test_empty() {
         assert_eq!(
-            "# Unnamed NPC\n*person*\n\n**Species:** N/A",
+            r#"<div class="thing-box npc">
+
+# Unnamed NPC
+*person*
+
+**Species:** N/A
+
+</div>"#,
             format!("{}", &Npc::default().display_details())
+        );
+    }
+
+    #[test]
+    fn details_view_test_with_parent_location() {
+        let npc = Npc {
+            name: "Frodo Baggins".into(),
+            ..Default::default()
+        };
+
+        let relations = NpcRelations {
+            location: Some((
+                Place {
+                    name: "Mount Doom".into(),
+                    subtype: "mountain".parse::<PlaceType>().unwrap().into(),
+                    ..Default::default()
+                },
+                None,
+            )),
+        };
+
+        assert_eq!(
+            "<div class=\"thing-box npc\">
+
+# Frodo Baggins
+*person*
+
+**Species:** N/A\\
+**Location:** ⛰ `Mount Doom` (mountain)
+
+</div>",
+            format!("{}", DetailsView::new(&npc, relations)),
+        );
+    }
+
+    #[test]
+    fn details_view_test_with_grandparent_location() {
+        let npc = Npc {
+            name: "Frodo Baggins".into(),
+            ..Default::default()
+        };
+
+        let relations = NpcRelations {
+            location: Some((
+                Place {
+                    name: "The Prancing Pony".into(),
+                    subtype: "inn".parse::<PlaceType>().unwrap().into(),
+                    ..Default::default()
+                },
+                Some(Place {
+                    name: "Bree".into(),
+                    subtype: "town".parse::<PlaceType>().unwrap().into(),
+                    ..Default::default()
+                }),
+            )),
+        };
+
+        assert_eq!(
+            "<div class=\"thing-box npc\">
+
+# Frodo Baggins
+*person*
+
+**Species:** N/A\\
+**Location:** 🏨 `The Prancing Pony`, 🏘 `Bree`
+
+</div>",
+            format!("{}", DetailsView::new(&npc, relations)),
         );
     }
 

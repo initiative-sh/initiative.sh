@@ -1,6 +1,7 @@
 use super::{Demographics, Field, Generate, Npc, NpcRelations, Place, PlaceRelations};
 use crate::world::command::ParsedThing;
-use crate::world::npc::Gender;
+use crate::world::npc::{DetailsView as NpcDetailsView, Gender};
+use crate::world::place::DetailsView as PlaceDetailsView;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -25,7 +26,10 @@ pub struct SummaryView<'a>(&'a Thing);
 
 pub struct DescriptionView<'a>(&'a Thing);
 
-pub struct DetailsView<'a>(&'a Thing);
+pub enum DetailsView<'a> {
+    Npc(NpcDetailsView<'a>),
+    Place(PlaceDetailsView<'a>),
+}
 
 impl Thing {
     pub fn name(&self) -> &Field<String> {
@@ -123,7 +127,10 @@ impl Thing {
     }
 
     pub fn display_details(&self) -> DetailsView {
-        DetailsView(self)
+        match self {
+            Self::Npc(npc) => DetailsView::Npc(npc.display_details()),
+            Self::Place(place) => DetailsView::Place(place.display_details()),
+        }
     }
 
     pub fn lock_all(&mut self) {
@@ -233,19 +240,9 @@ impl<'a> fmt::Display for DescriptionView<'a> {
 
 impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let thing = self.0;
-
-        match thing {
-            Thing::Place(p) => write!(
-                f,
-                "<div class=\"thing-box place\">\n\n{}\n\n</div>",
-                p.display_details(),
-            ),
-            Thing::Npc(n) => write!(
-                f,
-                "<div class=\"thing-box npc\">\n\n{}\n\n</div>",
-                n.display_details(),
-            ),
+        match self {
+            DetailsView::Npc(view) => write!(f, "{}", view),
+            DetailsView::Place(view) => write!(f, "{}", view),
         }
     }
 }

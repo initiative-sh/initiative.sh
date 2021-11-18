@@ -1,3 +1,5 @@
+pub use view::{DescriptionView, DetailsView, NameView, SummaryView};
+
 mod building;
 mod location;
 mod region;
@@ -8,7 +10,6 @@ use initiative_macros::WordList;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use view::{DescriptionView, DetailsView, SummaryView};
 
 initiative_macros::uuid!();
 
@@ -48,6 +49,10 @@ pub enum PlaceType {
 }
 
 impl Place {
+    pub fn display_name(&self) -> NameView {
+        NameView::new(self)
+    }
+
     pub fn display_summary(&self) -> SummaryView {
         SummaryView::new(self)
     }
@@ -57,7 +62,7 @@ impl Place {
     }
 
     pub fn display_details(&self) -> DetailsView {
-        DetailsView::new(self)
+        DetailsView::new(self, PlaceRelations::default())
     }
 
     pub fn get_words() -> &'static [&'static str] {
