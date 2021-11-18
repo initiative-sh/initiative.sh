@@ -156,3 +156,41 @@ fn bulk_import_v1() {
         app.command("time").unwrap(),
     );
 }
+
+/// This is a backwards compatibility test. Do not update the source file.
+#[test]
+fn bulk_import_v2() {
+    let mut app = sync_app();
+    let backup_data = serde_json::from_str(include_str!("v2.json")).unwrap();
+
+    assert_eq!(
+        "Places: 5 created \\\nCharacters: 5 created \\\nKey/values: 1 created",
+        app.bulk_import(backup_data).unwrap(),
+    );
+
+    assert_eq!(
+        "# Journal
+
+## NPCs
+👨 `Faman Halin` (middle-aged human, he/him)\\
+👧 `Halynn Mardeka` (adolescent human, she/her)\\
+👴 `Losno Khayrysi` (elderly halfling, he/him)\\
+👩 `Myrcia Haskyr` (middle-aged human, she/her)\\
+👶 `Pino Nesgarth` (halfling infant, he/him)
+
+## Places
+🏨 `Book and Soldier` (inn)\\
+🏨 `Five Millers` (inn)\\
+🏨 `Raven and Fisherman` (inn)\\
+🏨 `Ten Ghosts` (inn)\\
+🏨 `The Moody Conjurer` (inn)
+
+*To export the contents of your journal, use `export`.*",
+        app.command("journal").unwrap(),
+    );
+
+    assert_eq!(
+        "It is currently day 2 at 8:00:00 am.",
+        app.command("time").unwrap(),
+    );
+}

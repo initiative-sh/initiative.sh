@@ -15,7 +15,7 @@ initiative_macros::uuid!();
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Place {
     pub uuid: Option<Uuid>,
-    pub parent_uuid: Field<Uuid>,
+    pub location_uuid: Field<Uuid>,
     pub subtype: Field<PlaceType>,
 
     pub name: Field<String>,
@@ -62,13 +62,13 @@ impl Place {
     pub fn lock_all(&mut self) {
         let Self {
             uuid: _,
-            parent_uuid,
+            location_uuid,
             subtype,
             name,
             description,
         } = self;
 
-        parent_uuid.lock();
+        location_uuid.lock();
         subtype.lock();
         name.lock();
         description.lock();
@@ -77,13 +77,13 @@ impl Place {
     pub fn apply_diff(&mut self, diff: &mut Self) {
         let Self {
             uuid: _,
-            parent_uuid,
+            location_uuid,
             subtype,
             name,
             description,
         } = self;
 
-        parent_uuid.apply_diff(&mut diff.parent_uuid);
+        location_uuid.apply_diff(&mut diff.location_uuid);
         subtype.apply_diff(&mut diff.subtype);
         name.apply_diff(&mut diff.name);
         description.apply_diff(&mut diff.description);
@@ -213,11 +213,11 @@ mod test {
         let place = oaken_mermaid_inn();
 
         assert_eq!(
-            r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#,
+            r#"{"uuid":"00000000-0000-0000-0000-000000000000","location_uuid":"00000000-0000-0000-0000-000000000000","subtype":"inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#,
             serde_json::to_string(&place).unwrap(),
         );
 
-        let value: Place = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
+        let value: Place = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","location_uuid":"00000000-0000-0000-0000-000000000000","subtype":"inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
 
         assert_eq!(place, value);
     }
@@ -258,7 +258,7 @@ mod test {
         assert_eq!(
             Place {
                 uuid: None,
-                parent_uuid: Field::Locked(None),
+                location_uuid: Field::Locked(None),
                 subtype: Field::Locked(None),
                 name: Field::Locked(None),
                 description: Field::Locked(None),
@@ -479,7 +479,7 @@ mod test {
     fn oaken_mermaid_inn() -> Place {
         Place {
             uuid: Some(uuid::Uuid::nil().into()),
-            parent_uuid: Uuid::from(uuid::Uuid::nil()).into(),
+            location_uuid: Uuid::from(uuid::Uuid::nil()).into(),
             subtype: "inn".parse::<PlaceType>().ok().into(),
 
             name: "Oaken Mermaid Inn".into(),

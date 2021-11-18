@@ -12,7 +12,7 @@ mod size;
 mod species;
 mod view;
 
-use super::{Demographics, Field, Generate};
+use super::{Demographics, Field, Generate, PlaceUuid};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -28,6 +28,7 @@ pub struct Npc {
     pub size: Field<Size>,
     pub species: Field<Species>,
     pub ethnicity: Field<Ethnicity>,
+    pub location_uuid: Field<PlaceUuid>,
     // pub home: Field<PlaceUuid>,
     // pub occupation: Field<Role>,
     // pub languages: Field<Vec<String>>,
@@ -71,6 +72,7 @@ impl Npc {
             size,
             species,
             ethnicity,
+            location_uuid,
         } = self;
 
         name.lock();
@@ -80,6 +82,7 @@ impl Npc {
         size.lock();
         species.lock();
         ethnicity.lock();
+        location_uuid.lock();
     }
 
     pub fn apply_diff(&mut self, diff: &mut Self) {
@@ -92,6 +95,7 @@ impl Npc {
             size,
             species,
             ethnicity,
+            location_uuid,
         } = self;
 
         name.apply_diff(&mut diff.name);
@@ -101,6 +105,7 @@ impl Npc {
         size.apply_diff(&mut diff.size);
         species.apply_diff(&mut diff.species);
         ethnicity.apply_diff(&mut diff.ethnicity);
+        location_uuid.apply_diff(&mut diff.location_uuid);
     }
 }
 
@@ -166,11 +171,11 @@ mod test {
         let npc = gandalf();
 
         assert_eq!(
-            r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"neuter","age":"geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"human","ethnicity":"human"}"#,
+            r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"neuter","age":"geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"human","ethnicity":"human","location_uuid":null}"#,
             serde_json::to_string(&npc).unwrap()
         );
 
-        let value: Npc = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"neuter","age":"geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"human","ethnicity":"human"}"#).unwrap();
+        let value: Npc = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"neuter","age":"geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"human","ethnicity":"human","location_uuid":null}"#).unwrap();
 
         assert_eq!(npc, value);
     }
@@ -217,6 +222,7 @@ mod test {
             .into(),
             species: Species::Human.into(),
             ethnicity: Ethnicity::Human.into(),
+            location_uuid: None.into(),
         }
     }
 
@@ -235,6 +241,7 @@ mod test {
                 size: Field::Locked(None),
                 species: Field::Locked(None),
                 ethnicity: Field::Locked(None),
+                location_uuid: Field::Locked(None),
             },
             npc,
         );

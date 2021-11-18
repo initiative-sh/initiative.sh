@@ -229,7 +229,7 @@ mod test {
     fn serialize_deserialize_test_place() {
         let thing = place();
         assert_eq!(
-            r#"{"type":"Place","uuid":null,"parent_uuid":null,"subtype":null,"name":null,"description":null}"#,
+            r#"{"type":"Place","uuid":null,"location_uuid":null,"subtype":null,"name":null,"description":null}"#,
             serde_json::to_string(&thing).unwrap(),
         );
     }
@@ -238,7 +238,7 @@ mod test {
     fn serialize_deserialize_test_npc() {
         let thing = npc();
         assert_eq!(
-            r#"{"type":"Npc","uuid":null,"name":null,"gender":null,"age":null,"age_years":null,"size":null,"species":null,"ethnicity":null}"#,
+            r#"{"type":"Npc","uuid":null,"name":null,"gender":null,"age":null,"age_years":null,"size":null,"species":null,"ethnicity":null,"location_uuid":null}"#,
             serde_json::to_string(&thing).unwrap(),
         );
     }
