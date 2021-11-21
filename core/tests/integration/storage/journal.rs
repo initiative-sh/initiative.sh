@@ -61,7 +61,7 @@ fn it_shows_alphabetized_results() {
                 "{}",
                 app.command(&format!(
                     "save {}",
-                    line.find(',').map(|pos| &line[6..pos - 1]).unwrap()
+                    line.find('(').map(|pos| &line[6..(pos - 2)]).unwrap()
                 ))
                 .unwrap(),
             );

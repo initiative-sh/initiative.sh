@@ -30,16 +30,14 @@ impl GeographicalType {
     pub const fn get_emoji(&self) -> Option<&'static str> {
         match self {
             Self::Beach => Some("🏖"),
+            Self::Canyon | Self::Chasm | Self::River | Self::Valley => Some("🏞"),
             Self::Glacier => Some("🏔"),
             Self::Grove | Self::Tree => Some("🌳"),
+            Self::Hill | Self::Pass | Self::Ridge => Some("⛰"),
             Self::Island | Self::Peninsula => Some("🏝"),
             Self::Monolith => Some("🗿"),
             Self::Oasis => Some("🌴"),
-            Self::Pass | Self::Ridge => Some("⛰"),
-            Self::River => Some("🏞"),
-            Self::Canyon | Self::Cave | Self::Chasm | Self::Hill | Self::Rift | Self::Valley => {
-                None
-            }
+            Self::Cave | Self::Rift => None,
         }
     }
 }

@@ -1,3 +1,5 @@
+pub use view::{DescriptionView, DetailsView, NameView, SummaryView};
+
 mod building;
 mod location;
 mod region;
@@ -8,14 +10,13 @@ use initiative_macros::WordList;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use view::{DescriptionView, DetailsView, SummaryView};
 
 initiative_macros::uuid!();
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Place {
     pub uuid: Option<Uuid>,
-    pub parent_uuid: Field<Uuid>,
+    pub location_uuid: Field<Uuid>,
     pub subtype: Field<PlaceType>,
 
     pub name: Field<String>,
@@ -31,6 +32,11 @@ pub struct Place {
     // pub price: something
 }
 
+#[derive(Debug, Default)]
+pub struct PlaceRelations {
+    pub location: Option<(Place, Option<Place>)>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
 #[serde(into = "&'static str", try_from = "&str")]
 pub enum PlaceType {
@@ -43,6 +49,10 @@ pub enum PlaceType {
 }
 
 impl Place {
+    pub fn display_name(&self) -> NameView {
+        NameView::new(self)
+    }
+
     pub fn display_summary(&self) -> SummaryView {
         SummaryView::new(self)
     }
@@ -51,8 +61,8 @@ impl Place {
         DescriptionView::new(self)
     }
 
-    pub fn display_details(&self) -> DetailsView {
-        DetailsView::new(self)
+    pub fn display_details(&self, relations: PlaceRelations) -> DetailsView {
+        DetailsView::new(self, relations)
     }
 
     pub fn get_words() -> &'static [&'static str] {
@@ -62,13 +72,13 @@ impl Place {
     pub fn lock_all(&mut self) {
         let Self {
             uuid: _,
-            parent_uuid,
+            location_uuid,
             subtype,
             name,
             description,
         } = self;
 
-        parent_uuid.lock();
+        location_uuid.lock();
         subtype.lock();
         name.lock();
         description.lock();
@@ -77,13 +87,13 @@ impl Place {
     pub fn apply_diff(&mut self, diff: &mut Self) {
         let Self {
             uuid: _,
-            parent_uuid,
+            location_uuid,
             subtype,
             name,
             description,
         } = self;
 
-        parent_uuid.apply_diff(&mut diff.parent_uuid);
+        location_uuid.apply_diff(&mut diff.location_uuid);
         subtype.apply_diff(&mut diff.subtype);
         name.apply_diff(&mut diff.name);
         description.apply_diff(&mut diff.description);
@@ -213,11 +223,11 @@ mod test {
         let place = oaken_mermaid_inn();
 
         assert_eq!(
-            r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#,
+            r#"{"uuid":"00000000-0000-0000-0000-000000000000","location_uuid":"00000000-0000-0000-0000-000000000000","subtype":"inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#,
             serde_json::to_string(&place).unwrap(),
         );
 
-        let value: Place = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","parent_uuid":"00000000-0000-0000-0000-000000000000","subtype":"inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
+        let value: Place = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","location_uuid":"00000000-0000-0000-0000-000000000000","subtype":"inn","name":"Oaken Mermaid Inn","description":"I am Mordenkainen"}"#).unwrap();
 
         assert_eq!(place, value);
     }
@@ -258,7 +268,7 @@ mod test {
         assert_eq!(
             Place {
                 uuid: None,
-                parent_uuid: Field::Locked(None),
+                location_uuid: Field::Locked(None),
                 subtype: Field::Locked(None),
                 name: Field::Locked(None),
                 description: Field::Locked(None),
@@ -301,7 +311,7 @@ mod test {
             ("business", "🪙"),
             ("camp", "🏕"),
             ("campsite", "🏕"),
-            ("canyon", "📍"),
+            ("canyon", "🏞"),
             ("capital", "🏙"),
             ("caravansary", "🏨"),
             ("casino", "🃏"),
@@ -309,7 +319,7 @@ mod test {
             ("cave", "📍"),
             ("cavern", "📍"),
             ("cemetery", "🪦"),
-            ("chasm", "📍"),
+            ("chasm", "🏞"),
             ("church", "🙏"),
             ("citadel", "🏰"),
             ("city", "🏙"),
@@ -325,7 +335,7 @@ mod test {
             ("crypt", "🪦"),
             ("desert", "🏜"),
             ("distillery", "🥃"),
-            ("district", "📍"),
+            ("district", "🏘"),
             ("domain", "👑"),
             ("duchy", "👑"),
             ("duty-house", "🪙"),
@@ -347,7 +357,7 @@ mod test {
             ("gate", "🚪"),
             ("general-store", "🪙"),
             ("glacier", "🏔"),
-            ("gorge", "📍"),
+            ("gorge", "🏞"),
             ("graveyard", "🪦"),
             ("grove", "🌳"),
             ("guardhouse", "🛡"),
@@ -355,9 +365,9 @@ mod test {
             ("hamlet", "🏘"),
             ("harbor", "⛵"),
             ("hermitage", "🙏"),
-            ("hill", "📍"),
+            ("hill", "⛰"),
             ("hotel", "🏨"),
-            ("house", "📍"),
+            ("house", "🏠"),
             ("imports-shop", "🪙"),
             ("inn", "🏨"),
             ("island", "🏝"),
@@ -373,8 +383,8 @@ mod test {
             ("lodge", "🏨"),
             ("lumberyard", "🪵"),
             ("magic-shop", "🪄"),
-            ("manor", "📍"),
-            ("mansion", "📍"),
+            ("manor", "🏠"),
+            ("mansion", "🏠"),
             ("market", "🪙"),
             ("marsh", "📍"),
             ("mausoleum", "🪦"),
@@ -384,13 +394,13 @@ mod test {
             ("mine", "⚒"),
             ("monastery", "🙏"),
             ("monolith", "🗿"),
-            ("monument", "📍"),
+            ("monument", "🗽"),
             ("moor", "📍"),
             ("mosque", "🙏"),
             ("mountain", "⛰"),
             ("nation", "👑"),
             ("necropolis", "🪦"),
-            ("neighborhood", "📍"),
+            ("neighborhood", "🏘"),
             ("nightclub", "🍻"),
             ("nunnery", "🙏"),
             ("oasis", "🌴"),
@@ -410,17 +420,17 @@ mod test {
             ("prison", "🛡"),
             ("province", "👑"),
             ("pub", "🍻"),
-            ("quarter", "📍"),
+            ("quarter", "🏘"),
             ("realm", "👑"),
             ("reef", "📍"),
             ("region", "👑"),
             ("region", "👑"),
-            ("residence", "📍"),
+            ("residence", "🏠"),
             ("restaurant", "🍽"),
             ("ridge", "⛰"),
             ("rift", "📍"),
             ("river", "🏞"),
-            ("ruin", "📍"),
+            ("ruin", "🏚"),
             ("school", "🎓"),
             ("sea", "🌊"),
             ("shipyard", "⛵"),
@@ -430,9 +440,9 @@ mod test {
             ("specialty-shop", "🪙"),
             ("spirits-shop", "🥃"),
             ("stable", "🐎"),
-            ("statue", "📍"),
+            ("statue", "🗽"),
             ("store", "🪙"),
-            ("street", "📍"),
+            ("street", "🏘"),
             ("stronghold", "🏰"),
             ("swamp", "📍"),
             ("synagogue", "🙏"),
@@ -448,13 +458,13 @@ mod test {
             ("tree", "🌳"),
             ("tundra", "❄"),
             ("university", "🎓"),
-            ("vale", "📍"),
-            ("valley", "📍"),
+            ("vale", "🏞"),
+            ("valley", "🏞"),
             ("vault", "🏦"),
             ("village", "🏘"),
             ("wainwright", "🪙"),
             ("wall", "🧱"),
-            ("ward", "📍"),
+            ("ward", "🏘"),
             ("warehouse", "📦"),
             ("wasteland", "🏜"),
             ("watch-house", "🛡"),
@@ -466,13 +476,20 @@ mod test {
         .map(|(a, b)| (a.to_string(), b.to_string()))
         .collect();
 
+        /*
+        expect_words_emoji
+            .iter()
+            .zip(words_emoji.iter())
+            .for_each(|(expect, word)| assert_eq!(expect, word));
+        */
+
         assert_eq!(expect_words_emoji, words_emoji);
     }
 
     fn oaken_mermaid_inn() -> Place {
         Place {
             uuid: Some(uuid::Uuid::nil().into()),
-            parent_uuid: Uuid::from(uuid::Uuid::nil()).into(),
+            location_uuid: Uuid::from(uuid::Uuid::nil()).into(),
             subtype: "inn".parse::<PlaceType>().ok().into(),
 
             name: "Oaken Mermaid Inn".into(),

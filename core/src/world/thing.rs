@@ -1,6 +1,7 @@
-use super::npc::Gender;
-use super::{Demographics, Field, Generate, Npc, Place};
+use super::{Demographics, Field, Generate, Npc, NpcRelations, Place, PlaceRelations};
 use crate::world::command::ParsedThing;
+use crate::world::npc::{DetailsView as NpcDetailsView, Gender};
+use crate::world::place::DetailsView as PlaceDetailsView;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -11,15 +12,25 @@ use uuid::Uuid;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Thing {
-    Place(Place),
     Npc(Npc),
+    Place(Place),
+}
+
+#[derive(Debug)]
+pub enum ThingRelations {
+    None,
+    Npc(NpcRelations),
+    Place(PlaceRelations),
 }
 
 pub struct SummaryView<'a>(&'a Thing);
 
 pub struct DescriptionView<'a>(&'a Thing);
 
-pub struct DetailsView<'a>(&'a Thing);
+pub enum DetailsView<'a> {
+    Npc(NpcDetailsView<'a>),
+    Place(PlaceDetailsView<'a>),
+}
 
 impl Thing {
     pub fn name(&self) -> &Field<String> {
@@ -84,11 +95,27 @@ impl Thing {
         }
     }
 
+    pub fn into_place(self) -> Result<Place, Thing> {
+        if let Self::Place(place) = self {
+            Ok(place)
+        } else {
+            Err(self)
+        }
+    }
+
     pub fn npc(&self) -> Option<&Npc> {
         if let Self::Npc(npc) = self {
             Some(npc)
         } else {
             None
+        }
+    }
+
+    pub fn into_npc(self) -> Result<Npc, Thing> {
+        if let Self::Npc(npc) = self {
+            Ok(npc)
+        } else {
+            Err(self)
         }
     }
 
@@ -100,8 +127,11 @@ impl Thing {
         DescriptionView(self)
     }
 
-    pub fn display_details(&self) -> DetailsView {
-        DetailsView(self)
+    pub fn display_details(&self, relations: ThingRelations) -> DetailsView {
+        match self {
+            Self::Npc(npc) => DetailsView::Npc(npc.display_details(relations.into())),
+            Self::Place(place) => DetailsView::Place(place.display_details(relations.into())),
+        }
     }
 
     pub fn lock_all(&mut self) {
@@ -123,15 +153,53 @@ impl Thing {
     }
 }
 
+impl From<Npc> for Thing {
+    fn from(npc: Npc) -> Self {
+        Thing::Npc(npc)
+    }
+}
+
 impl From<Place> for Thing {
-    fn from(place: Place) -> Thing {
+    fn from(place: Place) -> Self {
         Thing::Place(place)
     }
 }
 
-impl From<Npc> for Thing {
-    fn from(npc: Npc) -> Thing {
-        Thing::Npc(npc)
+impl Default for ThingRelations {
+    fn default() -> Self {
+        ThingRelations::None
+    }
+}
+
+impl From<NpcRelations> for ThingRelations {
+    fn from(input: NpcRelations) -> Self {
+        Self::Npc(input)
+    }
+}
+
+impl From<PlaceRelations> for ThingRelations {
+    fn from(input: PlaceRelations) -> Self {
+        Self::Place(input)
+    }
+}
+
+impl From<ThingRelations> for NpcRelations {
+    fn from(input: ThingRelations) -> Self {
+        if let ThingRelations::Npc(npc) = input {
+            npc
+        } else {
+            NpcRelations::default()
+        }
+    }
+}
+
+impl From<ThingRelations> for PlaceRelations {
+    fn from(input: ThingRelations) -> Self {
+        if let ThingRelations::Place(place) = input {
+            place
+        } else {
+            PlaceRelations::default()
+        }
     }
 }
 
@@ -179,17 +247,9 @@ impl<'a> fmt::Display for DescriptionView<'a> {
 
 impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.0 {
-            Thing::Place(p) => write!(
-                f,
-                "<div class=\"thing-box place\">\n\n{}\n\n</div>",
-                p.display_details(),
-            ),
-            Thing::Npc(n) => write!(
-                f,
-                "<div class=\"thing-box npc\">\n\n{}\n\n</div>",
-                n.display_details(),
-            ),
+        match self {
+            DetailsView::Npc(view) => write!(f, "{}", view),
+            DetailsView::Place(view) => write!(f, "{}", view),
         }
     }
 }
@@ -229,7 +289,7 @@ mod test {
     fn serialize_deserialize_test_place() {
         let thing = place();
         assert_eq!(
-            r#"{"type":"Place","uuid":null,"parent_uuid":null,"subtype":null,"name":null,"description":null}"#,
+            r#"{"type":"Place","uuid":null,"location_uuid":null,"subtype":null,"name":null,"description":null}"#,
             serde_json::to_string(&thing).unwrap(),
         );
     }
@@ -238,7 +298,7 @@ mod test {
     fn serialize_deserialize_test_npc() {
         let thing = npc();
         assert_eq!(
-            r#"{"type":"Npc","uuid":null,"name":null,"gender":null,"age":null,"age_years":null,"size":null,"species":null,"ethnicity":null}"#,
+            r#"{"type":"Npc","uuid":null,"name":null,"gender":null,"age":null,"age_years":null,"size":null,"species":null,"ethnicity":null,"location_uuid":null}"#,
             serde_json::to_string(&thing).unwrap(),
         );
     }

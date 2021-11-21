@@ -181,6 +181,10 @@ body {
     max-width: 50ch;
 }
 
+#output .thing-box a, #output .thing-box code {
+    color: var(--solarized-base3);
+}
+
 #output .thing-box > * {
     padding-left: 1ch;
     padding-right: 1ch;

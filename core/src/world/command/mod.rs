@@ -53,7 +53,16 @@ impl Runnable for WorldCommand {
                 for _ in 0..10 {
                     let mut thing = diff.clone();
                     thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
-                    let mut temp_output = format!("{}", thing.display_details());
+                    let mut temp_output = format!(
+                        "{}",
+                        thing.display_details(
+                            app_meta
+                                .repository
+                                .load_relations(&thing)
+                                .await
+                                .unwrap_or_default()
+                        )
+                    );
                     let mut command_alias = None;
 
                     let change = match thing.name() {
