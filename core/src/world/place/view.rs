@@ -36,18 +36,9 @@ impl<'a> fmt::Display for SummaryView<'a> {
         )?;
 
         match (place.subtype.value(), place.name.value()) {
-            (Some(subtype), Some(name)) => {
-                if subtype
-                    .as_str()
-                    .starts_with(&['a', 'e', 'i', 'o', 'u', 'y'][..])
-                {
-                    write!(f, "`{}`, an {}", name, subtype)
-                } else {
-                    write!(f, "`{}`, a {}", name, subtype)
-                }
-            }
+            (Some(subtype), Some(name)) => write!(f, "`{}` ({})", name, subtype),
             (Some(subtype), None) => write!(f, "{}", subtype),
-            (None, Some(name)) => write!(f, "`{}`, a place", name),
+            (None, Some(name)) => write!(f, "`{}` (place)", name),
             (None, None) => write!(f, "place"),
         }
     }
@@ -108,7 +99,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            "📍 `The Invulnerable Vagrant`, a place",
+            "📍 `The Invulnerable Vagrant` (place)",
             format!("{}", place.display_summary()),
         );
         assert_eq!("place", format!("{}", place.display_description()));
@@ -154,7 +145,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            "🏨 `Oaken Mermaid Inn`, an inn",
+            "🏨 `Oaken Mermaid Inn` (inn)",
             format!("{}", place.display_summary()),
         );
         assert_eq!("inn", format!("{}", place.display_description()));
@@ -172,7 +163,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            "📍 `The Invulnerable Vagrant`, a place",
+            "📍 `The Invulnerable Vagrant` (place)",
             format!("{}", place.display_summary()),
         );
         assert_eq!("place", format!("{}", place.display_description()));
@@ -206,7 +197,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            "🏨 `Oaken Mermaid Inn`, an inn",
+            "🏨 `Oaken Mermaid Inn` (inn)",
             format!("{}", place.display_summary()),
         );
         assert_eq!("inn", format!("{}", place.display_description()));

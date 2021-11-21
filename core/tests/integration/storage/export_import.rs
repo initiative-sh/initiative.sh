@@ -141,11 +141,11 @@ fn bulk_import_v1() {
 👶 `Pino Nesgarth` (halfling infant, he/him)
 
 ## Places
-🏨 `Book and Soldier`, an inn\\
-🏨 `Five Millers`, an inn\\
-🏨 `Raven and Fisherman`, an inn\\
-🏨 `Ten Ghosts`, an inn\\
-🏨 `The Moody Conjurer`, an inn
+🏨 `Book and Soldier` (inn)\\
+🏨 `Five Millers` (inn)\\
+🏨 `Raven and Fisherman` (inn)\\
+🏨 `Ten Ghosts` (inn)\\
+🏨 `The Moody Conjurer` (inn)
 
 *To export the contents of your journal, use `export`.*",
         app.command("journal").unwrap(),
