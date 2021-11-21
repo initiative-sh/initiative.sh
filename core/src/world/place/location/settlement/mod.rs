@@ -26,8 +26,7 @@ impl SettlementType {
             Self::Camp => Some("🏕"),
             Self::Capital | Self::City => Some("🏙"),
             Self::Outpost => Some("🚩"),
-            Self::Town => Some("🏘"),
-            Self::District => None,
+            Self::District | Self::Town => Some("🏘"),
         }
     }
 }

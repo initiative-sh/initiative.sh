@@ -38,7 +38,7 @@ impl BuildingType {
             Self::Government(subtype) => subtype.get_emoji(),
             Self::Military(subtype) => subtype.get_emoji(),
             Self::Religious(subtype) => subtype.get_emoji(),
-            Self::Residence => None,
+            Self::Residence => Some("🏠"),
             Self::Travel(subtype) => subtype.get_emoji(),
         }
     }

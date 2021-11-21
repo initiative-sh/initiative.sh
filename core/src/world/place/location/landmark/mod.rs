@@ -23,8 +23,10 @@ impl LandmarkType {
             Self::Fountain => Some("⛲"),
             Self::Harbor => Some("⛵"),
             Self::Mine => Some("⚒"),
+            Self::Ruin => Some("🏚"),
+            Self::Street => Some("🏘"),
             Self::Wall => Some("🧱"),
-            Self::Monument | Self::Ruin | Self::Street => None,
+            Self::Monument => Some("🗽"),
         }
     }
 }
