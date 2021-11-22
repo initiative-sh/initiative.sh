@@ -1,3 +1,6 @@
+* **Bug:** Fixed `import`s silently failing. If you upload a valid JSON file
+  that the application can't parse, you'll get a more helpful error message
+  indicating what went wrong.
 * **New:** If things (people or places) have a location_uuid field defined, the
   location will now be shown in the details view. Presently the only way to
   define those relations is to `export` your `journal`, edit the JSON file, then

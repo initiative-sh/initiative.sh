@@ -30,11 +30,11 @@ terminalElement.addEventListener(
       try {
         terminal.output(await wasm.bulk_import(data))
       } catch (e) {
-        console.error(e)
+        terminal.output("! " + e)
       }
     },
-    async (errorMessage) => {
-      terminal.output("! " + errorMessage)
+    async (e) => {
+      terminal.output("! " + e)
     }
   ),
 )

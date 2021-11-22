@@ -37,7 +37,14 @@ pub async fn autocomplete(input: JsValue) -> JsValue {
 
 #[wasm_bindgen]
 pub async fn bulk_import(data: JsValue) -> Result<String, String> {
-    app().bulk_import(data.into_serde().unwrap()).await
+    app()
+        .bulk_import(data.into_serde().map_err(|e| {
+            format!(
+                "The file you tried to import is not valid. The parser error was {}.",
+                e
+            )
+        })?)
+        .await
 }
 
 fn event_dispatcher(event: core::Event) {
