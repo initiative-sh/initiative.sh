@@ -9,6 +9,7 @@ use crate::utils::CaseInsensitiveStr;
 use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
 use crate::world::{ParsedThing, Thing, WorldCommand};
 use async_trait::async_trait;
+use std::borrow::Cow;
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -710,9 +711,12 @@ impl ContextAwareParse for TutorialCommand {
 
 #[async_trait(?Send)]
 impl Autocomplete for TutorialCommand {
-    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(
+        input: &str,
+        _app_meta: &AppMeta,
+    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         if "tutorial".starts_with_ci(input) {
-            vec![("tutorial".to_string(), "feature walkthrough".to_string())]
+            vec![("tutorial".into(), "feature walkthrough".into())]
         } else {
             Vec::new()
         }

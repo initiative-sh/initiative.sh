@@ -3,6 +3,7 @@ use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use caith::Roller;
+use std::borrow::Cow;
 use std::fmt;
 use std::iter::repeat;
 
@@ -98,7 +99,10 @@ impl ContextAwareParse for ReferenceCommand {
 
 #[async_trait(?Send)]
 impl Autocomplete for ReferenceCommand {
-    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(
+        input: &str,
+        _app_meta: &AppMeta,
+    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         [
             ("Open Game License", "SRD license"),
             ("spells", "SRD index"),
@@ -110,7 +114,7 @@ impl Autocomplete for ReferenceCommand {
         .chain(MagicItem::get_words().zip(repeat("SRD magic item")))
         .filter(|(s, _)| s.starts_with_ci(input))
         .take(10)
-        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .map(|(a, b)| (a.into(), b.into()))
         .collect()
     }
 }
