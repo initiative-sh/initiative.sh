@@ -3,6 +3,7 @@ use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use caith::Roller;
 use initiative_macros::changelog;
+use std::borrow::Cow;
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -81,7 +82,10 @@ impl ContextAwareParse for AppCommand {
 
 #[async_trait(?Send)]
 impl Autocomplete for AppCommand {
-    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(
+        input: &str,
+        _app_meta: &AppMeta,
+    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         if input.is_empty() {
             return Vec::new();
         }
@@ -99,7 +103,7 @@ impl Autocomplete for AppCommand {
                 .filter(|s| s.starts_with_ci(input))
                 .map(|_| ("roll [dice]", "roll eg. 8d6 or d20+3")),
         )
-        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .map(|(a, b)| (a.into(), b.into()))
         .collect()
     }
 }
@@ -119,6 +123,7 @@ impl fmt::Display for AppCommand {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::app::assert_autocomplete;
     use crate::storage::NullDataStore;
     use crate::Event;
     use tokio_test::block_on;
@@ -160,10 +165,10 @@ mod test {
             ("changelog", "show latest updates"),
             ("help", "how to use initiative.sh"),
         ]
-        .iter()
+        .into_iter()
         .for_each(|(word, summary)| {
             assert_eq!(
-                vec![(word.to_string(), summary.to_string())],
+                vec![(word.into(), summary.into())],
                 block_on(AppCommand::autocomplete(word, &app_meta)),
             );
 
@@ -173,27 +178,24 @@ mod test {
             );
         });
 
-        assert_eq!(
-            vec![("about".to_string(), "about initiative.sh".to_string())],
+        assert_autocomplete(
+            &[("about", "about initiative.sh")][..],
             block_on(AppCommand::autocomplete("a", &app_meta)),
         );
 
-        assert_eq!(
-            vec![("about".to_string(), "about initiative.sh".to_string())],
+        assert_autocomplete(
+            &[("about", "about initiative.sh")][..],
             block_on(AppCommand::autocomplete("A", &app_meta)),
         );
 
-        assert_eq!(
-            vec![(
-                "roll [dice]".to_string(),
-                "roll eg. 8d6 or d20+3".to_string(),
-            )],
+        assert_autocomplete(
+            &[("roll [dice]", "roll eg. 8d6 or d20+3")][..],
             block_on(AppCommand::autocomplete("roll", &app_meta)),
         );
 
         // Debug should be excluded from the autocomplete results.
         assert_eq!(
-            Vec::<(String, String)>::new(),
+            Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
             block_on(AppCommand::autocomplete("debug", &app_meta)),
         );
     }

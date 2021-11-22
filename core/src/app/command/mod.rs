@@ -3,6 +3,9 @@ pub use app::AppCommand;
 pub use runnable::{Autocomplete, ContextAwareParse, Runnable};
 pub use tutorial::TutorialCommand;
 
+#[cfg(test)]
+pub use runnable::assert_autocomplete;
+
 mod alias;
 mod app;
 mod runnable;
@@ -15,6 +18,7 @@ use crate::time::TimeCommand;
 use crate::world::WorldCommand;
 use async_trait::async_trait;
 use futures::join;
+use std::borrow::Cow;
 use std::fmt;
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -158,7 +162,10 @@ impl ContextAwareParse for Command {
 
 #[async_trait(?Send)]
 impl Autocomplete for Command {
-    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(
+        input: &str,
+        app_meta: &AppMeta,
+    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         let mut results = join!(
             CommandAlias::autocomplete(input, app_meta),
             AppCommand::autocomplete(input, app_meta),
@@ -278,8 +285,8 @@ impl From<WorldCommand> for CommandType {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::app::assert_autocomplete;
     use crate::storage::NullDataStore;
-    use crate::utils::CaseInsensitiveStr;
     use crate::world::{Npc, ParsedThing};
     use crate::Event;
     use tokio_test::block_on;
@@ -348,37 +355,32 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        let expected = [
-            ("Dancing Lights", "SRD spell"),
-            ("Darkness", "SRD spell"),
-            ("Darkvision", "SRD spell"),
-            ("date", "get the current time"),
-            ("Daylight", "SRD spell"),
-            ("Death Ward", "SRD spell"),
-            ("Delayed Blast Fireball", "SRD spell"),
-            ("delete [name]", "remove an entry from journal"),
-            ("Demiplane", "SRD spell"),
-            ("desert", "create desert"),
-            ("Detect Evil And Good", "SRD spell"),
-            ("Detect Magic", "SRD spell"),
-            ("Detect Poison And Disease", "SRD spell"),
-            ("distillery", "create distillery"),
-            ("district", "create district"),
-            ("domain", "create domain"),
-            ("dragonborn", "create dragonborn"),
-            ("duchy", "create duchy"),
-            ("duty-house", "create duty-house"),
-            ("dwarf", "create dwarf"),
-            ("dwarvish", "create dwarvish person"),
-        ]
-        .iter()
-        .map(|(a, b)| (a.to_string(), b.to_string()))
-        .collect::<Vec<_>>();
-
-        let mut actual = block_on(Command::autocomplete("d", &app_meta()));
-        actual.sort_by(|a, b| a.0.cmp_ci(&b.0).then_with(|| a.1.cmp_ci(&b.1)));
-
-        assert_eq!(expected, actual);
+        assert_autocomplete(
+            &[
+                ("Dancing Lights", "SRD spell"),
+                ("Darkness", "SRD spell"),
+                ("Darkvision", "SRD spell"),
+                ("date", "get the current time"),
+                ("Daylight", "SRD spell"),
+                ("Death Ward", "SRD spell"),
+                ("Delayed Blast Fireball", "SRD spell"),
+                ("delete [name]", "remove an entry from journal"),
+                ("Demiplane", "SRD spell"),
+                ("desert", "create desert"),
+                ("Detect Evil And Good", "SRD spell"),
+                ("Detect Magic", "SRD spell"),
+                ("Detect Poison And Disease", "SRD spell"),
+                ("distillery", "create distillery"),
+                ("district", "create district"),
+                ("domain", "create domain"),
+                ("dragonborn", "create dragonborn"),
+                ("duchy", "create duchy"),
+                ("duty-house", "create duty-house"),
+                ("dwarf", "create dwarf"),
+                ("dwarvish", "create dwarvish person"),
+            ][..],
+            block_on(Command::autocomplete("d", &app_meta())),
+        );
     }
 
     #[test]

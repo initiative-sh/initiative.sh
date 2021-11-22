@@ -5,6 +5,7 @@ use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
 use crate::world::place::{Place, PlaceType};
 use crate::world::Thing;
 use async_trait::async_trait;
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::str::FromStr;
 
@@ -17,8 +18,8 @@ struct ParsedInput<'a> {
 }
 
 impl<'a> ParsedInput<'a> {
-    fn suggestion(&self, suggestion: &str) -> String {
-        format!("{}{}", self.name_desc, suggestion)
+    fn suggestion(&self, suggestion: &str) -> Cow<'static, str> {
+        format!("{}{}", self.name_desc, suggestion).into()
     }
 
     fn desc_lower(&self) -> &str {
@@ -68,7 +69,9 @@ impl<'a> From<&'a str> for ParsedInput<'a> {
     }
 }
 
-fn autocomplete_trailing_name<T: FromStr + Into<Thing>>(input: &str) -> Option<(String, String)> {
+fn autocomplete_trailing_name<T: FromStr + Into<Thing>>(
+    input: &str,
+) -> Option<(Cow<'static, str>, Cow<'static, str>)> {
     if !quoted_words(input)
         .skip(1)
         .any(|word| word.as_str().in_ci(&["named", "called"]))
@@ -96,11 +99,11 @@ fn autocomplete_trailing_name<T: FromStr + Into<Thing>>(input: &str) -> Option<(
                 suggestion.push(' ');
             }
             suggestion.push_str("[name]");
-            Some((suggestion, "specify a name".to_string()))
+            Some((suggestion.into(), "specify a name".into()))
         } else {
             Some((
-                input.to_string(),
-                format!("create {}", thing.display_description()),
+                input.to_string().into(),
+                format!("create {}", thing.display_description()).into(),
             ))
         }
     } else {
@@ -112,7 +115,7 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
     input: &str,
     basic_terms: &[&str],
     vocabulary: &[(&str, &str, &[&str])],
-) -> Vec<(String, String)> {
+) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
     if let Some(result) = autocomplete_trailing_name::<T>(input) {
         return vec![result];
     }
@@ -138,8 +141,8 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
             );
 
             vec![(
-                suggestion,
-                format!("create {}", thing.display_description()),
+                suggestion.into(),
+                format!("create {}", thing.display_description()).into(),
             )]
         } else if let Ok(thing) = parsed.name_desc.parse::<T>().map(|t| t.into()) {
             let mut suggestions = Vec::new();
@@ -149,17 +152,14 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
                 .collect();
 
             if thing.name().is_none() {
-                suggestions.push((
-                    parsed.suggestion("named [name]"),
-                    "specify a name".to_string(),
-                ));
+                suggestions.push((parsed.suggestion("named [name]"), "specify a name".into()));
             }
 
             for (placeholder, description, terms) in vocabulary {
                 if !terms.iter().any(|term| words.contains(term)) {
                     suggestions.push((
                         parsed.suggestion(&format!("[{}]", placeholder)),
-                        description.to_string(),
+                        description.to_string().into(),
                     ));
                 }
             }
@@ -189,7 +189,7 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
                     if let Ok(thing) = suggestion.parse::<T>().map(|t| t.into()) {
                         Some((
                             suggestion,
-                            format!("create {}", thing.display_description()),
+                            format!("create {}", thing.display_description()).into(),
                         ))
                     } else {
                         None
@@ -203,7 +203,7 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
                     }
                     .iter()
                     .filter(|s| s.starts_with_ci(parsed.partial))
-                    .map(|s| (parsed.suggestion(s), "specify a name".to_string())),
+                    .map(|s| (parsed.suggestion(s), "specify a name".into())),
                 )
                 .collect::<HashSet<_>>()
                 .drain()
@@ -223,7 +223,7 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
                 suggestion.parse::<T>().ok().map(|thing| {
                     (
                         suggestion,
-                        format!("create {}", thing.into().display_description()),
+                        format!("create {}", thing.into().display_description()).into(),
                     )
                 })
             })
@@ -235,7 +235,10 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
 
 #[async_trait(?Send)]
 impl Autocomplete for Place {
-    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(
+        input: &str,
+        _app_meta: &AppMeta,
+    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         autocomplete_terms::<ParsedThing<Place>>(
             input,
             &["place"],
@@ -250,13 +253,16 @@ impl Autocomplete for Place {
 
 #[async_trait(?Send)]
 impl Autocomplete for Npc {
-    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(
+        input: &str,
+        _app_meta: &AppMeta,
+    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         if let Some(word) = quoted_words(input).last().filter(|w| {
             let s = w.as_str();
             s.starts_with(|c: char| c.is_ascii_digit())
                 && "-year-old".starts_with_ci(s.trim_start_matches(|c: char| c.is_ascii_digit()))
         }) {
-            let suggestion = {
+            let suggestion: Cow<'static, str> = {
                 let word_str = word.as_str();
                 format!(
                     "{}{}-year-old",
@@ -265,6 +271,7 @@ impl Autocomplete for Npc {
                         .find(|c: char| !c.is_ascii_digit())
                         .unwrap_or(word_str.len())]
                 )
+                .into()
             };
 
             if let Some(description) =
@@ -274,7 +281,7 @@ impl Autocomplete for Npc {
                     .and_then(|pt| {
                         pt.thing
                             .npc()
-                            .map(|npc| format!("create {}", npc.display_description()))
+                            .map(|npc| format!("create {}", npc.display_description()).into())
                     })
             {
                 vec![(suggestion, description)]
@@ -315,6 +322,7 @@ impl Autocomplete for Npc {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::app::assert_autocomplete;
     use crate::storage::NullDataStore;
     use crate::Event;
     use tokio_test::block_on;
@@ -432,12 +440,12 @@ mod test {
         );
 
         assert_eq!(
-            Vec::<(String, String)>::new(),
+            Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
             block_on(Place::autocomplete("a streetcar named desire", &app_meta())),
         );
 
         assert_eq!(
-            Vec::<(String, String)>::new(),
+            Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
             block_on(Place::autocomplete("Foo, an inn n", &app_meta())),
         );
     }
@@ -450,7 +458,7 @@ mod test {
 
             for i in 2..input.len() {
                 assert_ne!(
-                    Vec::<(String, String)>::new(),
+                    Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
                     block_on(Place::autocomplete(&input[..i], &app_meta)),
                     "Input: {}",
                     &input[..i],
@@ -464,7 +472,7 @@ mod test {
 
             for i in 4..input.len() {
                 assert_ne!(
-                    Vec::<(String, String)>::new(),
+                    Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
                     block_on(Place::autocomplete(&input[..i], &app_meta)),
                     "Input: {}",
                     &input[..i],
@@ -502,7 +510,7 @@ mod test {
 
         for i in 3..input.len() {
             assert_ne!(
-                Vec::<(String, String)>::new(),
+                Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
                 block_on(Npc::autocomplete(&input[..i], &app_meta)),
                 "Input: {}",
                 &input[..i],
@@ -514,21 +522,5 @@ mod test {
 
     fn app_meta() -> AppMeta {
         AppMeta::new(NullDataStore::default(), &event_dispatcher)
-    }
-
-    fn assert_autocomplete(
-        expected_suggestions: &[(&str, &str)],
-        actual_suggestions: Vec<(String, String)>,
-    ) {
-        let mut expected: Vec<_> = expected_suggestions
-            .iter()
-            .map(|(a, b)| (a.to_string(), b.to_string()))
-            .collect();
-        expected.sort();
-
-        let mut actual = actual_suggestions;
-        actual.sort();
-
-        assert_eq!(expected, actual);
     }
 }

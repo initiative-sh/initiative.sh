@@ -2,6 +2,7 @@ use super::{Autocomplete, Command, ContextAwareParse, Runnable};
 use crate::app::AppMeta;
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
+use std::borrow::Cow;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::mem;
@@ -131,14 +132,17 @@ impl ContextAwareParse for CommandAlias {
 
 #[async_trait(?Send)]
 impl Autocomplete for CommandAlias {
-    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(
+        input: &str,
+        app_meta: &AppMeta,
+    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         app_meta
             .command_aliases
             .iter()
             .filter_map(|command| match command {
                 Self::Literal { term, summary, .. } => {
                     if term.starts_with_ci(input) {
-                        Some((term.clone(), summary.clone()))
+                        Some((term.clone().into(), summary.clone().into()))
                     } else {
                         None
                     }
@@ -165,7 +169,7 @@ impl fmt::Display for CommandAlias {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::{AppCommand, Command, Event};
+    use crate::app::{assert_autocomplete, AppCommand, Command, Event};
     use crate::storage::NullDataStore;
     use std::collections::HashSet;
     use tokio_test::block_on;
@@ -248,8 +252,8 @@ mod tests {
             AppCommand::Help.into(),
         ));
 
-        assert_eq!(
-            vec![("about alias".to_string(), "about summary".to_string())],
+        assert_autocomplete(
+            &[("about alias", "about summary")][..],
             block_on(CommandAlias::autocomplete("a", &app_meta)),
         );
 

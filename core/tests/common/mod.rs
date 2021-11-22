@@ -1,4 +1,5 @@
 use initiative_core::{app, App, BackupData, DataStore, Event, MemoryDataStore, NullDataStore};
+use std::borrow::Cow;
 use tokio_test::block_on;
 
 pub fn get_name(output: &str) -> String {
@@ -54,7 +55,7 @@ impl SyncApp {
         block_on(self.0.command(input))
     }
 
-    pub fn autocomplete(&self, input: &str) -> Vec<(String, String)> {
+    pub fn autocomplete(&self, input: &str) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         block_on(self.0.autocomplete(input))
     }
 
