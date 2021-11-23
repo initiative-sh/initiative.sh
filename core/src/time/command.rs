@@ -1,16 +1,23 @@
 use super::Interval;
-use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
+use crate::app::{AppMeta, Autocomplete, Runnable};
 use crate::storage::{Change, KeyValue};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
+use initiative_macros::ContextAwareParse;
 use std::borrow::Cow;
 use std::fmt;
 use std::iter;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, ContextAwareParse, Debug, PartialEq)]
 pub enum TimeCommand {
+    #[command(syntax = "+[interval]")]
     Add { interval: Interval },
+
+    #[command(alias = "time")]
+    #[command(alias = "date")]
     Now,
+
+    #[command(syntax = "-[interval]")]
     Sub { interval: Interval },
 }
 
@@ -58,34 +65,6 @@ impl Runnable for TimeCommand {
             }
             Self::Now => unreachable!(),
         })
-    }
-}
-
-#[async_trait(?Send)]
-impl ContextAwareParse for TimeCommand {
-    async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut fuzzy_matches = Vec::new();
-
-        (
-            if input.eq_ci("now") {
-                Some(Self::Now)
-            } else if input.in_ci(&["time", "date"]) {
-                fuzzy_matches.push(Self::Now);
-                None
-            } else {
-                input
-                    .strip_prefix('+')
-                    .and_then(|s| s.parse().ok())
-                    .map(|interval| Self::Add { interval })
-                    .or_else(|| {
-                        input
-                            .strip_prefix('-')
-                            .and_then(|s| s.parse().ok())
-                            .map(|interval| Self::Sub { interval })
-                    })
-            },
-            fuzzy_matches,
-        )
     }
 }
 
@@ -157,7 +136,7 @@ impl fmt::Display for TimeCommand {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::app::assert_autocomplete;
+    use crate::app::{assert_autocomplete, ContextAwareParse};
     use crate::{Event, NullDataStore};
     use tokio_test::block_on;
 

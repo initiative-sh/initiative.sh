@@ -1,3 +1,6 @@
+* **Enhancement:** First steps towards improved command parsing on the backend.
+  Hopefully there will be no functional impact of this one, but it should
+  improve my velocity in the future.
 * **Bug:** Fixed `import`s silently failing. If you upload a valid JSON file
   that the application can't parse, you'll get a more helpful error message
   indicating what went wrong.
