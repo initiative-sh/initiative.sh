@@ -376,17 +376,17 @@ impl TutorialCommand {
             Self::Weapons { .. } => {
                 matches!(
                     command,
-                    Some(CommandType::Reference(ReferenceCommand::Spell(
-                        Spell::Fireball
-                    ))),
+                    Some(CommandType::Reference(ReferenceCommand::Spell {
+                        spell: Spell::Fireball,
+                    })),
                 )
             }
             Self::Roll { .. } => {
                 matches!(
                     command,
-                    Some(CommandType::Reference(ReferenceCommand::ItemCategory(
-                        ItemCategory::Weapon
-                    ))),
+                    Some(CommandType::Reference(ReferenceCommand::ItemCategory {
+                        category: ItemCategory::Weapon,
+                    })),
                 )
             }
             Self::Delete { .. } => {
