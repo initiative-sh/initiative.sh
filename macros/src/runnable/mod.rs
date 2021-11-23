@@ -37,6 +37,7 @@ pub mod context_aware_parse;
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
+use std::collections::HashMap;
 use std::fmt;
 use std::iter;
 
@@ -54,6 +55,7 @@ enum CommandVariant {
     Struct(UnitStructCommandVariant),
 }
 
+#[derive(Debug)]
 struct TupleCommandVariant {
     ident: syn::Ident,
     ty: syn::Type,
@@ -65,7 +67,7 @@ struct UnitStructCommandVariant {
 
     aliases: Vec<CommandVariantSyntax>,
     doc: Option<String>,
-    fields: Vec<syn::Ident>,
+    fields: HashMap<syn::Ident, syn::Type>,
     is_ignored: bool,
     syntax: CommandVariantSyntax,
 }
@@ -80,6 +82,12 @@ struct CommandVariantSyntax {
 enum CommandVariantSyntaxPart {
     Str(String),
     Ident(syn::Ident),
+}
+
+impl CommandEnum {
+    fn ident_with_sep(&self, sep: &str) -> String {
+        from_camel_case_with_sep(&self.ident, sep)
+    }
 }
 
 impl TryFrom<TokenStream> for CommandEnum {
@@ -105,12 +113,12 @@ impl TryFrom<TokenStream> for CommandEnum {
 
 fn parse_syntax(
     syntax: &str,
-    fields: &[syn::Ident],
+    fields: &HashMap<syn::Ident, syn::Type>,
 ) -> Result<Vec<CommandVariantSyntaxPart>, String> {
     let mut is_ident = false;
     let mut start = 0;
     let mut parts = Vec::new();
-    let mut unmatched_fields = fields.to_vec();
+    let mut unmatched_fields: Vec<syn::Ident> = fields.keys().cloned().collect();
 
     for (i, c) in syntax
         .char_indices()
@@ -170,6 +178,25 @@ fn parse_syntax(
     }
 }
 
+fn from_camel_case_with_sep(input: &syn::Ident, sep: &str) -> String {
+    input
+        .to_string()
+        .chars()
+        .enumerate()
+        .map(|(i, c)| {
+            if c.is_uppercase() {
+                if i > 0 {
+                    format!("{}{}", sep, c.to_lowercase())
+                } else {
+                    c.to_lowercase().to_string()
+                }
+            } else {
+                c.to_string()
+            }
+        })
+        .collect()
+}
+
 impl TryFrom<&syn::Variant> for CommandVariant {
     type Error = String;
 
@@ -197,56 +224,47 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                 }))
             }
         } else {
-            let mut variant = {
-                let fields = match &input.fields {
-                    syn::Fields::Named(fields) => fields
-                        .named
-                        .iter()
-                        .map(|f| f.ident.clone().unwrap())
-                        .collect(),
-                    syn::Fields::Unit => Vec::new(),
-                    syn::Fields::Unnamed(_) => unreachable!(),
+            let mut variant =
+                {
+                    let (fields, syntax_parts) =
+                        match &input.fields {
+                            syn::Fields::Named(fields) => (
+                                fields
+                                    .named
+                                    .iter()
+                                    .map(|f| (f.ident.clone().unwrap(), f.ty.clone()))
+                                    .collect(),
+                                iter::once(CommandVariantSyntaxPart::Str(
+                                    from_camel_case_with_sep(&input.ident, "-"),
+                                ))
+                                .chain(fields.named.iter().map(|f| {
+                                    CommandVariantSyntaxPart::Ident(f.ident.clone().unwrap())
+                                }))
+                                .collect(),
+                            ),
+                            syn::Fields::Unit => (
+                                HashMap::new(),
+                                vec![CommandVariantSyntaxPart::Str(from_camel_case_with_sep(
+                                    &input.ident,
+                                    "-",
+                                ))],
+                            ),
+                            syn::Fields::Unnamed(_) => unreachable!(),
+                        };
+
+                    UnitStructCommandVariant {
+                        ident: input.ident.to_owned(),
+
+                        aliases: Vec::new(),
+                        doc: None,
+                        fields,
+                        is_ignored: false,
+                        syntax: CommandVariantSyntax {
+                            syntax_parts,
+                            no_autocomplete: false,
+                        },
+                    }
                 };
-
-                let syntax_parts = iter::once(CommandVariantSyntaxPart::Str(
-                    input
-                        .ident
-                        .to_string()
-                        .chars()
-                        .enumerate()
-                        .map(|(i, c)| {
-                            if c.is_uppercase() {
-                                if i > 0 {
-                                    format!("-{}", c.to_lowercase())
-                                } else {
-                                    c.to_lowercase().to_string()
-                                }
-                            } else {
-                                c.to_string()
-                            }
-                        })
-                        .collect(),
-                ))
-                .chain(
-                    fields
-                        .iter()
-                        .map(|ident| CommandVariantSyntaxPart::Ident(ident.clone())),
-                )
-                .collect();
-
-                UnitStructCommandVariant {
-                    ident: input.ident.to_owned(),
-
-                    aliases: Vec::new(),
-                    doc: None,
-                    fields,
-                    is_ignored: false,
-                    syntax: CommandVariantSyntax {
-                        syntax_parts,
-                        no_autocomplete: false,
-                    },
-                }
-            };
 
             let mut attr_count = 0;
 
@@ -391,6 +409,11 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                 ))
             } else if matches!(input.fields, syn::Fields::Unit) {
                 Ok(Self::Unit(variant))
+            } else if variant.fields.is_empty() {
+                Err(format!(
+                    "{}: Struct command types must have at least one attribute.",
+                    variant.ident
+                ))
             } else {
                 Ok(Self::Struct(variant))
             }
@@ -412,17 +435,6 @@ impl fmt::Display for CommandVariantSyntax {
         }
 
         Ok(())
-    }
-}
-
-impl fmt::Debug for TupleCommandVariant {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(
-            f,
-            "TupleCommandVariant {{ ident: {:?}, type: {:?} }}",
-            self.ident,
-            self.ty.to_token_stream(),
-        )
     }
 }
 
@@ -511,14 +523,17 @@ mod test {
 
         match variants.next() {
             Some(CommandVariant::Struct(variant)) => {
-                assert_eq!(
-                    vec!["field_1".to_string(), "field_2".to_string()],
-                    variant
-                        .fields
-                        .iter()
-                        .map(|f| f.to_string())
-                        .collect::<Vec<_>>(),
-                );
+                let expected = vec![
+                    ("field_1".to_string(), "bool".to_string()),
+                    ("field_2".to_string(), "u8".to_string()),
+                ];
+                let mut actual = variant
+                    .fields
+                    .iter()
+                    .map(|(i, t)| (i.to_string(), t.to_token_stream().to_string()))
+                    .collect::<Vec<_>>();
+                actual.sort();
+                assert_eq!(expected, actual);
             }
             v => panic!("{:?}", v),
         }
