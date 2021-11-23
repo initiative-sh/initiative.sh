@@ -389,7 +389,9 @@ impl TutorialCommand {
                     ))),
                 )
             }
-            Self::Delete { .. } => matches!(command, Some(CommandType::App(AppCommand::Roll(_)))),
+            Self::Delete { .. } => {
+                matches!(command, Some(CommandType::App(AppCommand::Roll { .. })))
+            }
             Self::AdjustTime { inn_name, .. } => {
                 if let Some(CommandType::Storage(StorageCommand::Change {
                     change: Change::Delete { name, .. },

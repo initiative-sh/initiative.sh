@@ -15,11 +15,11 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     );
     let enum_ident = &command_enum.ident;
 
-    let unit_cases = get_unit_cases(&command_enum);
+    let unit_cases = get_unit_cases(&command_enum)?;
 
-    let tuple_cases = get_tuple_cases(&command_enum);
+    let tuple_cases = get_tuple_cases(&command_enum)?;
 
-    let struct_cases = get_struct_cases(&command_enum);
+    let struct_cases = get_struct_cases(&command_enum)?;
 
     let result = quote! {
         mod #mod_ident {
@@ -51,7 +51,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     Ok(result)
 }
 
-fn get_unit_cases(command_enum: &CommandEnum) -> Option<TokenStream> {
+fn get_unit_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, String> {
     let tokens: Vec<_> = command_enum
         .variants
         .iter()
@@ -85,15 +85,15 @@ fn get_unit_cases(command_enum: &CommandEnum) -> Option<TokenStream> {
         .collect();
 
     if tokens.is_empty() {
-        None
+        Ok(None)
     } else {
-        Some(quote! {
+        Ok(Some(quote! {
             #(#tokens)* {}
-        })
+        }))
     }
 }
 
-fn get_tuple_cases(command_enum: &CommandEnum) -> Option<TokenStream> {
+fn get_tuple_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, String> {
     let tokens: Vec<_> = command_enum
         .variants
         .iter()
@@ -125,15 +125,15 @@ fn get_tuple_cases(command_enum: &CommandEnum) -> Option<TokenStream> {
         .collect();
 
     if tokens.is_empty() {
-        None
+        Ok(None)
     } else {
-        Some(quote! {
+        Ok(Some(quote! {
             #(#tokens)* {}
-        })
+        }))
     }
 }
 
-fn get_struct_cases(command_enum: &CommandEnum) -> Option<TokenStream> {
+fn get_struct_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, String> {
     let tokens: Vec<_> = command_enum
         .variants
         .iter()
@@ -148,28 +148,29 @@ fn get_struct_cases(command_enum: &CommandEnum) -> Option<TokenStream> {
                 None
             }
         })
-        .flat_map(|variant| {
-            let clauses: Vec<_> = iter::once(parse_struct_syntax(variant, &variant.syntax, true))
+        .map(|variant| {
+            iter::once(parse_struct_syntax(variant, &variant.syntax, true))
                 .chain(
                     variant
                         .aliases
                         .iter()
                         .map(|alias| parse_struct_syntax(variant, alias, false)),
                 )
-                .collect();
-
-            quote! {
-                #(#clauses)*
-            }
+                .collect::<Result<Vec<_>, _>>()
+                .map(|clauses| {
+                    quote! {
+                        #(#clauses)*
+                    }
+                })
         })
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
 
     if tokens.is_empty() {
-        None
+        Ok(None)
     } else {
-        Some(quote! {
+        Ok(Some(quote! {
             #(#tokens)* {}
-        })
+        }))
     }
 }
 
@@ -177,7 +178,7 @@ fn parse_struct_syntax(
     variant: &UnitStructCommandVariant,
     syntax: &CommandVariantSyntax,
     is_canonical: bool,
-) -> TokenStream {
+) -> Result<TokenStream, String> {
     let variant_ident = &variant.ident;
     let mut syntax_parts = syntax.syntax_parts.iter();
 
@@ -199,22 +200,16 @@ fn parse_struct_syntax(
             let ty = &field.ty;
 
             if is_canonical {
-                quote! {
-                    if let Some(remainder) = input.strip_prefix(#start) {
-                        let (subcommand_exact_match, subcommand_fuzzy_matches) = #ty::parse_input(remainder.trim_start(), app_meta).await;
-
-                        if let Some(command) = subcommand_exact_match {
-                            exact_match = Some(Self::#variant_ident { #field_ident: command });
-                        }
-
-                        for command in subcommand_fuzzy_matches {
-                            fuzzy_matches.push(Self::#variant_ident { #field_ident: command });
+                Ok(quote! {
+                    if let Some(remainder) = input.strip_prefix_ci(#start) {
+                        if let Ok(field_val) = remainder.trim_start().parse() {
+                            exact_match = Some(Self::#variant_ident { #field_ident: field_val });
                         }
                     }
-                }
+                })
             } else {
-                quote! {
-                    if let Some(remainder) = input.strip_prefix(#start) {
+                Ok(quote! {
+                    if let Some(remainder) = input.strip_prefix_ci(#start) {
                         let (mut subcommand_exact_match, mut subcommand_fuzzy_matches) = #ty::parse_input(remainder.trim_start(), app_meta).await;
 
                         for command in subcommand_exact_match
@@ -224,10 +219,35 @@ fn parse_struct_syntax(
                             fuzzy_matches.push(Self::#variant_ident { #field_ident: command });
                         }
                     }
-                }
+                })
             }
         }
-        _ => panic!(),
+        (Some(CommandVariantSyntaxPart::Ident(field_ident)), None, None) => {
+            let ty = &variant
+                .fields
+                .iter()
+                .find(|field| &field.ident == field_ident)
+                .expect("Type must be defined!")
+                .ty;
+
+            if is_canonical {
+                Err(format!("Use tuple variants (eg. `Self::{}({})`) for command nesting. Struct variants must have a prefix in the canonical form.", variant_ident, quote!{ #ty }))
+            } else {
+                Ok(quote! {
+                    {
+                        let (mut subcommand_exact_match, mut subcommand_fuzzy_matches) = #ty::parse_input(input, app_meta).await;
+
+                        for command in subcommand_exact_match
+                            .into_iter()
+                            .chain(subcommand_fuzzy_matches.drain(..))
+                        {
+                            fuzzy_matches.push(Self::#variant_ident { #field_ident: command });
+                        }
+                    }
+                })
+            }
+        }
+        _ => todo!(),
     }
 
     /*
