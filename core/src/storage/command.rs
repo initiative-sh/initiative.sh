@@ -2,23 +2,33 @@ use super::backup::export;
 use super::{Change, RepositoryError};
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Event, Runnable};
 use crate::utils::CaseInsensitiveStr;
+use crate::world::syntax::ThingName;
 use crate::world::Thing;
 use async_trait::async_trait;
 use futures::join;
+use initiative_macros::ContextAwareParse;
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 use std::iter::repeat;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, ContextAwareParse, Debug, PartialEq)]
 pub enum StorageCommand {
-    Delete { name: String },
+    Delete {
+        name: ThingName,
+    },
     Export,
     Import,
     Journal,
-    Load { name: String },
+
+    #[command(alias = "[name]")]
+    Load {
+        name: ThingName,
+    },
     Redo,
-    Save { name: String },
+    Save {
+        name: ThingName,
+    },
     Undo,
 }
 
@@ -77,7 +87,7 @@ impl Runnable for StorageCommand {
 
                 Ok(output)
             }
-            Self::Delete { name } => {
+            Self::Delete { name: ThingName { name, .. } } => {
                 let name = app_meta
                         .repository
                         .get_by_name(&name)
@@ -102,7 +112,7 @@ impl Runnable for StorageCommand {
                             }
                         })
             }
-            Self::Save { name } => {
+            Self::Save { name: ThingName { name, .. } } => {
                 let name = app_meta
                     .repository
                     .get_by_name(&name)
@@ -135,7 +145,7 @@ impl Runnable for StorageCommand {
                 (app_meta.event_dispatcher)(Event::Import);
                 Ok("The file upload popup should appear momentarily. Please select a compatible JSON file, such as that produced by the `export` command.".to_string())
             }
-            Self::Load { name } => {
+            Self::Load { name: ThingName { name, .. } } => {
                 let thing = app_meta.repository.get_by_name(&name).await;
                 let mut save_command = None;
                 let output = if let Ok(thing) = thing {
@@ -143,7 +153,7 @@ impl Runnable for StorageCommand {
                         save_command = Some(CommandAlias::literal(
                             "save".to_string(),
                             format!("save {}", name),
-                            StorageCommand::Save { name }.into(),
+                            StorageCommand::Save { name: name.into() }.into(),
                         ));
 
                         Ok(format!(
@@ -217,48 +227,6 @@ impl Runnable for StorageCommand {
             }
             s
         })
-    }
-}
-
-#[async_trait(?Send)]
-impl ContextAwareParse for StorageCommand {
-    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut fuzzy_matches = Vec::new();
-
-        if app_meta.repository.get_by_name(input).await.is_ok() {
-            fuzzy_matches.push(Self::Load {
-                name: input.to_string(),
-            });
-        }
-
-        (
-            if let Some(name) = input.strip_prefix_ci("delete ") {
-                Some(Self::Delete {
-                    name: name.to_string(),
-                })
-            } else if let Some(name) = input.strip_prefix_ci("load ") {
-                Some(Self::Load {
-                    name: name.to_string(),
-                })
-            } else if let Some(name) = input.strip_prefix_ci("save ") {
-                Some(Self::Save {
-                    name: name.to_string(),
-                })
-            } else if input.eq_ci("journal") {
-                Some(Self::Journal)
-            } else if input.eq_ci("undo") {
-                Some(Self::Undo)
-            } else if input.eq_ci("redo") {
-                Some(Self::Redo)
-            } else if input.eq_ci("export") {
-                Some(Self::Export)
-            } else if input.eq_ci("import") {
-                Some(Self::Import)
-            } else {
-                None
-            },
-            fuzzy_matches,
-        )
     }
 }
 
@@ -413,7 +381,7 @@ mod test {
         assert_eq!(
             (
                 Some(StorageCommand::Delete {
-                    name: "Gandalf the Grey".to_string(),
+                    name: "Gandalf the Grey".into(),
                 }),
                 Vec::new(),
             ),
@@ -437,7 +405,7 @@ mod test {
         assert_eq!(
             (
                 Some(StorageCommand::Save {
-                    name: "Gandalf the Grey".to_string(),
+                    name: "Gandalf the Grey".into(),
                 }),
                 Vec::new(),
             ),
@@ -461,7 +429,7 @@ mod test {
         assert_eq!(
             (
                 Some(StorageCommand::Load {
-                    name: "Gandalf the Grey".to_string()
+                    name: "Gandalf the Grey".into()
                 }),
                 Vec::new(),
             ),
@@ -660,16 +628,16 @@ mod test {
 
         vec![
             StorageCommand::Delete {
-                name: "Potato Johnson".to_string(),
+                name: "Potato Johnson".into(),
             },
             StorageCommand::Save {
-                name: "Potato Johnson".to_string(),
+                name: "Potato Johnson".into(),
             },
             StorageCommand::Export,
             StorageCommand::Import,
             StorageCommand::Journal,
             StorageCommand::Load {
-                name: "Potato Johnson".to_string(),
+                name: "Potato Johnson".into(),
             },
         ]
         .drain(..)

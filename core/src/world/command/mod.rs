@@ -86,10 +86,7 @@ impl Runnable for WorldCommand {
                             command_alias = Some(CommandAlias::literal(
                                 "save".to_string(),
                                 format!("save {}", name),
-                                StorageCommand::Save {
-                                    name: name.to_string(),
-                                }
-                                .into(),
+                                StorageCommand::Save { name: name.into() }.into(),
                             ));
 
                             app_meta.command_aliases.insert(CommandAlias::literal(
@@ -171,7 +168,7 @@ impl Runnable for WorldCommand {
                             (i % 10).to_string(),
                             format!("load {}", thing.name()),
                             StorageCommand::Load {
-                                name: thing.name().to_string(),
+                                name: thing.name().value().and_then(|s| s.parse().ok()).unwrap(),
                             }
                             .into(),
                         );

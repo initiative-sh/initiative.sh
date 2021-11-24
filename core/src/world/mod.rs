@@ -1,6 +1,7 @@
 pub mod demographics;
 pub mod npc;
 pub mod place;
+pub mod syntax;
 
 pub use command::{ParsedThing, WorldCommand};
 pub use demographics::Demographics;

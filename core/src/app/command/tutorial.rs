@@ -115,7 +115,7 @@ impl TutorialCommand {
                     "save".to_string(),
                     format!("save {}", inn_name),
                     StorageCommand::Save {
-                        name: inn_name.to_owned(),
+                        name: inn_name.into(),
                     }
                     .into(),
                 ));
@@ -153,7 +153,7 @@ impl TutorialCommand {
                     "2".to_string(),
                     format!("load {}", npc_name),
                     StorageCommand::Load {
-                        name: npc_name.to_owned(),
+                        name: npc_name.into(),
                     }
                     .into(),
                 ));
@@ -168,7 +168,7 @@ impl TutorialCommand {
                     "save".to_string(),
                     format!("save {}", npc_name),
                     StorageCommand::Save {
-                        name: npc_name.to_owned(),
+                        name: npc_name.into(),
                     }
                     .into(),
                 ));
