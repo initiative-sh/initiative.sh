@@ -32,6 +32,12 @@
 //! - `#[command(ignore)]`: There is no syntax for this command. Used for commands that are
 //!   runnable by alias only.
 //! - `#[doc = "blah"]` or `/// blah`: User-facing documentation for the command.
+//!
+//! The following field attribute is recognized on struct enum variants:
+//!
+//! - `#[command(implements(WordList))]` - Indicates that the field implements a different
+//!   supported trait. By default it is assumed to implement `ContextAwareParse` and `Autocomplete`
+//!   (collectively referred to as `Runnable`). Recognized values: `WordList`, `Runnable`.
 
 pub mod context_aware_parse;
 
@@ -57,8 +63,7 @@ enum CommandVariant {
 
 #[derive(Debug)]
 struct TupleCommandVariant {
-    ident: syn::Ident,
-    ty: syn::Type,
+    field: Field,
 }
 
 #[derive(Debug)]
@@ -67,7 +72,7 @@ struct UnitStructCommandVariant {
 
     aliases: Vec<CommandVariantSyntax>,
     doc: Option<String>,
-    fields: HashMap<syn::Ident, syn::Type>,
+    fields: Vec<Field>,
     is_ignored: bool,
     syntax: CommandVariantSyntax,
 }
@@ -82,6 +87,19 @@ struct CommandVariantSyntax {
 enum CommandVariantSyntaxPart {
     Str(String),
     Ident(syn::Ident),
+}
+
+#[derive(Debug)]
+struct Field {
+    ident: syn::Ident,
+    implements: Trait,
+    ty: syn::Type,
+}
+
+#[derive(Debug, PartialEq)]
+enum Trait {
+    Runnable,
+    WordList,
 }
 
 impl CommandEnum {
@@ -111,14 +129,14 @@ impl TryFrom<TokenStream> for CommandEnum {
     }
 }
 
-fn parse_syntax(
-    syntax: &str,
-    fields: &HashMap<syn::Ident, syn::Type>,
-) -> Result<Vec<CommandVariantSyntaxPart>, String> {
+fn parse_syntax(syntax: &str, fields: &[Field]) -> Result<Vec<CommandVariantSyntaxPart>, String> {
     let mut is_ident = false;
     let mut start = 0;
     let mut parts = Vec::new();
-    let mut unmatched_fields: Vec<syn::Ident> = fields.keys().cloned().collect();
+    let mut unmatched_fields: HashMap<String, syn::Ident> = fields
+        .iter()
+        .map(|f| (f.ident.to_string(), f.ident.clone()))
+        .collect();
 
     for (i, c) in syntax
         .char_indices()
@@ -135,14 +153,8 @@ fn parse_syntax(
                 is_ident = true;
             }
             (true, ']') => {
-                if let Some((field_index, _)) = unmatched_fields
-                    .iter()
-                    .enumerate()
-                    .find(|(_, ident)| ident.to_string() == syntax[start..i])
-                {
-                    parts.push(CommandVariantSyntaxPart::Ident(
-                        unmatched_fields.swap_remove(field_index),
-                    ));
+                if let Some(ident) = unmatched_fields.remove(&syntax[start..i]) {
+                    parts.push(CommandVariantSyntaxPart::Ident(ident));
                     is_ident = false;
                 } else {
                     return Err(format!(
@@ -168,7 +180,7 @@ fn parse_syntax(
         ));
     }
 
-    if let Some(missing_field) = unmatched_fields.first() {
+    if let Some(missing_field) = unmatched_fields.into_keys().next() {
         Err(format!(
             r#"Field "{}" is not accounted for in syntax "{}"."#,
             missing_field, syntax
@@ -212,59 +224,218 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                 })?;
 
             if let Some(field) = field_iter.next() {
-                Err(format!(
+                return Err(format!(
                     r#"{}: Only one field is supported for tuple variants, found unexpected type "{}"."#,
                     input.ident,
                     field.ty.to_token_stream(),
-                ))
-            } else {
-                Ok(Self::Tuple(TupleCommandVariant {
-                    ident: input.ident.to_owned(),
-                    ty,
-                }))
+                ));
             }
-        } else {
-            let mut variant =
+
+            let mut implements = Trait::Runnable;
+
+            for attr in &input.attrs {
+                match attr
+                    .parse_meta()
+                    .map_err(|e| format!("{}: {}", input.ident, e))?
                 {
-                    let (fields, syntax_parts) =
-                        match &input.fields {
-                            syn::Fields::Named(fields) => (
-                                fields
-                                    .named
-                                    .iter()
-                                    .map(|f| (f.ident.clone().unwrap(), f.ty.clone()))
-                                    .collect(),
-                                iter::once(CommandVariantSyntaxPart::Str(
-                                    from_camel_case_with_sep(&input.ident, "-"),
+                    syn::Meta::List(list) if list.path.is_ident("command") => {
+                        let mut nested_iter = list.nested.iter();
+
+                        match nested_iter.next() {
+                            Some(syn::NestedMeta::Meta(syn::Meta::List(meta_list)))
+                                if meta_list.path.is_ident("implements") =>
+                            {
+                                let mut nested_iter = meta_list.nested.iter();
+
+                                implements = match nested_iter.next() {
+                                    Some(syn::NestedMeta::Meta(syn::Meta::Path(path)))
+                                        if path.is_ident("Runnable") =>
+                                    {
+                                        Ok(Trait::Runnable)
+                                    }
+                                    Some(syn::NestedMeta::Meta(syn::Meta::Path(path)))
+                                        if path.is_ident("WordList") =>
+                                    {
+                                        Ok(Trait::WordList)
+                                    }
+                                    Some(v) => Err(format!(
+                                        r#"{}: Unsupported interface "{}"."#,
+                                        input.ident,
+                                        v.to_token_stream(),
+                                    )),
+                                    None => {
+                                        Err(format!("{}: Empty implements block.", input.ident,))
+                                    }
+                                }?;
+                            }
+                            Some(v) => {
+                                return Err(format!(
+                                    r#"{}: Unrecognized syntax: "{}"."#,
+                                    input.ident,
+                                    v.to_token_stream(),
                                 ))
-                                .chain(fields.named.iter().map(|f| {
-                                    CommandVariantSyntaxPart::Ident(f.ident.clone().unwrap())
-                                }))
-                                .collect(),
-                            ),
-                            syn::Fields::Unit => (
-                                HashMap::new(),
-                                vec![CommandVariantSyntaxPart::Str(from_camel_case_with_sep(
-                                    &input.ident,
-                                    "-",
-                                ))],
-                            ),
-                            syn::Fields::Unnamed(_) => unreachable!(),
-                        };
+                            }
+                            None => {
+                                return Err(format!("{}: Empty command attribute.", input.ident))
+                            }
+                        }
 
-                    UnitStructCommandVariant {
-                        ident: input.ident.to_owned(),
-
-                        aliases: Vec::new(),
-                        doc: None,
-                        fields,
-                        is_ignored: false,
-                        syntax: CommandVariantSyntax {
-                            syntax_parts,
-                            no_autocomplete: false,
-                        },
+                        if nested_iter.next().is_some() {
+                            return Err(format!("{}: Too many command attributes.", input.ident));
+                        }
                     }
+                    _ => {}
+                }
+            }
+
+            Ok(Self::Tuple(TupleCommandVariant {
+                field: Field {
+                    ident: input.ident.to_owned(),
+                    implements,
+                    ty,
+                },
+            }))
+        } else {
+            let mut variant = {
+                let (fields, syntax_parts) = match &input.fields {
+                    syn::Fields::Named(input_fields) => {
+                        let fields = input_fields
+                            .named
+                            .iter()
+                            .map(|field| {
+                                let mut implements = Trait::Runnable;
+                                let field_ident = field.ident.as_ref().unwrap();
+
+                                for (attr, attr_meta) in field
+                                    .attrs
+                                    .iter()
+                                    .map(|attr| (attr, attr.parse_meta()))
+                                {
+                                    match attr_meta {
+                                        Ok(syn::Meta::List(meta_list))
+                                            if meta_list.path.is_ident("command") =>
+                                        {
+                                            let mut nested_iter = meta_list.nested.iter();
+
+                                            match (nested_iter.next(), nested_iter.next()) {
+                                                (Some(syn::NestedMeta::Meta(syn::Meta::List(meta_list))), None)
+                                            if meta_list.path.is_ident("implements") => {
+                                                    let mut nested_iter = meta_list.nested.iter();
+
+                                                    implements =
+                                                        match (nested_iter.next(), nested_iter.next()) {
+                                                            (
+                                                                Some(syn::NestedMeta::Meta(
+                                                                    syn::Meta::Path(path),
+                                                                )),
+                                                                None,
+                                                            ) => {
+                                                                if path.is_ident("WordList") {
+                                                                    Ok(Trait::WordList)
+                                                                } else if path.is_ident("Runnable") {
+                                                                    Ok(Trait::Runnable)
+                                                                } else {
+                                                                    Err(format!(
+                                                                        r#"{}: Unsupported trait "{}"."#,
+                                                                        input.ident,
+                                                                        path.to_token_stream(),
+                                                                    ))
+                                                                }
+                                                            }
+                                                            (Some(v), None) => Err(format!(
+                                                                r#"{}: Unsupported trait syntax "{}"."#,
+                                                                input.ident,
+                                                                v.to_token_stream(),
+                                                            )),
+                                                            (Some(_), Some(v)) => Err(format!(
+                                                                r#"{}: Unexpected trait clause "{}"."#,
+                                                                input.ident,
+                                                                v.to_token_stream(),
+                                                            )),
+                                                            (None, _) => Err(format!(
+                                                                r#"{}: Empty implements block."#,
+                                                                input.ident,
+                                                            )),
+                                                        }?;
+                                                }
+                                                            (Some(v), None) => return Err(format!(
+                                                                r#"{}: Unsupported command syntax "{}"."#,
+                                                                input.ident,
+                                                                v.to_token_stream(),
+                                                            )),
+                                                            (Some(_), Some(v)) => return Err(format!(
+                                                                r#"{}: Unexpected command clause "{}"."#,
+                                                                input.ident,
+                                                                v.to_token_stream(),
+                                                            )),
+                                                            (None, _) => return Err(format!(
+                                                                r#"{}: Empty implements block."#,
+                                                                input.ident,
+                                                            )),
+                                            }
+                                        }
+                                        Ok(v) => {
+                                            return Err(format!(
+                                                r#"{}: Unexpected syntax "{}"."#,
+                                                input.ident,
+                                                v.to_token_stream(),
+                                            ))
+                                        }
+                                        Err(_) => {
+                                            return Err(format!(
+                                                r#"{}: Unexpected syntax "{}"."#,
+                                                input.ident,
+                                                attr.to_token_stream(),
+                                            ))
+                                        }
+                                    }
+                                }
+
+                                Ok(Field {
+                                    ident: field_ident.clone(),
+                                    implements,
+                                    ty: field.ty.clone(),
+                                })
+                            })
+                            .collect::<Result<_, String>>()?;
+
+                        (
+                            fields,
+                            iter::once(CommandVariantSyntaxPart::Str(from_camel_case_with_sep(
+                                &input.ident,
+                                "-",
+                            )))
+                            .chain(
+                                input_fields.named.iter().map(|f| {
+                                    CommandVariantSyntaxPart::Ident(f.ident.clone().unwrap())
+                                }),
+                            )
+                            .collect(),
+                        )
+                    }
+                    syn::Fields::Unit => (
+                        Vec::new(),
+                        vec![CommandVariantSyntaxPart::Str(from_camel_case_with_sep(
+                            &input.ident,
+                            "-",
+                        ))],
+                    ),
+                    syn::Fields::Unnamed(_) => unreachable!(),
                 };
+
+                UnitStructCommandVariant {
+                    ident: input.ident.to_owned(),
+
+                    aliases: Vec::new(),
+                    doc: None,
+                    fields,
+                    is_ignored: false,
+                    syntax: CommandVariantSyntax {
+                        syntax_parts,
+                        no_autocomplete: false,
+                    },
+                }
+            };
 
             let mut attr_count = 0;
 
@@ -296,27 +467,39 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                                 None,
                             ) => {
                                 let value = if let syn::Lit::Str(lit_str) = &name_value.lit {
-                                    lit_str.value()
+                                    Some(lit_str.value())
                                 } else {
-                                    return Err(format!(
-                                        r#"{}: Non-string attribute value "{}"."#,
-                                        variant.ident,
-                                        name_value.lit.to_token_stream(),
-                                    ));
+                                    None
                                 };
 
                                 if name_value.path.is_ident("alias") {
-                                    variant.aliases.push(CommandVariantSyntax {
-                                        syntax_parts: parse_syntax(&value, &variant.fields)
-                                            .map_err(|e| format!("{}: {}", variant.ident, e))?,
-                                        no_autocomplete: false,
-                                    });
+                                    if let Some(value) = value {
+                                        variant.aliases.push(CommandVariantSyntax {
+                                            syntax_parts: parse_syntax(&value, &variant.fields)
+                                                .map_err(|e| format!("{}: {}", variant.ident, e))?,
+                                            no_autocomplete: false,
+                                        });
+                                    } else {
+                                        return Err(format!(
+                                            r#"{}: Non-string alias value "{}"."#,
+                                            variant.ident,
+                                            name_value.lit.to_token_stream(),
+                                        ));
+                                    }
                                 } else if name_value.path.is_ident("syntax") {
-                                    variant.syntax = CommandVariantSyntax {
-                                        syntax_parts: parse_syntax(&value, &variant.fields)
-                                            .map_err(|e| format!("{}: {}", variant.ident, e))?,
-                                        no_autocomplete: variant.syntax.no_autocomplete,
-                                    };
+                                    if let Some(value) = value {
+                                        variant.syntax = CommandVariantSyntax {
+                                            syntax_parts: parse_syntax(&value, &variant.fields)
+                                                .map_err(|e| format!("{}: {}", variant.ident, e))?,
+                                            no_autocomplete: variant.syntax.no_autocomplete,
+                                        };
+                                    } else {
+                                        return Err(format!(
+                                            r#"{}: Non-string syntax value "{}"."#,
+                                            variant.ident,
+                                            name_value.lit.to_token_stream(),
+                                        ));
+                                    }
                                 } else {
                                     return Err(format!(
                                         r#"{}: Unrecognized command attribute key "{}"."#,
@@ -530,7 +713,12 @@ mod test {
                 let mut actual = variant
                     .fields
                     .iter()
-                    .map(|(i, t)| (i.to_string(), t.to_token_stream().to_string()))
+                    .map(|field| {
+                        (
+                            field.ident.to_string(),
+                            field.ty.to_token_stream().to_string(),
+                        )
+                    })
                     .collect::<Vec<_>>();
                 actual.sort();
                 assert_eq!(expected, actual);
@@ -634,8 +822,8 @@ mod test {
 
         match variants.next() {
             Some(CommandVariant::Tuple(variant)) => {
-                assert_eq!("IAmATuple", variant.ident.to_string());
-                assert_eq!("String", variant.ty.to_token_stream().to_string());
+                assert_eq!("IAmATuple", variant.field.ident.to_string());
+                assert_eq!("String", variant.field.ty.to_token_stream().to_string());
             }
             v => panic!("{:?}", v),
         }
@@ -715,6 +903,75 @@ mod test {
         }
 
         assert!(variants.next().is_none());
+    }
+
+    #[test]
+    fn syntax_test_tuple_implements() {
+        let command_enum = CommandEnum::try_from(quote! {
+            enum Foo {
+                RunnableTuple(bool),
+                #[command(implements(Runnable))]
+                AnotherRunnableTuple(bool),
+                #[command(implements(WordList))]
+                WordListTuple(bool),
+            }
+        })
+        .unwrap();
+
+        let mut variants = command_enum.variants.iter();
+
+        match variants.next() {
+            Some(CommandVariant::Tuple(variant)) => {
+                assert_eq!(Trait::Runnable, variant.field.implements);
+            }
+            v => panic!("{:?}", v),
+        }
+
+        match variants.next() {
+            Some(CommandVariant::Tuple(variant)) => {
+                assert_eq!(Trait::Runnable, variant.field.implements);
+            }
+            v => panic!("{:?}", v),
+        }
+
+        match variants.next() {
+            Some(CommandVariant::Tuple(variant)) => {
+                assert_eq!(Trait::WordList, variant.field.implements);
+            }
+            v => panic!("{:?}", v),
+        }
+
+        assert!(variants.next().is_none());
+    }
+
+    #[test]
+    fn syntax_test_field_implements() {
+        let command_enum = CommandEnum::try_from(quote! {
+            enum Foo {
+                Variant {
+                    runnable_field: bool,
+
+                    #[command(implements(Runnable))]
+                    another_runnable_field: bool,
+
+                    #[command(implements(WordList))]
+                    word_list_field: bool,
+                }
+            }
+        })
+        .unwrap();
+
+        match command_enum.variants.first() {
+            Some(CommandVariant::Struct(variant)) => {
+                let mut traits = variant.fields.iter().map(|field| &field.implements);
+
+                assert_eq!(Some(&Trait::Runnable), traits.next());
+                assert_eq!(Some(&Trait::Runnable), traits.next());
+                assert_eq!(Some(&Trait::WordList), traits.next());
+                assert_eq!(None, traits.next());
+            }
+            v => panic!("{:?}", v),
+        }
     }
 
     #[test]

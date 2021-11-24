@@ -99,14 +99,14 @@ fn get_tuple_cases(command_enum: &CommandEnum) -> Option<TokenStream> {
         .iter()
         .filter_map(|variant| {
             if let CommandVariant::Tuple(tuple_variant) = variant {
-                Some(tuple_variant)
+                Some(&tuple_variant.field)
             } else {
                 None
             }
         })
-        .map(|variant| {
-            let ident = &variant.ident;
-            let ty = &variant.ty;
+        .map(|field| {
+            let ident = &field.ident;
+            let ty = &field.ty;
 
             quote! {
                 {
@@ -191,10 +191,12 @@ fn parse_struct_syntax(
             Some(CommandVariantSyntaxPart::Ident(field_ident)),
             None,
         ) => {
-            let ty = variant
+            let field = variant
                 .fields
-                .get(field_ident)
+                .iter()
+                .find(|field| &field.ident == field_ident)
                 .expect("Type must be defined!");
+            let ty = &field.ty;
 
             if is_canonical {
                 quote! {
