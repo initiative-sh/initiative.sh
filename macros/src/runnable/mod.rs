@@ -17,7 +17,7 @@
 //! * Struct variants are assigned a canonical syntax according to the same rules as unit variants,
 //!   with the variant fields suffixed. The above case would be `struct-variant [field1] [field2]`.
 //!
-//! The following enum variant attributes are recognized:
+//! The following attributes are recognized on unit and struct variants:
 //!
 //! - `#[command(no_default_autocomplete)]`: Do not show the canonical syntax in autocomplete
 //!   results.
@@ -27,13 +27,20 @@
 //! - `#[command(alias = "foo [bar]")]`: Define an alias for the command. If only one alias matches
 //!   a user input, that alias will be run. If multiple aliases match, no command will be run and
 //!   the user will be asked to provide the canonical syntax (see above) that they want to run.
-//! - `#[command(alias = "foo [bar]", no_autocomplete)]`: As above, but the alias won't appear in
+//! - `#[command(alias_no_autocomplete = "foo [bar]")]`: As above, but the alias won't appear in
 //!   autocomplete suggestions.
 //! - `#[command(ignore)]`: There is no syntax for this command. Used for commands that are
 //!   runnable by alias only.
 //! - `#[doc = "blah"]` or `/// blah`: User-facing documentation for the command.
 //!
-//! The following field attribute is recognized on struct enum variants:
+//! The following attribute is recognized on tuple variants:
+//!
+//! - `#[command(implements(WordList))]` - Indicates that the field implements a different
+//!   supported trait. Rather than transparently passing through to the underlying logic, the
+//!   autocomplete and parsing logic will be handled by the parent parser. Recognized values:
+//!   `WordList`, `Runnable` (default).
+//!
+//! The following attribute is recognized on individual fields of struct variants:
 //!
 //! - `#[command(implements(WordList))]` - Indicates that the field implements a different
 //!   supported trait. By default it is assumed to implement `ContextAwareParse` and `Autocomplete`
@@ -63,7 +70,9 @@ enum CommandVariant {
 
 #[derive(Debug)]
 struct TupleCommandVariant {
-    field: Field,
+    ident: syn::Ident,
+    implements: Trait,
+    ty: syn::Type,
 }
 
 #[derive(Debug)]
@@ -209,6 +218,89 @@ fn from_camel_case_with_sep(input: &syn::Ident, sep: &str) -> String {
         .collect()
 }
 
+fn walk_attrs<T, F: FnMut(T, &[&str], MetaValue) -> Result<T, String>>(
+    attrs: &[syn::Attribute],
+    initial: T,
+    callback: &mut F,
+) -> Result<T, String> {
+    let mut value = initial;
+
+    for attr in attrs {
+        value = walk_meta_recursive(
+            &attr.parse_meta().unwrap(),
+            value,
+            callback,
+            &mut Vec::new(),
+        )?;
+    }
+
+    Ok(value)
+}
+
+fn walk_meta_recursive<T, F: FnMut(T, &[&str], MetaValue) -> Result<T, String>>(
+    meta: &syn::Meta,
+    initial: T,
+    callback: &mut F,
+    path: &mut Vec<String>,
+) -> Result<T, String> {
+    let mut value = initial;
+
+    match meta {
+        syn::Meta::List(meta_list) => {
+            path.push(meta_list.path.to_token_stream().to_string());
+            for nested in meta_list.nested.iter() {
+                match nested {
+                    syn::NestedMeta::Meta(meta) => {
+                        value = walk_meta_recursive(meta, value, callback, path)?;
+                    }
+                    syn::NestedMeta::Lit(lit) => {
+                        value = callback(
+                            value,
+                            &path.iter().map(|s| s.as_str()).collect::<Vec<_>>()[..],
+                            MetaValue::Lit(lit.to_owned()),
+                        )?;
+                    }
+                }
+            }
+            path.pop();
+        }
+        syn::Meta::Path(meta_path) => {
+            value = callback(
+                value,
+                &path.iter().map(|s| s.as_str()).collect::<Vec<_>>()[..],
+                MetaValue::Path(meta_path.to_owned()),
+            )?;
+        }
+        syn::Meta::NameValue(name_value) => {
+            path.push(name_value.path.to_token_stream().to_string());
+            value = callback(
+                value,
+                &path.iter().map(|s| s.as_str()).collect::<Vec<_>>()[..],
+                MetaValue::Lit(name_value.lit.to_owned()),
+            )?;
+            path.pop();
+        }
+    }
+
+    Ok(value)
+}
+
+#[derive(Debug)]
+enum MetaValue {
+    Path(syn::Path),
+    Lit(syn::Lit),
+}
+
+impl MetaValue {
+    fn filter_path<F: FnOnce(&syn::Path) -> bool>(&self, callback: F) -> bool {
+        if let Self::Path(path) = self {
+            callback(path)
+        } else {
+            false
+        }
+    }
+}
+
 impl TryFrom<&syn::Variant> for CommandVariant {
     type Error = String;
 
@@ -231,171 +323,66 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                 ));
             }
 
-            let mut implements = Trait::Runnable;
-
-            for attr in &input.attrs {
-                match attr
-                    .parse_meta()
-                    .map_err(|e| format!("{}: {}", input.ident, e))?
-                {
-                    syn::Meta::List(list) if list.path.is_ident("command") => {
-                        let mut nested_iter = list.nested.iter();
-
-                        match nested_iter.next() {
-                            Some(syn::NestedMeta::Meta(syn::Meta::List(meta_list)))
-                                if meta_list.path.is_ident("implements") =>
-                            {
-                                let mut nested_iter = meta_list.nested.iter();
-
-                                implements = match nested_iter.next() {
-                                    Some(syn::NestedMeta::Meta(syn::Meta::Path(path)))
-                                        if path.is_ident("Runnable") =>
-                                    {
-                                        Ok(Trait::Runnable)
-                                    }
-                                    Some(syn::NestedMeta::Meta(syn::Meta::Path(path)))
-                                        if path.is_ident("WordList") =>
-                                    {
-                                        Ok(Trait::WordList)
-                                    }
-                                    Some(v) => Err(format!(
-                                        r#"{}: Unsupported interface "{}"."#,
-                                        input.ident,
-                                        v.to_token_stream(),
-                                    )),
-                                    None => {
-                                        Err(format!("{}: Empty implements block.", input.ident,))
-                                    }
-                                }?;
-                            }
-                            Some(v) => {
-                                return Err(format!(
-                                    r#"{}: Unrecognized syntax: "{}"."#,
-                                    input.ident,
-                                    v.to_token_stream(),
-                                ))
-                            }
-                            None => {
-                                return Err(format!("{}: Empty command attribute.", input.ident))
-                            }
-                        }
-
-                        if nested_iter.next().is_some() {
-                            return Err(format!("{}: Too many command attributes.", input.ident));
-                        }
-                    }
-                    _ => {}
-                }
-            }
-
-            Ok(Self::Tuple(TupleCommandVariant {
-                field: Field {
+            Ok(Self::Tuple(walk_attrs(
+                &input.attrs,
+                TupleCommandVariant {
                     ident: input.ident.to_owned(),
-                    implements,
+                    implements: Trait::Runnable,
                     ty,
                 },
-            }))
+                &mut |mut variant, path, value| match path {
+                    ["command", "implements"] => {
+                        if value.filter_path(|path| path.is_ident("Runnable")) {
+                            variant.implements = Trait::Runnable;
+                            Ok(variant)
+                        } else if value.filter_path(|path| path.is_ident("WordList")) {
+                            variant.implements = Trait::WordList;
+                            Ok(variant)
+                        } else {
+                            Err(format!("Unsupported trait: {:?}", value))
+                        }
+                    }
+                    path if path.starts_with(&["command"]) => {
+                        Err(format!("Unknown command attribute: {:?}", path))
+                    }
+                    _ => Ok(variant),
+                },
+            )?))
         } else {
-            let mut variant = {
+            let variant = {
                 let (fields, syntax_parts) = match &input.fields {
                     syn::Fields::Named(input_fields) => {
                         let fields = input_fields
                             .named
                             .iter()
                             .map(|field| {
-                                let mut implements = Trait::Runnable;
-                                let field_ident = field.ident.as_ref().unwrap();
-
-                                for (attr, attr_meta) in field
-                                    .attrs
-                                    .iter()
-                                    .map(|attr| (attr, attr.parse_meta()))
-                                {
-                                    match attr_meta {
-                                        Ok(syn::Meta::List(meta_list))
-                                            if meta_list.path.is_ident("command") =>
-                                        {
-                                            let mut nested_iter = meta_list.nested.iter();
-
-                                            match (nested_iter.next(), nested_iter.next()) {
-                                                (Some(syn::NestedMeta::Meta(syn::Meta::List(meta_list))), None)
-                                            if meta_list.path.is_ident("implements") => {
-                                                    let mut nested_iter = meta_list.nested.iter();
-
-                                                    implements =
-                                                        match (nested_iter.next(), nested_iter.next()) {
-                                                            (
-                                                                Some(syn::NestedMeta::Meta(
-                                                                    syn::Meta::Path(path),
-                                                                )),
-                                                                None,
-                                                            ) => {
-                                                                if path.is_ident("WordList") {
-                                                                    Ok(Trait::WordList)
-                                                                } else if path.is_ident("Runnable") {
-                                                                    Ok(Trait::Runnable)
-                                                                } else {
-                                                                    Err(format!(
-                                                                        r#"{}: Unsupported trait "{}"."#,
-                                                                        input.ident,
-                                                                        path.to_token_stream(),
-                                                                    ))
-                                                                }
-                                                            }
-                                                            (Some(v), None) => Err(format!(
-                                                                r#"{}: Unsupported trait syntax "{}"."#,
-                                                                input.ident,
-                                                                v.to_token_stream(),
-                                                            )),
-                                                            (Some(_), Some(v)) => Err(format!(
-                                                                r#"{}: Unexpected trait clause "{}"."#,
-                                                                input.ident,
-                                                                v.to_token_stream(),
-                                                            )),
-                                                            (None, _) => Err(format!(
-                                                                r#"{}: Empty implements block."#,
-                                                                input.ident,
-                                                            )),
-                                                        }?;
-                                                }
-                                                            (Some(v), None) => return Err(format!(
-                                                                r#"{}: Unsupported command syntax "{}"."#,
-                                                                input.ident,
-                                                                v.to_token_stream(),
-                                                            )),
-                                                            (Some(_), Some(v)) => return Err(format!(
-                                                                r#"{}: Unexpected command clause "{}"."#,
-                                                                input.ident,
-                                                                v.to_token_stream(),
-                                                            )),
-                                                            (None, _) => return Err(format!(
-                                                                r#"{}: Empty implements block."#,
-                                                                input.ident,
-                                                            )),
+                                walk_attrs(
+                                    &field.attrs,
+                                    Field {
+                                        ident: field.ident.clone().unwrap(),
+                                        implements: Trait::Runnable,
+                                        ty: field.ty.to_owned(),
+                                    },
+                                    &mut |mut field, path, value| match path {
+                                        ["command", "implements"] => {
+                                            if value.filter_path(|path| path.is_ident("Runnable")) {
+                                                field.implements = Trait::Runnable;
+                                                Ok(field)
+                                            } else if value
+                                                .filter_path(|path| path.is_ident("WordList"))
+                                            {
+                                                field.implements = Trait::WordList;
+                                                Ok(field)
+                                            } else {
+                                                Err(format!("Unsupported trait: {:?}", value))
                                             }
                                         }
-                                        Ok(v) => {
-                                            return Err(format!(
-                                                r#"{}: Unexpected syntax "{}"."#,
-                                                input.ident,
-                                                v.to_token_stream(),
-                                            ))
+                                        path if path.starts_with(&["command"]) => {
+                                            Err(format!("Unknown command attribute: {:?}", path))
                                         }
-                                        Err(_) => {
-                                            return Err(format!(
-                                                r#"{}: Unexpected syntax "{}"."#,
-                                                input.ident,
-                                                attr.to_token_stream(),
-                                            ))
-                                        }
-                                    }
-                                }
-
-                                Ok(Field {
-                                    ident: field_ident.clone(),
-                                    implements,
-                                    ty: field.ty.clone(),
-                                })
+                                        _ => Ok(field),
+                                    },
+                                )
                             })
                             .collect::<Result<_, String>>()?;
 
@@ -423,174 +410,72 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                     syn::Fields::Unnamed(_) => unreachable!(),
                 };
 
-                UnitStructCommandVariant {
-                    ident: input.ident.to_owned(),
+                walk_attrs(
+                    &input.attrs,
+                    UnitStructCommandVariant {
+                        ident: input.ident.to_owned(),
 
-                    aliases: Vec::new(),
-                    doc: None,
-                    fields,
-                    is_ignored: false,
-                    syntax: CommandVariantSyntax {
-                        syntax_parts,
-                        no_autocomplete: false,
+                        aliases: Vec::new(),
+                        doc: None,
+                        fields,
+                        is_ignored: false,
+                        syntax: CommandVariantSyntax {
+                            syntax_parts,
+                            no_autocomplete: false,
+                        },
                     },
-                }
-            };
-
-            let mut attr_count = 0;
-
-            for attr in &input.attrs {
-                match attr
-                    .parse_meta()
-                    .map_err(|e| format!("{}: {}", variant.ident, e))?
-                {
-                    syn::Meta::NameValue(name_value) if name_value.path.is_ident("doc") => {
-                        if let syn::Lit::Str(lit_str) = name_value.lit {
-                            if let Some(mut doc) = variant.doc.take() {
-                                doc.push('\n');
-                                doc.push_str(lit_str.value().trim());
-                                variant.doc = Some(doc);
-                            } else {
-                                variant.doc = Some(lit_str.value().trim().to_string());
-                            }
-                        } else {
-                            return Err(format!("{}: Invalid doc attribute.", variant.ident));
-                        }
-                    }
-                    syn::Meta::List(list) if list.path.is_ident("command") => {
-                        attr_count += 1;
-                        let mut nested_iter = list.nested.iter();
-
-                        match (nested_iter.next(), nested_iter.next()) {
-                            (
-                                Some(syn::NestedMeta::Meta(syn::Meta::NameValue(name_value))),
-                                None,
-                            ) => {
-                                let value = if let syn::Lit::Str(lit_str) = &name_value.lit {
-                                    Some(lit_str.value())
+                    &mut |mut variant, path, value| {
+                        match (path, value) {
+                            (&["doc"], MetaValue::Lit(syn::Lit::Str(lit_str))) => {
+                                if let Some(mut doc) = variant.doc.take() {
+                                    doc.push('\n');
+                                    doc.push_str(lit_str.value().trim());
+                                    variant.doc = Some(doc);
                                 } else {
-                                    None
-                                };
-
-                                if name_value.path.is_ident("alias") {
-                                    if let Some(value) = value {
-                                        variant.aliases.push(CommandVariantSyntax {
-                                            syntax_parts: parse_syntax(&value, &variant.fields)
-                                                .map_err(|e| format!("{}: {}", variant.ident, e))?,
-                                            no_autocomplete: false,
-                                        });
-                                    } else {
-                                        return Err(format!(
-                                            r#"{}: Non-string alias value "{}"."#,
-                                            variant.ident,
-                                            name_value.lit.to_token_stream(),
-                                        ));
-                                    }
-                                } else if name_value.path.is_ident("syntax") {
-                                    if let Some(value) = value {
-                                        variant.syntax = CommandVariantSyntax {
-                                            syntax_parts: parse_syntax(&value, &variant.fields)
-                                                .map_err(|e| format!("{}: {}", variant.ident, e))?,
-                                            no_autocomplete: variant.syntax.no_autocomplete,
-                                        };
-                                    } else {
-                                        return Err(format!(
-                                            r#"{}: Non-string syntax value "{}"."#,
-                                            variant.ident,
-                                            name_value.lit.to_token_stream(),
-                                        ));
-                                    }
-                                } else {
-                                    return Err(format!(
-                                        r#"{}: Unrecognized command attribute key "{}"."#,
-                                        variant.ident,
-                                        name_value.path.to_token_stream(),
-                                    ));
+                                    variant.doc = Some(lit_str.value().trim().to_string());
                                 }
+                            }
+                            (&["command", "alias"], MetaValue::Lit(syn::Lit::Str(lit_str))) => {
+                                variant.aliases.push(CommandVariantSyntax {
+                                    syntax_parts: parse_syntax(&lit_str.value(), &variant.fields)?,
+                                    no_autocomplete: false,
+                                });
                             }
                             (
-                                Some(syn::NestedMeta::Meta(syn::Meta::NameValue(name_value))),
-                                Some(syn::NestedMeta::Meta(syn::Meta::Path(path))),
+                                &["command", "alias_no_autocomplete"],
+                                MetaValue::Lit(syn::Lit::Str(lit_str)),
                             ) => {
-                                if !path.is_ident("no_autocomplete") {
-                                    return Err(format!(
-                                        r#"{}: Invalid additional attribute "{}"."#,
-                                        variant.ident,
-                                        path.to_token_stream(),
-                                    ));
-                                }
-
-                                let value = if let syn::Lit::Str(lit_str) = &name_value.lit {
-                                    lit_str.value()
-                                } else {
-                                    return Err(format!(
-                                        r#"{}: Non-string command attribute value "{}" in list."#,
-                                        variant.ident,
-                                        name_value.lit.to_token_stream(),
-                                    ));
-                                };
-
-                                if name_value.path.is_ident("alias") {
-                                    variant.aliases.push(CommandVariantSyntax {
-                                        syntax_parts: parse_syntax(&value, &variant.fields)
-                                            .map_err(|e| format!("{}: {}", variant.ident, e))?,
-                                        no_autocomplete: true,
-                                    });
-                                } else {
-                                    return Err(format!(
-                                        r#"{}: Unrecognized command attribute key "{}" in list."#,
-                                        variant.ident,
-                                        name_value.path.to_token_stream(),
-                                    ));
+                                variant.aliases.push(CommandVariantSyntax {
+                                    syntax_parts: parse_syntax(&lit_str.value(), &variant.fields)?,
+                                    no_autocomplete: true,
+                                });
+                            }
+                            (&["command"], MetaValue::Path(path)) if path.is_ident("ignore") => {
+                                variant.is_ignored = true;
+                            }
+                            (&["command", "syntax"], MetaValue::Lit(syn::Lit::Str(lit_str))) => {
+                                variant.syntax = CommandVariantSyntax {
+                                    syntax_parts: parse_syntax(&lit_str.value(), &variant.fields)?,
+                                    no_autocomplete: variant.syntax.no_autocomplete,
                                 }
                             }
-                            (Some(syn::NestedMeta::Meta(syn::Meta::Path(path))), None) => {
-                                if path.is_ident("ignore") {
-                                    variant.is_ignored = true;
-                                } else if path.is_ident("no_default_autocomplete") {
-                                    variant.syntax.no_autocomplete = true;
-                                } else {
-                                    return Err(format!(
-                                        r#"{}: Unrecognized command attribute "{}"."#,
-                                        variant.ident,
-                                        path.to_token_stream(),
-                                    ));
-                                }
+                            (&["command"], MetaValue::Path(path))
+                                if path.is_ident("no_default_autocomplete") =>
+                            {
+                                variant.syntax.no_autocomplete = true;
                             }
-                            (None, _) => {
-                                return Err(format!("{}: Empty command attribute.", variant.ident))
+                            (path, _) if path.starts_with(&["command"]) => {
+                                return Err(format!("Unsupported command attribute: {:?}.", path))
                             }
-                            (Some(meta), None) => {
-                                return Err(format!(
-                                    r#"{}: Unrecognized command attribute "{}"."#,
-                                    variant.ident,
-                                    meta.to_token_stream(),
-                                ))
-                            }
-                            (Some(meta1), Some(meta2)) => {
-                                return Err(format!(
-                                    r#"{}: Unrecognized command attribute combination "{}, {}"."#,
-                                    variant.ident,
-                                    meta1.to_token_stream(),
-                                    meta2.to_token_stream(),
-                                ))
-                            }
+                            _ => {}
                         }
-
-                        if nested_iter.next().is_some() {
-                            return Err(format!("{}: Too many command attributes.", variant.ident));
-                        }
-                    }
-                    _ => {} // Doesn't concern us, ignore.
-                }
+                        Ok(variant)
+                    },
+                )
             }
+            .map_err(|e| format!("{}: {}", input.ident, e))?;
 
-            if attr_count > 1 && variant.is_ignored {
-                Err(format!(
-                    "{}: Ignored variants cannot have additional attributes.",
-                    variant.ident,
-                ))
-            } else if matches!(input.fields, syn::Fields::Unit) {
+            if matches!(input.fields, syn::Fields::Unit) {
                 Ok(Self::Unit(variant))
             } else if variant.fields.is_empty() {
                 Err(format!(
@@ -645,7 +530,7 @@ mod test {
         let command_enum: CommandEnum = quote! {
             enum Foo {
                 #[command(alias = "alias1")]
-                #[command(alias = "alias2", no_autocomplete)]
+                #[command(alias_no_autocomplete = "alias2")]
                 #[command(alias = "alias3")]
                 Bar,
             }
@@ -822,8 +707,8 @@ mod test {
 
         match variants.next() {
             Some(CommandVariant::Tuple(variant)) => {
-                assert_eq!("IAmATuple", variant.field.ident.to_string());
-                assert_eq!("String", variant.field.ty.to_token_stream().to_string());
+                assert_eq!("IAmATuple", variant.ident.to_string());
+                assert_eq!("String", variant.ty.to_token_stream().to_string());
             }
             v => panic!("{:?}", v),
         }
@@ -922,21 +807,21 @@ mod test {
 
         match variants.next() {
             Some(CommandVariant::Tuple(variant)) => {
-                assert_eq!(Trait::Runnable, variant.field.implements);
+                assert_eq!(Trait::Runnable, variant.implements);
             }
             v => panic!("{:?}", v),
         }
 
         match variants.next() {
             Some(CommandVariant::Tuple(variant)) => {
-                assert_eq!(Trait::Runnable, variant.field.implements);
+                assert_eq!(Trait::Runnable, variant.implements);
             }
             v => panic!("{:?}", v),
         }
 
         match variants.next() {
             Some(CommandVariant::Tuple(variant)) => {
-                assert_eq!(Trait::WordList, variant.field.implements);
+                assert_eq!(Trait::WordList, variant.implements);
             }
             v => panic!("{:?}", v),
         }

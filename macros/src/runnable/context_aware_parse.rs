@@ -99,14 +99,14 @@ fn get_tuple_cases(command_enum: &CommandEnum) -> Option<TokenStream> {
         .iter()
         .filter_map(|variant| {
             if let CommandVariant::Tuple(tuple_variant) = variant {
-                Some(&tuple_variant.field)
+                Some(tuple_variant)
             } else {
                 None
             }
         })
-        .map(|field| {
-            let ident = &field.ident;
-            let ty = &field.ty;
+        .map(|variant| {
+            let ident = &variant.ident;
+            let ty = &variant.ty;
 
             quote! {
                 {
