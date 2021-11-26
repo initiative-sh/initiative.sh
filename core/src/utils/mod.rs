@@ -1,10 +1,12 @@
 pub use case_insensitive_str::CaseInsensitiveStr;
 pub use quoted_word_chunk::QuotedWordChunk;
 pub use quoted_word_iter::QuotedWords;
+pub use split_multi::split_multi_ci;
 
 mod case_insensitive_str;
 mod quoted_word_chunk;
 mod quoted_word_iter;
+mod split_multi;
 
 use std::iter::Iterator;
 use std::ops::Range;

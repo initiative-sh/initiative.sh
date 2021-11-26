@@ -11,6 +11,8 @@ pub trait CaseInsensitiveStr<'a> {
 
     fn in_ci<S: AsRef<str>>(&self, haystack: &[S]) -> bool;
 
+    fn find_ci<S: AsRef<str>>(&self, haystack: S) -> Option<usize>;
+
     fn starts_with_ci<S: AsRef<str>>(&self, prefix: S) -> bool;
 
     fn ends_with_ci<S: AsRef<str>>(&self, suffix: S) -> bool;
@@ -20,7 +22,10 @@ pub trait CaseInsensitiveStr<'a> {
     fn strip_suffix_ci<S: AsRef<str>>(&'a self, prefix: S) -> Option<&'a str>;
 }
 
-impl<'a, T: AsRef<str>> CaseInsensitiveStr<'a> for T {
+impl<'a, T: AsRef<str>> CaseInsensitiveStr<'a> for T
+where
+    T: ?Sized,
+{
     fn eq_ci<S: AsRef<str>>(&self, other: S) -> bool {
         let (a, b) = (self.as_ref(), other.as_ref());
 
@@ -62,6 +67,17 @@ impl<'a, T: AsRef<str>> CaseInsensitiveStr<'a> for T {
     fn in_ci<S: AsRef<str>>(&self, haystack: &[S]) -> bool {
         let needle = self.as_ref();
         haystack.iter().any(|s| s.eq_ci(needle))
+    }
+
+    fn find_ci<S: AsRef<str>>(&self, pat: S) -> Option<usize> {
+        let (subject, pat) = (self.as_ref(), pat.as_ref());
+
+        for (start, _) in subject.char_indices() {
+            if subject[start..].starts_with_ci(pat) {
+                return Some(start);
+            }
+        }
+        None
     }
 
     fn starts_with_ci<S: AsRef<str>>(&self, prefix: S) -> bool {
@@ -184,5 +200,12 @@ mod test {
     fn in_ci_test() {
         assert!("B".in_ci(&["a", "b", "c"]));
         assert!(!"d".in_ci(&["a", "b", "c"]));
+    }
+
+    #[test]
+    fn find_ci_test() {
+        assert_eq!(Some(5), "A🥔ABCABCD".find_ci("abc"));
+        assert_eq!(Some(0), "A🥔ABCABCD".find_ci("a"));
+        assert_eq!(None, "A🥔ABCABCD".find_ci("🍠"));
     }
 }
