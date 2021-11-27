@@ -123,9 +123,7 @@ impl Runnable for StorageCommand {
                             .modify(change)
                             .await
                         {
-                            Ok(Some(id)) => {
-                                let thing = app_meta.repository.load(&id).await.unwrap();
-
+                            Ok(Some(thing)) => {
                                 if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) {
                                     Ok(format!(
                                         "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
@@ -208,19 +206,13 @@ impl Runnable for StorageCommand {
                 output
             }
             Self::Redo => match app_meta.repository.redo().await {
-                Some(Ok(id)) => {
+                Some(Ok(thing)) => {
                     let action = app_meta
                         .repository
                         .undo_history()
                         .next()
                         .unwrap()
                         .display_undo();
-
-                    let thing = if let Some(id) = id {
-                        app_meta.repository.load(&id).await.ok()
-                    } else {
-                        None
-                    };
 
                     if let Some(thing) = thing {
                         Ok(format!(
@@ -239,14 +231,8 @@ impl Runnable for StorageCommand {
                 None => Err("Nothing to redo.".to_string()),
             },
             Self::Undo => match app_meta.repository.undo().await {
-                Some(Ok(id)) => {
+                Some(Ok(thing)) => {
                     let action = app_meta.repository.get_redo().unwrap().display_redo();
-
-                    let thing = if let Some(id) = id {
-                        app_meta.repository.load(&id).await.ok()
-                    } else {
-                        None
-                    };
 
                     if let Some(thing) = thing {
                         Ok(format!(
