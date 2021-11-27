@@ -1,15 +1,23 @@
 use super::Interval;
-use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
+use crate::app::{AppMeta, Autocomplete, Runnable};
 use crate::storage::{Change, KeyValue};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
+use initiative_macros::ContextAwareParse;
+use std::borrow::Cow;
 use std::fmt;
 use std::iter;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, ContextAwareParse, Debug, PartialEq)]
 pub enum TimeCommand {
+    #[command(syntax = "+[interval]")]
     Add { interval: Interval },
+
+    #[command(alias = "time")]
+    #[command(alias = "date")]
     Now,
+
+    #[command(syntax = "-[interval]")]
     Sub { interval: Interval },
 }
 
@@ -61,38 +69,13 @@ impl Runnable for TimeCommand {
 }
 
 #[async_trait(?Send)]
-impl ContextAwareParse for TimeCommand {
-    async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut fuzzy_matches = Vec::new();
-
-        (
-            if input.eq_ci("now") {
-                Some(Self::Now)
-            } else if input.in_ci(&["time", "date"]) {
-                fuzzy_matches.push(Self::Now);
-                None
-            } else {
-                input
-                    .strip_prefix('+')
-                    .and_then(|s| s.parse().ok())
-                    .map(|interval| Self::Add { interval })
-                    .or_else(|| {
-                        input
-                            .strip_prefix('-')
-                            .and_then(|s| s.parse().ok())
-                            .map(|interval| Self::Sub { interval })
-                    })
-            },
-            fuzzy_matches,
-        )
-    }
-}
-
-#[async_trait(?Send)]
 impl Autocomplete for TimeCommand {
-    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(
+        input: &str,
+        _app_meta: &AppMeta,
+    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         if input.starts_with(&['+', '-'][..]) {
-            let suggest = |suffix: &str| -> Result<(String, String), ()> {
+            let suggest = |suffix: &str| -> Result<(Cow<'static, str>, Cow<'static, str>), ()> {
                 let suggestion = format!("{}{}", input, suffix);
                 let description = if input.starts_with('+') {
                     format!(
@@ -105,7 +88,7 @@ impl Autocomplete for TimeCommand {
                         &suggestion[1..].parse::<Interval>()?.display_long(),
                     )
                 };
-                Ok((suggestion, description))
+                Ok((suggestion.into(), description.into()))
             };
 
             let suggest_all = || {
@@ -116,13 +99,13 @@ impl Autocomplete for TimeCommand {
 
             match input {
                 "+" | "-" => iter::once((
-                    format!("{}[number]", input),
+                    format!("{}[number]", input).into(),
                     if input == "+" {
                         "advance time"
                     } else {
                         "rewind time"
                     }
-                    .to_string(),
+                    .into(),
                 ))
                 .chain(suggest_all())
                 .collect(),
@@ -130,9 +113,9 @@ impl Autocomplete for TimeCommand {
             }
         } else if !input.is_empty() {
             ["now", "time", "date"]
-                .iter()
+                .into_iter()
                 .filter(|s| s.starts_with_ci(input))
-                .map(|s| (s.to_string(), "get the current time".to_string()))
+                .map(|s| (s.into(), "get the current time".into()))
                 .collect()
         } else {
             Vec::new()
@@ -153,6 +136,7 @@ impl fmt::Display for TimeCommand {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::app::{assert_autocomplete, ContextAwareParse};
     use crate::{Event, NullDataStore};
     use tokio_test::block_on;
 
@@ -201,132 +185,114 @@ mod test {
         let app_meta = app_meta();
 
         assert_eq!(
-            Vec::<(String, String)>::new(),
+            Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
             block_on(TimeCommand::autocomplete("", &app_meta)),
         );
 
-        assert_eq!(
-            [
+        assert_autocomplete(
+            &[
                 ("+[number]", "advance time"),
                 ("+d", "advance time by 1 day"),
                 ("+h", "advance time by 1 hour"),
                 ("+m", "advance time by 1 minute"),
                 ("+s", "advance time by 1 second"),
                 ("+r", "advance time by 1 round"),
-            ]
-            .iter()
-            .map(|(a, b)| (a.to_string(), b.to_string()))
-            .collect::<Vec<_>>(),
+            ][..],
             block_on(TimeCommand::autocomplete("+", &app_meta)),
         );
 
-        assert_eq!(
-            [
+        assert_autocomplete(
+            &[
                 ("-[number]", "rewind time"),
                 ("-d", "rewind time by 1 day"),
                 ("-h", "rewind time by 1 hour"),
                 ("-m", "rewind time by 1 minute"),
                 ("-s", "rewind time by 1 second"),
                 ("-r", "rewind time by 1 round"),
-            ]
-            .iter()
-            .map(|(a, b)| (a.to_string(), b.to_string()))
-            .collect::<Vec<_>>(),
+            ][..],
             block_on(TimeCommand::autocomplete("-", &app_meta)),
         );
 
-        assert_eq!(
-            [
+        assert_autocomplete(
+            &[
                 ("+1d", "advance time by 1 day"),
                 ("+1h", "advance time by 1 hour"),
                 ("+1m", "advance time by 1 minute"),
                 ("+1s", "advance time by 1 second"),
                 ("+1r", "advance time by 1 round"),
-            ]
-            .iter()
-            .map(|(a, b)| (a.to_string(), b.to_string()))
-            .collect::<Vec<_>>(),
+            ][..],
             block_on(TimeCommand::autocomplete("+1", &app_meta)),
         );
 
-        assert_eq!(
-            [
+        assert_autocomplete(
+            &[
                 ("+10d", "advance time by 10 days"),
                 ("+10h", "advance time by 10 hours"),
                 ("+10m", "advance time by 10 minutes"),
                 ("+10s", "advance time by 10 seconds"),
                 ("+10r", "advance time by 10 rounds"),
-            ]
-            .iter()
-            .map(|(a, b)| (a.to_string(), b.to_string()))
-            .collect::<Vec<_>>(),
+            ][..],
             block_on(TimeCommand::autocomplete("+10", &app_meta)),
         );
 
-        assert_eq!(
-            [
+        assert_autocomplete(
+            &[
                 ("+10d5h", "advance time by 10 days, 5 hours"),
                 ("+10d5m", "advance time by 10 days, 5 minutes"),
                 ("+10d5s", "advance time by 10 days, 5 seconds"),
                 ("+10d5r", "advance time by 10 days, 5 rounds"),
-            ]
-            .iter()
-            .map(|(a, b)| (a.to_string(), b.to_string()))
-            .collect::<Vec<_>>(),
+            ][..],
             block_on(TimeCommand::autocomplete("+10d5", &app_meta)),
         );
 
-        assert_eq!(
-            [
+        assert_autocomplete(
+            &[
                 ("+10D5h", "advance time by 10 days, 5 hours"),
                 ("+10D5m", "advance time by 10 days, 5 minutes"),
                 ("+10D5s", "advance time by 10 days, 5 seconds"),
                 ("+10D5r", "advance time by 10 days, 5 rounds"),
-            ]
-            .iter()
-            .map(|(a, b)| (a.to_string(), b.to_string()))
-            .collect::<Vec<_>>(),
+            ][..],
             block_on(TimeCommand::autocomplete("+10D5", &app_meta)),
         );
 
-        assert_eq!(
-            vec![("+1d".to_string(), "advance time by 1 day".to_string())],
+        assert_autocomplete(
+            &[("+1d".into(), "advance time by 1 day".into())][..],
             block_on(TimeCommand::autocomplete("+1d", &app_meta)),
         );
-        assert_eq!(
-            vec![("+1D".to_string(), "advance time by 1 day".to_string())],
+        assert_autocomplete(
+            &[("+1D".into(), "advance time by 1 day".into())][..],
             block_on(TimeCommand::autocomplete("+1D", &app_meta)),
         );
-        assert_eq!(
-            vec![("+1h".to_string(), "advance time by 1 hour".to_string())],
+        assert_autocomplete(
+            &[("+1h".into(), "advance time by 1 hour".into())][..],
             block_on(TimeCommand::autocomplete("+1h", &app_meta)),
         );
-        assert_eq!(
-            vec![("+1H".to_string(), "advance time by 1 hour".to_string())],
+        assert_autocomplete(
+            &[("+1H".into(), "advance time by 1 hour".into())][..],
             block_on(TimeCommand::autocomplete("+1H", &app_meta)),
         );
-        assert_eq!(
-            vec![("+1m".to_string(), "advance time by 1 minute".to_string())],
+        assert_autocomplete(
+            &[("+1m".into(), "advance time by 1 minute".into())][..],
             block_on(TimeCommand::autocomplete("+1m", &app_meta)),
         );
-        assert_eq!(
-            vec![("+1M".to_string(), "advance time by 1 minute".to_string())],
+        assert_autocomplete(
+            &[("+1M".into(), "advance time by 1 minute".into())][..],
             block_on(TimeCommand::autocomplete("+1M", &app_meta)),
         );
-        assert_eq!(
-            vec![("+1s".to_string(), "advance time by 1 second".to_string())],
+        assert_autocomplete(
+            &[("+1s".into(), "advance time by 1 second".into())][..],
             block_on(TimeCommand::autocomplete("+1s", &app_meta)),
         );
-        assert_eq!(
-            vec![("+1S".to_string(), "advance time by 1 second".to_string())],
+        assert_autocomplete(
+            &[("+1S".into(), "advance time by 1 second".into())][..],
             block_on(TimeCommand::autocomplete("+1S", &app_meta)),
         );
-        assert_eq!(
-            vec![("+1r".to_string(), "advance time by 1 round".to_string())],
+        assert_autocomplete(
+            &[("+1r".into(), "advance time by 1 round".into())][..],
             block_on(TimeCommand::autocomplete("+1r", &app_meta)),
         );
-        assert_eq!(
-            vec![("+1R".to_string(), "advance time by 1 round".to_string())],
+        assert_autocomplete(
+            &[("+1R", "advance time by 1 round")][..],
             block_on(TimeCommand::autocomplete("+1R", &app_meta)),
         );
     }

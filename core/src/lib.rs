@@ -7,6 +7,7 @@ pub use uuid::Uuid;
 pub use world::Thing;
 
 mod reference;
+mod scratch;
 mod storage;
 mod time;
 mod utils;

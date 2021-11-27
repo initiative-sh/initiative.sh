@@ -169,6 +169,13 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
             }
         }
 
+        #[async_trait::async_trait(?Send)]
+        impl crate::app::ContextAwareParse for #ident {
+            async fn parse_input(input: &str, _app_meta: &crate::app::AppMeta) -> (Option<Self>, Vec<Self>) {
+                (input.parse().ok(), Vec::new())
+            }
+        }
+
         impl std::str::FromStr for #ident {
             type Err = ();
 

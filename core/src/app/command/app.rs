@@ -2,17 +2,26 @@ use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use caith::Roller;
-use initiative_macros::changelog;
+use initiative_macros::{changelog, ContextAwareParse};
+use std::borrow::Cow;
 use std::fmt;
+use std::str::FromStr;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, ContextAwareParse, Debug, PartialEq)]
 pub enum AppCommand {
     About,
     Changelog,
     Debug,
     Help,
-    Roll(String),
+
+    #[command(alias = "[dice]")]
+    Roll {
+        dice: DiceFormula,
+    },
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct DiceFormula(String);
 
 #[async_trait(?Send)]
 impl Runnable for AppCommand {
@@ -30,7 +39,7 @@ impl Runnable for AppCommand {
             Self::Help => include_str!("../../../../data/help.md")
                 .trim_end()
                 .to_string(),
-            Self::Roll(s) => Roller::new(&s)
+            Self::Roll { dice } => Roller::new(&dice.0)
                 .ok()
                 .map(|r| r.roll_with(&mut app_meta.rng).ok())
                 .flatten()
@@ -44,7 +53,7 @@ impl Runnable for AppCommand {
                 .ok_or_else(|| {
                     format!(
                         "\"{}\" is not a valid dice formula. See `help` for some examples.",
-                        s
+                        dice.0,
                     )
                 })?,
         })
@@ -52,37 +61,27 @@ impl Runnable for AppCommand {
 }
 
 #[async_trait(?Send)]
-impl ContextAwareParse for AppCommand {
+impl ContextAwareParse for DiceFormula {
     async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut fuzzy_matches = Vec::new();
-
         (
-            if input.eq_ci("about") {
-                Some(Self::About)
-            } else if input.eq_ci("changelog") {
-                Some(Self::Changelog)
-            } else if input.eq_ci("debug") {
-                Some(Self::Debug)
-            } else if input.eq_ci("help") {
-                Some(Self::Help)
-            } else if input.starts_with_ci("roll ") {
-                Some(Self::Roll(input[5..].to_string()))
-            } else if !input.chars().all(|c| c.is_ascii_digit())
+            if !input.chars().all(|c| c.is_ascii_digit())
                 && Roller::new(input).map_or(false, |r| r.roll().is_ok())
             {
-                fuzzy_matches.push(Self::Roll(input.to_string()));
-                None
+                Some(Self(input.to_string()))
             } else {
                 None
             },
-            fuzzy_matches,
+            Vec::new(),
         )
     }
 }
 
 #[async_trait(?Send)]
 impl Autocomplete for AppCommand {
-    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
+    async fn autocomplete(
+        input: &str,
+        _app_meta: &AppMeta,
+    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         if input.is_empty() {
             return Vec::new();
         }
@@ -100,7 +99,7 @@ impl Autocomplete for AppCommand {
                 .filter(|s| s.starts_with_ci(input))
                 .map(|_| ("roll [dice]", "roll eg. 8d6 or d20+3")),
         )
-        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .map(|(a, b)| (a.into(), b.into()))
         .collect()
     }
 }
@@ -112,14 +111,29 @@ impl fmt::Display for AppCommand {
             Self::Changelog => write!(f, "changelog"),
             Self::Debug => write!(f, "debug"),
             Self::Help => write!(f, "help"),
-            Self::Roll(s) => write!(f, "roll {}", s),
+            Self::Roll { dice } => write!(f, "roll {}", dice),
         }
+    }
+}
+
+impl FromStr for DiceFormula {
+    type Err = std::convert::Infallible;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        Ok(DiceFormula(input.to_string()))
+    }
+}
+
+impl fmt::Display for DiceFormula {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}", self.0)
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::app::assert_autocomplete;
     use crate::storage::NullDataStore;
     use crate::Event;
     use tokio_test::block_on;
@@ -135,14 +149,21 @@ mod test {
 
         assert_eq!(
             (
-                Some(AppCommand::Roll("d20".to_string())),
+                Some(AppCommand::Roll {
+                    dice: "d20".parse().unwrap()
+                }),
                 Vec::<AppCommand>::new(),
             ),
             block_on(AppCommand::parse_input("roll d20", &app_meta)),
         );
 
         assert_eq!(
-            (None, vec![AppCommand::Roll("d20".to_string())]),
+            (
+                None,
+                vec![AppCommand::Roll {
+                    dice: "d20".parse().unwrap()
+                }]
+            ),
             block_on(AppCommand::parse_input("d20", &app_meta)),
         );
 
@@ -161,10 +182,10 @@ mod test {
             ("changelog", "show latest updates"),
             ("help", "how to use initiative.sh"),
         ]
-        .iter()
+        .into_iter()
         .for_each(|(word, summary)| {
             assert_eq!(
-                vec![(word.to_string(), summary.to_string())],
+                vec![(word.into(), summary.into())],
                 block_on(AppCommand::autocomplete(word, &app_meta)),
             );
 
@@ -174,27 +195,24 @@ mod test {
             );
         });
 
-        assert_eq!(
-            vec![("about".to_string(), "about initiative.sh".to_string())],
+        assert_autocomplete(
+            &[("about", "about initiative.sh")][..],
             block_on(AppCommand::autocomplete("a", &app_meta)),
         );
 
-        assert_eq!(
-            vec![("about".to_string(), "about initiative.sh".to_string())],
+        assert_autocomplete(
+            &[("about", "about initiative.sh")][..],
             block_on(AppCommand::autocomplete("A", &app_meta)),
         );
 
-        assert_eq!(
-            vec![(
-                "roll [dice]".to_string(),
-                "roll eg. 8d6 or d20+3".to_string(),
-            )],
+        assert_autocomplete(
+            &[("roll [dice]", "roll eg. 8d6 or d20+3")][..],
             block_on(AppCommand::autocomplete("roll", &app_meta)),
         );
 
         // Debug should be excluded from the autocomplete results.
         assert_eq!(
-            Vec::<(String, String)>::new(),
+            Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
             block_on(AppCommand::autocomplete("debug", &app_meta)),
         );
     }
@@ -225,22 +243,38 @@ mod test {
                 (Some(command), Vec::new()),
                 block_on(AppCommand::parse_input(
                     &command_string.to_uppercase(),
-                    &app_meta
+                    &app_meta,
                 )),
                 "{}",
                 command_string.to_uppercase(),
             );
         });
 
-        assert_eq!("roll d20", AppCommand::Roll("d20".to_string()).to_string());
+        assert_eq!(
+            "roll d20",
+            AppCommand::Roll {
+                dice: "d20".parse().unwrap(),
+            }
+            .to_string(),
+        );
 
         assert_eq!(
-            (Some(AppCommand::Roll("d20".to_string())), Vec::new()),
+            (
+                Some(AppCommand::Roll {
+                    dice: "d20".parse().unwrap(),
+                }),
+                Vec::new(),
+            ),
             block_on(AppCommand::parse_input("roll d20", &app_meta)),
         );
 
         assert_eq!(
-            (Some(AppCommand::Roll("D20".to_string())), Vec::new()),
+            (
+                Some(AppCommand::Roll {
+                    dice: "D20".parse().unwrap(),
+                }),
+                Vec::new(),
+            ),
             block_on(AppCommand::parse_input("ROLL D20", &app_meta)),
         );
     }
