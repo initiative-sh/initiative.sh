@@ -116,6 +116,14 @@ impl Repository {
         }
     }
 
+    pub async fn get_by_change(&self, change: &Change) -> Result<Thing, Error> {
+        if let Some(id) = &change.id() {
+            self.load(id).await
+        } else {
+            Err(Error::NotFound)
+        }
+    }
+
     pub async fn load_relations(&self, thing: &Thing) -> Result<ThingRelations, Error> {
         let locations = {
             let parent_uuid = match thing {
@@ -213,32 +221,31 @@ impl Repository {
             .map_err(|_| Error::DataStoreFailed)
     }
 
-    pub async fn modify(&mut self, change: Change) -> Result<Option<Id>, (Change, Error)> {
-        self.modify_without_undo(change).await.map(|change| {
-            let id = change.id();
-            while self.undo_history.len() >= UNDO_HISTORY_LEN {
-                self.undo_history.pop_front();
-            }
-            self.undo_history.push_back(change);
-            id
-        })
+    pub async fn modify(&mut self, change: Change) -> Result<Option<Thing>, (Change, Error)> {
+        let undo_change = self.modify_without_undo(change).await?;
+        let thing = self.get_by_change(&undo_change).await.ok();
+
+        while self.undo_history.len() >= UNDO_HISTORY_LEN {
+            self.undo_history.pop_front();
+        }
+        self.undo_history.push_back(undo_change);
+
+        Ok(thing)
     }
 
-    pub async fn undo(&mut self) -> Option<Result<Option<Id>, Error>> {
+    pub async fn undo(&mut self) -> Option<Result<Option<Thing>, Error>> {
         if let Some(change) = self.undo_history.pop_back() {
-            Some(
-                self.modify_without_undo(change)
-                    .await
-                    .map(|change| {
-                        let id = change.id();
-                        self.redo_change = Some(change);
-                        id
-                    })
-                    .map_err(|(change, e)| {
-                        self.undo_history.push_back(change);
-                        e
-                    }),
-            )
+            match self.modify_without_undo(change).await {
+                Ok(redo_change) => {
+                    let thing = self.get_by_change(&redo_change).await.ok();
+                    self.redo_change = Some(redo_change);
+                    Some(Ok(thing))
+                }
+                Err((undo_change, e)) => {
+                    self.undo_history.push_back(undo_change);
+                    Some(Err(e))
+                }
+            }
         } else {
             None
         }
@@ -248,12 +255,15 @@ impl Repository {
         self.undo_history.iter().rev()
     }
 
-    pub async fn redo(&mut self) -> Option<Result<Option<Id>, Error>> {
+    pub async fn redo(&mut self) -> Option<Result<Option<Thing>, Error>> {
         if let Some(change) = self.redo_change.take() {
-            Some(self.modify(change).await.map_err(|(change, e)| {
-                self.redo_change = Some(change);
-                e
-            }))
+            match self.modify(change).await {
+                Ok(option_thing) => Some(Ok(option_thing)),
+                Err((redo_change, e)) => {
+                    self.redo_change = Some(redo_change);
+                    Some(Err(e))
+                }
+            }
         } else {
             None
         }
@@ -945,10 +955,7 @@ mod test {
         assert_eq!("deleting Olympus", change.display_redo().to_string());
 
         {
-            assert_eq!(
-                Id::Uuid(OLYMPUS_UUID),
-                block_on(repo.modify(change)).unwrap().unwrap(),
-            );
+            assert_eq!(Ok(None), block_on(repo.modify(change)));
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -970,8 +977,13 @@ mod test {
 
         {
             assert_eq!(
-                Id::Uuid(OLYMPUS_UUID),
-                block_on(repo.undo()).unwrap().unwrap().unwrap(),
+                &OLYMPUS_UUID,
+                block_on(repo.undo())
+                    .unwrap()
+                    .unwrap()
+                    .unwrap()
+                    .uuid()
+                    .unwrap(),
             );
             assert!(block_on(repo.load(&OLYMPUS_UUID.into())).is_ok());
             assert!(block_on(repo.load(&"Olympus".into())).is_ok());
@@ -979,10 +991,7 @@ mod test {
         }
 
         {
-            assert_eq!(
-                Id::Uuid(OLYMPUS_UUID),
-                block_on(repo.redo()).unwrap().unwrap().unwrap(),
-            );
+            assert_eq!(Some(Ok(None)), block_on(repo.redo()));
             assert_eq!(Err(Error::NotFound), block_on(repo.load(&"Olympus".into())));
         }
     }
@@ -997,10 +1006,7 @@ mod test {
         assert_eq!("deleting Odysseus", change.display_redo().to_string());
 
         {
-            assert_eq!(
-                Id::from("Odysseus"),
-                block_on(repo.modify(change)).unwrap().unwrap(),
-            );
+            assert_eq!(Ok(None), block_on(repo.modify(change)));
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1043,10 +1049,7 @@ mod test {
         assert_eq!("deleting olympus", change.display_redo().to_string());
 
         {
-            assert_eq!(
-                Id::Uuid(OLYMPUS_UUID),
-                block_on(repo.modify(change)).unwrap().unwrap(),
-            );
+            assert_eq!(Ok(None), block_on(repo.modify(change)));
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1121,13 +1124,15 @@ mod test {
         };
         assert_eq!("editing Odysseus", change.display_redo().to_string());
 
-        if let Id::Uuid(uuid) = block_on(repo.modify(change)).unwrap().unwrap() {
+        {
+            let thing = block_on(repo.modify(change)).unwrap().unwrap();
+            let uuid = thing.uuid().unwrap();
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
                 &Change::EditAndUnsave {
                     name: "Nobody".into(),
-                    uuid,
+                    uuid: *uuid,
                     diff: Npc {
                         name: "Odysseus".into(),
                         species: None.into(),
@@ -1148,14 +1153,18 @@ mod test {
                 .unwrap()
                 .iter()
                 .any(|t| t.name().value().map_or(false, |s| s == "Nobody")));
-        } else {
-            panic!();
         }
 
         {
             assert_eq!(
-                Id::from("ODYSSEUS"),
-                block_on(repo.undo()).unwrap().unwrap().unwrap(),
+                "Odysseus",
+                block_on(repo.undo())
+                    .unwrap()
+                    .unwrap()
+                    .unwrap()
+                    .name()
+                    .value()
+                    .unwrap(),
             );
             assert!(block_on(repo.load(&"Odysseus".into())).is_ok());
             assert_eq!(4, block_on(repo.journal()).unwrap().len());
@@ -1163,11 +1172,11 @@ mod test {
             assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
-        if let Id::Uuid(uuid) = block_on(repo.redo()).unwrap().unwrap().unwrap() {
+        {
+            let thing = block_on(repo.redo()).unwrap().unwrap().unwrap();
+            let uuid = thing.uuid().unwrap();
             assert!(block_on(repo.load(&"Nobody".into())).is_ok());
-            assert!(block_on(repo.load(&uuid.into())).is_ok());
-        } else {
-            panic!();
+            assert!(block_on(repo.load(&uuid.to_owned().into())).is_ok());
         }
     }
 
@@ -1204,7 +1213,15 @@ mod test {
         };
 
         {
-            assert_eq!(Ok(Some("Odysseus".into())), block_on(repo.modify(change)));
+            assert_eq!(
+                "Odysseus",
+                block_on(repo.modify(change))
+                    .unwrap()
+                    .unwrap()
+                    .name()
+                    .value()
+                    .unwrap()
+            );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1231,8 +1248,14 @@ mod test {
 
         {
             assert_eq!(
-                Id::from("ODYSSEUS"),
-                block_on(repo.undo()).unwrap().unwrap().unwrap(),
+                "Odysseus",
+                block_on(repo.undo())
+                    .unwrap()
+                    .unwrap()
+                    .unwrap()
+                    .name()
+                    .value()
+                    .unwrap(),
             );
             assert_eq!(
                 Some(false),
@@ -1245,8 +1268,14 @@ mod test {
 
         {
             assert_eq!(
-                Id::from("ODYSSEUS"),
-                block_on(repo.redo()).unwrap().unwrap().unwrap(),
+                "Odysseus",
+                block_on(repo.redo())
+                    .unwrap()
+                    .unwrap()
+                    .unwrap()
+                    .name()
+                    .value()
+                    .unwrap(),
             );
             assert_eq!(
                 Some(&Species::Human),
@@ -1273,7 +1302,15 @@ mod test {
         };
 
         {
-            assert_eq!(Ok(Some("NOBODY".into())), block_on(repo.modify(change)));
+            assert_eq!(
+                "Nobody",
+                block_on(repo.modify(change))
+                    .unwrap()
+                    .unwrap()
+                    .name()
+                    .value()
+                    .unwrap()
+            );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1294,8 +1331,14 @@ mod test {
 
         {
             assert_eq!(
-                Id::from("ODYSSEUS"),
-                block_on(repo.undo()).unwrap().unwrap().unwrap(),
+                "Odysseus",
+                block_on(repo.undo())
+                    .unwrap()
+                    .unwrap()
+                    .unwrap()
+                    .name()
+                    .value()
+                    .unwrap(),
             );
 
             assert!(repo.recent().any(|t| t.name().to_string() == "Odysseus"));
@@ -1303,8 +1346,14 @@ mod test {
 
         {
             assert_eq!(
-                Id::from("NOBODY"),
-                block_on(repo.redo()).unwrap().unwrap().unwrap(),
+                "Nobody",
+                block_on(repo.redo())
+                    .unwrap()
+                    .unwrap()
+                    .unwrap()
+                    .name()
+                    .value()
+                    .unwrap(),
             );
             assert!(repo.recent().any(|t| t.name().to_string() == "Nobody"));
         }
@@ -1327,8 +1376,12 @@ mod test {
 
         {
             assert_eq!(
-                Id::Uuid(OLYMPUS_UUID),
-                block_on(repo.modify(change)).unwrap().unwrap(),
+                &OLYMPUS_UUID,
+                block_on(repo.modify(change))
+                    .unwrap()
+                    .unwrap()
+                    .uuid()
+                    .unwrap(),
             );
             let result = repo.undo_history().next().unwrap();
 
@@ -1355,8 +1408,13 @@ mod test {
 
         {
             assert_eq!(
-                Id::Uuid(OLYMPUS_UUID),
-                block_on(repo.undo()).unwrap().unwrap().unwrap(),
+                &OLYMPUS_UUID,
+                block_on(repo.undo())
+                    .unwrap()
+                    .unwrap()
+                    .unwrap()
+                    .uuid()
+                    .unwrap(),
             );
             assert!(block_on(repo.load(&"OLYMPUS".into())).is_ok());
             assert!(block_on(data_store.get_all_the_things())
@@ -1367,8 +1425,13 @@ mod test {
 
         {
             assert_eq!(
-                Id::Uuid(OLYMPUS_UUID),
-                block_on(repo.redo()).unwrap().unwrap().unwrap(),
+                &OLYMPUS_UUID,
+                block_on(repo.redo())
+                    .unwrap()
+                    .unwrap()
+                    .unwrap()
+                    .uuid()
+                    .unwrap(),
             );
             assert!(block_on(repo.load(&"HADES".into())).is_ok());
         }
@@ -1452,8 +1515,12 @@ mod test {
 
         {
             assert_eq!(
-                Id::Uuid(OLYMPUS_UUID),
-                block_on(repo.modify(change)).unwrap().unwrap(),
+                &OLYMPUS_UUID,
+                block_on(repo.modify(change))
+                    .unwrap()
+                    .unwrap()
+                    .uuid()
+                    .unwrap(),
             );
             let result = repo.undo_history().next().unwrap();
 
@@ -1480,8 +1547,13 @@ mod test {
 
         {
             assert_eq!(
-                Id::Uuid(OLYMPUS_UUID),
-                block_on(repo.undo()).unwrap().unwrap().unwrap(),
+                &OLYMPUS_UUID,
+                block_on(repo.undo())
+                    .unwrap()
+                    .unwrap()
+                    .unwrap()
+                    .uuid()
+                    .unwrap(),
             );
 
             assert!(block_on(repo.load(&"Olympus".into())).is_ok());
@@ -1493,8 +1565,13 @@ mod test {
 
         {
             assert_eq!(
-                Id::Uuid(OLYMPUS_UUID),
-                block_on(repo.redo()).unwrap().unwrap().unwrap(),
+                &OLYMPUS_UUID,
+                block_on(repo.redo())
+                    .unwrap()
+                    .unwrap()
+                    .unwrap()
+                    .uuid()
+                    .unwrap(),
             );
             assert!(block_on(repo.load(&"Hades".into())).is_ok());
         }
@@ -1578,8 +1655,13 @@ mod test {
 
         {
             assert_eq!(
-                Id::from("Hades"),
-                block_on(repo.modify(change)).unwrap().unwrap(),
+                "Hades",
+                block_on(repo.modify(change))
+                    .unwrap()
+                    .unwrap()
+                    .name()
+                    .value()
+                    .unwrap(),
             );
             let result = repo.undo_history().next().unwrap();
 
@@ -1603,24 +1685,30 @@ mod test {
             assert_eq!(3, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
-        if let Id::Uuid(uuid) = block_on(repo.undo()).unwrap().unwrap().unwrap() {
-            assert_ne!(OLYMPUS_UUID, uuid);
+        {
+            let thing = block_on(repo.undo()).unwrap().unwrap().unwrap();
+            let uuid = thing.uuid().unwrap();
+            assert_ne!(&OLYMPUS_UUID, uuid);
             assert!(block_on(repo.load(&"Olympus".into())).is_ok());
-            assert!(block_on(repo.load(&uuid.into())).is_ok());
+            assert!(block_on(repo.load(&uuid.to_owned().into())).is_ok());
             assert_eq!(1, repo.recent().count());
             assert_eq!(4, block_on(repo.journal()).unwrap().len());
             assert!(block_on(data_store.get_all_the_things())
                 .unwrap()
                 .iter()
                 .any(|t| t.name().value().map_or(false, |s| s == "Olympus")));
-        } else {
-            panic!();
         }
 
         {
             assert_eq!(
-                Id::from("Hades"),
-                block_on(repo.redo()).unwrap().unwrap().unwrap(),
+                "Hades",
+                block_on(repo.redo())
+                    .unwrap()
+                    .unwrap()
+                    .unwrap()
+                    .name()
+                    .value()
+                    .unwrap(),
             );
             assert!(block_on(repo.load(&"Hades".into())).is_ok());
         }
@@ -1684,8 +1772,13 @@ mod test {
 
         {
             assert_eq!(
-                Id::from("Odysseus"),
-                block_on(repo.modify(change)).unwrap().unwrap(),
+                "Odysseus",
+                block_on(repo.modify(change))
+                    .unwrap()
+                    .unwrap()
+                    .name()
+                    .value()
+                    .unwrap(),
             );
             let result = repo.undo_history().next().unwrap();
 
@@ -1767,13 +1860,15 @@ mod test {
             change.display_redo().to_string(),
         );
 
-        if let Id::Uuid(uuid) = block_on(repo.modify(change)).unwrap().unwrap() {
+        {
+            let thing = block_on(repo.modify(change)).unwrap().unwrap();
+            let uuid = thing.uuid().unwrap();
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
                 &Change::Unsave {
                     name: "Odysseus".into(),
-                    uuid,
+                    uuid: *uuid,
                 },
                 result,
             );
@@ -1784,8 +1879,6 @@ mod test {
             assert_eq!(5, block_on(repo.journal()).unwrap().len());
             assert_eq!(5, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(0, repo.recent().count());
-        } else {
-            panic!();
         }
 
         {
@@ -1871,8 +1964,13 @@ mod test {
 
         {
             assert_eq!(
-                Id::from("Olympus"),
-                block_on(repo.modify(change)).unwrap().unwrap(),
+                "Olympus",
+                block_on(repo.modify(change))
+                    .unwrap()
+                    .unwrap()
+                    .name()
+                    .value()
+                    .unwrap(),
             );
             let result = repo.undo_history().next().unwrap();
 
@@ -1920,12 +2018,14 @@ mod test {
         };
         assert_eq!("creating Odysseus", change.display_redo().to_string());
 
-        if let Id::Uuid(uuid) = block_on(repo.modify(change)).unwrap().unwrap() {
+        {
+            let thing = block_on(repo.modify(change)).unwrap().unwrap();
+            let uuid = thing.uuid().unwrap();
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
                 &Change::Delete {
-                    id: Id::Uuid(uuid),
+                    id: Id::Uuid(*uuid),
                     name: "Odysseus".into(),
                 },
                 result,
@@ -1934,7 +2034,7 @@ mod test {
             assert_eq!("creating Odysseus", result.display_undo().to_string());
             assert_eq!(1, block_on(repo.journal()).unwrap().len());
             assert_eq!(
-                &uuid,
+                uuid,
                 block_on(data_store.get_all_the_things())
                     .unwrap()
                     .first()
@@ -1942,8 +2042,6 @@ mod test {
                     .uuid()
                     .unwrap(),
             );
-        } else {
-            panic!();
         }
 
         {
