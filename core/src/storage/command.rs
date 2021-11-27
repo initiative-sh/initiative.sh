@@ -87,7 +87,7 @@ impl Runnable for StorageCommand {
                     | Change::Save { name }
                     | Change::Unsave { name, .. } => app_meta
                         .repository
-                        .load(&name.into())
+                        .get_by_name(name)
                         .await
                         .map(|t| t.name().value().map(|s| s.to_string()))
                         .unwrap_or(None)
@@ -173,7 +173,7 @@ impl Runnable for StorageCommand {
                 Ok("The file upload popup should appear momentarily. Please select a compatible JSON file, such as that produced by the `export` command.".to_string())
             }
             Self::Load { name } => {
-                let thing = app_meta.repository.load(&name.as_str().into()).await;
+                let thing = app_meta.repository.get_by_name(&name).await;
                 let mut save_command = None;
                 let output = if let Ok(thing) = thing {
                     if thing.uuid().is_none() {
@@ -265,7 +265,7 @@ impl ContextAwareParse for StorageCommand {
     async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut fuzzy_matches = Vec::new();
 
-        if app_meta.repository.load(&input.into()).await.is_ok() {
+        if app_meta.repository.get_by_name(input).await.is_ok() {
             fuzzy_matches.push(Self::Load {
                 name: input.to_string(),
             });

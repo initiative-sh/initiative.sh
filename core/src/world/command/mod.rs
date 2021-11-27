@@ -126,7 +126,7 @@ impl Runnable for WorldCommand {
                             if thing.name().is_locked() {
                                 if let Ok(other_thing) = app_meta
                                     .repository
-                                    .load(&thing.name().value().unwrap().into())
+                                    .get_by_name(thing.name().value().unwrap())
                                     .await
                                 {
                                     return Err(format!(
@@ -257,7 +257,7 @@ impl ContextAwareParse for WorldCommand {
                 input[word.range().end..].trim(),
             );
 
-            let (diff, thing) = if let Ok(thing) = app_meta.repository.load(&name.into()).await {
+            let (diff, thing) = if let Ok(thing) = app_meta.repository.get_by_name(name).await {
                 (
                     match thing {
                         Thing::Npc(_) => description
@@ -317,7 +317,7 @@ impl Autocomplete for WorldCommand {
         {
             if let Ok(thing) = app_meta
                 .repository
-                .load(&input[..is_word.range().start].trim().into())
+                .get_by_name(input[..is_word.range().start].trim())
                 .await
             {
                 let split_pos = input.len() - input[is_word.range().end..].trim_start().len();
@@ -351,7 +351,7 @@ impl Autocomplete for WorldCommand {
             }
         }
 
-        if let Ok(thing) = app_meta.repository.load(&input.trim_end().into()).await {
+        if let Ok(thing) = app_meta.repository.get_by_name(input.trim_end()).await {
             suggestions.push((
                 if input.ends_with(char::is_whitespace) {
                     format!("{}is [{} description]", input, thing.as_str())
@@ -367,7 +367,7 @@ impl Autocomplete for WorldCommand {
             if "is".starts_with_ci(last_word.as_str()) {
                 if let Ok(thing) = app_meta
                     .repository
-                    .load(&input[..last_word.range().start].trim().into())
+                    .get_by_name(input[..last_word.range().start].trim())
                     .await
                 {
                     suggestions.push((
@@ -393,7 +393,7 @@ impl Autocomplete for WorldCommand {
                 if second_last_word.as_str().eq_ci("is") {
                     if let Ok(thing) = app_meta
                         .repository
-                        .load(&input[..second_last_word.range().start].trim().into())
+                        .get_by_name(input[..second_last_word.range().start].trim())
                         .await
                     {
                         suggestions.push((

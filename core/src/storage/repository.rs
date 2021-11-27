@@ -109,18 +109,11 @@ impl Repository {
         }
     }
 
-    pub async fn load(&self, id: &Id) -> Result<Thing, Error> {
-        match id {
-            Id::Name(name) => self.load_thing_by_name(name).await,
-            Id::Uuid(uuid) => self.load_thing_by_uuid(uuid).await,
-        }
-    }
-
     pub async fn get_by_change(&self, change: &Change) -> Result<Thing, Error> {
-        if let Some(id) = &change.id() {
-            self.load(id).await
-        } else {
-            Err(Error::NotFound)
+        match change.id() {
+            Some(Id::Uuid(uuid)) => self.get_by_uuid(&uuid).await,
+            Some(Id::Name(name)) => self.get_by_name(&name).await,
+            None => Err(Error::NotFound),
         }
     }
 
@@ -133,7 +126,7 @@ impl Repository {
 
             let parent = {
                 let parent_result = if let Some(uuid) = parent_uuid.value() {
-                    self.load_thing_by_uuid(&uuid.to_owned().into())
+                    self.get_by_uuid(&uuid.to_owned().into())
                         .await
                         .and_then(|thing| thing.into_place().map_err(|_| Error::NotFound))
                 } else {
@@ -150,7 +143,7 @@ impl Repository {
             if let Some(parent) = parent {
                 let grandparent = {
                     let grandparent_result = if let Some(uuid) = parent.location_uuid.value() {
-                        self.load_thing_by_uuid(&uuid.to_owned().into())
+                        self.get_by_uuid(&uuid.to_owned().into())
                             .await
                             .and_then(|thing| thing.into_place().map_err(|_| Error::NotFound))
                     } else {
@@ -219,6 +212,31 @@ impl Repository {
             .get_all_the_things()
             .await
             .map_err(|_| Error::DataStoreFailed)
+    }
+
+    pub async fn get_by_name(&self, name: &str) -> Result<Thing, Error> {
+        let (saved_thing, recent_thing) = join!(self.data_store.get_thing_by_name(name), async {
+            self.recent()
+                .find(|t| t.name().value().map_or(false, |s| s.eq_ci(name)))
+        });
+
+        if let Some(thing) = recent_thing {
+            Ok(thing.clone())
+        } else {
+            match saved_thing {
+                Ok(Some(thing)) => Ok(thing),
+                Ok(None) => Err(Error::NotFound),
+                Err(()) => Err(Error::DataStoreFailed),
+            }
+        }
+    }
+
+    pub async fn get_by_uuid(&self, uuid: &Uuid) -> Result<Thing, Error> {
+        match self.data_store.get_thing_by_uuid(uuid).await {
+            Ok(Some(thing)) => Ok(thing),
+            Ok(None) => Err(Error::NotFound),
+            Err(()) => Err(Error::DataStoreFailed),
+        }
     }
 
     pub async fn modify(&mut self, change: Change) -> Result<Option<Thing>, (Change, Error)> {
@@ -345,7 +363,7 @@ impl Repository {
                 Id::Uuid(uuid) => match self.edit_thing_by_uuid(&uuid, diff).await {
                     Ok(diff) => Ok(Change::Edit {
                         name: self
-                            .load(&Id::Uuid(uuid))
+                            .get_by_uuid(&uuid)
                             .await
                             .map(|thing| thing.name().value().map(String::from))
                             .unwrap_or(None)
@@ -356,7 +374,7 @@ impl Repository {
                     Err((diff, e)) => Err((
                         Change::Edit {
                             name: self
-                                .load(&Id::Uuid(uuid))
+                                .get_by_uuid(&uuid)
                                 .await
                                 .map(|thing| thing.name().value().map(String::from))
                                 .unwrap_or(None)
@@ -394,7 +412,7 @@ impl Repository {
                 Ok(uuid) => Ok(Change::Unsave {
                     uuid,
                     name: self
-                        .load_thing_by_uuid(&uuid)
+                        .get_by_uuid(&uuid)
                         .await
                         .map(|t| t.name().value().map(String::from))
                         .unwrap_or(None)
@@ -467,7 +485,7 @@ impl Repository {
 
     async fn create_thing(&mut self, thing: Thing) -> Result<String, (Thing, Error)> {
         if let Some(name) = thing.name().value() {
-            if self.load_thing_by_name(name).await.is_ok() {
+            if self.get_by_name(name).await.is_ok() {
                 Err((thing, Error::NameAlreadyExists))
             } else {
                 let name = name.to_string();
@@ -481,7 +499,7 @@ impl Repository {
 
     async fn create_and_save_thing(&mut self, thing: Thing) -> Result<Uuid, (Thing, Error)> {
         if let Some(name) = thing.name().value() {
-            if self.load_thing_by_name(name).await.is_ok() {
+            if self.get_by_name(name).await.is_ok() {
                 Err((thing, Error::NameAlreadyExists))
             } else {
                 self.save_thing(thing).await
@@ -495,7 +513,7 @@ impl Repository {
         let name_matches = |s: &String| s.to_lowercase() == name;
 
         if let Some(uuid) = self
-            .load_thing_by_name(name)
+            .get_by_name(name)
             .await
             .ok()
             .and_then(|t| t.uuid().cloned())
@@ -519,31 +537,6 @@ impl Repository {
             (Ok(Some(thing)), Err(())) => Err((Some(thing), Error::DataStoreFailed)),
             (Ok(None), _) => Err((None, Error::NotFound)),
             (Err(_), _) => Err((None, Error::DataStoreFailed)),
-        }
-    }
-
-    async fn load_thing_by_name(&self, name: &str) -> Result<Thing, Error> {
-        let (saved_thing, recent_thing) = join!(self.data_store.get_thing_by_name(name), async {
-            self.recent()
-                .find(|t| t.name().value().map_or(false, |s| s.eq_ci(name)))
-        });
-
-        if let Some(thing) = recent_thing {
-            Ok(thing.clone())
-        } else {
-            match saved_thing {
-                Ok(Some(thing)) => Ok(thing),
-                Ok(None) => Err(Error::NotFound),
-                Err(()) => Err(Error::DataStoreFailed),
-            }
-        }
-    }
-
-    async fn load_thing_by_uuid(&self, uuid: &Uuid) -> Result<Thing, Error> {
-        match self.data_store.get_thing_by_uuid(uuid).await {
-            Ok(Some(thing)) => Ok(thing),
-            Ok(None) => Err(Error::NotFound),
-            Err(()) => Err(Error::DataStoreFailed),
         }
     }
 
@@ -905,10 +898,10 @@ mod test {
     }
 
     #[test]
-    fn load_test_from_recent_by_name() {
+    fn get_by_name_test_from_recent() {
         assert_eq!(
             "Odysseus",
-            block_on(repo().load(&"ODYSSEUS".into()))
+            block_on(repo().get_by_name("ODYSSEUS"))
                 .map(|thing| thing.name().value().map(String::from))
                 .unwrap()
                 .unwrap(),
@@ -916,10 +909,10 @@ mod test {
     }
 
     #[test]
-    fn load_test_from_journal_by_name() {
+    fn get_by_name_test_from_journal() {
         assert_eq!(
             "Olympus",
-            block_on(repo().load(&"OLYMPUS".into()))
+            block_on(repo().get_by_name("OLYMPUS"))
                 .map(|thing| thing.name().value().map(String::from))
                 .unwrap()
                 .unwrap(),
@@ -927,18 +920,15 @@ mod test {
     }
 
     #[test]
-    fn load_test_not_found() {
-        assert_eq!(
-            Err(Error::NotFound),
-            block_on(repo().load(&"NOBODY".into())),
-        );
+    fn get_by_name_test_not_found() {
+        assert_eq!(Err(Error::NotFound), block_on(repo().get_by_name("NOBODY")));
     }
 
     #[test]
-    fn load_test_by_uuid() {
+    fn get_by_uuid_test_from_journal() {
         assert_eq!(
             "Olympus",
-            block_on(repo().load(&OLYMPUS_UUID.into()))
+            block_on(repo().get_by_uuid(&OLYMPUS_UUID))
                 .map(|thing| thing.name().value().map(String::from))
                 .unwrap()
                 .unwrap(),
@@ -985,14 +975,14 @@ mod test {
                     .uuid()
                     .unwrap(),
             );
-            assert!(block_on(repo.load(&OLYMPUS_UUID.into())).is_ok());
-            assert!(block_on(repo.load(&"Olympus".into())).is_ok());
+            assert!(block_on(repo.get_by_uuid(&OLYMPUS_UUID)).is_ok());
+            assert!(block_on(repo.get_by_name("Olympus")).is_ok());
             assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
         {
             assert_eq!(Some(Ok(None)), block_on(repo.redo()));
-            assert_eq!(Err(Error::NotFound), block_on(repo.load(&"Olympus".into())));
+            assert_eq!(Err(Error::NotFound), block_on(repo.get_by_name("Olympus")));
         }
     }
 
@@ -1034,7 +1024,7 @@ mod test {
                 }),
                 repo.redo_change,
             );
-            assert!(block_on(repo.load(&"odysseus".into())).is_ok());
+            assert!(block_on(repo.get_by_name("odysseus")).is_ok());
             assert_eq!(1, repo.recent().count());
         }
     }
@@ -1079,7 +1069,7 @@ mod test {
                 }),
                 repo.redo_change,
             );
-            assert!(block_on(repo.load(&OLYMPUS_UUID.into())).is_ok());
+            assert!(block_on(repo.get_by_uuid(&OLYMPUS_UUID)).is_ok());
             assert_eq!(4, block_on(repo.journal()).unwrap().len());
             assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
         }
@@ -1143,9 +1133,9 @@ mod test {
                 result,
             );
 
-            assert!(block_on(repo.load(&uuid.to_owned().into())).is_ok());
+            assert!(block_on(repo.get_by_uuid(uuid)).is_ok());
             assert_eq!("editing Nobody", result.display_undo().to_string());
-            assert!(block_on(repo.load(&"Nobody".into())).is_ok());
+            assert!(block_on(repo.get_by_name("Nobody")).is_ok());
             assert_eq!(5, block_on(repo.journal()).unwrap().len());
             assert_eq!(0, repo.recent().count());
             assert_eq!(5, block_on(data_store.get_all_the_things()).unwrap().len());
@@ -1166,7 +1156,7 @@ mod test {
                     .value()
                     .unwrap(),
             );
-            assert!(block_on(repo.load(&"Odysseus".into())).is_ok());
+            assert!(block_on(repo.get_by_name("Odysseus")).is_ok());
             assert_eq!(4, block_on(repo.journal()).unwrap().len());
             assert_eq!(1, repo.recent().count());
             assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
@@ -1175,8 +1165,8 @@ mod test {
         {
             let thing = block_on(repo.redo()).unwrap().unwrap().unwrap();
             let uuid = thing.uuid().unwrap();
-            assert!(block_on(repo.load(&"Nobody".into())).is_ok());
-            assert!(block_on(repo.load(&uuid.to_owned().into())).is_ok());
+            assert!(block_on(repo.get_by_name("Nobody")).is_ok());
+            assert!(block_on(repo.get_by_uuid(&uuid)).is_ok());
         }
     }
 
@@ -1195,7 +1185,7 @@ mod test {
         );
         assert_eq!(1, repo.recent().count());
         assert_eq!(4, block_on(repo.journal()).unwrap().len());
-        assert!(block_on(repo.load(&"Odysseus".into())).is_ok());
+        assert!(block_on(repo.get_by_name("Odysseus")).is_ok());
     }
 
     #[test]
@@ -1399,7 +1389,7 @@ mod test {
                 result,
             );
             assert_eq!("editing Hades", result.display_undo().to_string());
-            assert!(block_on(repo.load(&"Hades".into())).is_ok());
+            assert!(block_on(repo.get_by_name("Hades")).is_ok());
             assert!(block_on(data_store.get_all_the_things())
                 .unwrap()
                 .iter()
@@ -1416,7 +1406,7 @@ mod test {
                     .uuid()
                     .unwrap(),
             );
-            assert!(block_on(repo.load(&"OLYMPUS".into())).is_ok());
+            assert!(block_on(repo.get_by_name("OLYMPUS")).is_ok());
             assert!(block_on(data_store.get_all_the_things())
                 .unwrap()
                 .iter()
@@ -1433,7 +1423,7 @@ mod test {
                     .uuid()
                     .unwrap(),
             );
-            assert!(block_on(repo.load(&"HADES".into())).is_ok());
+            assert!(block_on(repo.get_by_name("HADES")).is_ok());
         }
     }
 
@@ -1538,7 +1528,7 @@ mod test {
                 result,
             );
             assert_eq!("editing Hades", result.display_undo().to_string());
-            assert!(block_on(repo.load(&"Hades".into())).is_ok());
+            assert!(block_on(repo.get_by_name("Hades")).is_ok());
             assert!(block_on(data_store.get_all_the_things())
                 .unwrap()
                 .iter()
@@ -1556,7 +1546,7 @@ mod test {
                     .unwrap(),
             );
 
-            assert!(block_on(repo.load(&"Olympus".into())).is_ok());
+            assert!(block_on(repo.get_by_name("Olympus")).is_ok());
             assert!(block_on(data_store.get_all_the_things())
                 .unwrap()
                 .iter()
@@ -1573,7 +1563,7 @@ mod test {
                     .uuid()
                     .unwrap(),
             );
-            assert!(block_on(repo.load(&"Hades".into())).is_ok());
+            assert!(block_on(repo.get_by_name("Hades")).is_ok());
         }
     }
 
@@ -1679,7 +1669,7 @@ mod test {
                 result,
             );
             assert_eq!("editing Hades", result.display_undo().to_string());
-            assert!(block_on(repo.load(&"Hades".into())).is_ok());
+            assert!(block_on(repo.get_by_name("Hades")).is_ok());
             assert_eq!(2, repo.recent().count());
             assert_eq!(3, block_on(repo.journal()).unwrap().len());
             assert_eq!(3, block_on(data_store.get_all_the_things()).unwrap().len());
@@ -1689,8 +1679,8 @@ mod test {
             let thing = block_on(repo.undo()).unwrap().unwrap().unwrap();
             let uuid = thing.uuid().unwrap();
             assert_ne!(&OLYMPUS_UUID, uuid);
-            assert!(block_on(repo.load(&"Olympus".into())).is_ok());
-            assert!(block_on(repo.load(&uuid.to_owned().into())).is_ok());
+            assert!(block_on(repo.get_by_name("Olympus")).is_ok());
+            assert!(block_on(repo.get_by_uuid(&uuid)).is_ok());
             assert_eq!(1, repo.recent().count());
             assert_eq!(4, block_on(repo.journal()).unwrap().len());
             assert!(block_on(data_store.get_all_the_things())
@@ -1710,7 +1700,7 @@ mod test {
                     .value()
                     .unwrap(),
             );
-            assert!(block_on(repo.load(&"Hades".into())).is_ok());
+            assert!(block_on(repo.get_by_name("Hades")).is_ok());
         }
     }
 
@@ -1755,7 +1745,7 @@ mod test {
             ),
             block_on(repo.modify(change)).unwrap_err(),
         );
-        assert!(block_on(repo.load(&"Hades".into())).is_ok());
+        assert!(block_on(repo.get_by_name("Hades")).is_ok());
     }
 
     #[test]
@@ -1987,7 +1977,7 @@ mod test {
             assert_eq!(3, block_on(repo.journal()).unwrap().len());
             assert_eq!(3, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(2, repo.recent().count());
-            assert_eq!(None, block_on(repo.load(&"Olympus".into())).unwrap().uuid());
+            assert_eq!(None, block_on(repo.get_by_name("Olympus")).unwrap().uuid());
         }
 
         {
@@ -1996,7 +1986,7 @@ mod test {
             if let Some(Change::Unsave { ref name, uuid }) = repo.redo_change {
                 assert_eq!("Olympus", name);
                 assert_ne!(OLYMPUS_UUID, uuid);
-                assert!(block_on(repo.load(&uuid.into())).is_ok());
+                assert!(block_on(repo.get_by_uuid(&uuid)).is_ok());
             } else {
                 panic!();
             }
@@ -2030,7 +2020,7 @@ mod test {
                 },
                 result,
             );
-            assert!(block_on(repo.load(&uuid.to_owned().into())).is_ok());
+            assert!(block_on(repo.get_by_uuid(uuid)).is_ok());
             assert_eq!("creating Odysseus", result.display_undo().to_string());
             assert_eq!(1, block_on(repo.journal()).unwrap().len());
             assert_eq!(
@@ -2211,7 +2201,7 @@ mod test {
     #[test]
     fn load_relations_test_with_parent_success() {
         let repo = repo();
-        let odysseus = block_on(repo.load(&"Odysseus".into())).unwrap();
+        let odysseus = block_on(repo.get_by_name("Odysseus")).unwrap();
 
         match block_on(repo.load_relations(&odysseus)) {
             Ok(ThingRelations::Npc(NpcRelations {
@@ -2226,7 +2216,7 @@ mod test {
     #[test]
     fn load_relations_test_with_grandparent_success() {
         let repo = repo();
-        let olympus = block_on(repo.load(&OLYMPUS_UUID.into())).unwrap();
+        let olympus = block_on(repo.get_by_uuid(&OLYMPUS_UUID)).unwrap();
 
         match block_on(repo.load_relations(&olympus)) {
             Ok(ThingRelations::Place(PlaceRelations {
