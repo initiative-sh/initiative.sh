@@ -1015,7 +1015,13 @@ mod test {
         }
 
         {
-            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
+            match block_on(repo.undo()) {
+                Some(Ok(Some(Thing::Npc(npc)))) => {
+                    assert!(npc.uuid.is_none());
+                    assert_eq!("Odysseus", npc.name.value().unwrap());
+                }
+                v => panic!("{:?}", v),
+            }
 
             assert_eq!(
                 Some(Change::Delete {
@@ -1060,7 +1066,13 @@ mod test {
         }
 
         {
-            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
+            match block_on(repo.undo()) {
+                Some(Ok(Some(Thing::Place(place)))) => {
+                    assert_eq!(Some(PlaceUuid::from(OLYMPUS_UUID)), place.uuid);
+                    assert_eq!("Olympus", place.name.value().unwrap());
+                }
+                v => panic!("{:?}", v),
+            }
 
             assert_eq!(
                 Some(Change::Delete {
@@ -1784,7 +1796,7 @@ mod test {
         }
 
         {
-            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
+            assert_eq!(Some(Ok(None)), block_on(repo.undo()));
 
             assert_eq!(
                 Some(Change::Create {
@@ -1872,7 +1884,13 @@ mod test {
         }
 
         {
-            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
+            match block_on(repo.undo()) {
+                Some(Ok(Some(Thing::Npc(npc)))) => {
+                    assert!(npc.uuid.is_none());
+                    assert_eq!("Odysseus", npc.name.value().unwrap());
+                }
+                v => panic!("{:?}", v),
+            }
 
             assert_eq!(
                 Some(Change::Save {
@@ -1981,7 +1999,13 @@ mod test {
         }
 
         {
-            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
+            match block_on(repo.undo()) {
+                Some(Ok(Some(Thing::Place(place)))) => {
+                    assert!(place.uuid.is_some());
+                    assert_eq!("Olympus", place.name.value().unwrap());
+                }
+                v => panic!("{:?}", v),
+            }
 
             if let Some(Change::Unsave { ref name, uuid }) = repo.redo_change {
                 assert_eq!("Olympus", name);
@@ -2041,7 +2065,7 @@ mod test {
                 .unwrap()
                 .uuid()
                 .unwrap();
-            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
+            assert_eq!(Some(Ok(None)), block_on(repo.undo()));
 
             assert_eq!(
                 Some(Change::CreateAndSave {
