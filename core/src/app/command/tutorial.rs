@@ -114,10 +114,8 @@ impl TutorialCommand {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "save".to_string(),
                     format!("save {}", inn_name),
-                    StorageCommand::Change {
-                        change: Change::Save {
-                            name: inn_name.to_owned(),
-                        },
+                    StorageCommand::Save {
+                        name: inn_name.to_owned(),
                     }
                     .into(),
                 ));
@@ -169,10 +167,8 @@ impl TutorialCommand {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "save".to_string(),
                     format!("save {}", npc_name),
-                    StorageCommand::Change {
-                        change: Change::Save {
-                            name: npc_name.to_owned(),
-                        },
+                    StorageCommand::Save {
+                        name: npc_name.to_owned(),
                     }
                     .into(),
                 ));
@@ -290,10 +286,7 @@ impl TutorialCommand {
                 }
             }
             Self::Npc { inn_name } => {
-                if let Some(CommandType::Storage(StorageCommand::Change {
-                    change: Change::Save { name },
-                })) = command
-                {
+                if let Some(CommandType::Storage(StorageCommand::Save { name })) = command {
                     name.eq_ci(inn_name)
                 } else {
                     false
@@ -391,10 +384,7 @@ impl TutorialCommand {
             }
             Self::Delete { .. } => matches!(command, Some(CommandType::App(AppCommand::Roll(_)))),
             Self::AdjustTime { inn_name, .. } => {
-                if let Some(CommandType::Storage(StorageCommand::Change {
-                    change: Change::Delete { name, .. },
-                })) = command
-                {
+                if let Some(CommandType::Storage(StorageCommand::Delete { name })) = command {
                     name.eq_ci(inn_name)
                 } else {
                     false

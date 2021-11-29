@@ -12,12 +12,13 @@ use std::iter::repeat;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StorageCommand {
-    Change { change: Change },
+    Delete { name: String },
     Export,
     Import,
     Journal,
     Load { name: String },
     Redo,
+    Save { name: String },
     Undo,
 }
 
@@ -76,29 +77,18 @@ impl Runnable for StorageCommand {
 
                 Ok(output)
             }
-            Self::Change { change } => {
-                let name = match &change {
-                    Change::Create { thing } | Change::CreateAndSave { thing } => {
-                        thing.name().to_string()
-                    }
-                    Change::Delete { name, .. }
-                    | Change::Edit { name, .. }
-                    | Change::EditAndUnsave { name, .. }
-                    | Change::Save { name }
-                    | Change::Unsave { name, .. } => app_meta
+            Self::Delete { name } => {
+                let name = app_meta
                         .repository
-                        .get_by_name(name)
+                        .get_by_name(&name)
                         .await
                         .map(|t| t.name().value().map(|s| s.to_string()))
                         .unwrap_or(None)
-                        .unwrap_or_else(|| name.to_owned()),
-                    Change::SetKeyValue { key_value } => key_value.key_raw().to_string(),
-                };
+                        .unwrap_or(name);
 
-                match &change {
-                    Change::Delete { .. } => app_meta
+                app_meta
                         .repository
-                        .modify(change)
+                        .modify(Change::Delete { name: name.clone(), uuid: None })
                         .await
                         .map(|_| format!("{} was successfully deleted. Use `undo` to reverse this.", name))
                         .map_err(|(_, e)| match e {
@@ -110,59 +100,32 @@ impl Runnable for StorageCommand {
                             | RepositoryError::NameAlreadyExists => {
                                 format!("Couldn't delete `{}`.", name)
                             }
-                        }),
-                    Change::Edit { .. } => {
-                        let thing_type = if let Change::Edit { ref diff, .. } = change {
-                            diff.as_str()
-                        } else {
-                            unreachable!()
-                        };
+                        })
+            }
+            Self::Save { name } => {
+                let name = app_meta
+                    .repository
+                    .get_by_name(&name)
+                    .await
+                    .map(|t| t.name().value().map(|s| s.to_string()))
+                    .unwrap_or(None)
+                    .unwrap_or(name);
 
-                        match app_meta
-                            .repository
-                            .modify(change)
-                            .await
-                        {
-                            Ok(Some(thing)) => {
-                                if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) {
-                                    Ok(format!(
-                                        "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
-                                        thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
-                                        name,
-                                    ))
-                                } else {
-                                    Ok(format!(
-                                        "{}\n\n_{} was successfully edited. Use `undo` to reverse this._",
-                                        thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
-                                        name,
-                                    ))
-                                }
-                            }
-                            Err((_, RepositoryError::NotFound)) => Err(format!("There is no {} named \"{}\".", thing_type, name)),
-                            _ => Err(format!("Couldn't edit `{}`.", name)),
+                 app_meta
+                    .repository
+                    .modify(Change::Save { name: name.clone() })
+                    .await
+                    .map(|_| format!("{} was successfully saved. Use `undo` to reverse this.", name))
+                    .map_err(|(_, e)| match e {
+                        RepositoryError::NotFound => {
+                            format!("There is no entity named \"{}\".", name)
                         }
-                    }
-                    Change::Save { .. } => app_meta
-                        .repository
-                        .modify(change)
-                        .await
-                        .map(|_| format!("{} was successfully saved. Use `undo` to reverse this.", name))
-                        .map_err(|(_, e)| match e {
-                            RepositoryError::NotFound => {
-                                format!("There is no entity named \"{}\".", name)
-                            }
-                            RepositoryError::DataStoreFailed
-                            | RepositoryError::MissingName
-                            | RepositoryError::NameAlreadyExists => {
-                                format!("Couldn't save `{}`.", name)
-                            }
-                        }),
-                    Change::Create { .. }
-                    | Change::CreateAndSave { .. }
-                    | Change::EditAndUnsave { .. }
-                    | Change::Unsave { .. }
-                    | Change::SetKeyValue { .. } => unreachable!(),
-                }
+                        RepositoryError::DataStoreFailed
+                        | RepositoryError::MissingName
+                        | RepositoryError::NameAlreadyExists => {
+                            format!("Couldn't save `{}`.", name)
+                        }
+                    })
             }
             Self::Export => {
                 (app_meta.event_dispatcher)(Event::Export(export(&app_meta.repository).await));
@@ -180,10 +143,7 @@ impl Runnable for StorageCommand {
                         save_command = Some(CommandAlias::literal(
                             "save".to_string(),
                             format!("save {}", name),
-                            StorageCommand::Change {
-                                change: Change::Save { name },
-                            }
-                            .into(),
+                            StorageCommand::Save { name }.into(),
                         ));
 
                         Ok(format!(
@@ -273,21 +233,16 @@ impl ContextAwareParse for StorageCommand {
 
         (
             if let Some(name) = input.strip_prefix_ci("delete ") {
-                Some(Self::Change {
-                    change: Change::Delete {
-                        name: name.to_string(),
-                        uuid: None,
-                    },
+                Some(Self::Delete {
+                    name: name.to_string(),
                 })
             } else if let Some(name) = input.strip_prefix_ci("load ") {
                 Some(Self::Load {
                     name: name.to_string(),
                 })
             } else if let Some(name) = input.strip_prefix_ci("save ") {
-                Some(Self::Change {
-                    change: Change::Save {
-                        name: name.to_string(),
-                    },
+                Some(Self::Save {
+                    name: name.to_string(),
                 })
             } else if input.eq_ci("journal") {
                 Some(Self::Journal)
@@ -401,12 +356,8 @@ impl Autocomplete for StorageCommand {
                 suggestions.push((
                     suggestion.into(),
                     match command {
-                        Self::Change {
-                            change: Change::Delete { .. },
-                        } => format!("remove {} from journal", thing.as_str()),
-                        Self::Change {
-                            change: Change::Save { .. },
-                        } => format!("save {} to journal", thing.as_str()),
+                        Self::Delete { .. } => format!("remove {} from journal", thing.as_str()),
+                        Self::Save { .. } => format!("save {} to journal", thing.as_str()),
                         Self::Load { .. } => {
                             if thing.uuid().is_some() {
                                 format!("{}", thing.display_description())
@@ -428,18 +379,13 @@ impl Autocomplete for StorageCommand {
 impl fmt::Display for StorageCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
-            Self::Change {
-                change: Change::Delete { name, .. },
-            } => write!(f, "delete {}", name),
-            Self::Change {
-                change: Change::Save { name },
-            } => write!(f, "save {}", name),
-            Self::Change { .. } => unreachable!(),
+            Self::Delete { name } => write!(f, "delete {}", name),
             Self::Export => write!(f, "export"),
             Self::Import => write!(f, "import"),
             Self::Journal => write!(f, "journal"),
             Self::Load { name } => write!(f, "load {}", name),
             Self::Redo => write!(f, "redo"),
+            Self::Save { name } => write!(f, "save {}", name),
             Self::Undo => write!(f, "undo"),
         }
     }
@@ -466,11 +412,8 @@ mod test {
 
         assert_eq!(
             (
-                Some(StorageCommand::Change {
-                    change: Change::Delete {
-                        name: "Gandalf the Grey".to_string(),
-                        uuid: None,
-                    },
+                Some(StorageCommand::Delete {
+                    name: "Gandalf the Grey".to_string(),
                 }),
                 Vec::new(),
             ),
@@ -493,10 +436,8 @@ mod test {
 
         assert_eq!(
             (
-                Some(StorageCommand::Change {
-                    change: Change::Save {
-                        name: "Gandalf the Grey".to_string(),
-                    },
+                Some(StorageCommand::Save {
+                    name: "Gandalf the Grey".to_string(),
                 }),
                 Vec::new(),
             ),
@@ -718,16 +659,11 @@ mod test {
         let app_meta = app_meta();
 
         vec![
-            StorageCommand::Change {
-                change: Change::Delete {
-                    name: "Potato Johnson".to_string(),
-                    uuid: None,
-                },
+            StorageCommand::Delete {
+                name: "Potato Johnson".to_string(),
             },
-            StorageCommand::Change {
-                change: Change::Save {
-                    name: "Potato Johnson".to_string(),
-                },
+            StorageCommand::Save {
+                name: "Potato Johnson".to_string(),
             },
             StorageCommand::Export,
             StorageCommand::Import,
