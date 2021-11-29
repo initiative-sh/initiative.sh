@@ -216,8 +216,8 @@ impl Runnable for WorldCommand {
 
                 StorageCommand::Change {
                     change: Change::Edit {
-                        id: name.as_str().into(),
                         name,
+                        uuid: None,
                         diff,
                     },
                 }

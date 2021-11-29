@@ -275,8 +275,8 @@ impl ContextAwareParse for StorageCommand {
             if let Some(name) = input.strip_prefix_ci("delete ") {
                 Some(Self::Change {
                     change: Change::Delete {
-                        id: name.into(),
                         name: name.to_string(),
+                        uuid: None,
                     },
                 })
             } else if let Some(name) = input.strip_prefix_ci("load ") {
@@ -468,8 +468,8 @@ mod test {
             (
                 Some(StorageCommand::Change {
                     change: Change::Delete {
-                        id: "Gandalf the Grey".into(),
                         name: "Gandalf the Grey".to_string(),
+                        uuid: None,
                     },
                 }),
                 Vec::new(),
@@ -720,8 +720,8 @@ mod test {
         vec![
             StorageCommand::Change {
                 change: Change::Delete {
-                    id: "Potato Johnson".into(),
                     name: "Potato Johnson".to_string(),
+                    uuid: None,
                 },
             },
             StorageCommand::Change {
