@@ -86,10 +86,8 @@ impl Runnable for WorldCommand {
                             command_alias = Some(CommandAlias::literal(
                                 "save".to_string(),
                                 format!("save {}", name),
-                                StorageCommand::Change {
-                                    change: Change::Save {
-                                        name: name.to_string(),
-                                    },
+                                StorageCommand::Save {
+                                    name: name.to_string(),
                                 }
                                 .into(),
                             ));
@@ -214,15 +212,26 @@ impl Runnable for WorldCommand {
                     word_count: _,
                 } = diff;
 
-                StorageCommand::Change {
-                    change: Change::Edit {
-                        name,
+                let thing_type = diff.as_str();
+
+                match app_meta.repository.modify(Change::Edit {
+                        name: name.clone(),
                         uuid: None,
                         diff,
-                    },
+                    }).await {
+                    Ok(Some(thing)) if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) => Ok(format!(
+                        "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
+                        thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
+                        name,
+                    )),
+                    Ok(Some(thing)) => Ok(format!(
+                        "{}\n\n_{} was successfully edited. Use `undo` to reverse this._",
+                        thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
+                        name,
+                    )),
+                    Err((_, RepositoryError::NotFound)) => Err(format!(r#"There is no {} named "{}"."#, thing_type, name)),
+                    _ => Err(format!("Couldn't edit `{}`.", name)),
                 }
-                .run(input, app_meta)
-                .await
                 .map(|s| append_unknown_words_notice(s, input, unknown_words))
             }
         }
