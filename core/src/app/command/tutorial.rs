@@ -422,8 +422,8 @@ impl Runnable for TutorialCommand {
                 app_meta
                     .repository
                     .modify(Change::Delete {
-                        id: inn_name.into(),
                         name: inn_name.to_owned(),
+                        uuid: None,
                     })
                     .await
                     .ok();
@@ -433,8 +433,8 @@ impl Runnable for TutorialCommand {
                 app_meta
                     .repository
                     .modify(Change::Delete {
-                        id: npc_name.into(),
                         name: npc_name.to_owned(),
+                        uuid: None,
                     })
                     .await
                     .ok();
@@ -599,16 +599,16 @@ impl Runnable for TutorialCommand {
                     app_meta
                         .repository
                         .modify(Change::Delete {
-                            id: inn_name.as_str().into(),
                             name: inn_name,
+                            uuid: None,
                         })
                         .await
                         .ok();
                     app_meta
                         .repository
                         .modify(Change::Delete {
-                            id: npc_name.as_str().into(),
                             name: npc_name,
+                            uuid: None,
                         })
                         .await
                         .ok();
