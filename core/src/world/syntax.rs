@@ -1,12 +1,90 @@
-use super::{Npc, Place, Thing};
+use super::Thing;
 use crate::app::{AppMeta, Autocomplete, ContextAwareParse};
 use crate::storage::CacheEntry;
+use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
+use crate::world::place::{Place, PlaceType};
 use async_trait::async_trait;
+use futures::join;
+use initiative_macros::{Autocomplete, ContextAwareParse, Display};
 use std::borrow::Cow;
+use std::cmp::Ordering;
 use std::convert::Infallible;
 use std::fmt;
 use std::marker::PhantomData;
 use std::str::FromStr;
+
+#[derive(Autocomplete, Clone, ContextAwareParse, Debug, Display, PartialEq)]
+pub enum NpcTerm {
+    #[command(autocomplete_desc = "specify an age (eg. \"elderly\")")]
+    #[command(alias = "[age]", no_default_autocomplete)]
+    Age {
+        #[command(implements(WordList))]
+        age: Age,
+    },
+
+    #[command(autocomplete_desc = "specify an ethnicity (eg. \"elvish\")")]
+    #[command(alias = "[ethnicity]", no_default_autocomplete)]
+    Ethnicity {
+        #[command(implements(WordList))]
+        ethnicity: Ethnicity,
+    },
+
+    #[command(autocomplete_desc = "specify a gender")]
+    #[command(alias = "[gender]", no_default_autocomplete)]
+    Gender {
+        #[command(implements(WordList))]
+        gender: Gender,
+    },
+
+    #[command(autocomplete_desc = "specify a name")]
+    #[command(syntax = "named [name]", alias = "called [name]")]
+    Name {
+        #[command(implements(FromStr))]
+        name: String,
+    },
+
+    #[command(autocomplete_desc = "specify a species (eg. \"dwarf\")")]
+    #[command(alias = "[species]", no_default_autocomplete)]
+    Species {
+        #[command(implements(WordList))]
+        species: Species,
+    },
+
+    //#[command(catchall)]
+    //UnknownWord(String),
+}
+
+#[derive(Autocomplete, Clone, ContextAwareParse, Debug, Display, PartialEq)]
+pub struct NpcDescription(Vec<NpcTerm>);
+
+#[derive(Autocomplete, Clone, ContextAwareParse, Debug, Display, PartialEq)]
+pub enum PlaceTerm {
+    #[command(autocomplete_desc = "specify a name")]
+    #[command(syntax = "named [name]", alias = "called [name]")]
+    Name {
+        #[command(implements(FromStr))]
+        name: String,
+    },
+
+    #[command(autocomplete_desc = "specify a place type (eg. \"inn\")")]
+    #[command(alias = "[subtype]", no_default_autocomplete)]
+    Subtype {
+        #[command(implements(WordList))]
+        subtype: PlaceType,
+    },
+
+    //#[command(catchall)]
+    //UnknownWord(String),
+}
+
+#[derive(Autocomplete, Clone, ContextAwareParse, Debug, Display, PartialEq)]
+pub struct PlaceDescription(Vec<PlaceTerm>);
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ThingDescription {
+    Place(PlaceDescription),
+    Npc(NpcDescription),
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ThingName<ThingType, Source>
@@ -27,6 +105,147 @@ pub struct FromRecent;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct FromAny;
+
+impl PlaceDescription {
+    pub fn into_place(self) -> Place {
+        self.into_place_with_unknown_words().0
+    }
+
+    pub fn into_place_with_unknown_words(mut self) -> (Place, Vec<String>) {
+        let mut place = Place::default();
+        let mut unknown_words = Vec::new();
+
+        for term in self.0.drain(..) {
+            match term {
+                PlaceTerm::Name { name } => place.name = name.into(),
+                PlaceTerm::Subtype { subtype } => place.subtype = subtype.into(),
+                //PlaceTerm::UnknownWord(word) => unknown_words.push(word),
+            }
+        }
+
+        (place, unknown_words)
+    }
+
+    pub fn unknown_word_count(&self) -> usize {
+        /*
+        self.0
+            .iter()
+            .filter(|v| matches!(v, PlaceTerm::UnknownWord(_)))
+            .count()
+        */
+        0
+    }
+}
+
+impl NpcDescription {
+    pub fn into_npc(self) -> Npc {
+        self.into_npc_with_unknown_words().0
+    }
+
+    pub fn into_npc_with_unknown_words(mut self) -> (Npc, Vec<String>) {
+        let mut npc = Npc::default();
+        let mut unknown_words = Vec::new();
+
+        for term in self.0.drain(..) {
+            match term {
+                NpcTerm::Age { age } => npc.age = age.into(),
+                NpcTerm::Ethnicity { ethnicity } => npc.ethnicity = ethnicity.into(),
+                NpcTerm::Gender { gender } => npc.gender = gender.into(),
+                NpcTerm::Name { name } => npc.name = name.into(),
+                NpcTerm::Species { species } => npc.species = species.into(),
+                //NpcTerm::UnknownWord(_) => {}
+            }
+        }
+
+        (npc, unknown_words)
+    }
+
+    pub fn unknown_word_count(&self) -> usize {
+        /*
+        self.0
+            .iter()
+            .filter(|v| matches!(v, NpcTerm::UnknownWord(_)))
+            .count()
+        */
+        0
+    }
+}
+
+impl ThingDescription {
+    pub fn into_thing(self) -> Thing {
+        match self {
+            Self::Place(place_description) => Thing::Place(place_description.into_place()),
+            Self::Npc(npc_description) => Thing::Npc(npc_description.into_npc()),
+        }
+    }
+
+    pub fn into_thing_with_unknown_words(mut self) -> (Thing, Vec<String>) {
+        match self {
+            Self::Place(place_description) => {
+                let (place, unknown_words) = place_description.into_place_with_unknown_words();
+                (Thing::Place(place), unknown_words)
+            }
+            Self::Npc(npc_description) => {
+                let (npc, unknown_words) = npc_description.into_npc_with_unknown_words();
+                (Thing::Npc(npc), unknown_words)
+            }
+        }
+    }
+}
+
+#[async_trait(?Send)]
+impl Autocomplete for ThingDescription {
+    async fn autocomplete(
+        input: &str,
+        app_meta: &AppMeta,
+    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+        let (mut suggestions, mut more_suggestions) = join!(
+            NpcDescription::autocomplete(input, app_meta),
+            PlaceDescription::autocomplete(input, app_meta),
+        );
+
+        suggestions.append(&mut more_suggestions);
+        suggestions.sort();
+        suggestions.dedup();
+        suggestions.truncate(10);
+        suggestions
+    }
+}
+
+#[async_trait(?Send)]
+impl ContextAwareParse for ThingDescription {
+    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        let (npc, place) = join!(
+            NpcDescription::parse_input(input, app_meta),
+            PlaceDescription::parse_input(input, app_meta),
+        );
+
+        (
+            match (npc, place) {
+                ((Some(npc), _), (Some(place), _)) => {
+                    match npc.unknown_word_count().cmp(&place.unknown_word_count()) {
+                        Ordering::Less => Some(ThingDescription::Npc(npc)),
+                        Ordering::Equal => None,
+                        Ordering::Greater => Some(ThingDescription::Place(place)),
+                    }
+                }
+                ((Some(npc), _), (None, _)) => Some(ThingDescription::Npc(npc)),
+                ((None, _), (Some(place), _)) => Some(ThingDescription::Place(place)),
+                _ => None,
+            },
+            Vec::new(),
+        )
+    }
+}
+
+impl fmt::Display for ThingDescription {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            Self::Place(place_description) => write!(f, "{}", place_description),
+            Self::Npc(npc_description) => write!(f, "{}", npc_description),
+        }
+    }
+}
 
 #[async_trait(?Send)]
 impl<ThingType, Source> ContextAwareParse for ThingName<ThingType, Source>
