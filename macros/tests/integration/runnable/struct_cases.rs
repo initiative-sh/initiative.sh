@@ -1,4 +1,5 @@
-use initiative_macros::{Autocomplete, ContextAwareParse, Display, WordList};
+use super::Colors;
+use initiative_macros::{Autocomplete, ContextAwareParse, Display};
 
 #[derive(ContextAwareParse, Debug, Display, PartialEq)]
 #[allow(dead_code)]
@@ -27,19 +28,6 @@ enum CommandWithoutWordList {
 enum Subcommand {
     #[command(alias = "blah-alias")]
     Blah,
-}
-
-#[derive(Debug, PartialEq, WordList)]
-#[allow(dead_code)]
-enum Colors {
-    Black,
-    Blue,
-    Green,
-    Orange,
-    Purple,
-    Red,
-    White,
-    Yellow,
 }
 
 mod parse {

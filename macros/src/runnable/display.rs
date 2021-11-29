@@ -1,24 +1,25 @@
-use super::{Command, CommandEnum, Trait};
+use super::{Command, CommandEnum, CommandStruct, Trait};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
 pub fn run(input: TokenStream) -> Result<TokenStream, String> {
-    let command_enum = if let Command::Enum(command_enum) = Command::try_from(input)? {
-        command_enum
-    } else {
-        todo!("Display cannot yet be derived for newtypes.");
+    let result = match Command::try_from(input)? {
+        Command::Enum(command_enum) => derive_enum(command_enum),
+        Command::Struct(command_struct) => derive_struct(command_struct),
     };
 
+    Ok(result)
+}
+
+fn derive_enum(command_enum: CommandEnum) -> TokenStream {
     let mod_ident = format_ident!("impl_display_for_{}", command_enum.ident_with_sep("_"));
     let enum_ident = &command_enum.ident;
 
-    let unit_cases = get_unit_cases(&command_enum)?;
+    let unit_cases = get_unit_cases(&command_enum);
+    let tuple_cases = get_tuple_cases(&command_enum);
+    let struct_cases = get_struct_cases(&command_enum);
 
-    let tuple_cases = get_tuple_cases(&command_enum)?;
-
-    let struct_cases = get_struct_cases(&command_enum)?;
-
-    let result = quote! {
+    quote! {
         mod #mod_ident {
             use super::*;
             use std::fmt;
@@ -33,14 +34,34 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                 }
             }
         }
-    };
-
-    //panic!("{}", result);
-
-    Ok(result)
+    }
 }
 
-fn get_unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
+fn derive_struct(command_struct: CommandStruct) -> TokenStream {
+    let mod_ident = format_ident!("impl_display_for_{}", command_struct.ident_with_sep("_"));
+    let struct_ident = &command_struct.ident;
+
+    quote! {
+        mod #mod_ident {
+            use super::*;
+            use std::fmt;
+
+            impl fmt::Display for #struct_ident {
+                fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+                    self.0.iter().enumerate().try_for_each(|(i, v)| {
+                        if i == 0 {
+                            write!(f, "{}", v)
+                        } else {
+                            write!(f, " {}", v)
+                        }
+                    })
+                }
+            }
+        }
+    }
+}
+
+fn get_unit_cases(command_enum: &CommandEnum) -> TokenStream {
     let tokens = command_enum.unit_variants().map(|variant| {
         let ident = &variant.ident;
         if variant.is_ignored {
@@ -51,19 +72,23 @@ fn get_unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
         }
     });
 
-    Ok(quote! { #(#tokens)* })
+    quote! { #(#tokens)* }
 }
 
-fn get_tuple_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
+fn get_tuple_cases(command_enum: &CommandEnum) -> TokenStream {
     let tokens = command_enum.tuple_variants().map(|variant| {
         let ident = &variant.ident;
-        quote! { Self::#ident(v) => write!(f, "{}", v), }
+        if variant.implements == Trait::WordList {
+            quote! { Self::#ident(v) => write!(f, "{}", v.as_str()), }
+        } else {
+            quote! { Self::#ident(v) => write!(f, "{}", v), }
+        }
     });
 
-    Ok(quote! { #(#tokens)* })
+    quote! { #(#tokens)* }
 }
 
-fn get_struct_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
+fn get_struct_cases(command_enum: &CommandEnum) -> TokenStream {
     let tokens = command_enum.struct_variants().map(|variant| {
         let ident = &variant.ident;
         if variant.is_ignored {
@@ -107,5 +132,5 @@ fn get_struct_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
         }
     });
 
-    Ok(quote! { #(#tokens)* })
+    quote! { #(#tokens)* }
 }
