@@ -1,7 +1,9 @@
 pub use case_insensitive_str::CaseInsensitiveStr;
+pub use quoted_word_chunk::QuotedWordChunk;
 pub use quoted_word_iter::QuotedWords;
 
 mod case_insensitive_str;
+mod quoted_word_chunk;
 mod quoted_word_iter;
 
 use std::iter::Iterator;
@@ -19,6 +21,7 @@ pub fn capitalize(input: &str) -> String {
     result
 }
 
+#[derive(Clone, Debug)]
 pub struct Word<'a> {
     phrase: &'a str,
     inner_range: Range<usize>,
