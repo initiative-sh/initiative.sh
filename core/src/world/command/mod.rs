@@ -1,7 +1,7 @@
 use super::{Field, Npc, Place, Thing};
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
 use crate::storage::{Change, RepositoryError, StorageCommand};
-use crate::utils::{quoted_words, CaseInsensitiveStr};
+use crate::utils::{CaseInsensitiveStr, QuotedWords};
 use async_trait::async_trait;
 use futures::join;
 use std::borrow::Cow;
@@ -254,7 +254,8 @@ impl ContextAwareParse for WorldCommand {
             fuzzy_matches.push(Self::Create { thing });
         }
 
-        if let Some(word) = quoted_words(input)
+        if let Some(word) = input
+            .quoted_words()
             .skip(1)
             .find(|word| word.as_str().eq_ci("is"))
         {
@@ -315,7 +316,7 @@ impl Autocomplete for WorldCommand {
         suggestions.append(&mut place_suggestions);
         suggestions.append(&mut npc_suggestions);
 
-        let mut input_words = quoted_words(input).skip(1);
+        let mut input_words = input.quoted_words().skip(1);
 
         if let Some((is_word, next_word)) = input_words
             .find(|word| word.as_str().eq_ci("is"))
@@ -368,7 +369,7 @@ impl Autocomplete for WorldCommand {
                 format!("edit {}", thing.as_str()).into(),
             ));
         } else if let Some((last_word_index, last_word)) =
-            quoted_words(input).enumerate().skip(1).last()
+            input.quoted_words().enumerate().skip(1).last()
         {
             if "is".starts_with_ci(last_word.as_str()) {
                 if let Ok(thing) = app_meta
@@ -394,7 +395,7 @@ impl Autocomplete for WorldCommand {
                 .iter()
                 .find(|s| s.starts_with_ci(last_word.as_str()))
             {
-                let second_last_word = quoted_words(input).nth(last_word_index - 1).unwrap();
+                let second_last_word = input.quoted_words().nth(last_word_index - 1).unwrap();
 
                 if second_last_word.as_str().eq_ci("is") {
                     if let Ok(thing) = app_meta

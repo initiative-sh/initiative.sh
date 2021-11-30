@@ -1,5 +1,5 @@
 pub use case_insensitive_str::CaseInsensitiveStr;
-pub use quoted_word_iter::quoted_words;
+pub use quoted_word_iter::QuotedWords;
 
 mod case_insensitive_str;
 mod quoted_word_iter;

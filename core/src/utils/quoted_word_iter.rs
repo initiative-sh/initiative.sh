@@ -1,8 +1,17 @@
 use super::Word;
 use std::str::CharIndices;
 
-pub fn quoted_words(phrase: &str) -> QuotedWordIterator<'_> {
-    QuotedWordIterator::new(phrase)
+pub trait QuotedWords {
+    fn quoted_words(&self) -> QuotedWordIterator<'_>;
+}
+
+impl<T> QuotedWords for T
+where
+    T: AsRef<str>,
+{
+    fn quoted_words(&self) -> QuotedWordIterator<'_> {
+        QuotedWordIterator::new(self.as_ref())
+    }
 }
 
 pub struct QuotedWordIterator<'a> {
@@ -122,7 +131,7 @@ mod test {
     #[test]
     fn quoted_word_iter_test() {
         let input = "a boy \n named \"Johnny Cash\"";
-        let mut input_iter = quoted_words(input);
+        let mut input_iter = input.quoted_words();
 
         let word = input_iter.next().unwrap();
         assert_eq!("a", word.as_str());
@@ -146,7 +155,7 @@ mod test {
     #[test]
     fn quoted_word_iter_test_trailing_comma() {
         let input = "\"Legolas\", an elf";
-        let mut input_iter = quoted_words(input);
+        let mut input_iter = input.quoted_words();
 
         let word = input_iter.next().unwrap();
         assert_eq!("Legolas", word.as_str());
@@ -170,7 +179,7 @@ mod test {
     #[test]
     fn quoted_word_iter_test_empty_quotes() {
         let input = "\"\"";
-        let mut input_iter = quoted_words(input);
+        let mut input_iter = input.quoted_words();
 
         let word = input_iter.next().unwrap();
         assert_eq!("", word.as_str());
@@ -182,7 +191,7 @@ mod test {
     #[test]
     fn quoted_word_iter_test_empty_quotes_mid_word() {
         let input = "  bl\"\"ah ";
-        let mut input_iter = quoted_words(input);
+        let mut input_iter = input.quoted_words();
 
         let word = input_iter.next().unwrap();
         assert_eq!("bl", word.as_str());
@@ -202,7 +211,7 @@ mod test {
     #[test]
     fn quoted_word_iter_test_unclosed_quote() {
         let input = "  bl\"ah ";
-        let mut input_iter = quoted_words(input);
+        let mut input_iter = input.quoted_words();
 
         let word = input_iter.next().unwrap();
         assert_eq!("bl", word.as_str());
@@ -218,7 +227,7 @@ mod test {
     #[test]
     fn quoted_word_iter_test_unclosed_quote_at_end() {
         let input = " \"";
-        let mut input_iter = quoted_words(input);
+        let mut input_iter = input.quoted_words();
 
         let word = input_iter.next().unwrap();
         assert_eq!("", word.as_str());
@@ -230,7 +239,7 @@ mod test {
     #[test]
     fn quoted_word_iter_test_trailing_quote() {
         let input = "  bl\"";
-        let mut input_iter = quoted_words(input);
+        let mut input_iter = input.quoted_words();
 
         let word = input_iter.next().unwrap();
         assert_eq!("bl", word.as_str());
@@ -246,7 +255,7 @@ mod test {
     #[test]
     fn quoted_word_iter_test_single_letter() {
         let input = "🥔";
-        let mut input_iter = quoted_words(input);
+        let mut input_iter = input.quoted_words();
 
         let word = input_iter.next().unwrap();
         assert_eq!("🥔", word.as_str());
@@ -257,7 +266,7 @@ mod test {
 
     #[test]
     fn quoted_word_iter_test_empty() {
-        assert!(quoted_words("").next().is_none());
-        assert!(quoted_words(" ").next().is_none());
+        assert!("".quoted_words().next().is_none());
+        assert!(" ".quoted_words().next().is_none());
     }
 }

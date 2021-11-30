@@ -1,18 +1,20 @@
-use crate::utils::{capitalize, quoted_words, CaseInsensitiveStr};
+use crate::utils::{capitalize, CaseInsensitiveStr, QuotedWords};
 use crate::world::command::ParsedThing;
 use crate::world::{Field, Npc, Place};
 use std::str::FromStr;
 
 fn split_name(input: &str) -> Option<(&str, &str)> {
-    let (named, comma) = quoted_words(input).fold((None, None), |(named, comma), word| {
-        if named.is_none() && word.as_str().in_ci(&["named", "called"]) {
-            (Some(word), comma)
-        } else if word.as_str().ends_with(',') {
-            (named, Some(word))
-        } else {
-            (named, comma)
-        }
-    });
+    let (named, comma) = input
+        .quoted_words()
+        .fold((None, None), |(named, comma), word| {
+            if named.is_none() && word.as_str().in_ci(&["named", "called"]) {
+                (Some(word), comma)
+            } else if word.as_str().ends_with(',') {
+                (named, Some(word))
+            } else {
+                (named, comma)
+            }
+        });
 
     let (name, description) = if let Some(word) = named {
         // "a boy named Sue"
@@ -28,12 +30,13 @@ fn split_name(input: &str) -> Option<(&str, &str)> {
     };
 
     if let (Some(name_start), Some(name_end)) =
-        quoted_words(name).fold((None, None), |(name_start, _), word| {
-            (
-                name_start.or_else(|| Some(word.range().start)),
-                Some(word.range().end),
-            )
-        })
+        name.quoted_words()
+            .fold((None, None), |(name_start, _), word| {
+                (
+                    name_start.or_else(|| Some(word.range().start)),
+                    Some(word.range().end),
+                )
+            })
     {
         let name = &name[name_start..name_end];
         if let Some(name_stripped) = name.strip_prefix('"').and_then(|s| s.strip_suffix('"')) {
@@ -61,7 +64,7 @@ impl FromStr for ParsedThing<Place> {
             input
         };
 
-        for word in quoted_words(description) {
+        for word in description.quoted_words() {
             let word_str = &word.as_str();
             word_count += 1;
 
@@ -101,7 +104,7 @@ impl FromStr for ParsedThing<Npc> {
             input
         };
 
-        for word in quoted_words(description) {
+        for word in description.quoted_words() {
             let word_str = &word.as_str();
             word_count += 1;
 

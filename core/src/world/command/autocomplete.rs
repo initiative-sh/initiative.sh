@@ -1,6 +1,6 @@
 use super::ParsedThing;
 use crate::app::{AppMeta, Autocomplete};
-use crate::utils::{quoted_words, CaseInsensitiveStr};
+use crate::utils::{CaseInsensitiveStr, QuotedWords};
 use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
 use crate::world::place::{Place, PlaceType};
 use crate::world::Thing;
@@ -48,7 +48,8 @@ impl<'a> From<&'a str> for ParsedInput<'a> {
         let desc_partial_split = if input.ends_with(|c: char| c == ',' || c.is_whitespace()) {
             input.len()
         } else {
-            quoted_words(input)
+            input
+                .quoted_words()
                 .last()
                 .map_or_else(|| input.len(), |word| word.range().start)
         };
@@ -72,7 +73,8 @@ impl<'a> From<&'a str> for ParsedInput<'a> {
 fn autocomplete_trailing_name<T: FromStr + Into<Thing>>(
     input: &str,
 ) -> Option<(Cow<'static, str>, Cow<'static, str>)> {
-    if !quoted_words(input)
+    if !input
+        .quoted_words()
         .skip(1)
         .any(|word| word.as_str().in_ci(&["named", "called"]))
     {
@@ -126,7 +128,11 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
 
     if parsed.partial.is_empty() || parsed.partial.in_ci(ARTICLES) {
         // Ends with a space or ignored word - suggest new word categories
-        if quoted_words(parsed.desc).all(|word| word.as_str().in_ci(ARTICLES)) {
+        if parsed
+            .desc
+            .quoted_words()
+            .all(|word| word.as_str().in_ci(ARTICLES))
+        {
             let thing: Thing = T::default().into();
 
             let suggestion = format!(
@@ -147,7 +153,9 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
         } else if let Ok(thing) = parsed.name_desc.parse::<T>().map(|t| t.into()) {
             let mut suggestions = Vec::new();
 
-            let words: HashSet<&str> = quoted_words(parsed.desc_lower())
+            let words: HashSet<&str> = parsed
+                .desc_lower()
+                .quoted_words()
                 .map(|w| w.as_own_str(parsed.desc_lower()))
                 .collect();
 
@@ -171,7 +179,9 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
     } else if !parsed.desc.is_empty() {
         // Multiple words: make suggestions if existing words made sense.
         let words: HashSet<&str> = {
-            quoted_words(parsed.desc_lower())
+            parsed
+                .desc_lower()
+                .quoted_words()
                 .map(|w| w.as_own_str(parsed.desc_lower()))
                 .filter(|s| s != &parsed.partial && !s.in_ci(ARTICLES))
                 .collect()
@@ -257,7 +267,7 @@ impl Autocomplete for Npc {
         input: &str,
         _app_meta: &AppMeta,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-        if let Some(word) = quoted_words(input).last().filter(|w| {
+        if let Some(word) = input.quoted_words().last().filter(|w| {
             let s = w.as_str();
             s.starts_with(|c: char| c.is_ascii_digit())
                 && "-year-old".starts_with_ci(s.trim_start_matches(|c: char| c.is_ascii_digit()))
