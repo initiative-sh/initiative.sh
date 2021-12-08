@@ -86,12 +86,7 @@ impl Runnable for WorldCommand {
                             command_alias = Some(CommandAlias::literal(
                                 "save".to_string(),
                                 format!("save {}", name),
-                                StorageCommand::Change {
-                                    change: Change::Save {
-                                        name: name.to_string(),
-                                    },
-                                }
-                                .into(),
+                                StorageCommand::Save { name: name.into() }.into(),
                             ));
 
                             app_meta.command_aliases.insert(CommandAlias::literal(
@@ -126,7 +121,7 @@ impl Runnable for WorldCommand {
                             if thing.name().is_locked() {
                                 if let Ok(other_thing) = app_meta
                                     .repository
-                                    .load(&thing.name().value().unwrap().into())
+                                    .get_by_name(thing.name().value().unwrap())
                                     .await
                                 {
                                     return Err(format!(
@@ -173,7 +168,7 @@ impl Runnable for WorldCommand {
                             (i % 10).to_string(),
                             format!("load {}", thing.name()),
                             StorageCommand::Load {
-                                name: thing.name().to_string(),
+                                name: thing.name().value().and_then(|s| s.parse().ok()).unwrap(),
                             }
                             .into(),
                         );
@@ -214,15 +209,26 @@ impl Runnable for WorldCommand {
                     word_count: _,
                 } = diff;
 
-                StorageCommand::Change {
-                    change: Change::Edit {
-                        id: name.as_str().into(),
-                        name,
+                let thing_type = diff.as_str();
+
+                match app_meta.repository.modify(Change::Edit {
+                        name: name.clone(),
+                        uuid: None,
                         diff,
-                    },
+                    }).await {
+                    Ok(Some(thing)) if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) => Ok(format!(
+                        "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
+                        thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
+                        name,
+                    )),
+                    Ok(Some(thing)) => Ok(format!(
+                        "{}\n\n_{} was successfully edited. Use `undo` to reverse this._",
+                        thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
+                        name,
+                    )),
+                    Err((_, RepositoryError::NotFound)) => Err(format!(r#"There is no {} named "{}"."#, thing_type, name)),
+                    _ => Err(format!("Couldn't edit `{}`.", name)),
                 }
-                .run(input, app_meta)
-                .await
                 .map(|s| append_unknown_words_notice(s, input, unknown_words))
             }
         }
@@ -257,7 +263,7 @@ impl ContextAwareParse for WorldCommand {
                 input[word.range().end..].trim(),
             );
 
-            let (diff, thing) = if let Ok(thing) = app_meta.repository.load(&name.into()).await {
+            let (diff, thing) = if let Ok(thing) = app_meta.repository.get_by_name(name).await {
                 (
                     match thing {
                         Thing::Npc(_) => description
@@ -317,7 +323,7 @@ impl Autocomplete for WorldCommand {
         {
             if let Ok(thing) = app_meta
                 .repository
-                .load(&input[..is_word.range().start].trim().into())
+                .get_by_name(input[..is_word.range().start].trim())
                 .await
             {
                 let split_pos = input.len() - input[is_word.range().end..].trim_start().len();
@@ -351,7 +357,7 @@ impl Autocomplete for WorldCommand {
             }
         }
 
-        if let Ok(thing) = app_meta.repository.load(&input.trim_end().into()).await {
+        if let Ok(thing) = app_meta.repository.get_by_name(input.trim_end()).await {
             suggestions.push((
                 if input.ends_with(char::is_whitespace) {
                     format!("{}is [{} description]", input, thing.as_str())
@@ -367,7 +373,7 @@ impl Autocomplete for WorldCommand {
             if "is".starts_with_ci(last_word.as_str()) {
                 if let Ok(thing) = app_meta
                     .repository
-                    .load(&input[..last_word.range().start].trim().into())
+                    .get_by_name(input[..last_word.range().start].trim())
                     .await
                 {
                     suggestions.push((
@@ -393,7 +399,7 @@ impl Autocomplete for WorldCommand {
                 if second_last_word.as_str().eq_ci("is") {
                     if let Ok(thing) = app_meta
                         .repository
-                        .load(&input[..second_last_word.range().start].trim().into())
+                        .get_by_name(input[..second_last_word.range().start].trim())
                         .await
                     {
                         suggestions.push((

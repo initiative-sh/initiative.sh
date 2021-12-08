@@ -1,3 +1,5 @@
+* **Enhancement:** Continuing to rework the command parsing. Again, no
+  functional impact.
 * **Enhancement:** First steps towards improved command parsing on the backend.
   Hopefully there will be no functional impact of this one, but it should
   improve my velocity in the future.

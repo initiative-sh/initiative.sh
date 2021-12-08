@@ -114,10 +114,8 @@ impl TutorialCommand {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "save".to_string(),
                     format!("save {}", inn_name),
-                    StorageCommand::Change {
-                        change: Change::Save {
-                            name: inn_name.to_owned(),
-                        },
+                    StorageCommand::Save {
+                        name: inn_name.into(),
                     }
                     .into(),
                 ));
@@ -155,7 +153,7 @@ impl TutorialCommand {
                     "2".to_string(),
                     format!("load {}", npc_name),
                     StorageCommand::Load {
-                        name: npc_name.to_owned(),
+                        name: npc_name.into(),
                     }
                     .into(),
                 ));
@@ -169,10 +167,8 @@ impl TutorialCommand {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "save".to_string(),
                     format!("save {}", npc_name),
-                    StorageCommand::Change {
-                        change: Change::Save {
-                            name: npc_name.to_owned(),
-                        },
+                    StorageCommand::Save {
+                        name: npc_name.into(),
                     }
                     .into(),
                 ));
@@ -290,10 +286,7 @@ impl TutorialCommand {
                 }
             }
             Self::Npc { inn_name } => {
-                if let Some(CommandType::Storage(StorageCommand::Change {
-                    change: Change::Save { name },
-                })) = command
-                {
+                if let Some(CommandType::Storage(StorageCommand::Save { name })) = command {
                     name.eq_ci(inn_name)
                 } else {
                     false
@@ -393,10 +386,7 @@ impl TutorialCommand {
                 matches!(command, Some(CommandType::App(AppCommand::Roll { .. })))
             }
             Self::AdjustTime { inn_name, .. } => {
-                if let Some(CommandType::Storage(StorageCommand::Change {
-                    change: Change::Delete { name, .. },
-                })) = command
-                {
+                if let Some(CommandType::Storage(StorageCommand::Delete { name })) = command {
                     name.eq_ci(inn_name)
                 } else {
                     false
@@ -424,8 +414,8 @@ impl Runnable for TutorialCommand {
                 app_meta
                     .repository
                     .modify(Change::Delete {
-                        id: inn_name.into(),
                         name: inn_name.to_owned(),
+                        uuid: None,
                     })
                     .await
                     .ok();
@@ -435,8 +425,8 @@ impl Runnable for TutorialCommand {
                 app_meta
                     .repository
                     .modify(Change::Delete {
-                        id: npc_name.into(),
                         name: npc_name.to_owned(),
+                        uuid: None,
                     })
                     .await
                     .ok();
@@ -601,16 +591,16 @@ impl Runnable for TutorialCommand {
                     app_meta
                         .repository
                         .modify(Change::Delete {
-                            id: inn_name.as_str().into(),
                             name: inn_name,
+                            uuid: None,
                         })
                         .await
                         .ok();
                     app_meta
                         .repository
                         .modify(Change::Delete {
-                            id: npc_name.as_str().into(),
                             name: npc_name,
+                            uuid: None,
                         })
                         .await
                         .ok();

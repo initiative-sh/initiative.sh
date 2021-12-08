@@ -64,11 +64,10 @@ pub async fn import(
             (stat, Ok(_)) => stat.created += 1,
             (stat, Err((Change::CreateAndSave { thing }, RepositoryError::NameAlreadyExists))) => {
                 let name = thing.name().to_string();
-                let id = name.as_str().into();
                 match repo
                     .modify_without_undo(Change::Edit {
                         name,
-                        id,
+                        uuid: None,
                         diff: thing,
                     })
                     .await
