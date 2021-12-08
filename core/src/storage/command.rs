@@ -2,7 +2,7 @@ use super::backup::export;
 use super::{Change, RepositoryError};
 use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Event, Runnable};
 use crate::utils::CaseInsensitiveStr;
-use crate::world::syntax::ThingName;
+use crate::world::syntax::{FromAny, FromJournal, FromRecent, ThingName};
 use crate::world::Thing;
 use async_trait::async_trait;
 use futures::join;
@@ -15,7 +15,8 @@ use std::iter::repeat;
 #[derive(Clone, ContextAwareParse, Debug, PartialEq)]
 pub enum StorageCommand {
     Delete {
-        name: ThingName,
+        #[rustfmt::skip]
+        name: ThingName::<Thing, FromJournal>,
     },
     Export,
     Import,
@@ -23,11 +24,13 @@ pub enum StorageCommand {
 
     #[command(alias = "[name]")]
     Load {
-        name: ThingName,
+        #[rustfmt::skip]
+        name: ThingName::<Thing, FromAny>,
     },
     Redo,
     Save {
-        name: ThingName,
+        #[rustfmt::skip]
+        name: ThingName::<Thing, FromRecent>,
     },
     Undo,
 }
