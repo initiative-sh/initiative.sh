@@ -554,7 +554,7 @@ mod test {
                     .iter()
                     .map(|alias| (alias.to_string(), alias.no_autocomplete));
 
-                assert_eq!(Some(("alias1".to_string(), false)), aliases.next(),);
+                assert_eq!(Some(("alias1".to_string(), false)), aliases.next());
                 assert_eq!(Some(("alias2".to_string(), true)), aliases.next());
                 assert_eq!(Some(("alias3".to_string(), false)), aliases.next());
             }
