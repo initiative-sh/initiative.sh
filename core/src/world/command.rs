@@ -1,46 +1,39 @@
-use super::{Field, Npc, Place, Thing};
-use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
+use super::{Field, Thing};
+use crate::app::{AppMeta, CommandAlias, Runnable};
 use crate::storage::{Change, RepositoryError, StorageCommand};
-use crate::utils::{CaseInsensitiveStr, QuotedWords};
+use crate::world::syntax::{
+    ThingDescription
+};
 use async_trait::async_trait;
-use futures::join;
-use std::borrow::Cow;
-use std::fmt;
+use initiative_macros::{Autocomplete, ContextAwareParse, Display};
 use std::ops::Range;
 
-mod autocomplete;
-mod parse;
-
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Autocomplete, Clone, ContextAwareParse, Debug, Display, PartialEq)]
 pub enum WorldCommand {
-    Create {
-        thing: ParsedThing<Thing>,
+    #[command(alias = "[description]")]
+    Create { description: ThingDescription },
+    #[command(ignore)]
+    CreateMultiple { thing: Thing },
+    /*
+    #[command(syntax = "[name] is [description]")]
+    EditNpc {
+        name: ThingName<Npc, FromAny>,
+        description: NpcDescription,
     },
-    CreateMultiple {
-        thing: Thing,
+    #[command(syntax = "[name] is [description]")]
+    EditPlace {
+        name: ThingName<Place, FromAny>,
+        description: PlaceDescription,
     },
-    Edit {
-        name: String,
-        diff: ParsedThing<Thing>,
-    },
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct ParsedThing<T> {
-    pub thing: T,
-    pub unknown_words: Vec<Range<usize>>,
-    pub word_count: usize,
+    */
 }
 
 #[async_trait(?Send)]
 impl Runnable for WorldCommand {
-    async fn run(self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run(self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
-            Self::Create {
-                thing: parsed_thing,
-            } => {
-                let diff = parsed_thing.thing;
-                let unknown_words = parsed_thing.unknown_words.to_owned();
+            Self::Create { description } => {
+                let (diff, _unknown_words) = description.into_thing_with_unknown_words();
                 let mut output = None;
 
                 if let Some(place) = diff.place() {
@@ -138,7 +131,8 @@ impl Runnable for WorldCommand {
                 }
 
                 if let Some(output) = output {
-                    Ok(append_unknown_words_notice(output, input, unknown_words))
+                    Ok(output)
+                    //Ok(append_unknown_words_notice(output, input, unknown_words))
                 } else {
                     Err(format!(
                         "Couldn't create a unique {} name.",
@@ -202,281 +196,29 @@ impl Runnable for WorldCommand {
 
                 Ok(output)
             }
-            Self::Edit { name, diff } => {
-                let ParsedThing {
-                    thing: diff,
-                    unknown_words,
-                    word_count: _,
-                } = diff;
-
-                let thing_type = diff.as_str();
-
+            /*
+            Self::EditNpc { name, description } => {
                 match app_meta.repository.modify(Change::Edit {
-                        name: name.clone(),
-                        uuid: None,
-                        diff,
-                    }).await {
-                    Ok(Some(thing)) if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) => Ok(format!(
-                        "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
-                        thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
-                        name,
-                    )),
-                    Ok(Some(thing)) => Ok(format!(
-                        "{}\n\n_{} was successfully edited. Use `undo` to reverse this._",
-                        thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
-                        name,
-                    )),
-                    Err((_, RepositoryError::NotFound)) => Err(format!(r#"There is no {} named "{}"."#, thing_type, name)),
-                    _ => Err(format!("Couldn't edit `{}`.", name)),
-                }
-                .map(|s| append_unknown_words_notice(s, input, unknown_words))
+                          name: name.into(),
+                          uuid: None,
+                          diff: ThingDescription::from(description).into_thing(),
+                      }).await {
+                      Ok(Some(thing)) if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) => Ok(format!(
+                          "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
+                          thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
+                          name,
+                      )),
+                      Ok(Some(thing)) => Ok(format!(
+                          "{}\n\n_{} was successfully edited. Use `undo` to reverse this._",
+                          thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
+                          name,
+                      )),
+                      Err((_, RepositoryError::NotFound)) => Err(format!(r#"There is no character named "{}"."#, name)),
+                      _ => Err(format!("Couldn't edit `{}`.", name)),
+                  }
             }
+            */
         }
-    }
-}
-
-#[async_trait(?Send)]
-impl ContextAwareParse for WorldCommand {
-    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut exact_match = None;
-        let mut fuzzy_matches = Vec::new();
-
-        if let Some(Ok(thing)) = input
-            .strip_prefix_ci("create ")
-            .map(|s| s.parse::<ParsedThing<Thing>>())
-        {
-            if thing.unknown_words.is_empty() {
-                exact_match = Some(Self::Create { thing });
-            } else {
-                fuzzy_matches.push(Self::Create { thing });
-            }
-        } else if let Ok(thing) = input.parse::<ParsedThing<Thing>>() {
-            fuzzy_matches.push(Self::Create { thing });
-        }
-
-        if let Some(word) = input
-            .quoted_words()
-            .skip(1)
-            .find(|word| word.as_str().eq_ci("is"))
-        {
-            let (name, description) = (
-                input[..word.range().start].trim(),
-                input[word.range().end..].trim(),
-            );
-
-            let (diff, thing) = if let Ok(thing) = app_meta.repository.get_by_name(name).await {
-                (
-                    match thing {
-                        Thing::Npc(_) => description
-                            .parse::<ParsedThing<Npc>>()
-                            .map(|npc| npc.into_thing()),
-                        Thing::Place(_) => description
-                            .parse::<ParsedThing<Place>>()
-                            .map(|npc| npc.into_thing()),
-                    }
-                    .or_else(|_| description.parse()),
-                    Some(thing),
-                )
-            } else {
-                // This will be an error when we try to run the command, but for now we'll pretend
-                // it's valid so that we can provide a more coherent message.
-                (description.parse(), None)
-            };
-
-            if let Ok(mut diff) = diff {
-                let name = thing
-                    .map(|t| t.name().to_string())
-                    .unwrap_or_else(|| name.to_string());
-
-                diff.unknown_words.iter_mut().for_each(|range| {
-                    *range = range.start + word.range().end + 1..range.end + word.range().end + 1
-                });
-
-                fuzzy_matches.push(Self::Edit { name, diff });
-            }
-        }
-
-        (exact_match, fuzzy_matches)
-    }
-}
-
-#[async_trait(?Send)]
-impl Autocomplete for WorldCommand {
-    async fn autocomplete(
-        input: &str,
-        app_meta: &AppMeta,
-        include_aliases: bool,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-        let mut suggestions = Vec::new();
-
-        let (mut place_suggestions, mut npc_suggestions) = join!(
-            Place::autocomplete(input, app_meta, include_aliases),
-            Npc::autocomplete(input, app_meta, include_aliases),
-        );
-
-        suggestions.append(&mut place_suggestions);
-        suggestions.append(&mut npc_suggestions);
-
-        let mut input_words = input.quoted_words().skip(1);
-
-        if let Some((is_word, next_word)) = input_words
-            .find(|word| word.as_str().eq_ci("is"))
-            .and_then(|word| input_words.next().map(|next_word| (word, next_word)))
-        {
-            if let Ok(thing) = app_meta
-                .repository
-                .get_by_name(input[..is_word.range().start].trim())
-                .await
-            {
-                let split_pos = input.len() - input[is_word.range().end..].trim_start().len();
-
-                let mut edit_suggestions = match thing {
-                    Thing::Npc(_) => Npc::autocomplete(
-                        input[split_pos..].trim_start(),
-                        app_meta,
-                        include_aliases,
-                    ),
-                    Thing::Place(_) => Place::autocomplete(
-                        input[split_pos..].trim_start(),
-                        app_meta,
-                        include_aliases,
-                    ),
-                }
-                .await;
-
-                suggestions.reserve(edit_suggestions.len());
-
-                edit_suggestions
-                    .drain(..)
-                    .map(|(a, _)| {
-                        (
-                            format!("{}{}", &input[..split_pos], a).into(),
-                            format!("edit {}", thing.as_str()).into(),
-                        )
-                    })
-                    .for_each(|suggestion| suggestions.push(suggestion));
-
-                if next_word.as_str().in_ci(&["named", "called"]) && input_words.next().is_some() {
-                    suggestions.push((
-                        input.to_string().into(),
-                        format!("rename {}", thing.as_str()).into(),
-                    ));
-                }
-            }
-        }
-
-        if let Ok(thing) = app_meta.repository.get_by_name(input.trim_end()).await {
-            suggestions.push((
-                if input.ends_with(char::is_whitespace) {
-                    format!("{}is [{} description]", input, thing.as_str())
-                } else {
-                    format!("{} is [{} description]", input, thing.as_str())
-                }
-                .into(),
-                format!("edit {}", thing.as_str()).into(),
-            ));
-        } else if let Some((last_word_index, last_word)) =
-            input.quoted_words().enumerate().skip(1).last()
-        {
-            if "is".starts_with_ci(last_word.as_str()) {
-                if let Ok(thing) = app_meta
-                    .repository
-                    .get_by_name(input[..last_word.range().start].trim())
-                    .await
-                {
-                    suggestions.push((
-                        if last_word.range().end == input.len() {
-                            format!(
-                                "{}is [{} description]",
-                                &input[..last_word.range().start],
-                                thing.as_str(),
-                            )
-                        } else {
-                            format!("{}[{} description]", &input, thing.as_str())
-                        }
-                        .into(),
-                        format!("edit {}", thing.as_str()).into(),
-                    ))
-                }
-            } else if let Some(suggestion) = ["named", "called"]
-                .iter()
-                .find(|s| s.starts_with_ci(last_word.as_str()))
-            {
-                let second_last_word = input.quoted_words().nth(last_word_index - 1).unwrap();
-
-                if second_last_word.as_str().eq_ci("is") {
-                    if let Ok(thing) = app_meta
-                        .repository
-                        .get_by_name(input[..second_last_word.range().start].trim())
-                        .await
-                    {
-                        suggestions.push((
-                            if last_word.range().end == input.len() {
-                                format!(
-                                    "{}{} [name]",
-                                    &input[..last_word.range().start],
-                                    suggestion,
-                                )
-                            } else {
-                                format!("{}[name]", input)
-                            }
-                            .into(),
-                            format!("rename {}", thing.as_str()).into(),
-                        ));
-                    }
-                }
-            }
-        }
-
-        suggestions
-    }
-
-    fn get_variant_name(&self) -> &'static str {
-        match self {
-            Self::Create { .. } => "Create",
-            Self::CreateMultiple { .. } => "CreateMultiple",
-            Self::Edit { .. } => "Edit",
-        }
-    }
-}
-
-impl fmt::Display for WorldCommand {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        match self {
-            Self::Create { thing } => write!(f, "create {}", thing.thing.display_description()),
-            Self::CreateMultiple { thing } => {
-                write!(f, "create  multiple {}", thing.display_description())
-            }
-            Self::Edit { name, diff } => {
-                write!(f, "{} is {}", name, diff.thing.display_description())
-            }
-        }
-    }
-}
-
-impl<T: Into<Thing>> ParsedThing<T> {
-    pub fn into_thing(self) -> ParsedThing<Thing> {
-        ParsedThing {
-            thing: self.thing.into(),
-            unknown_words: self.unknown_words,
-            word_count: self.word_count,
-        }
-    }
-}
-
-impl<T: Default> Default for ParsedThing<T> {
-    fn default() -> Self {
-        Self {
-            thing: T::default(),
-            unknown_words: Vec::default(),
-            word_count: 0,
-        }
-    }
-}
-
-impl<T: Into<Thing>> From<ParsedThing<T>> for Thing {
-    fn from(input: ParsedThing<T>) -> Self {
-        input.thing.into()
     }
 }
 
@@ -528,10 +270,10 @@ fn append_unknown_words_notice(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::app::assert_autocomplete;
+    use crate::app::{assert_autocomplete, Autocomplete, ContextAwareParse};
     use crate::storage::NullDataStore;
-    use crate::world::npc::{Age, Gender, Species};
-    use crate::world::place::PlaceType;
+    use crate::world::npc::{Npc, Age, Gender, Species};
+    use crate::world::syntax::{NpcDescription, NpcTerm, PlaceDescription, PlaceTerm, ThingDescription};
     use crate::Event;
     use tokio_test::block_on;
 
@@ -540,22 +282,24 @@ mod test {
         let mut app_meta = app_meta();
 
         assert_eq!(
-            (None, vec![create(Npc::default())]),
+            (None, vec![create(NpcDescription::default())]),
             block_on(WorldCommand::parse_input("npc", &app_meta)),
         );
 
         assert_eq!(
-            (Some(create(Npc::default())), Vec::new()),
+            (Some(create(NpcDescription::default())), Vec::new()),
             block_on(WorldCommand::parse_input("create npc", &app_meta)),
         );
 
         assert_eq!(
             (
                 None,
-                vec![create(Npc {
-                    species: Species::Elf.into(),
-                    ..Default::default()
-                })],
+                vec![create(NpcDescription::from_iter(
+                    [NpcTerm::Species {
+                        species: Species::Elf,
+                    }]
+                    .into_iter(),
+                ))],
             ),
             block_on(WorldCommand::parse_input("elf", &app_meta)),
         );
@@ -565,6 +309,7 @@ mod test {
             block_on(WorldCommand::parse_input("potato", &app_meta)),
         );
 
+        /*
         {
             block_on(
                 app_meta.repository.modify(Change::Create {
@@ -597,6 +342,7 @@ mod test {
                 block_on(WorldCommand::parse_input("Spot is a good boy", &app_meta)),
             );
         }
+        */
     }
 
     #[test]
@@ -715,15 +461,19 @@ mod test {
         let app_meta = app_meta();
 
         vec![
-            create(Place {
-                subtype: "inn".parse::<PlaceType>().ok().into(),
-                ..Default::default()
-            }),
-            create(Npc::default()),
-            create(Npc {
-                species: Some(Species::Elf).into(),
-                ..Default::default()
-            }),
+            create(PlaceDescription::from_iter(
+                [PlaceTerm::Subtype {
+                    subtype: "inn".parse().unwrap(),
+                }]
+                .into_iter(),
+            )),
+            create(NpcDescription::default()),
+            create(NpcDescription::from_iter(
+                [NpcTerm::Species {
+                    species: Species::Elf,
+                }]
+                .into_iter(),
+            )),
         ]
         .drain(..)
         .for_each(|command| {
@@ -749,13 +499,9 @@ mod test {
         });
     }
 
-    fn create(thing: impl Into<Thing>) -> WorldCommand {
+    fn create(description: impl Into<ThingDescription>) -> WorldCommand {
         WorldCommand::Create {
-            thing: ParsedThing {
-                thing: thing.into(),
-                unknown_words: Vec::new(),
-                word_count: 1,
-            },
+            description: description.into(),
         }
     }
 

@@ -7,7 +7,8 @@ use crate::storage::{Change, StorageCommand};
 use crate::time::TimeCommand;
 use crate::utils::CaseInsensitiveStr;
 use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
-use crate::world::{ParsedThing, Thing, WorldCommand};
+use crate::world::{Thing, WorldCommand};
+use crate::world::place::{Place, PlaceType};
 use async_trait::async_trait;
 use std::borrow::Cow;
 use std::fmt;
@@ -276,11 +277,8 @@ impl TutorialCommand {
             Self::Introduction | Self::Restart { .. } => true,
             Self::Inn => matches!(command, Some(CommandType::Tutorial(Self::Inn))),
             Self::Save => {
-                if let Some(CommandType::World(WorldCommand::Create {
-                    thing: parsed_thing,
-                })) = command
-                {
-                    parsed_thing.thing == "inn".parse::<ParsedThing<Thing>>().unwrap().thing
+                if let Some(CommandType::World(WorldCommand::Create { description })) = command {
+                    description.to_owned().into_thing() == Thing::Place(Place { subtype: "inn".parse::<PlaceType>().unwrap().into(), ..Default::default() })
                 } else {
                     false
                 }
@@ -294,15 +292,10 @@ impl TutorialCommand {
             }
             Self::NpcMore { .. } => {
                 if let Some(CommandType::World(WorldCommand::Create {
-                    thing:
-                        ParsedThing {
-                            thing,
-                            unknown_words: _,
-                            word_count: _,
-                        },
+                    description
                 })) = command
                 {
-                    thing.npc()
+                    description.to_owned().into_thing().npc()
                         == Some(&Npc {
                             species: Species::Human.into(),
                             ethnicity: Ethnicity::Human.into(),
@@ -335,7 +328,8 @@ impl TutorialCommand {
                     false
                 }
             }
-            Self::Journal { npc_name, .. } => {
+            Self::Journal { npc_name: _, .. } => {
+                /*
                 if let Some(CommandType::World(WorldCommand::Edit {
                     name,
                     diff:
@@ -355,6 +349,8 @@ impl TutorialCommand {
                 } else {
                     false
                 }
+                */
+                todo!();
             }
             Self::LoadByName { .. } => {
                 matches!(command, Some(CommandType::Storage(StorageCommand::Journal)))

@@ -292,7 +292,7 @@ mod test {
     use super::*;
     use crate::app::assert_autocomplete;
     use crate::storage::NullDataStore;
-    use crate::world::{Npc, ParsedThing};
+    use crate::world::syntax::ThingDescription;
     use crate::Event;
     use tokio_test::block_on;
 
@@ -341,11 +341,7 @@ mod test {
                     Command::default().union(
                         (
                             Some(CommandType::World(WorldCommand::Create {
-                                thing: ParsedThing {
-                                    thing: Npc::default().into(),
-                                    unknown_words: Vec::new(),
-                                    word_count: 1,
-                                },
+                                description: ThingDescription::npc(),
                             })),
                             Vec::new(),
                         )
@@ -447,18 +443,10 @@ mod test {
 
         assert_eq!(
             CommandType::World(WorldCommand::Create {
-                thing: ParsedThing {
-                    thing: Npc::default().into(),
-                    unknown_words: Vec::new(),
-                    word_count: 1,
-                },
+                description: ThingDescription::npc(),
             }),
             WorldCommand::Create {
-                thing: ParsedThing {
-                    thing: Npc::default().into(),
-                    unknown_words: Vec::new(),
-                    word_count: 1,
-                },
+                description: ThingDescription::npc(),
             }
             .into(),
         );

@@ -10,6 +10,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::convert::Infallible;
 use std::fmt;
+use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::str::FromStr;
 
@@ -49,12 +50,11 @@ pub enum NpcTerm {
         #[command(implements(WordList))]
         species: Species,
     },
-
     //#[command(catchall)]
     //UnknownWord(String),
 }
 
-#[derive(Autocomplete, Clone, ContextAwareParse, Debug, Display, PartialEq)]
+#[derive(Autocomplete, Clone, ContextAwareParse, Default, Debug, Display, PartialEq)]
 pub struct NpcDescription(Vec<NpcTerm>);
 
 #[derive(Autocomplete, Clone, ContextAwareParse, Debug, Display, PartialEq)]
@@ -72,12 +72,11 @@ pub enum PlaceTerm {
         #[command(implements(WordList))]
         subtype: PlaceType,
     },
-
     //#[command(catchall)]
     //UnknownWord(String),
 }
 
-#[derive(Autocomplete, Clone, ContextAwareParse, Debug, Display, PartialEq)]
+#[derive(Autocomplete, Clone, ContextAwareParse, Default, Debug, Display, PartialEq)]
 pub struct PlaceDescription(Vec<PlaceTerm>);
 
 #[derive(Clone, Debug, PartialEq)]
@@ -137,6 +136,12 @@ impl PlaceDescription {
     }
 }
 
+impl FromIterator<PlaceTerm> for PlaceDescription {
+    fn from_iter<I: IntoIterator<Item = PlaceTerm>>(iter: I) -> Self {
+        Self(Vec::from_iter(iter))
+    }
+}
+
 impl NpcDescription {
     pub fn into_npc(self) -> Npc {
         self.into_npc_with_unknown_words().0
@@ -171,6 +176,12 @@ impl NpcDescription {
     }
 }
 
+impl FromIterator<NpcTerm> for NpcDescription {
+    fn from_iter<I: IntoIterator<Item = NpcTerm>>(iter: I) -> Self {
+        Self(Vec::from_iter(iter))
+    }
+}
+
 impl ThingDescription {
     pub fn into_thing(self) -> Thing {
         match self {
@@ -190,6 +201,26 @@ impl ThingDescription {
                 (Thing::Npc(npc), unknown_words)
             }
         }
+    }
+
+    pub fn place() -> Self {
+        Self::Place(PlaceDescription::default())
+    }
+
+    pub fn npc() -> Self {
+        Self::Npc(NpcDescription::default())
+    }
+}
+
+impl From<PlaceDescription> for ThingDescription {
+    fn from(input: PlaceDescription) -> Self {
+        ThingDescription::Place(input)
+    }
+}
+
+impl From<NpcDescription> for ThingDescription {
+    fn from(input: NpcDescription) -> Self {
+        ThingDescription::Npc(input)
     }
 }
 

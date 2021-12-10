@@ -3,7 +3,7 @@ pub mod npc;
 pub mod place;
 pub mod syntax;
 
-pub use command::{ParsedThing, WorldCommand};
+pub use command::WorldCommand;
 pub use demographics::Demographics;
 pub use field::Field;
 pub use npc::{Npc, NpcRelations, Uuid as NpcUuid};
