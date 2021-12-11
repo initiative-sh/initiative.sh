@@ -113,7 +113,8 @@ fn get_tuple_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, St
                 Trait::Runnable => Some(quote! {
                     suggestions.append(&mut #ty::autocomplete(input, app_meta).await);
                 }),
-                Trait::FromStr | Trait::WordList => None,
+                Trait::FromStr => None,
+                Trait::WordList => todo!(),
             }
         })
         .collect();
@@ -148,6 +149,7 @@ fn get_struct_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, S
                         .iter()
                         .map(|alias| parse_struct_syntax(variant, alias)),
                 )
+                .filter_map(|tokens| tokens.transpose())
                 .collect::<Result<Vec<_>, _>>()
                 .map(|clauses| {
                     quote! {
@@ -167,10 +169,19 @@ fn get_struct_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, S
 fn parse_struct_syntax(
     variant: &UnitStructCommandVariant,
     syntax: &CommandVariantSyntax,
-) -> Result<TokenStream, String> {
+) -> Result<Option<TokenStream>, String> {
     if !syntax.middle.is_empty() {
         todo!();
     }
+
+    if syntax.no_autocomplete {
+        return Ok(None);
+    }
+
+    let desc = variant
+        .doc
+        .as_ref()
+        .map_or_else(|| syntax.to_string(), |s| s.to_string());
 
     match (&syntax.start, &syntax.end) {
         (Some(syntax_start), Some(syntax_end)) => {
@@ -179,32 +190,43 @@ fn parse_struct_syntax(
                 .iter()
                 .find(|field| &field.ident == syntax_end)
                 .expect("Type must be defined!");
-            let doc = &variant.doc;
             let ty = &field.ty;
             let syntax_str = syntax.to_string();
 
-            Ok(match field.implements {
+            Ok(Some(match field.implements {
                 Trait::FromStr => quote! {
+                    if suggestions.len() >= 10 {
+                        return suggestions;
+                    }
+
                     if #syntax_start.starts_with_ci(input) {
-                        suggestions.push((#syntax_start.into(), #doc.into()));
+                        suggestions.push((#syntax_start.into(), #desc.into()));
                     } else if input.starts_with_ci(#syntax_start) {
-                        suggestions.push((input.to_string().into(), #doc.into()));
+                        suggestions.push((input.to_string().into(), #desc.into()));
                     }
                 },
                 Trait::Runnable => quote! {
                     if #syntax_start.starts_with_ci(input) {
-                        suggestions.push((#syntax_str.into(), #doc.into()));
+                        if suggestions.len() >= 10 {
+                            return suggestions;
+                        }
+
+                        suggestions.push((#syntax_str.into(), #desc.into()));
                     } else if let Some(remainder) = input.strip_prefix_ci(#syntax_start) {
-                        for (a, b) in #ty::autocomplete(remainder, app_meta).await {
+                        for (a, b) in #ty::autocomplete(remainder, app_meta).await.drain(..) {
+                            if suggestions.len() >= 10 {
+                                return suggestions;
+                            }
+
                             suggestions.push((
                                 format!("{}{}", #syntax_start, a).into(),
-                                #doc.into(),
+                                #desc.into(),
                             ));
                         }
                     }
                 },
-                Trait::WordList => unimplemented!(),
-            })
+                Trait::WordList => todo!(),
+            }))
         }
         (None, Some(syntax_end)) => {
             let ty = &variant
@@ -213,8 +235,32 @@ fn parse_struct_syntax(
                 .find(|field| &field.ident == syntax_end)
                 .expect("Type must be defined!")
                 .ty;
+            let field = variant
+                .fields
+                .iter()
+                .find(|field| &field.ident == syntax_end)
+                .expect("Type must be defined!");
 
-            Ok(quote! { suggestions.append(&mut #ty::autocomplete(input, app_meta).await); })
+            Ok(match field.implements {
+                Trait::FromStr => None,
+                Trait::Runnable => Some(quote! {
+                    if suggestions.len() >= 10 {
+                        return suggestions;
+                    }
+
+                    suggestions.append(&mut #ty::autocomplete(input, app_meta).await);
+                    suggestions.truncate(10);
+                }),
+                Trait::WordList => Some(quote! {
+                    for word in #ty::get_words().filter(|s| s.starts_with_ci(input)).take(10) {
+                        if suggestions.len() >= 10 {
+                            return suggestions;
+                        }
+
+                        suggestions.push((word.into(), #desc.into()));
+                    }
+                }),
+            })
         }
         _ => todo!(),
     }
