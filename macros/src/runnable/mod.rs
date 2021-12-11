@@ -46,6 +46,7 @@
 //!   supported trait. By default it is assumed to implement `ContextAwareParse` and `Autocomplete`
 //!   (collectively referred to as `Runnable`). Recognized values: `WordList`, `Runnable`.
 
+pub mod autocomplete;
 pub mod context_aware_parse;
 
 use proc_macro2::TokenStream;

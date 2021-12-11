@@ -268,30 +268,4 @@ fn parse_struct_syntax(
         }
         _ => todo!(),
     }
-
-    /*
-    if let = syntax.syntax_parts.first() {
-        quote! {
-            if let Some(
-        }
-    } else {
-        panic!(
-            "Non-prefixed syntaxes are not yet supported for {}: {:?}",
-            ident, syntax,
-        );
-    }
-    */
 }
-
-/*
-fn parse_struct_syntax_alias(ident: &syn::Ident, syntax: &CommandVariantSyntax) -> TokenStream {
-    //
-}
-*/
-
-/*
-#[async_trait(?Send)]
-pub trait ContextAwareParse: Sized {
-    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>);
-}
-*/
