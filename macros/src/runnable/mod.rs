@@ -52,7 +52,6 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 use std::collections::HashMap;
 use std::fmt;
-use std::iter;
 
 #[derive(Debug)]
 struct CommandEnum {
@@ -88,14 +87,10 @@ struct UnitStructCommandVariant {
 
 #[derive(Debug)]
 struct CommandVariantSyntax {
-    pub syntax_parts: Vec<CommandVariantSyntaxPart>,
+    pub start: Option<String>,
+    pub middle: Vec<(syn::Ident, String)>,
+    pub end: Option<syn::Ident>,
     pub no_autocomplete: bool,
-}
-
-#[derive(Debug)]
-enum CommandVariantSyntaxPart {
-    Str(String),
-    Ident(syn::Ident),
 }
 
 #[derive(Debug)]
@@ -139,64 +134,77 @@ impl TryFrom<TokenStream> for CommandEnum {
     }
 }
 
-fn parse_syntax(syntax: &str, fields: &[Field]) -> Result<Vec<CommandVariantSyntaxPart>, String> {
-    let mut is_ident = false;
-    let mut start = 0;
-    let mut parts = Vec::new();
+fn parse_syntax(input: &str, fields: &[Field]) -> Result<CommandVariantSyntax, String> {
+    let mut syntax = CommandVariantSyntax {
+        start: None,
+        middle: Vec::new(),
+        end: None,
+        no_autocomplete: false,
+    };
+
+    let mut start_pos = 0;
     let mut unmatched_fields: HashMap<String, syn::Ident> = fields
         .iter()
         .map(|f| (f.ident.to_string(), f.ident.clone()))
         .collect();
+    let mut hold_ident = None;
 
-    for (i, c) in syntax
-        .char_indices()
-        .filter(|(_, c)| ['[', ']'].contains(c))
-    {
-        match (is_ident, c) {
-            (false, '[') => {
-                if !syntax[start..i].trim().is_empty() {
-                    parts.push(CommandVariantSyntaxPart::Str(
-                        syntax[start..i].trim().to_string(),
+    for (pos, c) in input.char_indices().filter(|(_, c)| ['[', ']'].contains(c)) {
+        match (hold_ident.take(), c) {
+            (Some(ident), '[') => {
+                let s = &input[start_pos..pos];
+
+                if s.is_empty() {
+                    return Err(format!(
+                        r#"There must be at least one character dividing syntax parts in "{}"."#,
+                        input,
                     ));
+                } else {
+                    syntax.middle.push((ident, s.to_string()));
                 }
-
-                is_ident = true;
             }
-            (true, ']') => {
-                if let Some(ident) = unmatched_fields.remove(&syntax[start..i]) {
-                    parts.push(CommandVariantSyntaxPart::Ident(ident));
-                    is_ident = false;
+            (None, ']') if start_pos > 0 => {
+                if let Some(ident) = unmatched_fields.remove(&input[start_pos..pos]) {
+                    hold_ident = Some(ident);
                 } else {
                     return Err(format!(
                         r#"Unknown or duplicated field in "{}": "{}"."#,
-                        syntax,
-                        &syntax[start..i],
+                        input,
+                        &input[start_pos..pos],
                     ));
                 }
             }
-            _ => return Err(format!(r#"Unbalanced brackets in "{}"."#, syntax)),
+            (None, '[') if syntax.start.is_none() => {
+                if pos > 0 {
+                    syntax.start = Some(input[start_pos..pos].to_string());
+                }
+            }
+            _ => return Err(format!(r#"Unbalanced brackets in "{}"."#, input)),
         }
 
-        start = i + 1;
+        start_pos = pos + 1;
     }
 
-    if is_ident {
-        return Err(format!(r#"Unclosed bracket in "{}"."#, syntax));
-    }
-
-    if !syntax[start..].trim().is_empty() {
-        parts.push(CommandVariantSyntaxPart::Str(
-            syntax[start..].trim().to_string(),
-        ));
+    if let Some(ident) = hold_ident.take() {
+        let remainder = &input[start_pos..];
+        if remainder.is_empty() {
+            syntax.end = Some(ident)
+        } else {
+            syntax.middle.push((ident, remainder.to_string()))
+        }
+    } else if start_pos == 0 {
+        syntax.start = Some(input.to_string());
+    } else {
+        return Err(format!(r#"Unclosed bracket in "{}"."#, input));
     }
 
     if let Some(missing_field) = unmatched_fields.into_keys().next() {
         Err(format!(
             r#"Field "{}" is not accounted for in syntax "{}"."#,
-            missing_field, syntax
+            missing_field, input,
         ))
     } else {
-        Ok(parts)
+        Ok(syntax)
     }
 }
 
@@ -354,7 +362,7 @@ impl TryFrom<&syn::Variant> for CommandVariant {
             )?))
         } else {
             let variant = {
-                let (fields, syntax_parts) = match &input.fields {
+                let (fields, syntax) = match &input.fields {
                     syn::Fields::Named(input_fields) => {
                         let fields = input_fields
                             .named
@@ -395,27 +403,9 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                             })
                             .collect::<Result<_, String>>()?;
 
-                        (
-                            fields,
-                            iter::once(CommandVariantSyntaxPart::Str(from_camel_case_with_sep(
-                                &input.ident,
-                                "-",
-                            )))
-                            .chain(
-                                input_fields.named.iter().map(|f| {
-                                    CommandVariantSyntaxPart::Ident(f.ident.clone().unwrap())
-                                }),
-                            )
-                            .collect(),
-                        )
+                        (fields, input.try_into().unwrap())
                     }
-                    syn::Fields::Unit => (
-                        Vec::new(),
-                        vec![CommandVariantSyntaxPart::Str(from_camel_case_with_sep(
-                            &input.ident,
-                            "-",
-                        ))],
-                    ),
+                    syn::Fields::Unit => (Vec::new(), input.try_into().unwrap()),
                     syn::Fields::Unnamed(_) => unreachable!(),
                 };
 
@@ -428,10 +418,7 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                         doc: None,
                         fields,
                         is_ignored: false,
-                        syntax: CommandVariantSyntax {
-                            syntax_parts,
-                            no_autocomplete: false,
-                        },
+                        syntax,
                     },
                     &mut |mut variant, path, value| {
                         match (path, value) {
@@ -445,28 +432,26 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                                 }
                             }
                             (&["command", "alias"], MetaValue::Lit(syn::Lit::Str(lit_str))) => {
-                                variant.aliases.push(CommandVariantSyntax {
-                                    syntax_parts: parse_syntax(&lit_str.value(), &variant.fields)?,
-                                    no_autocomplete: false,
-                                });
+                                variant
+                                    .aliases
+                                    .push(parse_syntax(&lit_str.value(), &variant.fields)?);
                             }
                             (
                                 &["command", "alias_no_autocomplete"],
                                 MetaValue::Lit(syn::Lit::Str(lit_str)),
                             ) => {
-                                variant.aliases.push(CommandVariantSyntax {
-                                    syntax_parts: parse_syntax(&lit_str.value(), &variant.fields)?,
-                                    no_autocomplete: true,
-                                });
+                                let mut syntax = parse_syntax(&lit_str.value(), &variant.fields)?;
+                                syntax.no_autocomplete = true;
+
+                                variant.aliases.push(syntax);
                             }
                             (&["command"], MetaValue::Path(path)) if path.is_ident("ignore") => {
                                 variant.is_ignored = true;
                             }
                             (&["command", "syntax"], MetaValue::Lit(syn::Lit::Str(lit_str))) => {
-                                variant.syntax = CommandVariantSyntax {
-                                    syntax_parts: parse_syntax(&lit_str.value(), &variant.fields)?,
-                                    no_autocomplete: variant.syntax.no_autocomplete,
-                                }
+                                let no_autocomplete = variant.syntax.no_autocomplete;
+                                variant.syntax = parse_syntax(&lit_str.value(), &variant.fields)?;
+                                variant.syntax.no_autocomplete = no_autocomplete;
                             }
                             (&["command"], MetaValue::Path(path))
                                 if path.is_ident("no_default_autocomplete") =>
@@ -498,17 +483,55 @@ impl TryFrom<&syn::Variant> for CommandVariant {
     }
 }
 
+impl TryFrom<&syn::Variant> for CommandVariantSyntax {
+    type Error = ();
+
+    fn try_from(input: &syn::Variant) -> Result<Self, Self::Error> {
+        match &input.fields {
+            syn::Fields::Unit => Ok(CommandVariantSyntax {
+                start: Some(from_camel_case_with_sep(&input.ident, "-")),
+                middle: Vec::new(),
+                end: None,
+                no_autocomplete: false,
+            }),
+            syn::Fields::Unnamed(_) => Err(()),
+            syn::Fields::Named(named_fields) => {
+                let mut end = None;
+                Ok(CommandVariantSyntax {
+                    start: Some(format!("{} ", from_camel_case_with_sep(&input.ident, "-"))),
+                    middle: named_fields
+                        .named
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, field)| {
+                            if i + 1 == named_fields.named.len() {
+                                end = Some(field.ident.clone().unwrap());
+                                None
+                            } else {
+                                Some((field.ident.clone().unwrap(), " ".to_string()))
+                            }
+                        })
+                        .collect(),
+                    end: Some(end.unwrap()),
+                    no_autocomplete: false,
+                })
+            }
+        }
+    }
+}
+
 impl fmt::Display for CommandVariantSyntax {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        for (i, part) in self.syntax_parts.iter().enumerate() {
-            if i > 0 {
-                write!(f, " ")?;
-            }
+        if let Some(s) = &self.start {
+            write!(f, "{}", s)?;
+        }
 
-            match part {
-                CommandVariantSyntaxPart::Str(s) => write!(f, "{}", s)?,
-                CommandVariantSyntaxPart::Ident(id) => write!(f, "[{}]", id)?,
-            }
+        self.middle
+            .iter()
+            .try_for_each(|(ident, s)| write!(f, "[{}]{}", ident, s))?;
+
+        if let Some(ident) = &self.end {
+            write!(f, "[{}]", ident)?;
         }
 
         Ok(())
@@ -685,7 +708,7 @@ mod test {
         for _ in 0..2 {
             match variants.next() {
                 Some(CommandVariant::Unit(variant)) => {
-                    assert_eq!(false, variant.syntax.no_autocomplete);
+                    assert!(!variant.syntax.no_autocomplete);
                 }
                 v => panic!("{:?}", v),
             }
@@ -694,7 +717,7 @@ mod test {
         for _ in 2..5 {
             match variants.next() {
                 Some(CommandVariant::Unit(variant)) => {
-                    assert_eq!(true, variant.syntax.no_autocomplete);
+                    assert!(variant.syntax.no_autocomplete);
                 }
                 v => panic!("{:?}", v),
             }
