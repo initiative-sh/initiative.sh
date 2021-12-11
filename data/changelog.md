@@ -1,3 +1,6 @@
+* **Enhancement:** More command parsing work. It may not look like it (still no
+  functional change), but I'm mostly done and have replaced most of the
+  old spaghetti code with new spaghetti macros.
 * **Enhancement:** Continuing to rework the command parsing. Again, no
   functional impact.
 * **Enhancement:** First steps towards improved command parsing on the backend.

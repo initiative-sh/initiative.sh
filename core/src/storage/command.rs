@@ -1,38 +1,112 @@
 use super::backup::export;
 use super::{Change, RepositoryError};
-use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Event, Runnable};
+use crate::app::{AppMeta, CommandAlias, Event, Runnable};
 use crate::utils::CaseInsensitiveStr;
 use crate::world::syntax::{FromAny, FromJournal, FromRecent, ThingName};
 use crate::world::Thing;
 use async_trait::async_trait;
-use futures::join;
-use initiative_macros::ContextAwareParse;
+use initiative_macros::{Autocomplete, ContextAwareParse};
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
-use std::iter::repeat;
 
-#[derive(Clone, ContextAwareParse, Debug, PartialEq)]
+#[derive(Autocomplete, Clone, ContextAwareParse, Debug, PartialEq)]
 pub enum StorageCommand {
+    #[command(autocomplete_desc_fn(autocomplete_delete))]
     Delete {
         #[rustfmt::skip]
         name: ThingName::<Thing, FromJournal>,
     },
+
+    #[command(autocomplete_desc = "export the journal contents")]
     Export,
+
+    #[command(autocomplete_desc = "import a journal backup")]
     Import,
+
+    #[command(autocomplete_desc = "list journal contents")]
     Journal,
 
     #[command(alias = "[name]")]
+    #[command(autocomplete_desc_fn(autocomplete_load))]
     Load {
         #[rustfmt::skip]
         name: ThingName::<Thing, FromAny>,
     },
+
+    #[command(autocomplete_desc_fn(autocomplete_redo))]
     Redo,
+
+    #[command(autocomplete_desc_fn(autocomplete_save))]
     Save {
         #[rustfmt::skip]
         name: ThingName::<Thing, FromRecent>,
     },
+
+    #[command(autocomplete_desc_fn(autocomplete_undo))]
     Undo,
+}
+
+fn autocomplete_delete(
+    _input: &str,
+    app_meta: &AppMeta,
+    name: Option<(Cow<'static, str>, Cow<'static, str>)>,
+) -> Cow<'static, str> {
+    if let Some((name_suggestion, _)) = name {
+        if let Some(entry) = app_meta
+            .repository
+            .get_cached_by_name(name_suggestion.as_ref())
+        {
+            return format!("remove {} from journal", entry.subtype).into();
+        }
+    }
+
+    "remove an entry from journal".into()
+}
+
+fn autocomplete_load(
+    _input: &str,
+    _app_meta: &AppMeta,
+    name: Option<(Cow<'static, str>, Cow<'static, str>)>,
+) -> Cow<'static, str> {
+    if let Some((_, name_desc)) = name {
+        name_desc
+    } else {
+        "load an entry".into()
+    }
+}
+
+fn autocomplete_redo(_input: &str, app_meta: &AppMeta) -> Cow<'static, str> {
+    if let Some(change) = app_meta.repository.get_redo() {
+        format!("redo {}", change.display_redo()).into()
+    } else {
+        "nothing to redo".into()
+    }
+}
+
+fn autocomplete_save(
+    _input: &str,
+    app_meta: &AppMeta,
+    name: Option<(Cow<'static, str>, Cow<'static, str>)>,
+) -> Cow<'static, str> {
+    if let Some((name_suggestion, _)) = name {
+        if let Some(entry) = app_meta
+            .repository
+            .get_cached_by_name(name_suggestion.as_ref())
+        {
+            return format!("save {} to journal", entry.subtype).into();
+        }
+    }
+
+    "save an entry to journal".into()
+}
+
+fn autocomplete_undo(_input: &str, app_meta: &AppMeta) -> Cow<'static, str> {
+    if let Some(change) = app_meta.repository.undo_history().next() {
+        format!("undo {}", change.display_undo()).into()
+    } else {
+        "nothing to undo".into()
+    }
 }
 
 #[async_trait(?Send)]
@@ -233,120 +307,6 @@ impl Runnable for StorageCommand {
     }
 }
 
-#[async_trait(?Send)]
-impl Autocomplete for StorageCommand {
-    async fn autocomplete(
-        input: &str,
-        app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-        let mut suggestions: Vec<(Cow<'static, str>, Cow<'static, str>)> = [
-            ("delete", "delete [name]", "remove an entry from journal"),
-            ("export", "export", "export the journal contents"),
-            ("import", "import", "import a journal backup"),
-            ("journal", "journal", "list journal contents"),
-            ("load", "load [name]", "load an entry"),
-            ("save", "save [name]", "save an entry to journal"),
-        ]
-        .into_iter()
-        .filter(|(s, _, _)| s.starts_with_ci(input))
-        .map(|(_, b, c)| (b.into(), c.into()))
-        .chain(
-            ["undo"]
-                .into_iter()
-                .filter(|s| s.starts_with_ci(input))
-                .map(|s| {
-                    (
-                        s.into(),
-                        app_meta.repository.undo_history().next().map_or_else(
-                            || "Nothing to undo.".into(),
-                            |change| format!("undo {}", change.display_undo()).into(),
-                        ),
-                    )
-                }),
-        )
-        .chain(
-            ["redo"]
-                .into_iter()
-                .filter(|s| s.starts_with_ci(input))
-                .map(|s| {
-                    (
-                        s.into(),
-                        app_meta.repository.get_redo().map_or_else(
-                            || "Nothing to redo.".into(),
-                            |change| format!("redo {}", change.display_redo()).into(),
-                        ),
-                    )
-                }),
-        )
-        .collect();
-
-        let ((full_matches, partial_matches), prefix) = if let Some((prefix, name)) =
-            ["delete ", "load ", "save "]
-                .iter()
-                .find_map(|prefix| input.strip_prefix_ci(prefix).map(|name| (*prefix, name)))
-        {
-            (
-                join!(
-                    app_meta.repository.get_by_name_start(input, Some(10)),
-                    app_meta.repository.get_by_name_start(name, Some(10)),
-                ),
-                prefix,
-            )
-        } else {
-            (
-                (
-                    app_meta.repository.get_by_name_start(input, Some(10)).await,
-                    Ok(Vec::new()),
-                ),
-                "",
-            )
-        };
-
-        for (thing, prefix) in full_matches
-            .unwrap_or_default()
-            .iter()
-            .zip(repeat(""))
-            .chain(
-                partial_matches
-                    .unwrap_or_default()
-                    .iter()
-                    .zip(repeat(prefix)),
-            )
-        {
-            if matches!(
-                (prefix, thing.uuid()),
-                ("save ", Some(_)) | ("delete ", None)
-            ) {
-                continue;
-            }
-
-            let suggestion = format!("{}{}", prefix, thing.name());
-            let (exact_match, mut fuzzy_matches) = Self::parse_input(&suggestion, app_meta).await;
-
-            if let Some(command) = exact_match.or_else(|| fuzzy_matches.drain(..).next()) {
-                suggestions.push((
-                    suggestion.into(),
-                    match command {
-                        Self::Delete { .. } => format!("remove {} from journal", thing.as_str()),
-                        Self::Save { .. } => format!("save {} to journal", thing.as_str()),
-                        Self::Load { .. } => {
-                            if thing.uuid().is_some() {
-                                format!("{}", thing.display_description())
-                            } else {
-                                format!("{} (unsaved)", thing.display_description())
-                            }
-                        }
-                        _ => unreachable!(),
-                    }
-                    .into(),
-                ))
-            }
-        }
-
-        suggestions
-    }
-}
-
 impl fmt::Display for StorageCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
@@ -365,7 +325,7 @@ impl fmt::Display for StorageCommand {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::app::assert_autocomplete;
+    use crate::app::{assert_autocomplete, Autocomplete, ContextAwareParse};
     use crate::storage::MemoryDataStore;
     use crate::world::npc::{Age, Gender, Npc, Species};
     use crate::world::place::{Place, PlaceType};
@@ -474,7 +434,7 @@ mod test {
         let mut app_meta = app_meta();
 
         block_on(
-            app_meta.repository.modify(Change::Create {
+            app_meta.repository.modify(Change::CreateAndSave {
                 thing: Npc {
                     name: "Potato Johnson".into(),
                     species: Species::Elf.into(),
@@ -510,11 +470,14 @@ mod test {
         )
         .unwrap();
 
-        assert!(block_on(StorageCommand::autocomplete("delete P", &app_meta)).is_empty());
+        // Only saved Things should be included in autocomplete results.
+        assert_autocomplete(
+            &[("delete Potato Johnson", "remove character from journal")][..],
+            block_on(StorageCommand::autocomplete("delete P", &app_meta)),
+        );
 
         assert_autocomplete(
             &[
-                ("save Potato Johnson", "save character to journal"),
                 ("save potato can be lowercase", "save character to journal"),
                 ("save Potato & Meat", "save place to journal"),
             ][..],
@@ -528,7 +491,7 @@ mod test {
 
         assert_autocomplete(
             &[
-                ("load Potato Johnson", "adult elf, they/them (unsaved)"),
+                ("load Potato Johnson", "adult elf, they/them"),
                 ("load Potato & Meat", "inn (unsaved)"),
                 ("load potato can be lowercase", "person (unsaved)"),
             ][..],
@@ -603,7 +566,7 @@ mod test {
         assert_autocomplete(
             &[
                 ("Potato & Meat", "inn (unsaved)"),
-                ("Potato Johnson", "adult elf, they/them (unsaved)"),
+                ("Potato Johnson", "adult elf, they/them"),
                 ("potato can be lowercase", "person (unsaved)"),
             ][..],
             block_on(StorageCommand::autocomplete("p", &app_meta)),
@@ -615,12 +578,12 @@ mod test {
         );
 
         assert_autocomplete(
-            &[("Potato Johnson", "adult elf, they/them (unsaved)")][..],
+            &[("Potato Johnson", "adult elf, they/them")][..],
             block_on(StorageCommand::autocomplete("Potato Johnson", &app_meta)),
         );
 
         assert_autocomplete(
-            &[("Potato Johnson", "adult elf, they/them (unsaved)")][..],
+            &[("Potato Johnson", "adult elf, they/them")][..],
             block_on(StorageCommand::autocomplete("pOTATO jOHNSON", &app_meta)),
         );
 
@@ -630,7 +593,7 @@ mod test {
         );
 
         assert_autocomplete(
-            &[("redo", "Nothing to redo.")][..],
+            &[("redo", "nothing to redo")][..],
             block_on(StorageCommand::autocomplete("redo", &app_meta)),
         );
 
@@ -642,7 +605,7 @@ mod test {
         );
 
         assert_autocomplete(
-            &[("undo", "Nothing to undo.")][..],
+            &[("undo", "nothing to undo")][..],
             block_on(StorageCommand::autocomplete(
                 "undo",
                 &AppMeta::new(MemoryDataStore::default(), &event_dispatcher),

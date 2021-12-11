@@ -9,7 +9,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     let mod_ident = format_ident!("impl_autocomplete_for_{}", command_enum.ident_with_sep("_"));
     let enum_ident = &command_enum.ident;
 
-    let unit_cases_or_empty = get_unit_cases_or_empty(&command_enum)?;
+    let init_suggestions_with_unit_cases = init_suggestions_with_unit_cases(&command_enum)?;
 
     let tuple_cases = get_tuple_cases(&command_enum)?;
 
@@ -30,11 +30,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                     input: &str,
                     app_meta: &AppMeta,
                 ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-                    if input.is_empty() {
-                        return Vec::new();
-                    }
-
-                    let mut suggestions: Vec<(Cow<'static, str>, Cow<'static, str>)> = #unit_cases_or_empty;
+                    #init_suggestions_with_unit_cases
 
                     #tuple_cases
 
@@ -51,48 +47,76 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     Ok(result)
 }
 
-fn get_unit_cases_or_empty(command_enum: &CommandEnum) -> Result<TokenStream, String> {
-    let tokens: Vec<_> = command_enum
-        .variants
-        .iter()
-        .filter_map(|variant| {
-            if let CommandVariant::Unit(unit_variant) = variant {
-                if unit_variant.is_ignored {
-                    None
-                } else {
-                    Some(unit_variant)
-                }
-            } else {
+fn init_suggestions_with_unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
+    let mut tokens_simple = Vec::new();
+    let mut tokens_with_callback = Vec::new();
+
+    for variant in command_enum.variants.iter().filter_map(|variant| {
+        if let CommandVariant::Unit(unit_variant) = variant {
+            if unit_variant.is_ignored {
                 None
+            } else {
+                Some(unit_variant)
             }
-        })
-        .flat_map(|variant| {
-            iter::once(&variant.syntax)
-                .chain(variant.aliases.iter())
-                .filter(|syntax| !syntax.no_autocomplete)
-                .map(|syntax| {
-                    let term = syntax.to_string();
-                    let desc = variant
-                        .autocomplete_desc
-                        .as_ref()
-                        .map_or_else(|| variant.syntax.to_string(), |s| s.to_string());
+        } else {
+            None
+        }
+    }) {
+        for syntax in iter::once(&variant.syntax)
+            .chain(variant.aliases.iter())
+            .filter(|syntax| !syntax.no_autocomplete)
+        {
+            let term = syntax.to_string();
 
-                    quote! { ( #term, #desc ) }
-                })
-        })
-        .collect();
+            if let Some(desc_fn) = variant.autocomplete_desc_fn.as_ref() {
+                tokens_with_callback.push(quote! {
+                    if #term.starts_with_ci(input) {
+                        suggestions.push((
+                            #term.into(),
+                            #desc_fn(input, app_meta),
+                        ));
+                    }
+                });
+            } else {
+                let desc = variant
+                    .autocomplete_desc
+                    .as_ref()
+                    .map_or_else(|| variant.syntax.to_string(), |s| s.to_string());
+                tokens_simple.push(quote! { ( #term, #desc ) })
+            };
+        }
+    }
 
-    if tokens.is_empty() {
-        Ok(quote! { Vec::new() })
+    if tokens_simple.len() + tokens_with_callback.len() > 10 {
+        for token in tokens_with_callback.iter_mut() {
+            *token = quote! {
+                if suggestions.len() >= 10 {
+                    return suggestions;
+                }
+                #token
+            };
+        }
+    }
+
+    let init = if tokens_simple.is_empty() {
+        quote! {
+            let mut suggestions: Vec<(Cow<'static, str>, Cow<'static, str>)> = Vec::new();
+        }
     } else {
-        Ok(quote! {
-            [ #(#tokens),* ]
+        quote! {
+            let mut suggestions: Vec<(Cow<'static, str>, Cow<'static, str>)> = [ #(#tokens_simple),* ]
                 .iter()
                 .filter(|(s, _)| s.starts_with_ci(input))
                 .map(|&(a, b)| (a.into(), b.into()))
-                .collect()
-        })
-    }
+                .take(10)
+                .collect();
+        }
+    };
+
+    Ok(quote! {
+        #init
+        #(#tokens_with_callback)*
+    })
 }
 
 fn get_tuple_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, String> {
@@ -174,23 +198,36 @@ fn parse_struct_syntax(
         todo!();
     }
 
+    let syntax_end = if let Some(syntax_end) = &syntax.end {
+        syntax_end
+    } else {
+        todo!();
+    };
+    let field = variant
+        .fields
+        .iter()
+        .find(|field| &field.ident == syntax_end)
+        .expect("Type must be defined!");
+    let ty = &field.ty;
+
     if syntax.no_autocomplete {
         return Ok(None);
     }
 
-    let desc = variant
-        .autocomplete_desc
-        .as_ref()
-        .map_or_else(|| syntax.to_string(), |s| s.to_string());
+    let (desc0, desc1) = if let Some(desc_fn) = variant.autocomplete_desc_fn.as_ref() {
+        (
+            quote! { #desc_fn(input, app_meta, None) },
+            quote! { #desc_fn(input, app_meta, Some((suggestion.into(), description.into()))) },
+        )
+    } else if let Some(desc) = variant.autocomplete_desc.as_ref() {
+        (quote! { #desc.into() }, quote! { #desc.into() })
+    } else {
+        let desc = syntax.to_string();
+        (quote! { #desc.into() }, quote! { #desc.into() })
+    };
 
-    match (&syntax.start, &syntax.end) {
-        (Some(syntax_start), Some(syntax_end)) => {
-            let field = variant
-                .fields
-                .iter()
-                .find(|field| &field.ident == syntax_end)
-                .expect("Type must be defined!");
-            let ty = &field.ty;
+    match &syntax.start {
+        Some(syntax_start) => {
             let syntax_str = syntax.to_string();
 
             Ok(Some(match field.implements {
@@ -199,69 +236,83 @@ fn parse_struct_syntax(
                         return suggestions;
                     }
 
-                    if #syntax_start.starts_with_ci(input) {
-                        suggestions.push((#syntax_start.into(), #desc.into()));
-                    } else if input.starts_with_ci(#syntax_start) {
-                        suggestions.push((input.to_string().into(), #desc.into()));
+                    if let Some(suggestion) = input.strip_prefix_ci(#syntax_start) {
+                        let suggestion: Cow<'static, str> = suggestion.into();
+                        let description = suggestion.clone();
+                        suggestions.push((input.to_string().into(), #desc1));
+                    } else if #syntax_start.starts_with_ci(input) {
+                        suggestions.push((#syntax_start.into(), #desc0));
                     }
                 },
-                Trait::Runnable => quote! {
-                    if #syntax_start.starts_with_ci(input) {
-                        if suggestions.len() >= 10 {
-                            return suggestions;
-                        }
+                Trait::Runnable => {
+                    let format_str = format!("{}{{}}", syntax_start);
+                    quote! {
+                        if let Some(remainder) = input.strip_prefix_ci(#syntax_start) {
+                            for (suggestion, description) in #ty::autocomplete(remainder, app_meta).await.drain(..) {
+                                if suggestions.len() >= 10 {
+                                    return suggestions;
+                                }
 
-                        suggestions.push((#syntax_str.into(), #desc.into()));
-                    } else if let Some(remainder) = input.strip_prefix_ci(#syntax_start) {
-                        for (a, b) in #ty::autocomplete(remainder, app_meta).await.drain(..) {
+                                suggestions.push((
+                                    format!(#format_str, suggestion).into(),
+                                    #desc1,
+                                ));
+                            }
+                        } else if #syntax_start.starts_with_ci(input) {
                             if suggestions.len() >= 10 {
                                 return suggestions;
                             }
 
-                            suggestions.push((
-                                format!("{}{}", #syntax_start, a).into(),
-                                #desc.into(),
-                            ));
+                            suggestions.push((#syntax_str.into(), #desc0));
                         }
                     }
-                },
+                }
                 Trait::WordList => todo!(),
             }))
         }
-        (None, Some(syntax_end)) => {
-            let ty = &variant
-                .fields
-                .iter()
-                .find(|field| &field.ident == syntax_end)
-                .expect("Type must be defined!")
-                .ty;
+        None => {
             let field = variant
                 .fields
                 .iter()
                 .find(|field| &field.ident == syntax_end)
                 .expect("Type must be defined!");
+            let ty = &field.ty;
 
             Ok(match field.implements {
                 Trait::FromStr => None,
-                Trait::Runnable => Some(quote! {
-                    if suggestions.len() >= 10 {
-                        return suggestions;
-                    }
+                Trait::Runnable => {
+                    let suggestions_append = quote! {
+                        #ty::autocomplete(input, app_meta)
+                            .await
+                            .drain(..)
+                            .map(|(suggestion, description)| {
+                                (suggestion.clone(), #desc1)
+                            })
+                            .take(10 - suggestions.len())
+                            .for_each(|v| suggestions.push(v));
+                    };
 
-                    suggestions.append(&mut #ty::autocomplete(input, app_meta).await);
-                    suggestions.truncate(10);
-                }),
-                Trait::WordList => Some(quote! {
-                    for word in #ty::get_words().filter(|s| s.starts_with_ci(input)).take(10) {
+                    Some(quote! {
                         if suggestions.len() >= 10 {
                             return suggestions;
                         }
 
-                        suggestions.push((word.into(), #desc.into()));
+                        #suggestions_append
+                        suggestions.truncate(10);
+                    })
+                }
+                Trait::WordList => Some(quote! {
+                    for suggestion in #ty::get_words().filter(|s| s.starts_with_ci(input)).take(10) {
+                        if suggestions.len() >= 10 {
+                            return suggestions;
+                        }
+
+                        let suggestion: Cow<'static, str> = suggestion.into();
+                        let description = suggestion.clone();
+                        suggestions.push((suggestion.clone(), #desc1));
                     }
                 }),
             })
         }
-        _ => todo!(),
     }
 }
