@@ -73,7 +73,7 @@ fn get_unit_cases_or_empty(command_enum: &CommandEnum) -> Result<TokenStream, St
                 .map(|syntax| {
                     let term = syntax.to_string();
                     let desc = variant
-                        .doc
+                        .autocomplete_desc
                         .as_ref()
                         .map_or_else(|| variant.syntax.to_string(), |s| s.to_string());
 
@@ -179,7 +179,7 @@ fn parse_struct_syntax(
     }
 
     let desc = variant
-        .doc
+        .autocomplete_desc
         .as_ref()
         .map_or_else(|| syntax.to_string(), |s| s.to_string());
 

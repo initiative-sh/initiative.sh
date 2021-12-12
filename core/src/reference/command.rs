@@ -7,43 +7,38 @@ use std::fmt;
 
 #[derive(Autocomplete, Clone, ContextAwareParse, Debug, PartialEq)]
 pub enum ReferenceCommand {
-    #[command(syntax = "srd spell [spell]")]
-    #[command(no_default_autocomplete)]
     #[command(alias = "[spell]")]
-    /// SRD spell
+    #[command(autocomplete_desc = "SRD spell")]
+    #[command(syntax = "srd spell [spell]", no_default_autocomplete)]
     Spell {
         #[command(implements(WordList))]
         spell: Spell,
     },
 
-    #[command(syntax = "srd spells")]
-    #[command(no_default_autocomplete)]
     #[command(alias = "spells")]
-    /// SRD spell list
+    #[command(autocomplete_desc = "SRD spell list")]
+    #[command(syntax = "srd spells", no_default_autocomplete)]
     Spells,
 
-    #[command(syntax = "srd item [item]")]
-    #[command(no_default_autocomplete)]
     #[command(alias = "[item]")]
-    /// SRD item
+    #[command(autocomplete_desc = "SRD item")]
+    #[command(syntax = "srd item [item]", no_default_autocomplete)]
     Item {
         #[command(implements(WordList))]
         item: Item,
     },
 
-    #[command(syntax = "srd item category [category]")]
-    #[command(no_default_autocomplete)]
     #[command(alias = "[category]")]
-    /// SRD item category
+    #[command(autocomplete_desc = "SRD item category")]
+    #[command(syntax = "srd item category [category]", no_default_autocomplete)]
     ItemCategory {
         #[command(implements(WordList))]
         category: ItemCategory,
     },
 
-    #[command(syntax = "srd magic item [item]")]
-    #[command(no_default_autocomplete)]
     #[command(alias = "[item]")]
-    /// SRD magic item
+    #[command(autocomplete_desc = "SRD magic item")]
+    #[command(syntax = "srd magic item [item]", no_default_autocomplete)]
     MagicItem {
         #[command(implements(WordList))]
         item: MagicItem,

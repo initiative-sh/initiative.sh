@@ -8,20 +8,20 @@ use std::str::FromStr;
 
 #[derive(Autocomplete, Clone, ContextAwareParse, Debug, PartialEq)]
 pub enum AppCommand {
-    /// about initiative.sh
+    #[command(autocomplete_desc = "about initiative.sh")]
     About,
 
-    /// show latest updates
+    #[command(autocomplete_desc = "show latest updates")]
     Changelog,
 
     #[command(no_default_autocomplete)]
     Debug,
 
-    /// how to use initiative.sh
+    #[command(autocomplete_desc = "how to use initiative.sh")]
     Help,
 
     #[command(alias = "[dice]")]
-    /// roll eg. 8d6 or d20+3
+    #[command(autocomplete_desc = "roll eg. 8d6 or d20+3")]
     Roll { dice: DiceFormula },
 }
 

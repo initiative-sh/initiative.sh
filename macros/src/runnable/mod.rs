@@ -31,7 +31,11 @@
 //!   autocomplete suggestions.
 //! - `#[command(ignore)]`: There is no syntax for this command. Used for commands that are
 //!   runnable by alias only.
-//! - `#[doc = "blah"]` or `/// blah`: User-facing documentation for the command.
+//! - `#[doc = "This command does stuff."]` or `/// Blah.`: Description for help docs.
+//! - `#[command(autocomplete_desc = "some command")]`: Description for autocomplete results.
+//! - `#[command(autocomplete_desc_fn(my_func))]`: Produce autocomplete descriptions by calling
+//!   `my_func(input: &str, app_meta: &AppMeta, param1: Option<Cow<'static, str>>, ..) -> Cow<'static, str>`,
+//!   where each parameter contains the autocomplete result from the corresponding struct field.
 //!
 //! The following attribute is recognized on tuple variants:
 //!
@@ -80,6 +84,8 @@ struct UnitStructCommandVariant {
     ident: syn::Ident,
 
     aliases: Vec<CommandVariantSyntax>,
+    autocomplete_desc: Option<String>,
+    autocomplete_desc_fn: Option<syn::Ident>,
     doc: Option<String>,
     fields: Vec<Field>,
     is_ignored: bool,
@@ -416,6 +422,8 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                         ident: input.ident.to_owned(),
 
                         aliases: Vec::new(),
+                        autocomplete_desc: None,
+                        autocomplete_desc_fn: None,
                         doc: None,
                         fields,
                         is_ignored: false,
@@ -443,21 +451,30 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                             ) => {
                                 let mut syntax = parse_syntax(&lit_str.value(), &variant.fields)?;
                                 syntax.no_autocomplete = true;
-
                                 variant.aliases.push(syntax);
+                            }
+                            (
+                                &["command", "autocomplete_desc"],
+                                MetaValue::Lit(syn::Lit::Str(lit_str)),
+                            ) => {
+                                variant.autocomplete_desc = Some(lit_str.value());
+                            }
+                            (&["command", "autocomplete_desc_fn"], MetaValue::Path(path)) => {
+                                variant.autocomplete_desc_fn =
+                                    Some(path.get_ident().unwrap().to_owned());
                             }
                             (&["command"], MetaValue::Path(path)) if path.is_ident("ignore") => {
                                 variant.is_ignored = true;
-                            }
-                            (&["command", "syntax"], MetaValue::Lit(syn::Lit::Str(lit_str))) => {
-                                let no_autocomplete = variant.syntax.no_autocomplete;
-                                variant.syntax = parse_syntax(&lit_str.value(), &variant.fields)?;
-                                variant.syntax.no_autocomplete = no_autocomplete;
                             }
                             (&["command"], MetaValue::Path(path))
                                 if path.is_ident("no_default_autocomplete") =>
                             {
                                 variant.syntax.no_autocomplete = true;
+                            }
+                            (&["command", "syntax"], MetaValue::Lit(syn::Lit::Str(lit_str))) => {
+                                let no_autocomplete = variant.syntax.no_autocomplete;
+                                variant.syntax = parse_syntax(&lit_str.value(), &variant.fields)?;
+                                variant.syntax.no_autocomplete = no_autocomplete;
                             }
                             (path, _) if path.starts_with(&["command"]) => {
                                 return Err(format!("Unsupported command attribute: {:?}.", path))
@@ -903,6 +920,51 @@ mod test {
                 assert_eq!(Some(&Trait::Runnable), traits.next());
                 assert_eq!(Some(&Trait::WordList), traits.next());
                 assert_eq!(None, traits.next());
+            }
+            v => panic!("{:?}", v),
+        }
+    }
+
+    #[test]
+    fn syntax_test_autocomplete_desc() {
+        let command_enum = CommandEnum::try_from(quote! {
+            enum Foo {
+                JustAVariant,
+
+                #[command(autocomplete_desc = "Description")]
+                ADescribedVariant,
+
+                #[command(autocomplete_desc_fn(some_function))]
+                ASpecialVariant,
+            }
+        })
+        .unwrap();
+
+        let mut variants = command_enum.variants.iter();
+
+        match variants.next() {
+            Some(CommandVariant::Unit(variant)) => {
+                assert!(variant.autocomplete_desc.is_none());
+                assert!(variant.autocomplete_desc_fn.is_none());
+            }
+            v => panic!("{:?}", v),
+        }
+
+        match variants.next() {
+            Some(CommandVariant::Unit(variant)) => {
+                assert_eq!("Description", variant.autocomplete_desc.as_ref().unwrap());
+                assert!(variant.autocomplete_desc_fn.is_none());
+            }
+            v => panic!("{:?}", v),
+        }
+
+        match variants.next() {
+            Some(CommandVariant::Unit(variant)) => {
+                assert!(variant.autocomplete_desc.is_none());
+                assert_eq!(
+                    "some_function",
+                    variant.autocomplete_desc_fn.as_ref().unwrap().to_string(),
+                );
             }
             v => panic!("{:?}", v),
         }
