@@ -43,7 +43,7 @@ impl Runnable for TimeCommand {
                 Self::Add { interval } => current_time.checked_add(interval),
                 Self::Sub { interval } => current_time.checked_sub(interval),
                 Self::Now => {
-                    return Ok(format!("It is currently {}.", current_time.display_long(),))
+                    return Ok(format!("It is currently {}.", current_time.display_long()))
                 }
             }
         };
@@ -64,10 +64,10 @@ impl Runnable for TimeCommand {
         }
         .map_err(|_| match &self {
             Self::Add { interval } => {
-                format!("Unable to advance time by {}.", interval.display_long(),)
+                format!("Unable to advance time by {}.", interval.display_long())
             }
             Self::Sub { interval } => {
-                format!("Unable to rewind time by {}.", interval.display_long(),)
+                format!("Unable to rewind time by {}.", interval.display_long())
             }
             Self::Now => unreachable!(),
         })

@@ -1,7 +1,4 @@
-use super::{
-    CommandEnum, CommandVariant, CommandVariantSyntax, CommandVariantSyntaxPart, Trait,
-    UnitStructCommandVariant,
-};
+use super::{CommandEnum, CommandVariant, CommandVariantSyntax, Trait, UnitStructCommandVariant};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::iter;
@@ -189,36 +186,31 @@ fn parse_struct_syntax(
     is_canonical: bool,
 ) -> Result<TokenStream, String> {
     let variant_ident = &variant.ident;
-    let mut syntax_parts = syntax.syntax_parts.iter();
 
-    match (
-        syntax_parts.next(),
-        syntax_parts.next(),
-        syntax_parts.next(),
-    ) {
-        (
-            Some(CommandVariantSyntaxPart::Str(start)),
-            Some(CommandVariantSyntaxPart::Ident(field_ident)),
-            None,
-        ) => {
+    if !syntax.middle.is_empty() {
+        todo!();
+    }
+
+    match (&syntax.start, &syntax.end) {
+        (Some(syntax_start), Some(syntax_end)) => {
             let field = variant
                 .fields
                 .iter()
-                .find(|field| &field.ident == field_ident)
+                .find(|field| &field.ident == syntax_end)
                 .expect("Type must be defined!");
             let ty = &field.ty;
 
             Ok(if is_canonical {
                 quote! {
-                    if let Some(remainder) = input.strip_prefix_ci(#start) {
+                    if let Some(remainder) = input.strip_prefix_ci(#syntax_start) {
                         let mut subcommand_exact_match = #ty::from_str(remainder.trim_start()).ok();
 
                         exact_match = exact_match.or_else(|| subcommand_exact_match.take().map(|command| {
-                            Self::#variant_ident { #field_ident: command }
+                            Self::#variant_ident { #syntax_end: command }
                         }));
 
                         for command in subcommand_exact_match.into_iter() {
-                            fuzzy_matches.push(Self::#variant_ident { #field_ident: command });
+                            fuzzy_matches.push(Self::#variant_ident { #syntax_end: command });
                         }
                     }
                 }
@@ -231,7 +223,7 @@ fn parse_struct_syntax(
                         {
                             let (subcommand_exact_match, mut subcommand_fuzzy_matches) = #ty::parse_input(remainder.trim_start(), app_meta).await;
                             for command in subcommand_fuzzy_matches.drain(..) {
-                                fuzzy_matches.push(Self::#variant_ident { #field_ident: command });
+                                fuzzy_matches.push(Self::#variant_ident { #syntax_end: command });
                             }
                             subcommand_exact_match
                         }
@@ -239,21 +231,21 @@ fn parse_struct_syntax(
                 };
 
                 quote! {
-                    if let Some(remainder) = input.strip_prefix_ci(#start) {
+                    if let Some(remainder) = input.strip_prefix_ci(#syntax_start) {
                         let mut subcommand_exact_match = #parse_expr;
 
                         for command in subcommand_exact_match.into_iter() {
-                            fuzzy_matches.push(Self::#variant_ident { #field_ident: command });
+                            fuzzy_matches.push(Self::#variant_ident { #syntax_end: command });
                         }
                     }
                 }
             })
         }
-        (Some(CommandVariantSyntaxPart::Ident(field_ident)), None, None) => {
+        (None, Some(syntax_end)) => {
             let ty = &variant
                 .fields
                 .iter()
-                .find(|field| &field.ident == field_ident)
+                .find(|field| &field.ident == syntax_end)
                 .expect("Type must be defined!")
                 .ty;
 
@@ -268,7 +260,7 @@ fn parse_struct_syntax(
                             .into_iter()
                             .chain(subcommand_fuzzy_matches.drain(..))
                         {
-                            fuzzy_matches.push(Self::#variant_ident { #field_ident: command });
+                            fuzzy_matches.push(Self::#variant_ident { #syntax_end: command });
                         }
                     }
                 })
@@ -276,30 +268,4 @@ fn parse_struct_syntax(
         }
         _ => todo!(),
     }
-
-    /*
-    if let = syntax.syntax_parts.first() {
-        quote! {
-            if let Some(
-        }
-    } else {
-        panic!(
-            "Non-prefixed syntaxes are not yet supported for {}: {:?}",
-            ident, syntax,
-        );
-    }
-    */
 }
-
-/*
-fn parse_struct_syntax_alias(ident: &syn::Ident, syntax: &CommandVariantSyntax) -> TokenStream {
-    //
-}
-*/
-
-/*
-#[async_trait(?Send)]
-pub trait ContextAwareParse: Sized {
-    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>);
-}
-*/

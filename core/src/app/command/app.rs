@@ -1,23 +1,28 @@
 use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
-use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use caith::Roller;
-use initiative_macros::{changelog, ContextAwareParse};
+use initiative_macros::{changelog, Autocomplete, ContextAwareParse};
 use std::borrow::Cow;
 use std::fmt;
 use std::str::FromStr;
 
-#[derive(Clone, ContextAwareParse, Debug, PartialEq)]
+#[derive(Autocomplete, Clone, ContextAwareParse, Debug, PartialEq)]
 pub enum AppCommand {
+    #[command(autocomplete_desc = "about initiative.sh")]
     About,
+
+    #[command(autocomplete_desc = "show latest updates")]
     Changelog,
+
+    #[command(no_default_autocomplete)]
     Debug,
+
+    #[command(autocomplete_desc = "how to use initiative.sh")]
     Help,
 
     #[command(alias = "[dice]")]
-    Roll {
-        dice: DiceFormula,
-    },
+    #[command(autocomplete_desc = "roll eg. 8d6 or d20+3")]
+    Roll { dice: DiceFormula },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -77,30 +82,12 @@ impl ContextAwareParse for DiceFormula {
 }
 
 #[async_trait(?Send)]
-impl Autocomplete for AppCommand {
+impl Autocomplete for DiceFormula {
     async fn autocomplete(
-        input: &str,
+        _input: &str,
         _app_meta: &AppMeta,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-        if input.is_empty() {
-            return Vec::new();
-        }
-
-        [
-            ("about", "about initiative.sh"),
-            ("changelog", "show latest updates"),
-            ("help", "how to use initiative.sh"),
-        ]
-        .into_iter()
-        .filter(|(s, _)| s.starts_with_ci(input))
-        .chain(
-            ["roll"]
-                .into_iter()
-                .filter(|s| s.starts_with_ci(input))
-                .map(|_| ("roll [dice]", "roll eg. 8d6 or d20+3")),
-        )
-        .map(|(a, b)| (a.into(), b.into()))
-        .collect()
+        Vec::new()
     }
 }
 

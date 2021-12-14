@@ -1,7 +1,13 @@
 #!/bin/bash
 set -euxo pipefail
 
-git ls-files '*.rs' | xargs rustfmt --check --edition 2021
-cargo clippy --workspace -- --deny warnings
 cargo test --workspace
+
+cargo clippy --workspace -- --deny warnings
+
+git ls-files '*.rs' | xargs rustfmt --check --edition 2021
+if git grep ',)' '*.rs'; then
+  exit 1
+fi
+
 # (cd web && wasm-pack test --firefox --headless)

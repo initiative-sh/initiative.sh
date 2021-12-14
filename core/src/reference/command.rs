@@ -1,39 +1,48 @@
 use super::{Item, ItemCategory, MagicItem, Spell};
-use crate::app::{AppMeta, Autocomplete, Runnable};
-use crate::utils::CaseInsensitiveStr;
+use crate::app::{AppMeta, Runnable};
 use async_trait::async_trait;
 use caith::Roller;
-use initiative_macros::ContextAwareParse;
-use std::borrow::Cow;
+use initiative_macros::{Autocomplete, ContextAwareParse};
 use std::fmt;
-use std::iter::repeat;
 
-#[derive(Clone, ContextAwareParse, Debug, PartialEq)]
+#[derive(Autocomplete, Clone, ContextAwareParse, Debug, PartialEq)]
 pub enum ReferenceCommand {
-    #[command(syntax = "srd spell [spell]")]
-    #[command(no_default_autocomplete)]
     #[command(alias = "[spell]")]
-    Spell { spell: Spell },
+    #[command(autocomplete_desc = "SRD spell")]
+    #[command(syntax = "srd spell [spell]", no_default_autocomplete)]
+    Spell {
+        #[command(implements(WordList))]
+        spell: Spell,
+    },
 
-    #[command(syntax = "srd spells")]
-    #[command(no_default_autocomplete)]
     #[command(alias = "spells")]
+    #[command(autocomplete_desc = "SRD spell list")]
+    #[command(syntax = "srd spells", no_default_autocomplete)]
     Spells,
 
-    #[command(syntax = "srd item [item]")]
-    #[command(no_default_autocomplete)]
     #[command(alias = "[item]")]
-    Item { item: Item },
+    #[command(autocomplete_desc = "SRD item")]
+    #[command(syntax = "srd item [item]", no_default_autocomplete)]
+    Item {
+        #[command(implements(WordList))]
+        item: Item,
+    },
 
-    #[command(syntax = "srd item category [category]")]
-    #[command(no_default_autocomplete)]
     #[command(alias = "[category]")]
-    ItemCategory { category: ItemCategory },
+    #[command(autocomplete_desc = "SRD item category")]
+    #[command(syntax = "srd item category [category]", no_default_autocomplete)]
+    ItemCategory {
+        #[command(implements(WordList))]
+        category: ItemCategory,
+    },
 
-    #[command(syntax = "srd magic item [item]")]
-    #[command(no_default_autocomplete)]
     #[command(alias = "[item]")]
-    MagicItem { item: MagicItem },
+    #[command(autocomplete_desc = "SRD magic item")]
+    #[command(syntax = "srd magic item [item]", no_default_autocomplete)]
+    MagicItem {
+        #[command(implements(WordList))]
+        item: MagicItem,
+    },
 
     #[command(syntax = "Open Game License")]
     OpenGameLicense,
@@ -60,28 +69,6 @@ impl Runnable for ReferenceCommand {
             linkify_dice(&output),
             name,
         ))
-    }
-}
-
-#[async_trait(?Send)]
-impl Autocomplete for ReferenceCommand {
-    async fn autocomplete(
-        input: &str,
-        _app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-        [
-            ("Open Game License", "SRD license"),
-            ("spells", "SRD index"),
-        ]
-        .into_iter()
-        .chain(Spell::get_words().zip(repeat("SRD spell")))
-        .chain(Item::get_words().zip(repeat("SRD item")))
-        .chain(ItemCategory::get_words().zip(repeat("SRD item category")))
-        .chain(MagicItem::get_words().zip(repeat("SRD magic item")))
-        .filter(|(s, _)| s.starts_with_ci(input))
-        .take(10)
-        .map(|(a, b)| (a.into(), b.into()))
-        .collect()
     }
 }
 

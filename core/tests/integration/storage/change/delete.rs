@@ -33,7 +33,7 @@ fn npc_can_be_deleted_from_temp() {
             output.ends_with(&format!(
                 "_Successfully undid deleting {}. Use `redo` to reverse this._",
                 npc_name,
-            ),),
+            )),
             "{}",
             output,
         );
