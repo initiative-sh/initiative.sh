@@ -652,6 +652,31 @@ mod test {
             &[("Potato Johnson", "adult elf, they/them (unsaved)")][..],
             block_on(StorageCommand::autocomplete("pOTATO jOHNSON", &app_meta)),
         );
+
+        assert_autocomplete(
+            &[("undo", "undo creating Potato & Meat")][..],
+            block_on(StorageCommand::autocomplete("undo", &app_meta)),
+        );
+
+        assert_autocomplete(
+            &[("redo", "Nothing to redo.")][..],
+            block_on(StorageCommand::autocomplete("redo", &app_meta)),
+        );
+
+        block_on(app_meta.repository.undo());
+
+        assert_autocomplete(
+            &[("redo", "redo creating Potato & Meat")][..],
+            block_on(StorageCommand::autocomplete("redo", &app_meta)),
+        );
+
+        assert_autocomplete(
+            &[("undo", "Nothing to undo.")][..],
+            block_on(StorageCommand::autocomplete(
+                "undo",
+                &AppMeta::new(MemoryDataStore::default(), &event_dispatcher),
+            )),
+        );
     }
 
     #[test]
