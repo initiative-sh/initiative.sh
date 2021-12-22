@@ -15,7 +15,7 @@ fn armor() {
 | `Breastplate` | 400 gp | 14 + Dex modifier (max 2) | — | — | 20 lb. |
 | `Chain Mail` | 75 gp | 16 | Str 13 | disadvantage | 55 lb. |
 | `Chain Shirt` | 50 gp | 13 + Dex modifier (max 2) | — | — | 20 lb. |
-| `Half Plate` | 750 gp | 15 + Dex modifier (max 2) | — | disadvantage | 40 lb. |
+| `Half Plate Armor` | 750 gp | 15 + Dex modifier (max 2) | — | disadvantage | 40 lb. |
 | `Hide Armor` | 10 gp | 12 + Dex modifier (max 2) | — | — | 12 lb. |
 | `Leather Armor` | 10 gp | 11 + Dex modifier | — | — | 10 lb. |
 | `Padded Armor` | 5 gp | 11 + Dex modifier | — | disadvantage | 8 lb. |
@@ -24,7 +24,7 @@ fn armor() {
 | `Scale Mail` | 50 gp | 14 + Dex modifier (max 2) | — | disadvantage | 45 lb. |
 | `Shield` | 10 gp | +2 | — | — | 6 lb. |
 | `Splint Armor` | 200 gp | 17 | Str 15 | disadvantage | 60 lb. |
-| `Studded Leather` | 45 gp | 12 + Dex modifier | — | — | 13 lb. |",
+| `Studded Leather Armor` | 45 gp | 12 + Dex modifier | — | — | 13 lb. |",
         format!("{}", category.display_item_table(&items[..])),
     );
 }

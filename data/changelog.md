@@ -1,3 +1,5 @@
+* **Bug:** Fixed wording of several spells, including `Legend Lore`, in response
+  to user feedback.
 * **Enhancement:** More command parsing work. It may not look like it (still no
   functional change), but I'm mostly done and have replaced most of the
   old spaghetti code with new spaghetti macros.
