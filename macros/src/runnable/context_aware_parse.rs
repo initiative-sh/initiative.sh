@@ -1,15 +1,18 @@
-use super::{Command, CommandEnum, CommandVariantSyntax, Trait, UnitStructCommandVariant};
+use super::{
+    Command, CommandEnum, CommandStruct, CommandVariantSyntax, Trait, UnitStructCommandVariant,
+};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::iter;
 
 pub fn run(input: TokenStream) -> Result<TokenStream, String> {
-    let command_enum = if let Command::Enum(command_enum) = Command::try_from(input)? {
-        command_enum
-    } else {
-        todo!("ContextAwareParse cannot yet be derived for newtypes.");
-    };
+    match Command::try_from(input)? {
+        Command::Enum(command_enum) => derive_enum(command_enum),
+        Command::Struct(command_struct) => derive_struct(command_struct),
+    }
+}
 
+fn derive_enum(command_enum: CommandEnum) -> Result<TokenStream, String> {
     let mod_ident = format_ident!(
         "impl_context_aware_parse_for_{}",
         command_enum.ident_with_sep("_"),
@@ -17,12 +20,10 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     let enum_ident = &command_enum.ident;
 
     let unit_cases = get_unit_cases(&command_enum)?;
-
     let tuple_cases = get_tuple_cases(&command_enum)?;
-
     let struct_cases = get_struct_cases(&command_enum)?;
 
-    let result = quote! {
+    Ok(quote! {
         mod #mod_ident {
             use super::*;
             use crate::app::{AppMeta, ContextAwareParse};
@@ -37,20 +38,66 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                     let mut fuzzy_matches = Vec::new();
 
                     #unit_cases
-
                     #tuple_cases
-
                     #struct_cases
 
                     (exact_match, fuzzy_matches)
                 }
             }
         }
-    };
+    })
+}
 
-    //panic!("{}", result);
+fn derive_struct(command_struct: CommandStruct) -> Result<TokenStream, String> {
+    let mod_ident = format_ident!(
+        "impl_context_aware_parse_for_{}",
+        command_struct.ident_with_sep("_"),
+    );
+    let struct_ident = &command_struct.ident;
+    let subtype_path = &command_struct.subtype;
 
-    Ok(result)
+    Ok(quote! {
+        mod #mod_ident {
+            use super::*;
+            use crate::app::{AppMeta, Autocomplete, ContextAwareParse};
+            use crate::utils::{CaseInsensitiveStr, QuotedWordChunk};
+            use async_trait::async_trait;
+            use std::str::FromStr;
+
+            #[async_trait(?Send)]
+            impl ContextAwareParse for #struct_ident {
+                async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+                    let mut parser = input.quoted_word_chunks(|_| None);
+
+                    while let Some(phrase) = parser.current() {
+                        match #subtype_path::parse_input(phrase, app_meta).await {
+                            (Some(result), _) => parser.matches(result),
+                            (None, mut v) => {
+                                if let Some(fuzzy_result) = v.drain(..).next() {
+                                    parser.matches(fuzzy_result);
+                                //} else if #subtype_path::autocomplete(phrase, app_meta).await.is_empty() {
+                                    //parser.reject();
+                                } else {
+                                    parser.partially_matches();
+                                }
+                            }
+                        }
+                    }
+
+                    let (output, reject_count) = parser.into_output_with_reject_count();
+
+                    (
+                        if reject_count >= output.len() {
+                            None
+                        } else {
+                            Some(Self(output))
+                        },
+                        Vec::new(),
+                    )
+                }
+            }
+        }
+    })
 }
 
 fn get_unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
@@ -200,25 +247,32 @@ fn parse_struct_syntax(
             })
         }
         (None, Some(syntax_end)) => {
-            let ty = &variant
+            let field = variant
                 .fields
                 .iter()
                 .find(|field| &field.ident == syntax_end)
-                .expect("Type must be defined!")
-                .ty;
+                .expect("Type must be defined!");
+            let ty = &field.ty;
 
             if is_canonical {
                 Err(format!("Use tuple variants (eg. `Self::{}({})`) for command nesting. Struct variants must have a prefix in the canonical form.", variant_ident, quote!{ #ty }))
             } else {
-                Ok(quote! {
-                    {
-                        let (subcommand_exact_match, _) = #ty::parse_input(input, app_meta).await;
+                match field.implements {
+                    Trait::Runnable => Ok(quote! {
+                        {
+                            let (subcommand_exact_match, _) = #ty::parse_input(input, app_meta).await;
 
-                        if let Some(command) = subcommand_exact_match {
-                            fuzzy_matches.push(Self::#variant_ident { #syntax_end: command });
+                            if let Some(#syntax_end) = subcommand_exact_match {
+                                fuzzy_matches.push(Self::#variant_ident { #syntax_end });
+                            }
                         }
-                    }
-                })
+                    }),
+                    Trait::WordList | Trait::FromStr => Ok(quote! {
+                        if let Ok(#syntax_end) = input.parse() {
+                            fuzzy_matches.push(Self::#variant_ident { #syntax_end });
+                        }
+                    }),
+                }
             }
         }
         _ => todo!("Syntaxes without trailing idents are not supported by ContextAwareParse."),

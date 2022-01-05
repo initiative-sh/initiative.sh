@@ -3,7 +3,7 @@ mod app {
 }
 
 mod utils {
-    pub use initiative_core::utils::CaseInsensitiveStr;
+    pub use initiative_core::utils::{CaseInsensitiveStr, QuotedWordChunk};
 }
 
 mod integration;
