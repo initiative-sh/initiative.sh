@@ -1,15 +1,17 @@
-use initiative_macros::ContextAwareParse;
+use initiative_macros::{Autocomplete, ContextAwareParse};
 
-#[derive(ContextAwareParse, Debug, PartialEq)]
+#[derive(Autocomplete, ContextAwareParse, Debug, PartialEq)]
 #[allow(dead_code)]
 enum Command {
     Subcommand(Subcommand),
 }
 
-#[derive(ContextAwareParse, Debug, PartialEq)]
+#[derive(Autocomplete, ContextAwareParse, Debug, PartialEq)]
 #[allow(dead_code)]
 enum Subcommand {
+    #[command(autocomplete_desc = "describe me like one of your French girls")]
     OneThing,
+
     #[command(alias = "alias")]
     Another,
 }
@@ -38,5 +40,27 @@ mod parse {
 }
 
 mod autocomplete {
-    // TODO
+    use super::*;
+    use initiative_core::app::Autocomplete;
+    use std::borrow::Cow;
+    use tokio_test::block_on;
+
+    #[test]
+    fn test_subcommand() {
+        let app_meta = crate::get_app_meta();
+        assert_eq!(
+            vec![(
+                Cow::from("one-thing"),
+                Cow::from("describe me like one of your French girls"),
+            )],
+            block_on(Command::autocomplete("ONE", &app_meta, true)),
+        );
+        assert_eq!(
+            vec![
+                (Cow::from("another"), Cow::from("another")),
+                (Cow::from("alias"), Cow::from("another")),
+            ],
+            block_on(Command::autocomplete("A", &app_meta, true)),
+        );
+    }
 }

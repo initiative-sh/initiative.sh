@@ -1,4 +1,4 @@
-use initiative_macros::{ContextAwareParse, WordList};
+use initiative_macros::{Autocomplete, ContextAwareParse, WordList};
 
 #[derive(ContextAwareParse, Debug, PartialEq)]
 #[allow(dead_code)]
@@ -10,10 +10,19 @@ enum Command {
     },
 
     #[command(alias = "sub [command]")]
+    #[command(autocomplete_desc = "torpedoes away")]
     Subcommand { command: Subcommand },
 }
 
-#[derive(ContextAwareParse, Debug, PartialEq)]
+#[derive(Autocomplete, ContextAwareParse, Debug, PartialEq)]
+#[allow(dead_code)]
+enum CommandWithoutWordList {
+    #[command(alias = "sub [command]")]
+    #[command(autocomplete_desc = "torpedoes away")]
+    Subcommand { command: Subcommand },
+}
+
+#[derive(Autocomplete, ContextAwareParse, Debug, PartialEq)]
 #[allow(dead_code)]
 enum Subcommand {
     #[command(alias = "blah-alias")]
@@ -99,5 +108,43 @@ mod parse {
 }
 
 mod autocomplete {
-    // TODO
+    use super::*;
+    use initiative_core::app::Autocomplete;
+    use std::borrow::Cow;
+    use tokio_test::block_on;
+
+    #[test]
+    fn test_subcommand() {
+        let app_meta = crate::get_app_meta();
+        assert_eq!(
+            vec![
+                (
+                    Cow::from("subcommand [command]"),
+                    Cow::from("torpedoes away"),
+                ),
+                (Cow::from("sub [command]"), Cow::from("torpedoes away")),
+            ],
+            block_on(CommandWithoutWordList::autocomplete("sub", &app_meta, true)),
+        );
+        assert_eq!(
+            vec![(Cow::from("sub blah"), Cow::from("torpedoes away")),],
+            block_on(CommandWithoutWordList::autocomplete(
+                "sub ", &app_meta, true
+            )),
+        );
+        assert_eq!(
+            vec![
+                (Cow::from("subcommand blah"), Cow::from("torpedoes away")),
+                (
+                    Cow::from("subcommand blah-alias"),
+                    Cow::from("torpedoes away"),
+                ),
+            ],
+            block_on(CommandWithoutWordList::autocomplete(
+                "subcommand ",
+                &app_meta,
+                true,
+            )),
+        );
+    }
 }
