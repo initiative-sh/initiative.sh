@@ -1,3 +1,5 @@
+* **Bug:** Fixed and expand more spell content, including adding tables to
+  spells like `Teleport`.
 * **Bug:** Fixed wording of several spells, including `Legend Lore`, in response
   to user feedback.
 * **Enhancement:** More command parsing work. It may not look like it (still no
