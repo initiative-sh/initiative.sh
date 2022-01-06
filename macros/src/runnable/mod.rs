@@ -118,6 +118,36 @@ impl CommandEnum {
     fn ident_with_sep(&self, sep: &str) -> String {
         from_camel_case_with_sep(&self.ident, sep)
     }
+
+    fn unit_variants(&self) -> impl Iterator<Item = &UnitStructCommandVariant> {
+        self.variants.iter().filter_map(|variant| {
+            if let CommandVariant::Unit(unit_variant) = variant {
+                Some(unit_variant)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn tuple_variants(&self) -> impl Iterator<Item = &TupleCommandVariant> {
+        self.variants.iter().filter_map(|variant| {
+            if let CommandVariant::Tuple(tuple_variant) = variant {
+                Some(tuple_variant)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn struct_variants(&self) -> impl Iterator<Item = &UnitStructCommandVariant> {
+        self.variants.iter().filter_map(|variant| {
+            if let CommandVariant::Struct(struct_variant) = variant {
+                Some(struct_variant)
+            } else {
+                None
+            }
+        })
+    }
 }
 
 impl TryFrom<TokenStream> for CommandEnum {

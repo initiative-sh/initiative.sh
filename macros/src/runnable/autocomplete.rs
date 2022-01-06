@@ -149,52 +149,26 @@ fn init_suggestions_with_unit_cases(command_enum: &CommandEnum) -> Result<TokenS
     })
 }
 
-fn get_tuple_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, String> {
-    let tokens: Vec<_> = command_enum
-        .variants
-        .iter()
-        .filter_map(|variant| {
-            if let CommandVariant::Tuple(tuple_variant) = variant {
-                Some(tuple_variant)
-            } else {
-                None
-            }
-        })
-        .filter_map(|variant| {
-            let ty = &variant.ty;
+fn get_tuple_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
+    let tokens = command_enum.tuple_variants().filter_map(|variant| {
+        let ty = &variant.ty;
 
-            match variant.implements {
-                Trait::Runnable => Some(quote! {
-                    suggestions.append(&mut #ty::autocomplete(input, app_meta, include_aliases).await);
-                }),
-                Trait::FromStr => None,
-                Trait::WordList => todo!("WordLists in tuples are not supported by Autocomplete."),
-            }
-        })
-        .collect();
+        match variant.implements {
+            Trait::Runnable => Some(quote! {
+                suggestions.append(&mut #ty::autocomplete(input, app_meta, include_aliases).await);
+            }),
+            Trait::FromStr => None,
+            Trait::WordList => todo!("WordLists in tuples are not supported by Autocomplete."),
+        }
+    });
 
-    if tokens.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(quote! { #(#tokens)* }))
-    }
+    Ok(quote! { #(#tokens)* })
 }
 
-fn get_struct_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, String> {
+fn get_struct_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
     let tokens: Vec<_> = command_enum
-        .variants
-        .iter()
-        .filter_map(|variant| {
-            if let CommandVariant::Struct(struct_variant) = variant {
-                if struct_variant.is_ignored {
-                    None
-                } else {
-                    Some(struct_variant)
-                }
-            } else {
-                None
-            }
-        })
+        .struct_variants()
+        .filter(|variant| !variant.is_ignored)
         .map(|variant| {
             iter::once(parse_struct_syntax(variant, &variant.syntax, true))
                 .chain(
@@ -213,11 +187,7 @@ fn get_struct_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, S
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    if tokens.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(quote! { #(#tokens)* }))
-    }
+    Ok(quote! { #(#tokens)* })
 }
 
 fn parse_struct_syntax(

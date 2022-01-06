@@ -1,4 +1,4 @@
-use super::{CommandEnum, CommandVariant, CommandVariantSyntax, Trait, UnitStructCommandVariant};
+use super::{CommandEnum, CommandVariantSyntax, Trait, UnitStructCommandVariant};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::iter;
@@ -49,60 +49,39 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     Ok(result)
 }
 
-fn get_unit_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, String> {
+fn get_unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
     let tokens: Vec<_> = command_enum
-        .variants
-        .iter()
-        .filter_map(|variant| {
-            if let CommandVariant::Unit(unit_variant) = variant {
-                Some(unit_variant)
-            } else {
-                None
-            }
-        })
-        .filter_map(|variant| {
+        .unit_variants()
+        .map(|variant| {
             let ident = &variant.ident;
 
-            let alias_clauses: Vec<_> = variant
+            let alias_clauses = variant
                 .aliases
                 .iter()
                 .map(|alias| {
                     let syntax = alias.to_string();
                     quote! { if input.eq_ci(#syntax) { fuzzy_matches.push(Self::#ident) } else }
-                })
-                .collect();
+                });
 
             if !variant.is_ignored {
                 let syntax = variant.syntax.to_string();
-                Some(quote! { if input.eq_ci(#syntax) { exact_match = Some(Self::#ident) } else #(#alias_clauses)* })
-            } else if !alias_clauses.is_empty() {
-                Some(quote! { #(#alias_clauses)* })
+                quote! { if input.eq_ci(#syntax) { exact_match = Some(Self::#ident) } else #(#alias_clauses)* }
             } else {
-                None
+                quote! { #(#alias_clauses)* }
             }
         })
         .collect();
 
     if tokens.is_empty() {
-        Ok(None)
+        Ok(quote! {})
     } else {
-        Ok(Some(quote! {
-            #(#tokens)* {}
-        }))
+        Ok(quote! { #(#tokens)* {} })
     }
 }
 
-fn get_tuple_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, String> {
-    let tokens: Vec<_> = command_enum
-        .variants
-        .iter()
-        .filter_map(|variant| {
-            if let CommandVariant::Tuple(tuple_variant) = variant {
-                Some(tuple_variant)
-            } else {
-                None
-            }
-        })
+fn get_tuple_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
+    let tokens = command_enum
+        .tuple_variants()
         .map(|variant| {
             let ident = &variant.ident;
             let ty = &variant.ty;
@@ -128,33 +107,15 @@ fn get_tuple_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, St
                     }
                 },
             }
-        })
-        .collect();
+        });
 
-    if tokens.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(quote! {
-            #(#tokens)* {}
-        }))
-    }
+    Ok(quote! { #(#tokens)* {} })
 }
 
-fn get_struct_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, String> {
+fn get_struct_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
     let tokens: Vec<_> = command_enum
-        .variants
-        .iter()
-        .filter_map(|variant| {
-            if let CommandVariant::Struct(struct_variant) = variant {
-                if struct_variant.is_ignored {
-                    None
-                } else {
-                    Some(struct_variant)
-                }
-            } else {
-                None
-            }
-        })
+        .struct_variants()
+        .filter(|variant| !variant.is_ignored)
         .map(|variant| {
             iter::once(parse_struct_syntax(variant, &variant.syntax, true))
                 .chain(
@@ -172,13 +133,7 @@ fn get_struct_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, S
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    if tokens.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(quote! {
-            #(#tokens)* {}
-        }))
-    }
+    Ok(quote! { #(#tokens)* {} })
 }
 
 fn parse_struct_syntax(
