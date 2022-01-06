@@ -1,12 +1,12 @@
-use initiative_macros::{Autocomplete, ContextAwareParse};
+use initiative_macros::{Autocomplete, ContextAwareParse, Display};
 
-#[derive(Autocomplete, ContextAwareParse, Debug, PartialEq)]
+#[derive(Autocomplete, ContextAwareParse, Debug, Display, PartialEq)]
 #[allow(dead_code)]
 enum Command {
     Subcommand(Subcommand),
 }
 
-#[derive(Autocomplete, ContextAwareParse, Debug, PartialEq)]
+#[derive(Autocomplete, ContextAwareParse, Debug, Display, PartialEq)]
 #[allow(dead_code)]
 enum Subcommand {
     #[command(autocomplete_desc = "describe me like one of your French girls")]
@@ -61,6 +61,18 @@ mod autocomplete {
                 (Cow::from("alias"), Cow::from("another")),
             ],
             block_on(Command::autocomplete("A", &app_meta, true)),
+        );
+    }
+}
+
+mod display {
+    use super::*;
+
+    #[test]
+    fn test_subcommand() {
+        assert_eq!(
+            "one-thing",
+            Command::Subcommand(Subcommand::OneThing).to_string()
         );
     }
 }

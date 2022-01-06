@@ -1,8 +1,8 @@
 use initiative_core::app::AppMeta;
-use initiative_macros::{Autocomplete, ContextAwareParse};
+use initiative_macros::{Autocomplete, ContextAwareParse, Display};
 use std::borrow::Cow;
 
-#[derive(Autocomplete, ContextAwareParse, Debug, PartialEq)]
+#[derive(Autocomplete, ContextAwareParse, Debug, Display, PartialEq)]
 #[allow(dead_code)]
 enum Command {
     UnitCase,
@@ -151,5 +151,15 @@ mod autocomplete {
             Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
             block_on(Command::autocomplete("NO-AUTOCOMPLETE", &app_meta, true)),
         );
+    }
+}
+
+mod display {
+    use super::*;
+
+    #[test]
+    fn test() {
+        assert_eq!("unit-case", Command::UnitCase.to_string());
+        assert_eq!("", Command::AnIgnoredCase.to_string());
     }
 }

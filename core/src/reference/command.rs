@@ -2,10 +2,9 @@ use super::{Item, ItemCategory, MagicItem, Spell};
 use crate::app::{AppMeta, Runnable};
 use async_trait::async_trait;
 use caith::Roller;
-use initiative_macros::{Autocomplete, ContextAwareParse};
-use std::fmt;
+use initiative_macros::{Autocomplete, ContextAwareParse, Display};
 
-#[derive(Autocomplete, Clone, ContextAwareParse, Debug, PartialEq)]
+#[derive(Autocomplete, Clone, ContextAwareParse, Debug, Display, PartialEq)]
 pub enum ReferenceCommand {
     #[command(alias = "[spell]")]
     #[command(autocomplete_desc = "SRD spell")]
@@ -52,11 +51,11 @@ pub enum ReferenceCommand {
 impl Runnable for ReferenceCommand {
     async fn run(self, _input: &str, _app_meta: &mut AppMeta) -> Result<String, String> {
         let (output, name) = match self {
-            Self::Spell { spell } => (format!("{}", spell), spell.get_name()),
-            Self::Spells => (Spell::get_list().to_string(), "This listing"),
-            Self::Item { item } => (format!("{}", item), item.get_name()),
-            Self::ItemCategory { category } => (format!("{}", category), "This listing"),
-            Self::MagicItem { item } => (format!("{}", item), item.get_name()),
+            Self::Spell { spell } => (spell.get_output(), spell.get_name()),
+            Self::Spells => (Spell::get_list(), "This listing"),
+            Self::Item { item } => (item.get_output(), item.get_name()),
+            Self::ItemCategory { category } => (category.get_output(), "This listing"),
+            Self::MagicItem { item } => (item.get_output(), item.get_name()),
             Self::OpenGameLicense => {
                 return Ok(include_str!("../../../data/ogl-1.0a.md")
                     .trim_end()
@@ -66,24 +65,9 @@ impl Runnable for ReferenceCommand {
 
         Ok(format!(
             "{}\n\n*{} is Open Game Content subject to the `Open Game License`.*",
-            linkify_dice(&output),
+            linkify_dice(output),
             name,
         ))
-    }
-}
-
-impl fmt::Display for ReferenceCommand {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        match self {
-            Self::Spell { spell } => write!(f, "srd spell {}", spell.get_name()),
-            Self::Spells => write!(f, "srd spells"),
-            Self::Item { item } => write!(f, "srd item {}", item.get_name()),
-            Self::ItemCategory { category } => {
-                write!(f, "srd item category {}", category.get_name())
-            }
-            Self::MagicItem { item } => write!(f, "srd magic item {}", item.get_name()),
-            Self::OpenGameLicense => write!(f, "Open Game License"),
-        }
     }
 }
 

@@ -43,3 +43,8 @@ pub fn context_aware_parse(input: TokenStream) -> TokenStream {
 pub fn autocomplete(input: TokenStream) -> TokenStream {
     runnable::autocomplete::run(input.into()).unwrap().into()
 }
+
+#[proc_macro_derive(Display, attributes(command, doc))]
+pub fn display(input: TokenStream) -> TokenStream {
+    runnable::display::run(input.into()).unwrap().into()
+}

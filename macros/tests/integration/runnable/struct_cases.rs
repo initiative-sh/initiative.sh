@@ -1,6 +1,6 @@
-use initiative_macros::{Autocomplete, ContextAwareParse, WordList};
+use initiative_macros::{Autocomplete, ContextAwareParse, Display, WordList};
 
-#[derive(ContextAwareParse, Debug, PartialEq)]
+#[derive(ContextAwareParse, Debug, Display, PartialEq)]
 #[allow(dead_code)]
 enum Command {
     #[command(alias = "colour [color]")]
@@ -14,7 +14,7 @@ enum Command {
     Subcommand { command: Subcommand },
 }
 
-#[derive(Autocomplete, ContextAwareParse, Debug, PartialEq)]
+#[derive(Autocomplete, ContextAwareParse, Debug, Display, PartialEq)]
 #[allow(dead_code)]
 enum CommandWithoutWordList {
     #[command(alias = "sub [command]")]
@@ -22,7 +22,7 @@ enum CommandWithoutWordList {
     Subcommand { command: Subcommand },
 }
 
-#[derive(Autocomplete, ContextAwareParse, Debug, PartialEq)]
+#[derive(Autocomplete, ContextAwareParse, Debug, Display, PartialEq)]
 #[allow(dead_code)]
 enum Subcommand {
     #[command(alias = "blah-alias")]
@@ -145,6 +145,32 @@ mod autocomplete {
                 &app_meta,
                 true,
             )),
+        );
+    }
+}
+
+mod display {
+    use super::*;
+
+    #[test]
+    fn test_runnable() {
+        assert_eq!(
+            "subcommand blah",
+            Command::Subcommand {
+                command: Subcommand::Blah,
+            }
+            .to_string(),
+        );
+    }
+
+    #[test]
+    fn test_color() {
+        assert_eq!(
+            "color blue",
+            Command::Color {
+                color: Colors::Blue,
+            }
+            .to_string(),
         );
     }
 }

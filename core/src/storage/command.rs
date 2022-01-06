@@ -5,12 +5,11 @@ use crate::utils::CaseInsensitiveStr;
 use crate::world::syntax::{FromAny, FromJournal, FromRecent, ThingName};
 use crate::world::Thing;
 use async_trait::async_trait;
-use initiative_macros::{Autocomplete, ContextAwareParse};
+use initiative_macros::{Autocomplete, ContextAwareParse, Display};
 use std::borrow::Cow;
 use std::cmp::Ordering;
-use std::fmt;
 
-#[derive(Autocomplete, Clone, ContextAwareParse, Debug, PartialEq)]
+#[derive(Autocomplete, Clone, ContextAwareParse, Debug, Display, PartialEq)]
 pub enum StorageCommand {
     #[command(autocomplete_desc_fn(autocomplete_delete))]
     Delete {
@@ -304,21 +303,6 @@ impl Runnable for StorageCommand {
             }
             s
         })
-    }
-}
-
-impl fmt::Display for StorageCommand {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        match self {
-            Self::Delete { name } => write!(f, "delete {}", name),
-            Self::Export => write!(f, "export"),
-            Self::Import => write!(f, "import"),
-            Self::Journal => write!(f, "journal"),
-            Self::Load { name } => write!(f, "load {}", name),
-            Self::Redo => write!(f, "redo"),
-            Self::Save { name } => write!(f, "save {}", name),
-            Self::Undo => write!(f, "undo"),
-        }
     }
 }
 

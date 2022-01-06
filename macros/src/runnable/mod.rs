@@ -1,5 +1,6 @@
-//! The `#[derive(Autocomplete)]` and `#[derive(ContextAwareParse)]` macros generate parsing and
-//! autocomplete code based on an enum of command variants. All variant types are supported:
+//! The `#[derive(Autocomplete)]`, `#[derive(Display)]`, and `#[derive(ContextAwareParse)]` macros
+//! generate parsing and autocomplete code based on an enum of command variants. All variant types
+//! are supported:
 //!
 //! enum TestCommand {
 //!     UnitVariant,
@@ -52,6 +53,7 @@
 
 pub mod autocomplete;
 pub mod context_aware_parse;
+pub mod display;
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;

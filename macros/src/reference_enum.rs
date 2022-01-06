@@ -149,6 +149,10 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
 
             #get_list
 
+            pub fn as_str(&self) -> &'static str {
+                self.get_name()
+            }
+
             pub fn get_name(&self) -> &'static str {
                 match self {
                     #(#variants_to_names)*
@@ -190,7 +194,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
 
         impl std::fmt::Display for #ident {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "{}", self.get_output())
+                write!(f, "{}", self.get_name())
             }
         }
     };

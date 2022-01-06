@@ -1,13 +1,13 @@
 use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
 use async_trait::async_trait;
 use caith::Roller;
-use initiative_macros::{changelog, Autocomplete, ContextAwareParse};
+use initiative_macros::{changelog, Autocomplete, ContextAwareParse, Display};
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::fmt;
 use std::str::FromStr;
 
-#[derive(Autocomplete, Clone, ContextAwareParse, Debug, PartialEq)]
+#[derive(Autocomplete, Clone, ContextAwareParse, Debug, Display, PartialEq)]
 pub enum AppCommand {
     #[command(autocomplete_desc = "about initiative.sh")]
     About,
@@ -87,18 +87,6 @@ impl Autocomplete for DiceFormula {
         _include_aliases: bool,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         Vec::new()
-    }
-}
-
-impl fmt::Display for AppCommand {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        match self {
-            Self::About => write!(f, "about"),
-            Self::Changelog => write!(f, "changelog"),
-            Self::Debug => write!(f, "debug"),
-            Self::Help => write!(f, "help"),
-            Self::Roll { dice } => write!(f, "roll {}", dice),
-        }
     }
 }
 
