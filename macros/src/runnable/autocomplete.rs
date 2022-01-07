@@ -1,17 +1,19 @@
 use super::{
-    Command, CommandEnum, CommandVariant, CommandVariantSyntax, Trait, UnitStructCommandVariant,
+    Command, CommandEnum, CommandStruct, CommandVariant, CommandVariantSyntax, Trait,
+    UnitStructCommandVariant,
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::iter;
 
 pub fn run(input: TokenStream) -> Result<TokenStream, String> {
-    let command_enum = if let Command::Enum(command_enum) = Command::try_from(input)? {
-        command_enum
-    } else {
-        todo!("Autocomplete cannot yet be derived for newtypes.");
-    };
+    match Command::try_from(input)? {
+        Command::Enum(command_enum) => derive_enum(command_enum),
+        Command::Struct(command_struct) => derive_struct(command_struct),
+    }
+}
 
+fn derive_enum(command_enum: CommandEnum) -> Result<TokenStream, String> {
     let mod_ident = format_ident!("impl_autocomplete_for_{}", command_enum.ident_with_sep("_"));
     let enum_ident = &command_enum.ident;
 
@@ -39,7 +41,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
             quote! { Self::#ident { .. } => #name, }
         }));
 
-    let result = quote! {
+    Ok(quote! {
         mod #mod_ident {
             use super::*;
             use crate::app::{AppMeta, Autocomplete, ContextAwareParse};
@@ -73,11 +75,62 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                 }
             }
         }
-    };
+    })
+}
 
-    //panic!("{}", result);
+fn derive_struct(command_struct: CommandStruct) -> Result<TokenStream, String> {
+    let mod_ident = format_ident!(
+        "impl_autocomplete_for_{}",
+        command_struct.ident_with_sep("_"),
+    );
+    let struct_ident = &command_struct.ident;
+    let subtype_path = &command_struct.subtype;
 
-    Ok(result)
+    Ok(quote! {
+        mod #mod_ident {
+            use super::*;
+            use crate::app::{AppMeta, Autocomplete, ContextAwareParse};
+            use crate::utils::{CaseInsensitiveStr, QuotedWords, QuotedWordChunk};
+            use async_trait::async_trait;
+            use std::borrow::Cow;
+            use std::str::FromStr;
+
+            #[async_trait(?Send)]
+            impl Autocomplete for #struct_ident {
+                async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+                    let (input_existing, input_remainder) = if input.ends_with(char::is_whitespace) && input.chars().filter(|&c| c == '"').count() % 2 == 0 {
+                        (input, "")
+                    } else if let Some(word) = input.quoted_words().last() {
+                        (&input[..word.outer_range.start], word.as_own_str(input))
+                    } else {
+                        ("", input)
+                    };
+
+                    let existing = if input_existing.is_empty() {
+                        Some(Self(Vec::new()))
+                    } else {
+                        let (exact, mut fuzzy) = Self::parse_input(input_existing, app_meta).await;
+                        exact.or_else(|| fuzzy.drain(..).next())
+                    };
+
+                    if existing.is_some() {
+                        let mut suggestions = #subtype_path::autocomplete(input_remainder, app_meta).await;
+
+                        if !input_existing.is_empty() {
+                            for (a, _) in suggestions.iter_mut() {
+                                let term = a.to_mut();
+                                *term = format!("{}{}", input_existing, term);
+                            }
+                        }
+
+                        suggestions
+                    } else {
+                        Vec::new()
+                    }
+                }
+            }
+        }
+    })
 }
 
 fn unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
@@ -222,12 +275,6 @@ fn parse_struct_syntax(
     } else {
         todo!("Syntaxes without trailing idents are not supported by Autocomplete.");
     };
-    let field = variant
-        .fields
-        .iter()
-        .find(|field| &field.ident == syntax_end)
-        .expect("Type must be defined!");
-    let ty = &field.ty;
 
     if syntax.no_autocomplete {
         return Ok(None);
@@ -244,6 +291,13 @@ fn parse_struct_syntax(
         let desc = syntax.to_string();
         (quote! { #desc.into() }, quote! { #desc.into() })
     };
+
+    let field = variant
+        .fields
+        .iter()
+        .find(|field| &field.ident == syntax_end)
+        .expect("Type must be defined!");
+    let ty = &field.ty;
 
     match &syntax.start {
         Some(syntax_start) => {
@@ -278,29 +332,31 @@ fn parse_struct_syntax(
             }))
         }
         None => {
-            let field = variant
-                .fields
-                .iter()
-                .find(|field| &field.ident == syntax_end)
-                .expect("Type must be defined!");
-            let ty = &field.ty;
+            let field_name = format!("[{}]", field.ident);
 
             Ok(match field.implements {
                 Trait::FromStr => None,
                 Trait::Runnable => Some(quote! {
-                    #ty::autocomplete(input, app_meta, false)
-                        .await
-                        .drain(..)
-                        .map(|(suggestion, description)| {
-                            (suggestion.clone(), #desc1)
-                        })
-                        .for_each(|v| suggestions.push(v));
+                    if input.is_empty() {
+                        suggestions.push((#field_name.into(), #desc0));
+                    } else {
+                        suggestions.extend(
+                            #ty::autocomplete(input, app_meta, false)
+                                .await
+                                .drain(..)
+                                .map(|(suggestion, description)| (suggestion.clone(), #desc1))
+                        );
+                    }
                 }),
                 Trait::WordList => Some(quote! {
-                    for suggestion in #ty::get_words().filter(|s| s.starts_with_ci(input)) {
-                        let suggestion: Cow<'static, str> = suggestion.into();
-                        let description = suggestion.clone();
-                        suggestions.push((suggestion.clone(), #desc1));
+                    if input.is_empty() {
+                        suggestions.push((#field_name.into(), #desc0));
+                    } else {
+                        for suggestion in #ty::get_words().filter(|s| s.starts_with_ci(input)) {
+                            let suggestion: Cow<'static, str> = suggestion.into();
+                            let description = suggestion.clone();
+                            suggestions.push((suggestion.clone(), #desc1));
+                        }
                     }
                 }),
             })

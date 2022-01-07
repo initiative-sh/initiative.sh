@@ -24,8 +24,8 @@ pub fn capitalize(input: &str) -> String {
 #[derive(Clone, Debug)]
 pub struct Word<'a> {
     phrase: &'a str,
-    inner_range: Range<usize>,
-    outer_range: Range<usize>,
+    pub inner_range: Range<usize>,
+    pub outer_range: Range<usize>,
 }
 
 impl<'a> Word<'a> {
