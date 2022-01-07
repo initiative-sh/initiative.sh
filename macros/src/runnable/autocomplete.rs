@@ -1,10 +1,16 @@
-use super::{CommandEnum, CommandVariant, CommandVariantSyntax, Trait, UnitStructCommandVariant};
+use super::{
+    Command, CommandEnum, CommandVariant, CommandVariantSyntax, Trait, UnitStructCommandVariant,
+};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::iter;
 
 pub fn run(input: TokenStream) -> Result<TokenStream, String> {
-    let command_enum = CommandEnum::try_from(input)?;
+    let command_enum = if let Command::Enum(command_enum) = Command::try_from(input)? {
+        command_enum
+    } else {
+        todo!("Autocomplete cannot yet be derived for newtypes.");
+    };
 
     let mod_ident = format_ident!("impl_autocomplete_for_{}", command_enum.ident_with_sep("_"));
     let enum_ident = &command_enum.ident;

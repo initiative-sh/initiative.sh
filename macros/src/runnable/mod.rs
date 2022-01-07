@@ -61,9 +61,20 @@ use std::collections::HashMap;
 use std::fmt;
 
 #[derive(Debug)]
+enum Command {
+    Enum(CommandEnum),
+    Struct(CommandStruct),
+}
+
+#[derive(Debug)]
+struct CommandStruct {
+    ident: syn::Ident,
+    subtype: syn::Path,
+}
+
+#[derive(Debug)]
 struct CommandEnum {
     ident: syn::Ident,
-
     variants: Vec<CommandVariant>,
 }
 
@@ -152,23 +163,106 @@ impl CommandEnum {
     }
 }
 
-impl TryFrom<TokenStream> for CommandEnum {
+impl CommandStruct {
+    fn ident_with_sep(&self, sep: &str) -> String {
+        from_camel_case_with_sep(&self.ident, sep)
+    }
+}
+
+impl TryFrom<TokenStream> for Command {
     type Error = String;
 
     fn try_from(input_raw: TokenStream) -> Result<Self, Self::Error> {
         let input: syn::DeriveInput = syn::parse2(input_raw).map_err(|e| format!("{}", e))?;
         let ident = input.ident;
 
-        if let syn::Data::Enum(data_enum) = input.data {
-            let variants = data_enum
-                .variants
-                .iter()
-                .map(|v| v.try_into())
-                .collect::<Result<_, _>>()
-                .map_err(|e| format!("Error parsing {}::{}", ident, e))?;
-            Ok(Self { ident, variants })
-        } else {
-            Err(format!("Error parsing {}: Type must be enum.", ident))
+        match input.data {
+            syn::Data::Enum(data_enum) => {
+                let variants = data_enum
+                    .variants
+                    .iter()
+                    .map(|v| v.try_into())
+                    .collect::<Result<_, _>>()
+                    .map_err(|e| format!("Error parsing {}::{}", ident, e))?;
+
+                Ok(Self::Enum(CommandEnum { ident, variants }))
+            }
+            syn::Data::Struct(data_struct) => {
+                let fields = if let syn::Fields::Unnamed(fields) = data_struct.fields {
+                    fields
+                } else {
+                    return Err(format!(
+                        "Error parsing {}: Only tuple structs are supported.",
+                        ident,
+                    ));
+                };
+
+                let field = if fields.unnamed.len() == 1 {
+                    fields.unnamed.first().unwrap()
+                } else {
+                    return Err(format!(
+                        "Error parsing {}: Tuple structs must have exactly one field.",
+                        ident,
+                    ));
+                };
+
+                let field_path = if let syn::Type::Path(path) = &field.ty {
+                    &path.path
+                } else {
+                    return Err(format!(
+                        r#"Error parsing {}: Field type must be a path, specifically "Vec<T>"."#,
+                        ident,
+                    ));
+                };
+
+                let field_type = if field_path.segments.len() == 1 {
+                    field_path.segments.first().unwrap()
+                } else {
+                    return Err(format!(
+                        r#"Error parsing {}: Field type must have one path segment, specifically "Vec<T>")."#,
+                        ident,
+                    ));
+                };
+
+                if field_type.ident != "Vec" {
+                    return Err(format!("Error parsing {}: Field type must be Vec.", ident));
+                }
+
+                let field_arguments =
+                    if let syn::PathArguments::AngleBracketed(arguments) = &field_type.arguments {
+                        arguments
+                    } else {
+                        return Err(format!(
+                            "Error parsing {}: Missing or invalid field type for inner type.",
+                            ident,
+                        ));
+                    };
+
+                let field_argument = if field_arguments.args.len() == 1 {
+                    field_arguments.args.first().unwrap()
+                } else {
+                    return Err(format!(
+                        "Error parsing {}: Expected exactly one type argument for inner type.",
+                        ident,
+                    ));
+                };
+
+                let subtype =
+                    if let syn::GenericArgument::Type(syn::Type::Path(path)) = field_argument {
+                        path.path.clone()
+                    } else {
+                        return Err(format!(
+                            "Error parsing {}: Expected inner type to be a path.",
+                            ident,
+                        ));
+                    };
+
+                Ok(Self::Struct(CommandStruct { ident, subtype }))
+            }
+            syn::Data::Union(_) => Err(format!(
+                "Error parsing {}: Why are you even using unions?",
+                ident
+            )),
         }
     }
 }
@@ -595,13 +689,12 @@ mod test {
 
     #[test]
     fn ident_test() {
-        let command_enum: CommandEnum = quote! {
+        let command_enum = get_command_enum(quote! {
             enum Foo {
                 Bar,
                 BazQuux,
             }
-        }
-        .try_into()
+        })
         .unwrap();
 
         assert_eq!("Foo", command_enum.ident.to_string());
@@ -609,15 +702,14 @@ mod test {
 
     #[test]
     fn alias_test() {
-        let command_enum: CommandEnum = quote! {
+        let command_enum = get_command_enum(quote! {
             enum Foo {
                 #[command(alias = "alias1")]
                 #[command(alias_no_autocomplete = "alias2")]
                 #[command(alias = "alias3")]
                 Bar,
             }
-        }
-        .try_into()
+        })
         .unwrap();
 
         match command_enum.variants.first() {
@@ -637,14 +729,13 @@ mod test {
 
     #[test]
     fn doc_test() {
-        let command_enum: CommandEnum = quote! {
+        let command_enum = get_command_enum(quote! {
             enum Foo {
                 /// This is a doc
                 /// comment.
                 Bar,
             }
-        }
-        .try_into()
+        })
         .unwrap();
 
         match command_enum.variants.first() {
@@ -657,7 +748,7 @@ mod test {
 
     #[test]
     fn fields_test() {
-        let command_enum: CommandEnum = quote! {
+        let command_enum = get_command_enum(quote! {
             enum Foo {
                 IHaveFields {
                     field_1: bool,
@@ -665,8 +756,7 @@ mod test {
                 },
                 IHaveNoFields,
             }
-        }
-        .try_into()
+        })
         .unwrap();
 
         let mut variants = command_enum.variants.iter();
@@ -703,14 +793,13 @@ mod test {
 
     #[test]
     fn is_ignored_test() {
-        let command_enum: CommandEnum = quote! {
+        let command_enum = get_command_enum(quote! {
             enum Foo {
                 IsVisible,
                 #[command(ignore)]
                 IsIgnored,
             }
-        }
-        .try_into()
+        })
         .unwrap();
 
         let mut variants = command_enum.variants.iter();
@@ -734,7 +823,7 @@ mod test {
 
     #[test]
     fn no_default_autocomplete_test() {
-        let command_enum: CommandEnum = quote! {
+        let command_enum = get_command_enum(quote! {
             enum Foo {
                 DefaultSyntax,
                 #[command(syntax = "blah")]
@@ -749,8 +838,7 @@ mod test {
                 #[command(syntax = "blah")]
                 CustomSyntaxHidden2,
             }
-        }
-        .try_into()
+        })
         .unwrap();
 
         let mut variants = command_enum.variants.iter();
@@ -778,7 +866,7 @@ mod test {
 
     #[test]
     fn tuple_variant_test() {
-        let command_enum = CommandEnum::try_from(quote! {
+        let command_enum = get_command_enum(quote! {
             enum Foo {
                 IAmATuple(String),
             }
@@ -798,14 +886,13 @@ mod test {
 
     #[test]
     fn syntax_test_simple() {
-        let command_enum: CommandEnum = quote! {
+        let command_enum = get_command_enum(quote! {
             enum Foo {
                 DefaultSyntax,
                 #[command(syntax = "custom syntaxxx")]
                 CustomSyntax,
             }
-        }
-        .try_into()
+        })
         .unwrap();
 
         let mut variants = command_enum.variants.iter();
@@ -829,7 +916,7 @@ mod test {
 
     #[test]
     fn syntax_test_with_fields() {
-        let command_enum: CommandEnum = quote! {
+        let command_enum = get_command_enum(quote! {
             enum Foo {
                 DefaultWithFields {
                     foo: String,
@@ -842,8 +929,7 @@ mod test {
                     bar: bool,
                 },
             }
-        }
-        .try_into()
+        })
         .unwrap();
 
         let mut variants = command_enum.variants.iter();
@@ -874,7 +960,7 @@ mod test {
 
     #[test]
     fn syntax_test_tuple_implements() {
-        let command_enum = CommandEnum::try_from(quote! {
+        let command_enum = get_command_enum(quote! {
             enum Foo {
                 RunnableTuple(bool),
 
@@ -925,7 +1011,7 @@ mod test {
 
     #[test]
     fn syntax_test_field_implements() {
-        let command_enum = CommandEnum::try_from(quote! {
+        let command_enum = get_command_enum(quote! {
             enum Foo {
                 Variant {
                     runnable_field: bool,
@@ -959,7 +1045,7 @@ mod test {
 
     #[test]
     fn syntax_test_autocomplete_desc() {
-        let command_enum = CommandEnum::try_from(quote! {
+        let command_enum = get_command_enum(quote! {
             enum Foo {
                 JustAVariant,
 
@@ -1006,7 +1092,7 @@ mod test {
     fn syntax_test_unknown_field() {
         assert_eq!(
             r#"Error parsing Foo::NoFields: Unknown or duplicated field in "foo [bar]": "bar"."#,
-            CommandEnum::try_from(quote! {
+            get_command_enum(quote! {
                 enum Foo {
                     #[command(syntax = "foo [bar]")]
                     NoFields,
@@ -1020,7 +1106,7 @@ mod test {
     fn syntax_test_duplicate_field() {
         assert_eq!(
             r#"Error parsing Foo::DuplicatedField: Unknown or duplicated field in "foo [bar] [bar]": "bar"."#,
-            CommandEnum::try_from(quote! {
+            get_command_enum(quote! {
                 enum Foo {
                     #[command(syntax = "foo [bar] [bar]")]
                     DuplicatedField {
@@ -1036,7 +1122,7 @@ mod test {
     fn syntax_test_missing_field() {
         assert_eq!(
             r#"Error parsing Foo::MissingField: Field "bar" is not accounted for in syntax "foo"."#,
-            CommandEnum::try_from(quote! {
+            get_command_enum(quote! {
                 enum Foo {
                     #[command(syntax = "foo")]
                     MissingField {
@@ -1049,7 +1135,7 @@ mod test {
 
         assert_eq!(
             r#"Error parsing Foo::MissingField: Field "bar" is not accounted for in syntax "baz"."#,
-            CommandEnum::try_from(quote! {
+            get_command_enum(quote! {
                 enum Foo {
                     #[command(syntax = "foo [bar]")]
                     #[command(alias = "baz")]
@@ -1066,7 +1152,7 @@ mod test {
     fn syntax_text_unclosed_bracket() {
         assert_eq!(
             r#"Error parsing Foo::UnclosedBracket: Unclosed bracket in "foo [bar"."#,
-            CommandEnum::try_from(quote! {
+            get_command_enum(quote! {
                 enum Foo {
                     #[command(syntax = "foo [bar")]
                     UnclosedBracket {
@@ -1082,7 +1168,7 @@ mod test {
     fn syntax_test_unbalanced_brackets() {
         assert_eq!(
             r#"Error parsing Foo::Unbalanced: Unbalanced brackets in "foo [bar["."#,
-            CommandEnum::try_from(quote! {
+            get_command_enum(quote! {
                 enum Foo {
                     #[command(syntax = "foo [bar[")]
                     Unbalanced,
@@ -1093,7 +1179,7 @@ mod test {
 
         assert_eq!(
             r#"Error parsing Foo::Unbalanced: Unbalanced brackets in "foo ] bar"."#,
-            CommandEnum::try_from(quote! {
+            get_command_enum(quote! {
                 enum Foo {
                     #[command(syntax = "foo ] bar")]
                     Unbalanced,
@@ -1107,7 +1193,7 @@ mod test {
     fn tuple_variant_test_wrong_argument_count() {
         assert_eq!(
             r#"Error parsing Foo::TooFew: One field is required for tuple variants."#,
-            CommandEnum::try_from(quote! {
+            get_command_enum(quote! {
                 enum Foo {
                     JustRight(bool),
                     TooFew(),
@@ -1118,7 +1204,7 @@ mod test {
 
         assert_eq!(
             r#"Error parsing Foo::TooMany: Only one field is supported for tuple variants, found unexpected type "u16"."#,
-            CommandEnum::try_from(quote! {
+            get_command_enum(quote! {
                 enum Foo {
                     JustRight(bool),
                     TooMany(u8, u16),
@@ -1126,5 +1212,86 @@ mod test {
             })
             .unwrap_err(),
         );
+    }
+
+    #[test]
+    fn struct_variant_test_success() {
+        let command_struct = get_command_struct(quote! {
+            struct Foo(Vec<a::b::C>);
+        })
+        .unwrap();
+
+        let ident: syn::Ident = syn::parse2(quote! { Foo }).unwrap();
+        assert_eq!(ident, command_struct.ident);
+
+        let subtype: syn::Path = syn::parse2(quote! { a::b::C }).unwrap();
+        assert_eq!(subtype, command_struct.subtype);
+    }
+
+    #[test]
+    fn struct_variant_test_failure_only_tuples() {
+        assert_eq!(
+            "Error parsing Foo: Only tuple structs are supported.",
+            get_command_struct(quote! {
+                struct Foo;
+            })
+            .unwrap_err(),
+        );
+
+        assert_eq!(
+            "Error parsing Foo: Only tuple structs are supported.",
+            get_command_struct(quote! {
+                struct Foo {
+                    blah: Vec<a::b::C>,
+                }
+            })
+            .unwrap_err(),
+        );
+    }
+
+    #[test]
+    fn struct_variant_test_failure_one_field_required() {
+        assert_eq!(
+            "Error parsing Foo: Tuple structs must have exactly one field.",
+            get_command_struct(quote! {
+                struct Foo();
+            })
+            .unwrap_err(),
+        );
+
+        assert_eq!(
+            "Error parsing Foo: Tuple structs must have exactly one field.",
+            get_command_struct(quote! {
+                struct Foo(Vec<A>, Vec<B>);
+            })
+            .unwrap_err(),
+        );
+    }
+
+    #[test]
+    fn struct_variant_test_failure_wrong_wrapper() {
+        assert_eq!(
+            "Error parsing Foo: Field type must be Vec.",
+            get_command_struct(quote! {
+                struct Foo(Option<a::b::C>);
+            })
+            .unwrap_err(),
+        );
+    }
+
+    fn get_command_enum(input: TokenStream) -> Result<CommandEnum, String> {
+        if let Command::Enum(command_enum) = Command::try_from(input)? {
+            Ok(command_enum)
+        } else {
+            Err("Input type parses as a struct, not an enum.".to_string())
+        }
+    }
+
+    fn get_command_struct(input: TokenStream) -> Result<CommandStruct, String> {
+        if let Command::Struct(command_struct) = Command::try_from(input)? {
+            Ok(command_struct)
+        } else {
+            Err("Input type parses as an enum, not a struct.".to_string())
+        }
     }
 }
