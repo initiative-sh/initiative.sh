@@ -334,33 +334,68 @@ mod test {
 
     #[test]
     fn parse_input_test() {
-        let app_meta = app_meta();
+        let mut app_meta = app_meta();
+
+        block_on(
+            app_meta.repository.modify(Change::CreateAndSave {
+                thing: Npc {
+                    name: "Saved Character".into(),
+                    ..Default::default()
+                }
+                .into(),
+            }),
+        )
+        .unwrap();
+
+        block_on(
+            app_meta.repository.modify(Change::Create {
+                thing: Npc {
+                    name: "Unsaved Character".into(),
+                    ..Default::default()
+                }
+                .into(),
+            }),
+        )
+        .unwrap();
+
+        assert_eq!(
+            (
+                Option::<StorageCommand>::None,
+                vec![StorageCommand::Load {
+                    name: "Saved Character".into(),
+                }],
+            ),
+            block_on(StorageCommand::parse_input("Saved Character", &app_meta)),
+        );
 
         assert_eq!(
             (Option::<StorageCommand>::None, Vec::new()),
-            block_on(StorageCommand::parse_input("Gandalf the Grey", &app_meta)),
+            block_on(StorageCommand::parse_input(
+                "Nonexistent character",
+                &app_meta,
+            )),
         );
 
         assert_eq!(
             (
                 Some(StorageCommand::Delete {
-                    name: "Gandalf the Grey".into(),
+                    name: "Saved Character".into(),
                 }),
                 Vec::new(),
             ),
             block_on(StorageCommand::parse_input(
-                "delete Gandalf the Grey",
+                "delete Saved Character",
                 &app_meta
             )),
         );
 
         assert_eq!(
             block_on(StorageCommand::parse_input(
-                "delete Gandalf the Grey",
+                "delete Saved Character",
                 &app_meta
             )),
             block_on(StorageCommand::parse_input(
-                "DELETE Gandalf the Grey",
+                "DELETE Saved Character",
                 &app_meta
             )),
         );
@@ -368,23 +403,23 @@ mod test {
         assert_eq!(
             (
                 Some(StorageCommand::Save {
-                    name: "Gandalf the Grey".into(),
+                    name: "Unsaved Character".into(),
                 }),
                 Vec::new(),
             ),
             block_on(StorageCommand::parse_input(
-                "save Gandalf the Grey",
+                "save Unsaved Character",
                 &app_meta
             )),
         );
 
         assert_eq!(
             block_on(StorageCommand::parse_input(
-                "save Gandalf the Grey",
+                "save Unsaved Character",
                 &app_meta
             )),
             block_on(StorageCommand::parse_input(
-                "SAVE Gandalf the Grey",
+                "SAVE Unsaved Character",
                 &app_meta
             )),
         );
@@ -392,23 +427,36 @@ mod test {
         assert_eq!(
             (
                 Some(StorageCommand::Load {
-                    name: "Gandalf the Grey".into()
+                    name: "Saved Character".into()
                 }),
                 Vec::new(),
             ),
             block_on(StorageCommand::parse_input(
-                "load Gandalf the Grey",
+                "load Saved Character",
+                &app_meta
+            )),
+        );
+
+        assert_eq!(
+            (
+                None,
+                vec![StorageCommand::Load {
+                    name: "Nonexistent Character".into()
+                }],
+            ),
+            block_on(StorageCommand::parse_input(
+                "load Nonexistent Character",
                 &app_meta
             )),
         );
 
         assert_eq!(
             block_on(StorageCommand::parse_input(
-                "load Gandalf the Grey",
+                "load Saved Character",
                 &app_meta
             )),
             block_on(StorageCommand::parse_input(
-                "LOAD Gandalf the Grey",
+                "LOAD Saved Character",
                 &app_meta
             )),
         );
@@ -615,20 +663,41 @@ mod test {
 
     #[test]
     fn display_test() {
-        let app_meta = app_meta();
+        let mut app_meta = app_meta();
+        block_on(
+            app_meta.repository.modify(Change::CreateAndSave {
+                thing: Npc {
+                    name: "Saved Character".into(),
+                    ..Default::default()
+                }
+                .into(),
+            }),
+        )
+        .unwrap();
+
+        block_on(
+            app_meta.repository.modify(Change::Create {
+                thing: Npc {
+                    name: "Unsaved Character".into(),
+                    ..Default::default()
+                }
+                .into(),
+            }),
+        )
+        .unwrap();
 
         vec![
             StorageCommand::Delete {
-                name: "Potato Johnson".into(),
+                name: "Saved Character".into(),
             },
             StorageCommand::Save {
-                name: "Potato Johnson".into(),
+                name: "Unsaved Character".into(),
             },
             StorageCommand::Export,
             StorageCommand::Import,
             StorageCommand::Journal,
             StorageCommand::Load {
-                name: "Potato Johnson".into(),
+                name: "Saved Character".into(),
             },
         ]
         .drain(..)

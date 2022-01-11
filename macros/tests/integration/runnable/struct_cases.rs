@@ -8,6 +8,16 @@ enum Command {
         #[command(implements(WordList))]
         color: Colors,
     },
+
+    #[command(alias = "sub [command]")]
+    Subcommand { command: Subcommand },
+}
+
+#[derive(ContextAwareParse, Debug, PartialEq)]
+#[allow(dead_code)]
+enum Subcommand {
+    #[command(alias = "blah-alias")]
+    Blah,
 }
 
 #[derive(Debug, PartialEq, WordList)]
@@ -40,6 +50,15 @@ mod parse {
             ),
             block_on(Command::parse_input("COLOR BLUE", &app_meta)),
         );
+        assert_eq!(
+            (
+                Some(Command::Subcommand {
+                    command: Subcommand::Blah,
+                }),
+                Vec::new(),
+            ),
+            block_on(Command::parse_input("SUBCOMMAND BLAH", &app_meta)),
+        );
     }
 
     #[test]
@@ -53,6 +72,28 @@ mod parse {
                 }],
             ),
             block_on(Command::parse_input("COLOUR BLUE", &app_meta)),
+        );
+        assert_eq!(
+            (
+                None,
+                vec![Command::Subcommand {
+                    command: Subcommand::Blah,
+                }],
+            ),
+            block_on(Command::parse_input("SUB BLAH", &app_meta)),
+        );
+        assert_eq!(
+            (
+                None,
+                vec![Command::Subcommand {
+                    command: Subcommand::Blah,
+                }],
+            ),
+            block_on(Command::parse_input("SUBCOMMAND BLAH-ALIAS", &app_meta)),
+        );
+        assert_eq!(
+            (None, Vec::new()),
+            block_on(Command::parse_input("sub blah-alias", &app_meta)),
         );
     }
 }

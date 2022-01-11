@@ -201,41 +201,39 @@ fn parse_struct_syntax(
                 .expect("Type must be defined!");
             let ty = &field.ty;
 
+            let parse_expr = match &field.implements {
+                Trait::FromStr | Trait::WordList => quote! {
+                    (#ty::from_str(remainder.trim_start()).ok(), Vec::<#ty>::new())
+                },
+                Trait::Runnable => quote! {
+                    #ty::parse_input(remainder.trim_start(), app_meta).await
+                },
+            };
+
             Ok(if is_canonical {
                 quote! {
                     if let Some(remainder) = input.strip_prefix_ci(#syntax_start) {
-                        let mut subcommand_exact_match = #ty::from_str(remainder.trim_start()).ok();
+                        let (mut subcommand_exact_match, mut subcommand_fuzzy_matches) = #parse_expr;
 
                         exact_match = exact_match.or_else(|| subcommand_exact_match.take().map(|command| {
                             Self::#variant_ident { #syntax_end: command }
                         }));
 
-                        for command in subcommand_exact_match.into_iter() {
+                        if let Some(command) = subcommand_exact_match {
                             fuzzy_matches.push(Self::#variant_ident { #syntax_end: command });
                         }
+
+                        subcommand_fuzzy_matches
+                            .drain(..)
+                            .for_each(|command| fuzzy_matches.push(Self::#variant_ident { #syntax_end: command }));
                     }
                 }
             } else {
-                let parse_expr = match &field.implements {
-                    Trait::FromStr | Trait::WordList => quote! {
-                        #ty::from_str(remainder.trim_start()).ok()
-                    },
-                    Trait::Runnable => quote! {
-                        {
-                            let (subcommand_exact_match, mut subcommand_fuzzy_matches) = #ty::parse_input(remainder.trim_start(), app_meta).await;
-                            for command in subcommand_fuzzy_matches.drain(..) {
-                                fuzzy_matches.push(Self::#variant_ident { #syntax_end: command });
-                            }
-                            subcommand_exact_match
-                        }
-                    },
-                };
-
                 quote! {
                     if let Some(remainder) = input.strip_prefix_ci(#syntax_start) {
-                        let mut subcommand_exact_match = #parse_expr;
+                        let (subcommand_exact_match, _) = #parse_expr;
 
-                        for command in subcommand_exact_match.into_iter() {
+                        if let Some(command) = subcommand_exact_match {
                             fuzzy_matches.push(Self::#variant_ident { #syntax_end: command });
                         }
                     }
@@ -255,12 +253,9 @@ fn parse_struct_syntax(
             } else {
                 Ok(quote! {
                     {
-                        let (mut subcommand_exact_match, mut subcommand_fuzzy_matches) = #ty::parse_input(input, app_meta).await;
+                        let (subcommand_exact_match, _) = #ty::parse_input(input, app_meta).await;
 
-                        for command in subcommand_exact_match
-                            .into_iter()
-                            .chain(subcommand_fuzzy_matches.drain(..))
-                        {
+                        if let Some(command) = subcommand_exact_match {
                             fuzzy_matches.push(Self::#variant_ident { #syntax_end: command });
                         }
                     }

@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use caith::Roller;
 use initiative_macros::{changelog, Autocomplete, ContextAwareParse};
 use std::borrow::Cow;
+use std::convert::Infallible;
 use std::fmt;
 use std::str::FromStr;
 
@@ -68,16 +69,13 @@ impl Runnable for AppCommand {
 #[async_trait(?Send)]
 impl ContextAwareParse for DiceFormula {
     async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        (
-            if !input.chars().all(|c| c.is_ascii_digit())
-                && Roller::new(input).map_or(false, |r| r.roll().is_ok())
-            {
-                Some(Self(input.to_string()))
-            } else {
-                None
-            },
-            Vec::new(),
-        )
+        if !input.chars().all(|c| c.is_ascii_digit())
+            && Roller::new(input).map_or(false, |r| r.roll().is_ok())
+        {
+            (Some(Self(input.to_string())), Vec::new())
+        } else {
+            (None, vec![Self(input.to_string())])
+        }
     }
 }
 
@@ -104,10 +102,10 @@ impl fmt::Display for AppCommand {
 }
 
 impl FromStr for DiceFormula {
-    type Err = std::convert::Infallible;
+    type Err = Infallible;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        Ok(DiceFormula(input.to_string()))
+        Ok(Self(input.to_string()))
     }
 }
 

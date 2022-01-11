@@ -35,12 +35,14 @@ where
     Source: GetThings,
 {
     async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        (
-            Source::get_by_name(input, app_meta)
-                .filter(|entry| ThingType::filter(entry))
-                .map(|entry| Self::new(entry.name.to_string())),
-            Vec::new(),
-        )
+        if let Some(name) = Source::get_by_name(input, app_meta)
+            .filter(|entry| ThingType::filter(entry))
+            .map(|entry| Self::new(entry.name.to_string()))
+        {
+            (Some(name), Vec::new())
+        } else {
+            (None, vec![Self::new(input.to_string())])
+        }
     }
 }
 
