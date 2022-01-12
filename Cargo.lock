@@ -302,10 +302,13 @@ dependencies = [
 name = "initiative-macros"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "initiative-core",
  "initiative-reference",
  "proc-macro2",
  "quote",
  "syn",
+ "tokio-test",
 ]
 
 [[package]]

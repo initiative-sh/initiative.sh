@@ -55,16 +55,12 @@ fn get_unit_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, Str
         .iter()
         .filter_map(|variant| {
             if let CommandVariant::Unit(unit_variant) = variant {
-                if unit_variant.is_ignored {
-                    None
-                } else {
-                    Some(unit_variant)
-                }
+                Some(unit_variant)
             } else {
                 None
             }
         })
-        .map(|variant| {
+        .filter_map(|variant| {
             let ident = &variant.ident;
 
             let alias_clauses: Vec<_> = variant
@@ -76,9 +72,14 @@ fn get_unit_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, Str
                 })
                 .collect();
 
-            let syntax = variant.syntax.to_string();
-
-            quote! { if input.eq_ci(#syntax) { exact_match = Some(Self::#ident) } else #(#alias_clauses)* }
+            if !variant.is_ignored {
+                let syntax = variant.syntax.to_string();
+                Some(quote! { if input.eq_ci(#syntax) { exact_match = Some(Self::#ident) } else #(#alias_clauses)* })
+            } else if !alias_clauses.is_empty() {
+                Some(quote! { #(#alias_clauses)* })
+            } else {
+                None
+            }
         })
         .collect();
 

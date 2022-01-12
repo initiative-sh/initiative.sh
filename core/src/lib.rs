@@ -1,4 +1,5 @@
 pub mod app;
+pub mod utils;
 
 pub use app::{App, Event};
 pub use storage::backup::BackupData;
@@ -7,10 +8,8 @@ pub use uuid::Uuid;
 pub use world::Thing;
 
 mod reference;
-mod scratch;
 mod storage;
 mod time;
-mod utils;
 mod world;
 
 pub fn app<F: Fn(Event)>(
