@@ -138,7 +138,7 @@ fn get_tuple_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, St
                     suggestions.append(&mut #ty::autocomplete(input, app_meta).await);
                 }),
                 Trait::FromStr => None,
-                Trait::WordList => todo!(),
+                Trait::WordList => todo!("WordLists in tuples are not supported by Autocomplete."),
             }
         })
         .collect();
@@ -195,13 +195,13 @@ fn parse_struct_syntax(
     syntax: &CommandVariantSyntax,
 ) -> Result<Option<TokenStream>, String> {
     if !syntax.middle.is_empty() {
-        todo!();
+        todo!("Syntaxes with separators are not supported by Autocomplete.");
     }
 
     let syntax_end = if let Some(syntax_end) = &syntax.end {
         syntax_end
     } else {
-        todo!();
+        todo!("Syntaxes without trailing idents are not supported by Autocomplete.");
     };
     let field = variant
         .fields
@@ -267,7 +267,7 @@ fn parse_struct_syntax(
                         }
                     }
                 }
-                Trait::WordList => todo!(),
+                Trait::WordList => todo!("WordLists in structs are not supported by Autocomplete."),
             }))
         }
         None => {

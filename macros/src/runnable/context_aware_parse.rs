@@ -188,7 +188,7 @@ fn parse_struct_syntax(
     let variant_ident = &variant.ident;
 
     if !syntax.middle.is_empty() {
-        todo!();
+        todo!("Syntaxes with separators are not supported by ContextAwareParse.");
     }
 
     match (&syntax.start, &syntax.end) {
@@ -266,6 +266,6 @@ fn parse_struct_syntax(
                 })
             }
         }
-        _ => todo!(),
+        _ => todo!("Syntaxes without trailing idents are not supported by ContextAwareParse."),
     }
 }
