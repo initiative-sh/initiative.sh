@@ -135,6 +135,7 @@ impl Autocomplete for CommandAlias {
     async fn autocomplete(
         input: &str,
         app_meta: &AppMeta,
+        _include_aliases: bool,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         app_meta
             .command_aliases
@@ -254,12 +255,12 @@ mod tests {
 
         assert_autocomplete(
             &[("about alias", "about summary")][..],
-            block_on(CommandAlias::autocomplete("a", &app_meta)),
+            block_on(CommandAlias::autocomplete("a", &app_meta, true)),
         );
 
         assert_eq!(
-            block_on(CommandAlias::autocomplete("a", &app_meta)),
-            block_on(CommandAlias::autocomplete("A", &app_meta)),
+            block_on(CommandAlias::autocomplete("a", &app_meta, true)),
+            block_on(CommandAlias::autocomplete("A", &app_meta, true)),
         );
 
         assert_eq!(

@@ -108,22 +108,22 @@ mod autocomplete {
         let app_meta = crate::get_app_meta();
         assert_eq!(
             vec![(Cow::from("unit-case"), Cow::from("unit-case"))],
-            block_on(Command::autocomplete("UNIT", &app_meta)),
+            block_on(Command::autocomplete("UNIT", &app_meta, true)),
         );
         assert_eq!(
             vec![(Cow::from("some-autocomplete"), Cow::from("a description"))],
-            block_on(Command::autocomplete("SOME", &app_meta)),
+            block_on(Command::autocomplete("SOME", &app_meta, true)),
         );
         assert_eq!(
             vec![(
                 Cow::from("function-described-autocomplete"),
                 Cow::from(r#"input was "FUN""#)
             )],
-            block_on(Command::autocomplete("FUN", &app_meta)),
+            block_on(Command::autocomplete("FUN", &app_meta, true)),
         );
         assert_eq!(
             vec![(Cow::from("blah-unit-case"), Cow::from("blah-unit-case"))],
-            block_on(Command::autocomplete("BLAH", &app_meta)),
+            block_on(Command::autocomplete("BLAH", &app_meta, true)),
         );
     }
 
@@ -132,7 +132,7 @@ mod autocomplete {
         let app_meta = crate::get_app_meta();
         assert_eq!(
             vec![(Cow::from("an-alias"), Cow::from("blah-unit-case"))],
-            block_on(Command::autocomplete("AN-", &app_meta)),
+            block_on(Command::autocomplete("AN-", &app_meta, true)),
         );
     }
 
@@ -141,11 +141,15 @@ mod autocomplete {
         let app_meta = crate::get_app_meta();
         assert_eq!(
             Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
-            block_on(Command::autocomplete("SOME-OTHER-AUTOCOMPLETE", &app_meta)),
+            block_on(Command::autocomplete(
+                "SOME-OTHER-AUTOCOMPLETE",
+                &app_meta,
+                true
+            )),
         );
         assert_eq!(
             Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
-            block_on(Command::autocomplete("NO-AUTOCOMPLETE", &app_meta)),
+            block_on(Command::autocomplete("NO-AUTOCOMPLETE", &app_meta, true)),
         );
     }
 }

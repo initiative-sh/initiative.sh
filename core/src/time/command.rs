@@ -79,6 +79,7 @@ impl Autocomplete for TimeCommand {
     async fn autocomplete(
         input: &str,
         _app_meta: &AppMeta,
+        _include_aliases: bool,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         if input.starts_with(&['+', '-'][..]) {
             let suggest = |suffix: &str| -> Result<(Cow<'static, str>, Cow<'static, str>), ()> {
@@ -192,7 +193,7 @@ mod test {
 
         assert_eq!(
             Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
-            block_on(TimeCommand::autocomplete("", &app_meta)),
+            block_on(TimeCommand::autocomplete("", &app_meta, true)),
         );
 
         assert_autocomplete(
@@ -204,7 +205,7 @@ mod test {
                 ("+s", "advance time by 1 second"),
                 ("+r", "advance time by 1 round"),
             ][..],
-            block_on(TimeCommand::autocomplete("+", &app_meta)),
+            block_on(TimeCommand::autocomplete("+", &app_meta, true)),
         );
 
         assert_autocomplete(
@@ -216,7 +217,7 @@ mod test {
                 ("-s", "rewind time by 1 second"),
                 ("-r", "rewind time by 1 round"),
             ][..],
-            block_on(TimeCommand::autocomplete("-", &app_meta)),
+            block_on(TimeCommand::autocomplete("-", &app_meta, true)),
         );
 
         assert_autocomplete(
@@ -227,7 +228,7 @@ mod test {
                 ("+1s", "advance time by 1 second"),
                 ("+1r", "advance time by 1 round"),
             ][..],
-            block_on(TimeCommand::autocomplete("+1", &app_meta)),
+            block_on(TimeCommand::autocomplete("+1", &app_meta, true)),
         );
 
         assert_autocomplete(
@@ -238,7 +239,7 @@ mod test {
                 ("+10s", "advance time by 10 seconds"),
                 ("+10r", "advance time by 10 rounds"),
             ][..],
-            block_on(TimeCommand::autocomplete("+10", &app_meta)),
+            block_on(TimeCommand::autocomplete("+10", &app_meta, true)),
         );
 
         assert_autocomplete(
@@ -248,7 +249,7 @@ mod test {
                 ("+10d5s", "advance time by 10 days, 5 seconds"),
                 ("+10d5r", "advance time by 10 days, 5 rounds"),
             ][..],
-            block_on(TimeCommand::autocomplete("+10d5", &app_meta)),
+            block_on(TimeCommand::autocomplete("+10d5", &app_meta, true)),
         );
 
         assert_autocomplete(
@@ -258,48 +259,48 @@ mod test {
                 ("+10D5s", "advance time by 10 days, 5 seconds"),
                 ("+10D5r", "advance time by 10 days, 5 rounds"),
             ][..],
-            block_on(TimeCommand::autocomplete("+10D5", &app_meta)),
+            block_on(TimeCommand::autocomplete("+10D5", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("+1d".into(), "advance time by 1 day".into())][..],
-            block_on(TimeCommand::autocomplete("+1d", &app_meta)),
+            block_on(TimeCommand::autocomplete("+1d", &app_meta, true)),
         );
         assert_autocomplete(
             &[("+1D".into(), "advance time by 1 day".into())][..],
-            block_on(TimeCommand::autocomplete("+1D", &app_meta)),
+            block_on(TimeCommand::autocomplete("+1D", &app_meta, true)),
         );
         assert_autocomplete(
             &[("+1h".into(), "advance time by 1 hour".into())][..],
-            block_on(TimeCommand::autocomplete("+1h", &app_meta)),
+            block_on(TimeCommand::autocomplete("+1h", &app_meta, true)),
         );
         assert_autocomplete(
             &[("+1H".into(), "advance time by 1 hour".into())][..],
-            block_on(TimeCommand::autocomplete("+1H", &app_meta)),
+            block_on(TimeCommand::autocomplete("+1H", &app_meta, true)),
         );
         assert_autocomplete(
             &[("+1m".into(), "advance time by 1 minute".into())][..],
-            block_on(TimeCommand::autocomplete("+1m", &app_meta)),
+            block_on(TimeCommand::autocomplete("+1m", &app_meta, true)),
         );
         assert_autocomplete(
             &[("+1M".into(), "advance time by 1 minute".into())][..],
-            block_on(TimeCommand::autocomplete("+1M", &app_meta)),
+            block_on(TimeCommand::autocomplete("+1M", &app_meta, true)),
         );
         assert_autocomplete(
             &[("+1s".into(), "advance time by 1 second".into())][..],
-            block_on(TimeCommand::autocomplete("+1s", &app_meta)),
+            block_on(TimeCommand::autocomplete("+1s", &app_meta, true)),
         );
         assert_autocomplete(
             &[("+1S".into(), "advance time by 1 second".into())][..],
-            block_on(TimeCommand::autocomplete("+1S", &app_meta)),
+            block_on(TimeCommand::autocomplete("+1S", &app_meta, true)),
         );
         assert_autocomplete(
             &[("+1r".into(), "advance time by 1 round".into())][..],
-            block_on(TimeCommand::autocomplete("+1r", &app_meta)),
+            block_on(TimeCommand::autocomplete("+1r", &app_meta, true)),
         );
         assert_autocomplete(
             &[("+1R", "advance time by 1 round")][..],
-            block_on(TimeCommand::autocomplete("+1R", &app_meta)),
+            block_on(TimeCommand::autocomplete("+1R", &app_meta, true)),
         );
     }
 

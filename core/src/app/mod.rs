@@ -46,7 +46,7 @@ impl App {
     }
 
     pub async fn autocomplete(&self, input: &str) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-        let mut suggestions: Vec<_> = Command::autocomplete(input, &self.meta).await;
+        let mut suggestions: Vec<_> = Command::autocomplete(input, &self.meta, true).await;
         suggestions.sort_by(|(a, _), (b, _)| a.cmp_ci(b));
         suggestions.truncate(10);
         suggestions

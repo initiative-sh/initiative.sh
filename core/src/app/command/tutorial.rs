@@ -706,6 +706,7 @@ impl Autocomplete for TutorialCommand {
     async fn autocomplete(
         input: &str,
         _app_meta: &AppMeta,
+        _include_aliases: bool,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         if "tutorial".starts_with_ci(input) {
             vec![("tutorial".into(), "feature walkthrough".into())]

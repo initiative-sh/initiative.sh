@@ -521,7 +521,7 @@ mod test {
         // Only saved Things should be included in autocomplete results.
         assert_autocomplete(
             &[("delete Potato Johnson", "remove character from journal")][..],
-            block_on(StorageCommand::autocomplete("delete P", &app_meta)),
+            block_on(StorageCommand::autocomplete("delete P", &app_meta, true)),
         );
 
         assert_autocomplete(
@@ -529,12 +529,12 @@ mod test {
                 ("save potato can be lowercase", "save character to journal"),
                 ("save Potato & Meat", "save place to journal"),
             ][..],
-            block_on(StorageCommand::autocomplete("save ", &app_meta)),
+            block_on(StorageCommand::autocomplete("save ", &app_meta, true)),
         );
 
         assert_eq!(
-            block_on(StorageCommand::autocomplete("save ", &app_meta)),
-            block_on(StorageCommand::autocomplete("SAve ", &app_meta)),
+            block_on(StorageCommand::autocomplete("save ", &app_meta, true)),
+            block_on(StorageCommand::autocomplete("SAve ", &app_meta, true)),
         );
 
         assert_autocomplete(
@@ -543,72 +543,72 @@ mod test {
                 ("load Potato & Meat", "inn (unsaved)"),
                 ("load potato can be lowercase", "person (unsaved)"),
             ][..],
-            block_on(StorageCommand::autocomplete("load P", &app_meta)),
+            block_on(StorageCommand::autocomplete("load P", &app_meta, true)),
         );
 
         assert_eq!(
-            block_on(StorageCommand::autocomplete("load P", &app_meta)),
-            block_on(StorageCommand::autocomplete("LOad p", &app_meta)),
+            block_on(StorageCommand::autocomplete("load P", &app_meta, true)),
+            block_on(StorageCommand::autocomplete("LOad p", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("delete [name]", "remove an entry from journal")][..],
-            block_on(StorageCommand::autocomplete("delete", &app_meta)),
+            block_on(StorageCommand::autocomplete("delete", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("delete [name]", "remove an entry from journal")][..],
-            block_on(StorageCommand::autocomplete("DELete", &app_meta)),
+            block_on(StorageCommand::autocomplete("DELete", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("load [name]", "load an entry")][..],
-            block_on(StorageCommand::autocomplete("load", &app_meta)),
+            block_on(StorageCommand::autocomplete("load", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("load [name]", "load an entry")][..],
-            block_on(StorageCommand::autocomplete("LOad", &app_meta)),
+            block_on(StorageCommand::autocomplete("LOad", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("save [name]", "save an entry to journal")][..],
-            block_on(StorageCommand::autocomplete("s", &app_meta)),
+            block_on(StorageCommand::autocomplete("s", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("save [name]", "save an entry to journal")][..],
-            block_on(StorageCommand::autocomplete("S", &app_meta)),
+            block_on(StorageCommand::autocomplete("S", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("journal", "list journal contents")][..],
-            block_on(StorageCommand::autocomplete("j", &app_meta)),
+            block_on(StorageCommand::autocomplete("j", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("journal", "list journal contents")][..],
-            block_on(StorageCommand::autocomplete("J", &app_meta)),
+            block_on(StorageCommand::autocomplete("J", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("export", "export the journal contents")][..],
-            block_on(StorageCommand::autocomplete("e", &app_meta)),
+            block_on(StorageCommand::autocomplete("e", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("export", "export the journal contents")][..],
-            block_on(StorageCommand::autocomplete("E", &app_meta)),
+            block_on(StorageCommand::autocomplete("E", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("import", "import a journal backup")][..],
-            block_on(StorageCommand::autocomplete("i", &app_meta)),
+            block_on(StorageCommand::autocomplete("i", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("import", "import a journal backup")][..],
-            block_on(StorageCommand::autocomplete("I", &app_meta)),
+            block_on(StorageCommand::autocomplete("I", &app_meta, true)),
         );
 
         assert_autocomplete(
@@ -617,39 +617,47 @@ mod test {
                 ("Potato Johnson", "adult elf, they/them"),
                 ("potato can be lowercase", "person (unsaved)"),
             ][..],
-            block_on(StorageCommand::autocomplete("p", &app_meta)),
+            block_on(StorageCommand::autocomplete("p", &app_meta, true)),
         );
 
         assert_eq!(
-            block_on(StorageCommand::autocomplete("p", &app_meta)),
-            block_on(StorageCommand::autocomplete("P", &app_meta)),
+            block_on(StorageCommand::autocomplete("p", &app_meta, true)),
+            block_on(StorageCommand::autocomplete("P", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("Potato Johnson", "adult elf, they/them")][..],
-            block_on(StorageCommand::autocomplete("Potato Johnson", &app_meta)),
+            block_on(StorageCommand::autocomplete(
+                "Potato Johnson",
+                &app_meta,
+                true,
+            )),
         );
 
         assert_autocomplete(
             &[("Potato Johnson", "adult elf, they/them")][..],
-            block_on(StorageCommand::autocomplete("pOTATO jOHNSON", &app_meta)),
+            block_on(StorageCommand::autocomplete(
+                "pOTATO jOHNSON",
+                &app_meta,
+                true,
+            )),
         );
 
         assert_autocomplete(
             &[("undo", "undo creating Potato & Meat")][..],
-            block_on(StorageCommand::autocomplete("undo", &app_meta)),
+            block_on(StorageCommand::autocomplete("undo", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("redo", "nothing to redo")][..],
-            block_on(StorageCommand::autocomplete("redo", &app_meta)),
+            block_on(StorageCommand::autocomplete("redo", &app_meta, true)),
         );
 
         block_on(app_meta.repository.undo());
 
         assert_autocomplete(
             &[("redo", "redo creating Potato & Meat")][..],
-            block_on(StorageCommand::autocomplete("redo", &app_meta)),
+            block_on(StorageCommand::autocomplete("redo", &app_meta, true)),
         );
 
         assert_autocomplete(
@@ -657,6 +665,7 @@ mod test {
             block_on(StorageCommand::autocomplete(
                 "undo",
                 &AppMeta::new(MemoryDataStore::default(), &event_dispatcher),
+                true,
             )),
         );
     }

@@ -84,6 +84,7 @@ impl Autocomplete for DiceFormula {
     async fn autocomplete(
         _input: &str,
         _app_meta: &AppMeta,
+        _include_aliases: bool,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         Vec::new()
     }
@@ -171,34 +172,38 @@ mod test {
         .for_each(|(word, summary)| {
             assert_eq!(
                 vec![(word.into(), summary.into())],
-                block_on(AppCommand::autocomplete(word, &app_meta)),
+                block_on(AppCommand::autocomplete(word, &app_meta, true)),
             );
 
             assert_eq!(
-                block_on(AppCommand::autocomplete(word, &app_meta)),
-                block_on(AppCommand::autocomplete(&word.to_uppercase(), &app_meta)),
+                block_on(AppCommand::autocomplete(word, &app_meta, true)),
+                block_on(AppCommand::autocomplete(
+                    &word.to_uppercase(),
+                    &app_meta,
+                    true,
+                )),
             );
         });
 
         assert_autocomplete(
             &[("about", "about initiative.sh")][..],
-            block_on(AppCommand::autocomplete("a", &app_meta)),
+            block_on(AppCommand::autocomplete("a", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("about", "about initiative.sh")][..],
-            block_on(AppCommand::autocomplete("A", &app_meta)),
+            block_on(AppCommand::autocomplete("A", &app_meta, true)),
         );
 
         assert_autocomplete(
             &[("roll [dice]", "roll eg. 8d6 or d20+3")][..],
-            block_on(AppCommand::autocomplete("roll", &app_meta)),
+            block_on(AppCommand::autocomplete("roll", &app_meta, true)),
         );
 
         // Debug should be excluded from the autocomplete results.
         assert_eq!(
             Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
-            block_on(AppCommand::autocomplete("debug", &app_meta)),
+            block_on(AppCommand::autocomplete("debug", &app_meta, true)),
         );
     }
 

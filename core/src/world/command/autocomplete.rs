@@ -248,6 +248,7 @@ impl Autocomplete for Place {
     async fn autocomplete(
         input: &str,
         _app_meta: &AppMeta,
+        _include_aliases: bool,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         autocomplete_terms::<ParsedThing<Place>>(
             input,
@@ -266,6 +267,7 @@ impl Autocomplete for Npc {
     async fn autocomplete(
         input: &str,
         _app_meta: &AppMeta,
+        _include_aliases: bool,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         if let Some(word) = input.quoted_words().last().filter(|w| {
             let s = w.as_str();
@@ -432,7 +434,7 @@ mod test {
                 ("imports-shop", "create imports-shop"),
                 ("island", "create island"),
             ][..],
-            block_on(Place::autocomplete("i", &app_meta())),
+            block_on(Place::autocomplete("i", &app_meta(), true)),
         );
 
         assert_autocomplete(
@@ -441,22 +443,26 @@ mod test {
                 ("an imports-shop", "create imports-shop"),
                 ("an island", "create island"),
             ][..],
-            block_on(Place::autocomplete("an i", &app_meta())),
+            block_on(Place::autocomplete("an i", &app_meta(), true)),
         );
 
         assert_autocomplete(
             &[("an inn named [name]", "specify a name")][..],
-            block_on(Place::autocomplete("an inn n", &app_meta())),
+            block_on(Place::autocomplete("an inn n", &app_meta(), true)),
         );
 
         assert_eq!(
             Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
-            block_on(Place::autocomplete("a streetcar named desire", &app_meta())),
+            block_on(Place::autocomplete(
+                "a streetcar named desire",
+                &app_meta(),
+                true,
+            )),
         );
 
         assert_eq!(
             Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
-            block_on(Place::autocomplete("Foo, an inn n", &app_meta())),
+            block_on(Place::autocomplete("Foo, an inn n", &app_meta(), true)),
         );
     }
 
@@ -469,7 +475,7 @@ mod test {
             for i in 2..input.len() {
                 assert_ne!(
                     Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
-                    block_on(Place::autocomplete(&input[..i], &app_meta)),
+                    block_on(Place::autocomplete(&input[..i], &app_meta, true)),
                     "Input: {}",
                     &input[..i],
                 );
@@ -483,7 +489,7 @@ mod test {
             for i in 4..input.len() {
                 assert_ne!(
                     Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
-                    block_on(Place::autocomplete(&input[..i], &app_meta)),
+                    block_on(Place::autocomplete(&input[..i], &app_meta, true)),
                     "Input: {}",
                     &input[..i],
                 );
@@ -500,7 +506,7 @@ mod test {
                 ("elf [gender]", "specify a gender"),
                 ("elf named [name]", "specify a name"),
             ][..],
-            block_on(Npc::autocomplete("elf ", &app_meta())),
+            block_on(Npc::autocomplete("elf ", &app_meta(), true)),
         );
 
         assert_autocomplete(
@@ -509,7 +515,7 @@ mod test {
                 ("human [gender]", "specify a gender"),
                 ("human named [name]", "specify a name"),
             ][..],
-            block_on(Npc::autocomplete("human ", &app_meta())),
+            block_on(Npc::autocomplete("human ", &app_meta(), true)),
         );
     }
 
@@ -521,7 +527,7 @@ mod test {
         for i in 3..input.len() {
             assert_ne!(
                 Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
-                block_on(Npc::autocomplete(&input[..i], &app_meta)),
+                block_on(Npc::autocomplete(&input[..i], &app_meta, true)),
                 "Input: {}",
                 &input[..i],
             );

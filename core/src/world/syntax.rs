@@ -55,6 +55,7 @@ where
     async fn autocomplete(
         input: &str,
         app_meta: &AppMeta,
+        _include_aliases: bool,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         Source::get_by_name_start(input, app_meta)
             .drain(..)

@@ -305,12 +305,13 @@ impl Autocomplete for WorldCommand {
     async fn autocomplete(
         input: &str,
         app_meta: &AppMeta,
+        include_aliases: bool,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         let mut suggestions = Vec::new();
 
         let (mut place_suggestions, mut npc_suggestions) = join!(
-            Place::autocomplete(input, app_meta),
-            Npc::autocomplete(input, app_meta),
+            Place::autocomplete(input, app_meta, include_aliases),
+            Npc::autocomplete(input, app_meta, include_aliases),
         );
 
         suggestions.append(&mut place_suggestions);
@@ -330,10 +331,16 @@ impl Autocomplete for WorldCommand {
                 let split_pos = input.len() - input[is_word.range().end..].trim_start().len();
 
                 let mut edit_suggestions = match thing {
-                    Thing::Npc(_) => Npc::autocomplete(input[split_pos..].trim_start(), app_meta),
-                    Thing::Place(_) => {
-                        Place::autocomplete(input[split_pos..].trim_start(), app_meta)
-                    }
+                    Thing::Npc(_) => Npc::autocomplete(
+                        input[split_pos..].trim_start(),
+                        app_meta,
+                        include_aliases,
+                    ),
+                    Thing::Place(_) => Place::autocomplete(
+                        input[split_pos..].trim_start(),
+                        app_meta,
+                        include_aliases,
+                    ),
                 }
                 .await;
 
@@ -621,12 +628,16 @@ mod test {
         .for_each(|(word, summary)| {
             assert_eq!(
                 vec![(word.into(), summary.into())],
-                block_on(WorldCommand::autocomplete(word, &app_meta)),
+                block_on(WorldCommand::autocomplete(word, &app_meta, true)),
             );
 
             assert_eq!(
                 vec![(word.into(), summary.into())],
-                block_on(WorldCommand::autocomplete(&word.to_uppercase(), &app_meta)),
+                block_on(WorldCommand::autocomplete(
+                    &word.to_uppercase(),
+                    &app_meta,
+                    true,
+                )),
             );
         });
 
@@ -649,7 +660,7 @@ mod test {
                 ("building", "create building"),
                 ("business", "create business"),
             ][..],
-            block_on(WorldCommand::autocomplete("b", &app_meta)),
+            block_on(WorldCommand::autocomplete("b", &app_meta, true)),
         );
 
         assert_autocomplete(
@@ -657,7 +668,11 @@ mod test {
                 "Potato Johnson is [character description]",
                 "edit character",
             )][..],
-            block_on(WorldCommand::autocomplete("Potato Johnson", &app_meta)),
+            block_on(WorldCommand::autocomplete(
+                "Potato Johnson",
+                &app_meta,
+                true,
+            )),
         );
 
         assert_autocomplete(
@@ -668,6 +683,7 @@ mod test {
             block_on(WorldCommand::autocomplete(
                 "Potato Johnson is a ",
                 &app_meta,
+                true,
             )),
         );
 
@@ -681,6 +697,7 @@ mod test {
             block_on(WorldCommand::autocomplete(
                 "Potato Johnson is an e",
                 &app_meta,
+                true,
             )),
         );
     }

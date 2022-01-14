@@ -165,15 +165,16 @@ impl Autocomplete for Command {
     async fn autocomplete(
         input: &str,
         app_meta: &AppMeta,
+        include_aliases: bool,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         let mut results = join!(
-            CommandAlias::autocomplete(input, app_meta),
-            AppCommand::autocomplete(input, app_meta),
-            ReferenceCommand::autocomplete(input, app_meta),
-            StorageCommand::autocomplete(input, app_meta),
-            TimeCommand::autocomplete(input, app_meta),
-            TutorialCommand::autocomplete(input, app_meta),
-            WorldCommand::autocomplete(input, app_meta),
+            CommandAlias::autocomplete(input, app_meta, include_aliases),
+            AppCommand::autocomplete(input, app_meta, include_aliases),
+            ReferenceCommand::autocomplete(input, app_meta, include_aliases),
+            StorageCommand::autocomplete(input, app_meta, include_aliases),
+            TimeCommand::autocomplete(input, app_meta, include_aliases),
+            TutorialCommand::autocomplete(input, app_meta, include_aliases),
+            WorldCommand::autocomplete(input, app_meta, include_aliases),
         );
 
         std::iter::empty()
@@ -379,7 +380,7 @@ mod test {
                 ("dwarf", "create dwarf"),
                 ("dwarvish", "create dwarvish person"),
             ][..],
-            block_on(Command::autocomplete("d", &app_meta())),
+            block_on(Command::autocomplete("d", &app_meta(), true)),
         );
     }
 

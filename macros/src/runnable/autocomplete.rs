@@ -29,6 +29,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                 async fn autocomplete(
                     input: &str,
                     app_meta: &AppMeta,
+                    include_aliases: bool,
                 ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
                     #init_suggestions_with_unit_cases
 
@@ -49,6 +50,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
 
 fn init_suggestions_with_unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
     let mut tokens_simple = Vec::new();
+    let mut alias_tokens_simple = Vec::new();
     let mut tokens_with_callback = Vec::new();
 
     for variant in command_enum.variants.iter().filter_map(|variant| {
@@ -62,15 +64,21 @@ fn init_suggestions_with_unit_cases(command_enum: &CommandEnum) -> Result<TokenS
             None
         }
     }) {
-        for syntax in iter::once(&variant.syntax)
-            .chain(variant.aliases.iter())
-            .filter(|syntax| !syntax.no_autocomplete)
+        for (syntax, is_canonical) in iter::once((&variant.syntax, true))
+            .chain(variant.aliases.iter().map(|alias| (alias, false)))
+            .filter(|(syntax, _)| !syntax.no_autocomplete)
         {
             let term = syntax.to_string();
 
             if let Some(desc_fn) = variant.autocomplete_desc_fn.as_ref() {
+                let condition = if is_canonical {
+                    quote! { #term.starts_with_ci(input) }
+                } else {
+                    quote! { include_aliases && #term.starts_with_ci(input) }
+                };
+
                 tokens_with_callback.push(quote! {
-                    if #term.starts_with_ci(input) {
+                    if #condition {
                         suggestions.push((
                             #term.into(),
                             #desc_fn(input, app_meta),
@@ -82,7 +90,12 @@ fn init_suggestions_with_unit_cases(command_enum: &CommandEnum) -> Result<TokenS
                     .autocomplete_desc
                     .as_ref()
                     .map_or_else(|| variant.syntax.to_string(), |s| s.to_string());
-                tokens_simple.push(quote! { ( #term, #desc ) })
+
+                if is_canonical {
+                    tokens_simple.push(quote! { ( #term, #desc ) })
+                } else {
+                    alias_tokens_simple.push(quote! { ( #term, #desc ) })
+                }
             };
         }
     }
@@ -113,8 +126,25 @@ fn init_suggestions_with_unit_cases(command_enum: &CommandEnum) -> Result<TokenS
         }
     };
 
+    let alias_tokens = if alias_tokens_simple.is_empty() {
+        quote! {}
+    } else {
+        quote! {
+            if include_aliases {
+                suggestions.extend(
+                    [ #(#alias_tokens_simple),* ]
+                        .iter()
+                        .filter(|(s, _)| s.starts_with_ci(input))
+                        .map(|&(a, b)| (a.into(), b.into()))
+                        .take(10usize.checked_sub(suggestions.len()).unwrap_or_default())
+                );
+            }
+        }
+    };
+
     Ok(quote! {
         #init
+        #alias_tokens
         #(#tokens_with_callback)*
     })
 }
@@ -135,7 +165,7 @@ fn get_tuple_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, St
 
             match variant.implements {
                 Trait::Runnable => Some(quote! {
-                    suggestions.append(&mut #ty::autocomplete(input, app_meta).await);
+                    suggestions.append(&mut #ty::autocomplete(input, app_meta, include_aliases).await);
                 }),
                 Trait::FromStr => None,
                 Trait::WordList => todo!("WordLists in tuples are not supported by Autocomplete."),
@@ -166,12 +196,12 @@ fn get_struct_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, S
             }
         })
         .map(|variant| {
-            iter::once(parse_struct_syntax(variant, &variant.syntax))
+            iter::once(parse_struct_syntax(variant, &variant.syntax, true))
                 .chain(
                     variant
                         .aliases
                         .iter()
-                        .map(|alias| parse_struct_syntax(variant, alias)),
+                        .map(|alias| parse_struct_syntax(variant, alias, false)),
                 )
                 .filter_map(|tokens| tokens.transpose())
                 .collect::<Result<Vec<_>, _>>()
@@ -193,6 +223,7 @@ fn get_struct_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, S
 fn parse_struct_syntax(
     variant: &UnitStructCommandVariant,
     syntax: &CommandVariantSyntax,
+    is_canonical: bool,
 ) -> Result<Option<TokenStream>, String> {
     if !syntax.middle.is_empty() {
         todo!("Syntaxes with separators are not supported by Autocomplete.");
@@ -237,7 +268,7 @@ fn parse_struct_syntax(
                     }
 
                     if let Some(suggestion) = input.strip_prefix_ci(#syntax_start) {
-                        let suggestion: Cow<'static, str> = suggestion.into();
+                        let suggestion: Cow<'static, str> = suggestion.to_string().into();
                         let description = suggestion.clone();
                         suggestions.push((input.to_string().into(), #desc1));
                     } else if #syntax_start.starts_with_ci(input) {
@@ -248,7 +279,7 @@ fn parse_struct_syntax(
                     let format_str = format!("{}{{}}", syntax_start);
                     quote! {
                         if let Some(remainder) = input.strip_prefix_ci(#syntax_start) {
-                            for (suggestion, description) in #ty::autocomplete(remainder, app_meta).await.drain(..) {
+                            for (suggestion, description) in #ty::autocomplete(remainder, app_meta, include_aliases && #is_canonical).await.drain(..) {
                                 if suggestions.len() >= 10 {
                                     return suggestions;
                                 }
@@ -282,7 +313,7 @@ fn parse_struct_syntax(
                 Trait::FromStr => None,
                 Trait::Runnable => {
                     let suggestions_append = quote! {
-                        #ty::autocomplete(input, app_meta)
+                        #ty::autocomplete(input, app_meta, false)
                             .await
                             .drain(..)
                             .map(|(suggestion, description)| {

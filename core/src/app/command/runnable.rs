@@ -17,6 +17,7 @@ pub trait Autocomplete {
     async fn autocomplete(
         input: &str,
         app_meta: &AppMeta,
+        include_aliases: bool,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)>;
 }
 
