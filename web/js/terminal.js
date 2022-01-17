@@ -1,5 +1,5 @@
 import autoComplete from "@tarekraafat/autocomplete.js"
-import marked from "marked"
+import { marked } from "marked"
 
 function initialize(elementId, autocompleteCallback) {
   if (window.stillLoadingTimeout) {
@@ -47,12 +47,12 @@ function initialize(elementId, autocompleteCallback) {
               text: match[1].trim(),
               tokens: [],
             }
-            this.inlineTokens(token.text, token.tokens)
+            this.lexer.inlineTokens(token.text, token.tokens)
             return token
           }
         },
         renderer: function (token) {
-          return `<p class="error">${this.parseInline(token.tokens)}</p>`
+          return `<p class="error">${this.parser.parseInline(token.tokens)}</p>`
         },
       },
     ],
