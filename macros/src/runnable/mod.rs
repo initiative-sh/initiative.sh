@@ -69,6 +69,7 @@ enum Command {
 #[derive(Debug)]
 struct CommandStruct {
     ident: syn::Ident,
+    is_result: bool,
     subtype: syn::Path,
 }
 
@@ -257,7 +258,34 @@ impl TryFrom<TokenStream> for Command {
                         ));
                     };
 
-                Ok(Self::Struct(CommandStruct { ident, subtype }))
+                // Handle the special case where the inner type is a Result<T, String>
+                if let Some(syn::PathSegment {
+                    ident: result_ident,
+                    arguments,
+                }) = subtype.segments.first()
+                {
+                    if result_ident == &syn::Ident::new("Result", proc_macro2::Span::call_site())
+                        && subtype.segments.len() == 1
+                    {
+                        if let syn::PathArguments::AngleBracketed(field_argument) = arguments {
+                            if let Some(syn::GenericArgument::Type(syn::Type::Path(path))) =
+                                field_argument.args.first()
+                            {
+                                return Ok(Self::Struct(CommandStruct {
+                                    ident,
+                                    is_result: true,
+                                    subtype: path.path.clone(),
+                                }));
+                            }
+                        }
+                    }
+                }
+
+                Ok(Self::Struct(CommandStruct {
+                    ident,
+                    is_result: false,
+                    subtype,
+                }))
             }
             syn::Data::Union(_) => Err(format!(
                 "Error parsing {}: Why are you even using unions?",

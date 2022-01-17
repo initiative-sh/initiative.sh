@@ -41,6 +41,29 @@ fn derive_struct(command_struct: CommandStruct) -> TokenStream {
     let mod_ident = format_ident!("impl_display_for_{}", command_struct.ident_with_sep("_"));
     let struct_ident = &command_struct.ident;
 
+    let callback = if command_struct.is_result {
+        quote! {
+            |(i, v)| {
+                match (i, v) {
+                    (0, Ok(v)) => write!(f, "{}", v),
+                    (0, Err(e)) => write!(f, "{}", e),
+                    (_, Ok(v)) => write!(f, " {}", v),
+                    (_, Err(e)) => write!(f, " {}", e),
+                }
+            }
+        }
+    } else {
+        quote! {
+            |(i, v)| {
+                if i == 0 {
+                    write!(f, "{}", v)
+                } else {
+                    write!(f, " {}", v)
+                }
+            }
+        }
+    };
+
     quote! {
         mod #mod_ident {
             use super::*;
@@ -48,13 +71,7 @@ fn derive_struct(command_struct: CommandStruct) -> TokenStream {
 
             impl fmt::Display for #struct_ident {
                 fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-                    self.0.iter().enumerate().try_for_each(|(i, v)| {
-                        if i == 0 {
-                            write!(f, "{}", v)
-                        } else {
-                            write!(f, " {}", v)
-                        }
-                    })
+                    self.0.iter().enumerate().try_for_each(#callback)
                 }
             }
         }

@@ -56,6 +56,35 @@ fn derive_struct(command_struct: CommandStruct) -> Result<TokenStream, String> {
     let struct_ident = &command_struct.ident;
     let subtype_path = &command_struct.subtype;
 
+    let (matches_value, reject_callback, return_clause) = if command_struct.is_result {
+        (
+            quote! { Ok(value) },
+            quote! { |s| Some(Err(s.to_string())) },
+            quote! {
+                if reject_count * 2 >= output.len() {
+                    (None, vec![Self(output)])
+                } else {
+                    (Some(Self(output)), Vec::new())
+                }
+            },
+        )
+    } else {
+        (
+            quote! { value },
+            quote! { |_| None },
+            quote! {
+                (
+                    if reject_count >= output.len() {
+                        None
+                    } else {
+                        Some(Self(output))
+                    },
+                    Vec::new(),
+                )
+            },
+        )
+    };
+
     Ok(quote! {
         mod #mod_ident {
             use super::*;
@@ -67,16 +96,14 @@ fn derive_struct(command_struct: CommandStruct) -> Result<TokenStream, String> {
             #[async_trait(?Send)]
             impl ContextAwareParse for #struct_ident {
                 async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-                    let mut parser = input.quoted_word_chunks(|_| None);
+                    let mut parser = input.quoted_word_chunks(#reject_callback);
 
                     while let Some(phrase) = parser.current() {
                         match #subtype_path::parse_input(phrase, app_meta).await {
-                            (Some(result), _) => parser.matches(result),
+                            (Some(value), _) => parser.matches(#matches_value),
                             (None, mut v) => {
-                                if let Some(fuzzy_result) = v.drain(..).next() {
-                                    parser.matches(fuzzy_result);
-                                //} else if #subtype_path::autocomplete(phrase, app_meta).await.is_empty() {
-                                    //parser.reject();
+                                if let Some(value) = v.drain(..).next() {
+                                    parser.matches(#matches_value);
                                 } else {
                                     parser.partially_matches();
                                 }
@@ -86,14 +113,7 @@ fn derive_struct(command_struct: CommandStruct) -> Result<TokenStream, String> {
 
                     let (output, reject_count) = parser.into_output_with_reject_count();
 
-                    (
-                        if reject_count >= output.len() {
-                            None
-                        } else {
-                            Some(Self(output))
-                        },
-                        Vec::new(),
-                    )
+                    #return_clause
                 }
             }
         }
