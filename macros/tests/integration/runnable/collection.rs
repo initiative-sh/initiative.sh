@@ -1,29 +1,30 @@
 use super::Colors;
-use initiative_macros::{ContextAwareParse, Display};
+use initiative_macros::{Autocomplete, ContextAwareParse, Display};
 
-#[derive(ContextAwareParse, Debug, Display, PartialEq)]
+#[derive(Autocomplete, ContextAwareParse, Debug, Display, PartialEq)]
 #[allow(dead_code)]
 struct Words(Vec<Word>);
 
-#[derive(ContextAwareParse, Debug, Display, PartialEq)]
+#[derive(Autocomplete, ContextAwareParse, Debug, Display, PartialEq)]
 #[allow(dead_code)]
 struct WordsResult(Vec<Result<Word, String>>);
 
-#[derive(ContextAwareParse, Debug, Display, PartialEq)]
+#[derive(Autocomplete, ContextAwareParse, Debug, Display, PartialEq)]
 #[allow(dead_code)]
 enum Word {
+    #[command(no_default_autocomplete)]
     And,
 
+    #[command(autocomplete_desc = "so pretty")]
     #[command(implements(WordList))]
     Color(Colors),
 
+    #[command(autocomplete_desc = "describe its taste")]
     #[command(syntax = "tastes [flavor]")]
-    Flavor {
-        flavor: Flavors,
-    },
+    Flavor { flavor: Flavors },
 }
 
-#[derive(ContextAwareParse, Debug, Display, PartialEq)]
+#[derive(Autocomplete, ContextAwareParse, Debug, Display, PartialEq)]
 #[allow(dead_code)]
 enum Flavors {
     Bitter,
@@ -154,6 +155,22 @@ mod parse {
                 "red tastes sweet and green tastes sour",
                 &app_meta,
             )),
+        );
+    }
+}
+
+mod autocomplete {
+    use super::*;
+    use initiative_core::app::Autocomplete;
+    use std::borrow::Cow;
+    use tokio_test::block_on;
+
+    #[test]
+    fn test_trailing_space() {
+        let app_meta = crate::get_app_meta();
+        assert_eq!(
+            Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
+            block_on(Words::autocomplete("", &app_meta, true)),
         );
     }
 }

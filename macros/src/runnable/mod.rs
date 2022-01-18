@@ -38,9 +38,10 @@
 //!   `my_func(input: &str, app_meta: &AppMeta, param1: Option<Cow<'static, str>>, ..) -> Cow<'static, str>`,
 //!   where each parameter contains the autocomplete result from the corresponding struct field.
 //!
-//! The following attribute is recognized on tuple variants:
+//! The following attributes are recognized on tuple variants:
 //!
-//! - `#[command(implements(WordList))]` - Indicates that the field implements a different
+//! - `#[command(autocomplete_desc = "some command")]`: Description for autocomplete results.
+//! - `#[command(implements(WordList))]`: Indicates that the field implements a different
 //!   supported trait. Rather than transparently passing through to the underlying logic, the
 //!   autocomplete and parsing logic will be handled by the parent parser. Recognized values:
 //!   `WordList`, `Runnable` (default).
@@ -88,6 +89,7 @@ enum CommandVariant {
 
 #[derive(Debug)]
 struct TupleCommandVariant {
+    autocomplete_desc: Option<String>,
     ident: syn::Ident,
     implements: Trait,
     ty: syn::Type,
@@ -496,29 +498,36 @@ impl TryFrom<&syn::Variant> for CommandVariant {
             Ok(Self::Tuple(walk_attrs(
                 &input.attrs,
                 TupleCommandVariant {
+                    autocomplete_desc: None,
                     ident: input.ident.to_owned(),
                     implements: Trait::Runnable,
                     ty,
                 },
-                &mut |mut variant, path, value| match path {
-                    ["command", "implements"] => {
-                        if value.filter_path(|path| path.is_ident("FromStr")) {
-                            variant.implements = Trait::FromStr;
-                            Ok(variant)
-                        } else if value.filter_path(|path| path.is_ident("Runnable")) {
-                            variant.implements = Trait::Runnable;
-                            Ok(variant)
-                        } else if value.filter_path(|path| path.is_ident("WordList")) {
-                            variant.implements = Trait::WordList;
-                            Ok(variant)
-                        } else {
-                            Err(format!("Unsupported trait: {:?}", value))
+                &mut |mut variant, path, value| {
+                    match (path, value) {
+                        (
+                            &["command", "autocomplete_desc"],
+                            MetaValue::Lit(syn::Lit::Str(lit_str)),
+                        ) => {
+                            variant.autocomplete_desc = Some(lit_str.value());
                         }
+                        (["command", "implements"], MetaValue::Path(path)) => {
+                            if path.is_ident("FromStr") {
+                                variant.implements = Trait::FromStr;
+                            } else if path.is_ident("Runnable") {
+                                variant.implements = Trait::Runnable;
+                            } else if path.is_ident("WordList") {
+                                variant.implements = Trait::WordList;
+                            } else {
+                                return Err(format!("Unsupported trait: {:?}", path));
+                            }
+                        }
+                        (path, _) if path.starts_with(&["command"]) => {
+                            return Err(format!("Unknown command attribute: {:?}", path));
+                        }
+                        _ => {}
                     }
-                    path if path.starts_with(&["command"]) => {
-                        Err(format!("Unknown command attribute: {:?}", path))
-                    }
-                    _ => Ok(variant),
+                    Ok(variant)
                 },
             )?))
         } else {

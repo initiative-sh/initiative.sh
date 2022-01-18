@@ -17,11 +17,11 @@ fn derive_enum(command_enum: CommandEnum) -> Result<TokenStream, String> {
     let mod_ident = format_ident!("impl_autocomplete_for_{}", command_enum.ident_with_sep("_"));
     let enum_ident = &command_enum.ident;
 
-    let unit_cases = unit_cases(&command_enum)?;
+    let unit_cases = get_enum_unit_cases(&command_enum)?;
 
-    let tuple_cases = get_tuple_cases(&command_enum)?;
+    let tuple_cases = get_enum_tuple_cases(&command_enum)?;
 
-    let struct_cases = get_struct_cases(&command_enum)?;
+    let struct_cases = get_enum_struct_cases(&command_enum)?;
 
     let variant_names = command_enum
         .unit_variants()
@@ -78,62 +78,7 @@ fn derive_enum(command_enum: CommandEnum) -> Result<TokenStream, String> {
     })
 }
 
-fn derive_struct(command_struct: CommandStruct) -> Result<TokenStream, String> {
-    let mod_ident = format_ident!(
-        "impl_autocomplete_for_{}",
-        command_struct.ident_with_sep("_"),
-    );
-    let struct_ident = &command_struct.ident;
-    let subtype_path = &command_struct.subtype;
-
-    Ok(quote! {
-        mod #mod_ident {
-            use super::*;
-            use crate::app::{AppMeta, Autocomplete, ContextAwareParse};
-            use crate::utils::{CaseInsensitiveStr, QuotedWords, QuotedWordChunk};
-            use async_trait::async_trait;
-            use std::borrow::Cow;
-            use std::str::FromStr;
-
-            #[async_trait(?Send)]
-            impl Autocomplete for #struct_ident {
-                async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-                    let (input_existing, input_remainder) = if input.ends_with(char::is_whitespace) && input.chars().filter(|&c| c == '"').count() % 2 == 0 {
-                        (input, "")
-                    } else if let Some(word) = input.quoted_words().last() {
-                        (&input[..word.outer_range.start], word.as_own_str(input))
-                    } else {
-                        ("", input)
-                    };
-
-                    let existing = if input_existing.is_empty() {
-                        Some(Self(Vec::new()))
-                    } else {
-                        let (exact, mut fuzzy) = Self::parse_input(input_existing, app_meta).await;
-                        exact.or_else(|| fuzzy.drain(..).next())
-                    };
-
-                    if existing.is_some() {
-                        let mut suggestions = #subtype_path::autocomplete(input_remainder, app_meta).await;
-
-                        if !input_existing.is_empty() {
-                            for (a, _) in suggestions.iter_mut() {
-                                let term = a.to_mut();
-                                *term = format!("{}{}", input_existing, term);
-                            }
-                        }
-
-                        suggestions
-                    } else {
-                        Vec::new()
-                    }
-                }
-            }
-        }
-    })
-}
-
-fn unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
+fn get_enum_unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
     let mut tokens_simple = Vec::new();
     let mut alias_tokens_simple = Vec::new();
     let mut tokens_with_callback = Vec::new();
@@ -220,7 +165,7 @@ fn unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
     })
 }
 
-fn get_tuple_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
+fn get_enum_tuple_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
     let tokens = command_enum.tuple_variants().filter_map(|variant| {
         let ty = &variant.ty;
 
@@ -236,17 +181,17 @@ fn get_tuple_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
     Ok(quote! { #(#tokens)* })
 }
 
-fn get_struct_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
+fn get_enum_struct_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
     let tokens: Vec<_> = command_enum
         .struct_variants()
         .filter(|variant| !variant.is_ignored)
         .map(|variant| {
-            iter::once(parse_struct_syntax(variant, &variant.syntax, true))
+            iter::once(parse_enum_struct_syntax(variant, &variant.syntax, true))
                 .chain(
                     variant
                         .aliases
                         .iter()
-                        .map(|alias| parse_struct_syntax(variant, alias, false)),
+                        .map(|alias| parse_enum_struct_syntax(variant, alias, false)),
                 )
                 .filter_map(|tokens| tokens.transpose())
                 .collect::<Result<Vec<_>, _>>()
@@ -261,7 +206,7 @@ fn get_struct_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
     Ok(quote! { #(#tokens)* })
 }
 
-fn parse_struct_syntax(
+fn parse_enum_struct_syntax(
     variant: &UnitStructCommandVariant,
     syntax: &CommandVariantSyntax,
     is_canonical: bool,
@@ -363,3 +308,81 @@ fn parse_struct_syntax(
         }
     }
 }
+
+fn derive_struct(command_struct: CommandStruct) -> Result<TokenStream, String> {
+    let mod_ident = format_ident!(
+        "impl_autocomplete_for_{}",
+        command_struct.ident_with_sep("_"),
+    );
+    let struct_ident = &command_struct.ident;
+    let subtype_path = &command_struct.subtype;
+
+    let existing_from_fuzzy = if command_struct.is_result {
+        quote! {
+            if fuzzy.0.iter().filter(|v| v.is_err()).count() * 2 > fuzzy.0.len() {
+                return Vec::new();
+            } else {
+                fuzzy
+            }
+        }
+    } else {
+        quote! { return Vec::new(); }
+    };
+
+    Ok(quote! {
+        mod #mod_ident {
+            use super::*;
+            use crate::app::{AppMeta, Autocomplete, ContextAwareParse};
+            use crate::utils::{CaseInsensitiveStr, QuotedWords, QuotedWordChunk};
+            use async_trait::async_trait;
+            use std::borrow::Cow;
+            use std::str::FromStr;
+
+            #[async_trait(?Send)]
+            impl Autocomplete for #struct_ident {
+                async fn autocomplete(
+                    input: &str,
+                    app_meta: &AppMeta,
+                    include_aliases: bool,
+                ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+                    let (input_existing, input_remainder) = if input.ends_with(char::is_whitespace) && input.chars().filter(|&c| c == '"').count() % 2 == 0 {
+                        // Starting a new word, some are present.
+                        (input, "")
+                    } else if let Some(word) = input.quoted_words().last() {
+                        // Partial word entry
+                        (&input[..word.outer_range.start], word.as_own_str(input))
+                    } else {
+                        // Empty input field
+                        (input, "")
+                    };
+
+                    let existing = if input_existing.is_empty() {
+                        Self(Vec::new())
+                    } else {
+                        let (exact, mut fuzzy) = Self::parse_input(input_existing, app_meta).await;
+
+                        if let Some(exact) = exact {
+                            exact
+                        } else if let Some(fuzzy) = fuzzy.drain(..).next() {
+                            #existing_from_fuzzy
+                        } else {
+                            return Vec::new();
+                        }
+                    };
+
+                    let suggestions = Vec::new();
+
+                    if input_remainder.is_empty() {
+                        // new word
+                    } else {
+                        // partial word
+                    }
+
+                    suggestions
+                }
+            }
+        }
+    })
+}
+
+fn get_struct_unit_cases_empty(command_struct: CommandStruct) -> Result<TokenStream, String> {}
