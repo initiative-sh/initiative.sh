@@ -260,6 +260,10 @@ impl Autocomplete for Place {
             )],
         )
     }
+
+    fn get_variant_name(&self) -> &'static str {
+        ""
+    }
 }
 
 #[async_trait(?Send)]
@@ -328,6 +332,10 @@ impl Autocomplete for Npc {
                 ],
             )
         }
+    }
+
+    fn get_variant_name(&self) -> &'static str {
+        ""
     }
 }
 

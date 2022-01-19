@@ -21,6 +21,24 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
 
     let struct_cases = get_struct_cases(&command_enum)?;
 
+    let variant_names = command_enum
+        .unit_variants()
+        .map(|variant| {
+            let name = variant.ident.to_string();
+            let ident = &variant.ident;
+            quote! { Self::#ident => #name, }
+        })
+        .chain(command_enum.tuple_variants().map(|variant| {
+            let name = variant.ident.to_string();
+            let ident = &variant.ident;
+            quote! { Self::#ident(..) => #name, }
+        }))
+        .chain(command_enum.struct_variants().map(|variant| {
+            let name = variant.ident.to_string();
+            let ident = &variant.ident;
+            quote! { Self::#ident { .. } => #name, }
+        }));
+
     let result = quote! {
         mod #mod_ident {
             use super::*;
@@ -46,6 +64,12 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                     #struct_cases
 
                     suggestions
+                }
+
+                fn get_variant_name(&self) -> &'static str {
+                    match self {
+                        #(#variant_names)*
+                    }
                 }
             }
         }

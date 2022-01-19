@@ -152,6 +152,13 @@ impl Autocomplete for CommandAlias {
             })
             .collect()
     }
+
+    fn get_variant_name(&self) -> &'static str {
+        match self {
+            Self::Literal { .. } => "Literal",
+            Self::StrictWildcard { .. } => "StrictWildcard",
+        }
+    }
 }
 
 impl fmt::Display for CommandAlias {

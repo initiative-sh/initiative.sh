@@ -19,6 +19,8 @@ pub trait Autocomplete {
         app_meta: &AppMeta,
         include_aliases: bool,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)>;
+
+    fn get_variant_name(&self) -> &'static str;
 }
 
 #[cfg(test)]

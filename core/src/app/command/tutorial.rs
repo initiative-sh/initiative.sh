@@ -714,6 +714,10 @@ impl Autocomplete for TutorialCommand {
             Vec::new()
         }
     }
+
+    fn get_variant_name(&self) -> &'static str {
+        ""
+    }
 }
 
 impl fmt::Display for TutorialCommand {

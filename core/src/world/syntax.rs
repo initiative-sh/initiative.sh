@@ -73,6 +73,10 @@ where
             })
             .collect()
     }
+
+    fn get_variant_name(&self) -> &'static str {
+        ""
+    }
 }
 
 impl<ThingType, Source> ThingName<ThingType, Source>

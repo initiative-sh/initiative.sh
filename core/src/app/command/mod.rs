@@ -187,6 +187,10 @@ impl Autocomplete for Command {
             .chain(results.6.drain(..))
             .collect()
     }
+
+    fn get_variant_name(&self) -> &'static str {
+        ""
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

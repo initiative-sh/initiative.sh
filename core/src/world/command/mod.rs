@@ -430,6 +430,14 @@ impl Autocomplete for WorldCommand {
 
         suggestions
     }
+
+    fn get_variant_name(&self) -> &'static str {
+        match self {
+            Self::Create { .. } => "Create",
+            Self::CreateMultiple { .. } => "CreateMultiple",
+            Self::Edit { .. } => "Edit",
+        }
+    }
 }
 
 impl fmt::Display for WorldCommand {

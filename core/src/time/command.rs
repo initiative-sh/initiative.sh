@@ -128,6 +128,14 @@ impl Autocomplete for TimeCommand {
             Vec::new()
         }
     }
+
+    fn get_variant_name(&self) -> &'static str {
+        match self {
+            Self::Add { .. } => "Add",
+            Self::Now => "Now",
+            Self::Sub { .. } => "Sub",
+        }
+    }
 }
 
 impl fmt::Display for TimeCommand {

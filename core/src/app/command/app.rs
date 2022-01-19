@@ -88,6 +88,10 @@ impl Autocomplete for DiceFormula {
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         Vec::new()
     }
+
+    fn get_variant_name(&self) -> &'static str {
+        ""
+    }
 }
 
 impl FromStr for DiceFormula {
