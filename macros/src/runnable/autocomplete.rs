@@ -15,7 +15,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     let mod_ident = format_ident!("impl_autocomplete_for_{}", command_enum.ident_with_sep("_"));
     let enum_ident = &command_enum.ident;
 
-    let init_suggestions_with_unit_cases = init_suggestions_with_unit_cases(&command_enum)?;
+    let unit_cases = unit_cases(&command_enum)?;
 
     let tuple_cases = get_tuple_cases(&command_enum)?;
 
@@ -37,7 +37,9 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                     app_meta: &AppMeta,
                     include_aliases: bool,
                 ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-                    #init_suggestions_with_unit_cases
+                    let mut suggestions: Vec<(Cow<'static, str>, Cow<'static, str>)> = Vec::new();
+
+                    #unit_cases
 
                     #tuple_cases
 
@@ -54,7 +56,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     Ok(result)
 }
 
-fn init_suggestions_with_unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
+fn unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
     let mut tokens_simple = Vec::new();
     let mut alias_tokens_simple = Vec::new();
     let mut tokens_with_callback = Vec::new();
@@ -98,9 +100,9 @@ fn init_suggestions_with_unit_cases(command_enum: &CommandEnum) -> Result<TokenS
                     .map_or_else(|| variant.syntax.to_string(), |s| s.to_string());
 
                 if is_canonical {
-                    tokens_simple.push(quote! { ( #term, #desc ) })
+                    tokens_simple.push(quote! { ( #term, #desc ) });
                 } else {
-                    alias_tokens_simple.push(quote! { ( #term, #desc ) })
+                    alias_tokens_simple.push(quote! { ( #term, #desc ) });
                 }
             };
         }
@@ -117,22 +119,21 @@ fn init_suggestions_with_unit_cases(command_enum: &CommandEnum) -> Result<TokenS
         }
     }
 
-    let init = if tokens_simple.is_empty() {
-        quote! {
-            let mut suggestions: Vec<(Cow<'static, str>, Cow<'static, str>)> = Vec::new();
-        }
+    let canonical_part = if tokens_simple.is_empty() {
+        quote! {}
     } else {
         quote! {
-            let mut suggestions: Vec<(Cow<'static, str>, Cow<'static, str>)> = [ #(#tokens_simple),* ]
-                .iter()
-                .filter(|(s, _)| s.starts_with_ci(input))
-                .map(|&(a, b)| (a.into(), b.into()))
-                .take(10)
-                .collect();
+            suggestions.extend(
+                [ #(#tokens_simple),* ]
+                    .iter()
+                    .filter(|(s, _)| s.starts_with_ci(input))
+                    .map(|&(a, b)| (a.into(), b.into()))
+                    .take(10)
+            );
         }
     };
 
-    let alias_tokens = if alias_tokens_simple.is_empty() {
+    let alias_part = if alias_tokens_simple.is_empty() {
         quote! {}
     } else {
         quote! {
@@ -149,8 +150,8 @@ fn init_suggestions_with_unit_cases(command_enum: &CommandEnum) -> Result<TokenS
     };
 
     Ok(quote! {
-        #init
-        #alias_tokens
+        #canonical_part
+        #alias_part
         #(#tokens_with_callback)*
     })
 }
