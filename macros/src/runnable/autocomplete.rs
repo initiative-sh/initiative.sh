@@ -108,17 +108,6 @@ fn unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
         }
     }
 
-    if tokens_simple.len() + tokens_with_callback.len() > 10 {
-        for token in tokens_with_callback.iter_mut() {
-            *token = quote! {
-                if suggestions.len() >= 10 {
-                    return suggestions;
-                }
-                #token
-            };
-        }
-    }
-
     let canonical_part = if tokens_simple.is_empty() {
         quote! {}
     } else {
@@ -128,7 +117,6 @@ fn unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
                     .iter()
                     .filter(|(s, _)| s.starts_with_ci(input))
                     .map(|&(a, b)| (a.into(), b.into()))
-                    .take(10)
             );
         }
     };
@@ -143,7 +131,6 @@ fn unit_cases(command_enum: &CommandEnum) -> Result<TokenStream, String> {
                         .iter()
                         .filter(|(s, _)| s.starts_with_ci(input))
                         .map(|&(a, b)| (a.into(), b.into()))
-                        .take(10usize.checked_sub(suggestions.len()).unwrap_or_default())
                 );
             }
         }
@@ -240,10 +227,6 @@ fn parse_struct_syntax(
 
             Ok(Some(match field.implements {
                 Trait::FromStr => quote! {
-                    if suggestions.len() >= 10 {
-                        return suggestions;
-                    }
-
                     if let Some(suggestion) = input.strip_prefix_ci(#syntax_start) {
                         let suggestion: Cow<'static, str> = suggestion.to_string().into();
                         let description = suggestion.clone();
@@ -257,20 +240,12 @@ fn parse_struct_syntax(
                     quote! {
                         if let Some(remainder) = input.strip_prefix_ci(#syntax_start) {
                             for (suggestion, description) in #ty::autocomplete(remainder, app_meta, include_aliases && #is_canonical).await.drain(..) {
-                                if suggestions.len() >= 10 {
-                                    return suggestions;
-                                }
-
                                 suggestions.push((
                                     format!(#format_str, suggestion).into(),
                                     #desc1,
                                 ));
                             }
                         } else if #syntax_start.starts_with_ci(input) {
-                            if suggestions.len() >= 10 {
-                                return suggestions;
-                            }
-
                             suggestions.push((#syntax_str.into(), #desc0));
                         }
                     }
@@ -288,33 +263,17 @@ fn parse_struct_syntax(
 
             Ok(match field.implements {
                 Trait::FromStr => None,
-                Trait::Runnable => {
-                    let suggestions_append = quote! {
-                        #ty::autocomplete(input, app_meta, false)
-                            .await
-                            .drain(..)
-                            .map(|(suggestion, description)| {
-                                (suggestion.clone(), #desc1)
-                            })
-                            .take(10 - suggestions.len())
-                            .for_each(|v| suggestions.push(v));
-                    };
-
-                    Some(quote! {
-                        if suggestions.len() >= 10 {
-                            return suggestions;
-                        }
-
-                        #suggestions_append
-                        suggestions.truncate(10);
-                    })
-                }
+                Trait::Runnable => Some(quote! {
+                    #ty::autocomplete(input, app_meta, false)
+                        .await
+                        .drain(..)
+                        .map(|(suggestion, description)| {
+                            (suggestion.clone(), #desc1)
+                        })
+                        .for_each(|v| suggestions.push(v));
+                }),
                 Trait::WordList => Some(quote! {
-                    for suggestion in #ty::get_words().filter(|s| s.starts_with_ci(input)).take(10) {
-                        if suggestions.len() >= 10 {
-                            return suggestions;
-                        }
-
+                    for suggestion in #ty::get_words().filter(|s| s.starts_with_ci(input)) {
                         let suggestion: Cow<'static, str> = suggestion.into();
                         let description = suggestion.clone();
                         suggestions.push((suggestion.clone(), #desc1));

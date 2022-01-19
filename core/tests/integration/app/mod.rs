@@ -8,16 +8,16 @@ use std::borrow::Cow;
 fn autocomplete_command() {
     assert_eq!(
         [
+            ("Dagger", "SRD item"),
+            ("Dagger Of Venom", "SRD magic item"),
             ("Dancing Lights", "SRD spell"),
+            ("Dancing Sword", "SRD magic item"),
             ("Darkness", "SRD spell"),
             ("Darkvision", "SRD spell"),
+            ("Dart", "SRD item"),
             ("date", "get the current time"),
             ("Daylight", "SRD spell"),
             ("Death Ward", "SRD spell"),
-            ("Delayed Blast Fireball", "SRD spell"),
-            ("delete [name]", "remove an entry from journal"),
-            ("Demiplane", "SRD spell"),
-            ("desert", "create desert"),
         ]
         .into_iter()
         .map(|(a, b)| (a.into(), b.into()))
