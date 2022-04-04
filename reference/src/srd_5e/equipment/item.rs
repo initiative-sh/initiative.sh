@@ -219,26 +219,20 @@ impl<'a> fmt::Display for TableRowView<'a> {
                     }
                 }
                 Column::Speed => item.speed.as_ref().map(|s| write!(f, " {} |", s)),
-                Column::Stealth => item
-                    .stealth_disadvantage
-                    .map(|d| {
-                        if d {
-                            Some(write!(f, " disadvantage |"))
-                        } else {
-                            None
-                        }
-                    })
-                    .flatten(),
-                Column::Strength => item
-                    .str_minimum
-                    .map(|min| {
-                        if min > 0 {
-                            Some(write!(f, " Str {} |", min))
-                        } else {
-                            None
-                        }
-                    })
-                    .flatten(),
+                Column::Stealth => item.stealth_disadvantage.and_then(|d| {
+                    if d {
+                        Some(write!(f, " disadvantage |"))
+                    } else {
+                        None
+                    }
+                }),
+                Column::Strength => item.str_minimum.and_then(|min| {
+                    if min > 0 {
+                        Some(write!(f, " Str {} |", min))
+                    } else {
+                        None
+                    }
+                }),
                 Column::Weight => item.weight.map(|w| write!(f, " {} lb. |", w)),
             }
             .unwrap_or_else(|| write!(f, " \u{2014} |"))?;

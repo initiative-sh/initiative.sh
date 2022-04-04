@@ -215,16 +215,12 @@ impl Repository {
     ) -> Result<Vec<Thing>, Error> {
         let mut things = self
             .data_store
-            .get_things_by_name_start(&name.to_string(), limit)
+            .get_things_by_name_start(name, limit)
             .await
             .map_err(|_| Error::DataStoreFailed)?;
 
         self.recent()
-            .filter(|t| {
-                t.name()
-                    .value()
-                    .map_or(false, |s| s.starts_with_ci(&name.to_string()))
-            })
+            .filter(|t| t.name().value().map_or(false, |s| s.starts_with_ci(name)))
             .take(
                 limit
                     .unwrap_or(usize::MAX)

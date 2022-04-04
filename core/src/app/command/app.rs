@@ -46,8 +46,7 @@ impl Runnable for AppCommand {
                 .to_string(),
             Self::Roll { dice } => Roller::new(&dice.0)
                 .ok()
-                .map(|r| r.roll_with(&mut app_meta.rng).ok())
-                .flatten()
+                .and_then(|r| r.roll_with(&mut app_meta.rng).ok())
                 .map(|result| {
                     result
                         .to_string()
