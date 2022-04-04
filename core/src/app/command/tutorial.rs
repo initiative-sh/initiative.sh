@@ -9,7 +9,6 @@ use crate::utils::CaseInsensitiveStr;
 use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
 use crate::world::{ParsedThing, Thing, WorldCommand};
 use async_trait::async_trait;
-use std::borrow::Cow;
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -376,22 +375,20 @@ impl TutorialCommand {
             Self::Weapons { .. } => {
                 matches!(
                     command,
-                    Some(CommandType::Reference(ReferenceCommand::Spell {
-                        spell: Spell::Fireball,
-                    })),
+                    Some(CommandType::Reference(ReferenceCommand::Spell(
+                        Spell::Fireball
+                    ))),
                 )
             }
             Self::Roll { .. } => {
                 matches!(
                     command,
-                    Some(CommandType::Reference(ReferenceCommand::ItemCategory {
-                        category: ItemCategory::Weapon,
-                    })),
+                    Some(CommandType::Reference(ReferenceCommand::ItemCategory(
+                        ItemCategory::Weapon
+                    ))),
                 )
             }
-            Self::Delete { .. } => {
-                matches!(command, Some(CommandType::App(AppCommand::Roll { .. })))
-            }
+            Self::Delete { .. } => matches!(command, Some(CommandType::App(AppCommand::Roll(_)))),
             Self::AdjustTime { inn_name, .. } => {
                 if let Some(CommandType::Storage(StorageCommand::Change {
                     change: Change::Delete { name, .. },
@@ -713,12 +710,9 @@ impl ContextAwareParse for TutorialCommand {
 
 #[async_trait(?Send)]
 impl Autocomplete for TutorialCommand {
-    async fn autocomplete(
-        input: &str,
-        _app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<(String, String)> {
         if "tutorial".starts_with_ci(input) {
-            vec![("tutorial".into(), "feature walkthrough".into())]
+            vec![("tutorial".to_string(), "feature walkthrough".to_string())]
         } else {
             Vec::new()
         }

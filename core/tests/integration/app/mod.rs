@@ -2,7 +2,6 @@ mod app;
 mod tutorial;
 
 use crate::common::{get_name, sync_app};
-use std::borrow::Cow;
 
 #[test]
 fn autocomplete_command() {
@@ -19,14 +18,14 @@ fn autocomplete_command() {
             ("Demiplane", "SRD spell"),
             ("desert", "create desert"),
         ]
-        .into_iter()
-        .map(|(a, b)| (a.into(), b.into()))
+        .iter()
+        .map(|(a, b)| (a.to_string(), b.to_string()))
         .collect::<Vec<_>>(),
         sync_app().autocomplete("d"),
     );
 
     assert_eq!(
-        Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
+        Vec::<(String, String)>::new(),
         sync_app().autocomplete("potato")
     )
 }
@@ -42,8 +41,8 @@ fn autocomplete_proper_noun() {
 
     assert!(
         autocomplete_results.contains(&(
-            npc_name.to_string().into(),
-            format!("{} (unsaved)", npc_description).into(),
+            npc_name.to_string(),
+            format!("{} (unsaved)", npc_description)
         )),
         "Generator output:\n{}\n\nQuery: {}\nResults: {:?}",
         output,

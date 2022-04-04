@@ -5,7 +5,6 @@ use crate::utils::CaseInsensitiveStr;
 use crate::world::Thing;
 use async_trait::async_trait;
 use futures::join;
-use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 use std::iter::repeat;
@@ -323,11 +322,8 @@ impl ContextAwareParse for StorageCommand {
 
 #[async_trait(?Send)]
 impl Autocomplete for StorageCommand {
-    async fn autocomplete(
-        input: &str,
-        app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-        let mut suggestions: Vec<(Cow<'static, str>, Cow<'static, str>)> = [
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
+        let mut suggestions: Vec<(String, String)> = [
             ("delete", "delete [name]", "remove an entry from journal"),
             ("export", "export", "export the journal contents"),
             ("import", "import", "import a journal backup"),
@@ -337,17 +333,17 @@ impl Autocomplete for StorageCommand {
         ]
         .into_iter()
         .filter(|(s, _, _)| s.starts_with_ci(input))
-        .map(|(_, b, c)| (b.into(), c.into()))
+        .map(|(_, b, c)| (b.to_string(), c.to_string()))
         .chain(
             ["undo"]
                 .into_iter()
                 .filter(|s| s.starts_with_ci(input))
                 .map(|s| {
                     (
-                        s.into(),
+                        s.to_string(),
                         app_meta.repository.undo_history().next().map_or_else(
-                            || "Nothing to undo.".into(),
-                            |change| format!("undo {}", change.display_undo()).into(),
+                            || "Nothing to undo.".to_string(),
+                            |change| format!("undo {}", change.display_undo()),
                         ),
                     )
                 }),
@@ -358,10 +354,10 @@ impl Autocomplete for StorageCommand {
                 .filter(|s| s.starts_with_ci(input))
                 .map(|s| {
                     (
-                        s.into(),
+                        s.to_string(),
                         app_meta.repository.get_redo().map_or_else(
-                            || "Nothing to redo.".into(),
-                            |change| format!("redo {}", change.display_redo()).into(),
+                            || "Nothing to redo.".to_string(),
+                            |change| format!("redo {}", change.display_redo()),
                         ),
                     )
                 }),
@@ -413,7 +409,7 @@ impl Autocomplete for StorageCommand {
 
             if let Some(command) = exact_match.or_else(|| fuzzy_matches.drain(..).next()) {
                 suggestions.push((
-                    suggestion.into(),
+                    suggestion,
                     match command {
                         Self::Change {
                             change: Change::Delete { .. },
@@ -429,8 +425,7 @@ impl Autocomplete for StorageCommand {
                             }
                         }
                         _ => unreachable!(),
-                    }
-                    .into(),
+                    },
                 ))
             }
         }
@@ -462,7 +457,6 @@ impl fmt::Display for StorageCommand {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::app::assert_autocomplete;
     use crate::storage::MemoryDataStore;
     use crate::world::npc::{Age, Gender, Npc, Species};
     use crate::world::place::{Place, PlaceType};
@@ -761,6 +755,22 @@ mod test {
                 command_string,
             );
         });
+    }
+
+    fn assert_autocomplete(
+        expected_suggestions: &[(&str, &str)],
+        actual_suggestions: Vec<(String, String)>,
+    ) {
+        let mut expected: Vec<_> = expected_suggestions
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect();
+        expected.sort();
+
+        let mut actual = actual_suggestions;
+        actual.sort();
+
+        assert_eq!(expected, actual);
     }
 
     fn event_dispatcher(_event: Event) {}

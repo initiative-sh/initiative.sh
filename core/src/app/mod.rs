@@ -1,16 +1,12 @@
 pub use command::{AppCommand, Autocomplete, Command, CommandAlias, ContextAwareParse, Runnable};
 pub use meta::AppMeta;
 
-#[cfg(test)]
-pub use command::assert_autocomplete;
-
 mod command;
 mod meta;
 
 use crate::storage::backup::{import, BackupData};
 use crate::utils::CaseInsensitiveStr;
 use initiative_macros::motd;
-use std::borrow::Cow;
 
 pub struct App {
     meta: AppMeta,
@@ -45,7 +41,7 @@ impl App {
             .await
     }
 
-    pub async fn autocomplete(&self, input: &str) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    pub async fn autocomplete(&self, input: &str) -> Vec<(String, String)> {
         let mut suggestions: Vec<_> = Command::autocomplete(input, &self.meta).await;
         suggestions.sort_by(|(a, _), (b, _)| a.cmp_ci(b));
         suggestions.truncate(10);

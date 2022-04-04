@@ -4,7 +4,6 @@ use crate::storage::{Change, RepositoryError, StorageCommand};
 use crate::utils::{quoted_words, CaseInsensitiveStr};
 use async_trait::async_trait;
 use futures::join;
-use std::borrow::Cow;
 use std::fmt;
 use std::ops::Range;
 
@@ -295,10 +294,7 @@ impl ContextAwareParse for WorldCommand {
 
 #[async_trait(?Send)]
 impl Autocomplete for WorldCommand {
-    async fn autocomplete(
-        input: &str,
-        app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<(String, String)> {
         let mut suggestions = Vec::new();
 
         let (mut place_suggestions, mut npc_suggestions) = join!(
@@ -336,17 +332,14 @@ impl Autocomplete for WorldCommand {
                     .drain(..)
                     .map(|(a, _)| {
                         (
-                            format!("{}{}", &input[..split_pos], a).into(),
-                            format!("edit {}", thing.as_str()).into(),
+                            format!("{}{}", &input[..split_pos], a),
+                            format!("edit {}", thing.as_str()),
                         )
                     })
                     .for_each(|suggestion| suggestions.push(suggestion));
 
                 if next_word.as_str().in_ci(&["named", "called"]) && input_words.next().is_some() {
-                    suggestions.push((
-                        input.to_string().into(),
-                        format!("rename {}", thing.as_str()).into(),
-                    ));
+                    suggestions.push((input.to_string(), format!("rename {}", thing.as_str())));
                 }
             }
         }
@@ -357,9 +350,8 @@ impl Autocomplete for WorldCommand {
                     format!("{}is [{} description]", input, thing.as_str())
                 } else {
                     format!("{} is [{} description]", input, thing.as_str())
-                }
-                .into(),
-                format!("edit {}", thing.as_str()).into(),
+                },
+                format!("edit {}", thing.as_str()),
             ));
         } else if let Some((last_word_index, last_word)) =
             quoted_words(input).enumerate().skip(1).last()
@@ -379,9 +371,8 @@ impl Autocomplete for WorldCommand {
                             )
                         } else {
                             format!("{}[{} description]", &input, thing.as_str())
-                        }
-                        .into(),
-                        format!("edit {}", thing.as_str()).into(),
+                        },
+                        format!("edit {}", thing.as_str()),
                     ))
                 }
             } else if let Some(suggestion) = ["named", "called"]
@@ -405,9 +396,8 @@ impl Autocomplete for WorldCommand {
                                 )
                             } else {
                                 format!("{}[name]", input)
-                            }
-                            .into(),
-                            format!("rename {}", thing.as_str()).into(),
+                            },
+                            format!("rename {}", thing.as_str()),
                         ));
                     }
                 }
@@ -506,7 +496,6 @@ fn append_unknown_words_notice(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::app::assert_autocomplete;
     use crate::storage::NullDataStore;
     use crate::world::npc::{Age, Gender, Species};
     use crate::world::place::PlaceType;
@@ -613,12 +602,12 @@ mod test {
         .drain(..)
         .for_each(|(word, summary)| {
             assert_eq!(
-                vec![(word.into(), summary.into())],
+                vec![(word.to_string(), summary.to_string())],
                 block_on(WorldCommand::autocomplete(word, &app_meta)),
             );
 
             assert_eq!(
-                vec![(word.into(), summary.into())],
+                vec![(word.to_string(), summary.to_string())],
                 block_on(WorldCommand::autocomplete(&word.to_uppercase(), &app_meta)),
             );
         });
@@ -725,6 +714,22 @@ mod test {
                 word_count: 1,
             },
         }
+    }
+
+    fn assert_autocomplete(
+        expected_suggestions: &[(&str, &str)],
+        actual_suggestions: Vec<(String, String)>,
+    ) {
+        let mut expected: Vec<_> = expected_suggestions
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect();
+        expected.sort();
+
+        let mut actual = actual_suggestions;
+        actual.sort();
+
+        assert_eq!(expected, actual);
     }
 
     fn event_dispatcher(_event: Event) {}
