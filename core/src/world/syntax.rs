@@ -1,15 +1,16 @@
 use super::{Npc, Place, Thing};
 use crate::app::{AppMeta, Autocomplete, ContextAwareParse};
-use crate::storage::CacheEntry;
+use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::fmt;
 use std::marker::PhantomData;
+use std::mem;
 use std::str::FromStr;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct ThingName<ThingType, Source>
+pub struct ThingName<ThingType = Thing, Source = FromAny>
 where
     ThingType: FilterThingsByType,
     Source: GetThings,
@@ -37,8 +38,13 @@ where
     async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         (
             Source::get_by_name(input, app_meta)
-                .filter(|entry| ThingType::filter(entry))
-                .map(|entry| Self::new(entry.name.to_string())),
+                .await
+                .filter(|t| ThingType::filter(t))
+                .and_then(|t| match t {
+                    Thing::Npc(Npc { mut name, .. }) => name.value_mut().map(mem::take),
+                    Thing::Place(Place { mut name, .. }) => name.value_mut().map(mem::take),
+                })
+                .map(Self::new),
             Vec::new(),
         )
     }
@@ -55,17 +61,13 @@ where
         app_meta: &AppMeta,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         Source::get_by_name_start(input, app_meta)
+            .await
             .drain(..)
             .filter(|t| ThingType::filter(t))
-            .map(|t| {
+            .map(|thing| {
                 (
-                    t.name.to_string().into(),
-                    if t.in_journal {
-                        t.description.to_string()
-                    } else {
-                        format!("{} (unsaved)", t.description)
-                    }
-                    .into(),
+                    thing.name().to_string().into(),
+                    thing.display_description().to_string().into(),
                 )
             })
             .collect()
@@ -86,51 +88,31 @@ where
     }
 }
 
-impl<ThingType, Source> From<&str> for ThingName<ThingType, Source>
-where
-    ThingType: FilterThingsByType,
-    Source: GetThings,
-{
+impl From<&str> for ThingName {
     fn from(input: &str) -> Self {
         Self::new(input.to_string())
     }
 }
 
-impl<ThingType, Source> From<&String> for ThingName<ThingType, Source>
-where
-    ThingType: FilterThingsByType,
-    Source: GetThings,
-{
+impl From<&String> for ThingName {
     fn from(input: &String) -> Self {
         Self::new(input.to_owned())
     }
 }
 
-impl<ThingType, Source> From<String> for ThingName<ThingType, Source>
-where
-    ThingType: FilterThingsByType,
-    Source: GetThings,
-{
+impl From<String> for ThingName {
     fn from(input: String) -> Self {
         Self::new(input)
     }
 }
 
-impl<ThingType, Source> From<ThingName<ThingType, Source>> for String
-where
-    ThingType: FilterThingsByType,
-    Source: GetThings,
-{
-    fn from(input: ThingName<ThingType, Source>) -> String {
+impl From<ThingName> for String {
+    fn from(input: ThingName) -> String {
         input.name
     }
 }
 
-impl<ThingType, Source> AsRef<str> for ThingName<ThingType, Source>
-where
-    ThingType: FilterThingsByType,
-    Source: GetThings,
-{
+impl AsRef<str> for ThingName {
     fn as_ref(&self) -> &str {
         &self.name
     }
@@ -163,71 +145,93 @@ where
 }
 
 pub trait FilterThingsByType {
-    fn filter(entry: &CacheEntry) -> bool;
+    fn filter(thing: &Thing) -> bool;
 }
 
+#[async_trait(?Send)]
 pub trait GetThings {
-    fn get_by_name<'a>(name: &str, app_meta: &'a AppMeta) -> Option<&'a CacheEntry>;
+    async fn get_by_name(name: &str, app_meta: &AppMeta) -> Option<Thing>;
 
-    fn get_by_name_start<'a>(name_start: &str, app_meta: &'a AppMeta) -> Vec<&'a CacheEntry>;
+    async fn get_by_name_start(name_start: &str, app_meta: &AppMeta) -> Vec<Thing>;
 }
 
 impl FilterThingsByType for Thing {
-    fn filter(_entry: &CacheEntry) -> bool {
+    fn filter(_thing: &Thing) -> bool {
         true
     }
 }
 
 impl FilterThingsByType for Npc {
-    fn filter(entry: &CacheEntry) -> bool {
-        entry.subtype == "character"
+    fn filter(thing: &Thing) -> bool {
+        thing.npc().is_some()
     }
 }
 
 impl FilterThingsByType for Place {
-    fn filter(entry: &CacheEntry) -> bool {
-        entry.subtype == "place"
+    fn filter(thing: &Thing) -> bool {
+        thing.place().is_some()
     }
 }
 
+#[async_trait(?Send)]
 impl GetThings for FromAny {
-    fn get_by_name<'a>(name: &str, app_meta: &'a AppMeta) -> Option<&'a CacheEntry> {
-        app_meta.repository.get_cached_by_name(name)
+    async fn get_by_name(name: &str, app_meta: &AppMeta) -> Option<Thing> {
+        app_meta.repository.get_by_name(name).await.ok()
     }
 
-    fn get_by_name_start<'a>(name_start: &str, app_meta: &'a AppMeta) -> Vec<&'a CacheEntry> {
+    async fn get_by_name_start(name_start: &str, app_meta: &AppMeta) -> Vec<Thing> {
         app_meta
             .repository
-            .get_cached_by_name_start(name_start, true, true)
+            .get_by_name_start(name_start, Some(10))
+            .await
+            .unwrap_or_default()
     }
 }
 
+#[async_trait(?Send)]
 impl GetThings for FromRecent {
-    fn get_by_name<'a>(name: &str, app_meta: &'a AppMeta) -> Option<&'a CacheEntry> {
+    async fn get_by_name(name: &str, app_meta: &AppMeta) -> Option<Thing> {
         app_meta
             .repository
-            .get_cached_by_name(name)
-            .filter(|entry| !entry.in_journal)
+            .recent()
+            .find(|t| t.name().value().map_or(false, |s| s.eq_ci(name)))
+            .cloned()
     }
 
-    fn get_by_name_start<'a>(name_start: &str, app_meta: &'a AppMeta) -> Vec<&'a CacheEntry> {
+    async fn get_by_name_start(name_start: &str, app_meta: &AppMeta) -> Vec<Thing> {
         app_meta
             .repository
-            .get_cached_by_name_start(name_start, false, true)
+            .recent()
+            .filter(|t| {
+                t.name()
+                    .value()
+                    .map_or(false, |s| s.starts_with_ci(name_start))
+            })
+            .take(20)
+            .cloned()
+            .collect()
     }
 }
 
+#[async_trait(?Send)]
 impl GetThings for FromJournal {
-    fn get_by_name<'a>(name: &str, app_meta: &'a AppMeta) -> Option<&'a CacheEntry> {
+    async fn get_by_name(name: &str, app_meta: &AppMeta) -> Option<Thing> {
         app_meta
             .repository
-            .get_cached_by_name(name)
-            .filter(|entry| entry.in_journal)
+            .get_by_name(name)
+            .await
+            .ok()
+            .filter(|t| t.uuid().is_some())
     }
 
-    fn get_by_name_start<'a>(name_start: &str, app_meta: &'a AppMeta) -> Vec<&'a CacheEntry> {
+    async fn get_by_name_start(name_start: &str, app_meta: &AppMeta) -> Vec<Thing> {
         app_meta
             .repository
-            .get_cached_by_name_start(name_start, true, false)
+            .get_by_name_start(name_start, Some(20))
+            .await
+            .unwrap_or_default()
+            .drain(..)
+            .filter(|t| t.uuid().is_some())
+            .collect()
     }
 }

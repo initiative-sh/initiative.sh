@@ -109,7 +109,7 @@ fn create_place_with_custom_attributes() {
 
     {
         let output = app.command("an inn called The Prancing Pony").unwrap();
-        assert!(output.contains("# The Prancing Pony\n*inn*"), "{}", output);
+        assert!(output.contains("# The Prancing Pony\n*inn*"), "{}", output,);
         assert!(
             output.contains("has been automatically added to your `journal`."),
             "{}",

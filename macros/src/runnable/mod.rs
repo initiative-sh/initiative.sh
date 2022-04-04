@@ -31,11 +31,7 @@
 //!   autocomplete suggestions.
 //! - `#[command(ignore)]`: There is no syntax for this command. Used for commands that are
 //!   runnable by alias only.
-//! - `#[doc = "This command does stuff."]` or `/// Blah.`: Description for help docs.
-//! - `#[command(autocomplete_desc = "some command")]`: Description for autocomplete results.
-//! - `#[command(autocomplete_desc_fn(my_func))]`: Produce autocomplete descriptions by calling
-//!   `my_func(input: &str, app_meta: &AppMeta, param1: Option<Cow<'static, str>>, ..) -> Cow<'static, str>`,
-//!   where each parameter contains the autocomplete result from the corresponding struct field.
+//! - `#[doc = "blah"]` or `/// blah`: User-facing documentation for the command.
 //!
 //! The following attribute is recognized on tuple variants:
 //!
@@ -50,13 +46,13 @@
 //!   supported trait. By default it is assumed to implement `ContextAwareParse` and `Autocomplete`
 //!   (collectively referred to as `Runnable`). Recognized values: `WordList`, `Runnable`.
 
-pub mod autocomplete;
 pub mod context_aware_parse;
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use std::collections::HashMap;
 use std::fmt;
+use std::iter;
 
 #[derive(Debug)]
 struct CommandEnum {
@@ -84,8 +80,6 @@ struct UnitStructCommandVariant {
     ident: syn::Ident,
 
     aliases: Vec<CommandVariantSyntax>,
-    autocomplete_desc: Option<String>,
-    autocomplete_desc_fn: Option<syn::Ident>,
     doc: Option<String>,
     fields: Vec<Field>,
     is_ignored: bool,
@@ -94,10 +88,14 @@ struct UnitStructCommandVariant {
 
 #[derive(Debug)]
 struct CommandVariantSyntax {
-    pub start: Option<String>,
-    pub middle: Vec<(syn::Ident, String)>,
-    pub end: Option<syn::Ident>,
+    pub syntax_parts: Vec<CommandVariantSyntaxPart>,
     pub no_autocomplete: bool,
+}
+
+#[derive(Debug)]
+enum CommandVariantSyntaxPart {
+    Str(String),
+    Ident(syn::Ident),
 }
 
 #[derive(Debug)]
@@ -141,77 +139,64 @@ impl TryFrom<TokenStream> for CommandEnum {
     }
 }
 
-fn parse_syntax(input: &str, fields: &[Field]) -> Result<CommandVariantSyntax, String> {
-    let mut syntax = CommandVariantSyntax {
-        start: None,
-        middle: Vec::new(),
-        end: None,
-        no_autocomplete: false,
-    };
-
-    let mut start_pos = 0;
+fn parse_syntax(syntax: &str, fields: &[Field]) -> Result<Vec<CommandVariantSyntaxPart>, String> {
+    let mut is_ident = false;
+    let mut start = 0;
+    let mut parts = Vec::new();
     let mut unmatched_fields: HashMap<String, syn::Ident> = fields
         .iter()
         .map(|f| (f.ident.to_string(), f.ident.clone()))
         .collect();
-    let mut hold_ident = None;
 
-    for (pos, c) in input.char_indices().filter(|(_, c)| ['[', ']'].contains(c)) {
-        match (hold_ident.take(), c) {
-            (Some(ident), '[') => {
-                let s = &input[start_pos..pos];
-
-                if s.is_empty() {
-                    return Err(format!(
-                        r#"There must be at least one character dividing syntax parts in "{}"."#,
-                        input,
+    for (i, c) in syntax
+        .char_indices()
+        .filter(|(_, c)| ['[', ']'].contains(c))
+    {
+        match (is_ident, c) {
+            (false, '[') => {
+                if !syntax[start..i].trim().is_empty() {
+                    parts.push(CommandVariantSyntaxPart::Str(
+                        syntax[start..i].trim().to_string(),
                     ));
-                } else {
-                    syntax.middle.push((ident, s.to_string()));
                 }
+
+                is_ident = true;
             }
-            (None, ']') if start_pos > 0 => {
-                if let Some(ident) = unmatched_fields.remove(&input[start_pos..pos]) {
-                    hold_ident = Some(ident);
+            (true, ']') => {
+                if let Some(ident) = unmatched_fields.remove(&syntax[start..i]) {
+                    parts.push(CommandVariantSyntaxPart::Ident(ident));
+                    is_ident = false;
                 } else {
                     return Err(format!(
                         r#"Unknown or duplicated field in "{}": "{}"."#,
-                        input,
-                        &input[start_pos..pos],
+                        syntax,
+                        &syntax[start..i],
                     ));
                 }
             }
-            (None, '[') if syntax.start.is_none() => {
-                if pos > 0 {
-                    syntax.start = Some(input[start_pos..pos].to_string());
-                }
-            }
-            _ => return Err(format!(r#"Unbalanced brackets in "{}"."#, input)),
+            _ => return Err(format!(r#"Unbalanced brackets in "{}"."#, syntax)),
         }
 
-        start_pos = pos + 1;
+        start = i + 1;
     }
 
-    if let Some(ident) = hold_ident.take() {
-        let remainder = &input[start_pos..];
-        if remainder.is_empty() {
-            syntax.end = Some(ident)
-        } else {
-            syntax.middle.push((ident, remainder.to_string()))
-        }
-    } else if start_pos == 0 {
-        syntax.start = Some(input.to_string());
-    } else {
-        return Err(format!(r#"Unclosed bracket in "{}"."#, input));
+    if is_ident {
+        return Err(format!(r#"Unclosed bracket in "{}"."#, syntax));
+    }
+
+    if !syntax[start..].trim().is_empty() {
+        parts.push(CommandVariantSyntaxPart::Str(
+            syntax[start..].trim().to_string(),
+        ));
     }
 
     if let Some(missing_field) = unmatched_fields.into_keys().next() {
         Err(format!(
             r#"Field "{}" is not accounted for in syntax "{}"."#,
-            missing_field, input,
+            missing_field, syntax
         ))
     } else {
-        Ok(syntax)
+        Ok(parts)
     }
 }
 
@@ -369,7 +354,7 @@ impl TryFrom<&syn::Variant> for CommandVariant {
             )?))
         } else {
             let variant = {
-                let (fields, syntax) = match &input.fields {
+                let (fields, syntax_parts) = match &input.fields {
                     syn::Fields::Named(input_fields) => {
                         let fields = input_fields
                             .named
@@ -410,9 +395,27 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                             })
                             .collect::<Result<_, String>>()?;
 
-                        (fields, input.try_into().unwrap())
+                        (
+                            fields,
+                            iter::once(CommandVariantSyntaxPart::Str(from_camel_case_with_sep(
+                                &input.ident,
+                                "-",
+                            )))
+                            .chain(
+                                input_fields.named.iter().map(|f| {
+                                    CommandVariantSyntaxPart::Ident(f.ident.clone().unwrap())
+                                }),
+                            )
+                            .collect(),
+                        )
                     }
-                    syn::Fields::Unit => (Vec::new(), input.try_into().unwrap()),
+                    syn::Fields::Unit => (
+                        Vec::new(),
+                        vec![CommandVariantSyntaxPart::Str(from_camel_case_with_sep(
+                            &input.ident,
+                            "-",
+                        ))],
+                    ),
                     syn::Fields::Unnamed(_) => unreachable!(),
                 };
 
@@ -422,12 +425,13 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                         ident: input.ident.to_owned(),
 
                         aliases: Vec::new(),
-                        autocomplete_desc: None,
-                        autocomplete_desc_fn: None,
                         doc: None,
                         fields,
                         is_ignored: false,
-                        syntax,
+                        syntax: CommandVariantSyntax {
+                            syntax_parts,
+                            no_autocomplete: false,
+                        },
                     },
                     &mut |mut variant, path, value| {
                         match (path, value) {
@@ -441,40 +445,33 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                                 }
                             }
                             (&["command", "alias"], MetaValue::Lit(syn::Lit::Str(lit_str))) => {
-                                variant
-                                    .aliases
-                                    .push(parse_syntax(&lit_str.value(), &variant.fields)?);
+                                variant.aliases.push(CommandVariantSyntax {
+                                    syntax_parts: parse_syntax(&lit_str.value(), &variant.fields)?,
+                                    no_autocomplete: false,
+                                });
                             }
                             (
                                 &["command", "alias_no_autocomplete"],
                                 MetaValue::Lit(syn::Lit::Str(lit_str)),
                             ) => {
-                                let mut syntax = parse_syntax(&lit_str.value(), &variant.fields)?;
-                                syntax.no_autocomplete = true;
-                                variant.aliases.push(syntax);
-                            }
-                            (
-                                &["command", "autocomplete_desc"],
-                                MetaValue::Lit(syn::Lit::Str(lit_str)),
-                            ) => {
-                                variant.autocomplete_desc = Some(lit_str.value());
-                            }
-                            (&["command", "autocomplete_desc_fn"], MetaValue::Path(path)) => {
-                                variant.autocomplete_desc_fn =
-                                    Some(path.get_ident().unwrap().to_owned());
+                                variant.aliases.push(CommandVariantSyntax {
+                                    syntax_parts: parse_syntax(&lit_str.value(), &variant.fields)?,
+                                    no_autocomplete: true,
+                                });
                             }
                             (&["command"], MetaValue::Path(path)) if path.is_ident("ignore") => {
                                 variant.is_ignored = true;
+                            }
+                            (&["command", "syntax"], MetaValue::Lit(syn::Lit::Str(lit_str))) => {
+                                variant.syntax = CommandVariantSyntax {
+                                    syntax_parts: parse_syntax(&lit_str.value(), &variant.fields)?,
+                                    no_autocomplete: variant.syntax.no_autocomplete,
+                                }
                             }
                             (&["command"], MetaValue::Path(path))
                                 if path.is_ident("no_default_autocomplete") =>
                             {
                                 variant.syntax.no_autocomplete = true;
-                            }
-                            (&["command", "syntax"], MetaValue::Lit(syn::Lit::Str(lit_str))) => {
-                                let no_autocomplete = variant.syntax.no_autocomplete;
-                                variant.syntax = parse_syntax(&lit_str.value(), &variant.fields)?;
-                                variant.syntax.no_autocomplete = no_autocomplete;
                             }
                             (path, _) if path.starts_with(&["command"]) => {
                                 return Err(format!("Unsupported command attribute: {:?}.", path))
@@ -501,55 +498,17 @@ impl TryFrom<&syn::Variant> for CommandVariant {
     }
 }
 
-impl TryFrom<&syn::Variant> for CommandVariantSyntax {
-    type Error = ();
-
-    fn try_from(input: &syn::Variant) -> Result<Self, Self::Error> {
-        match &input.fields {
-            syn::Fields::Unit => Ok(CommandVariantSyntax {
-                start: Some(from_camel_case_with_sep(&input.ident, "-")),
-                middle: Vec::new(),
-                end: None,
-                no_autocomplete: false,
-            }),
-            syn::Fields::Unnamed(_) => Err(()),
-            syn::Fields::Named(named_fields) => {
-                let mut end = None;
-                Ok(CommandVariantSyntax {
-                    start: Some(format!("{} ", from_camel_case_with_sep(&input.ident, "-"))),
-                    middle: named_fields
-                        .named
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(i, field)| {
-                            if i + 1 == named_fields.named.len() {
-                                end = Some(field.ident.clone().unwrap());
-                                None
-                            } else {
-                                Some((field.ident.clone().unwrap(), " ".to_string()))
-                            }
-                        })
-                        .collect(),
-                    end: Some(end.unwrap()),
-                    no_autocomplete: false,
-                })
-            }
-        }
-    }
-}
-
 impl fmt::Display for CommandVariantSyntax {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        if let Some(s) = &self.start {
-            write!(f, "{}", s)?;
-        }
+        for (i, part) in self.syntax_parts.iter().enumerate() {
+            if i > 0 {
+                write!(f, " ")?;
+            }
 
-        self.middle
-            .iter()
-            .try_for_each(|(ident, s)| write!(f, "[{}]{}", ident, s))?;
-
-        if let Some(ident) = &self.end {
-            write!(f, "[{}]", ident)?;
+            match part {
+                CommandVariantSyntaxPart::Str(s) => write!(f, "{}", s)?,
+                CommandVariantSyntaxPart::Ident(id) => write!(f, "[{}]", id)?,
+            }
         }
 
         Ok(())
@@ -595,7 +554,7 @@ mod test {
                     .iter()
                     .map(|alias| (alias.to_string(), alias.no_autocomplete));
 
-                assert_eq!(Some(("alias1".to_string(), false)), aliases.next());
+                assert_eq!(Some(("alias1".to_string(), false)), aliases.next(),);
                 assert_eq!(Some(("alias2".to_string(), true)), aliases.next());
                 assert_eq!(Some(("alias3".to_string(), false)), aliases.next());
             }
@@ -726,7 +685,7 @@ mod test {
         for _ in 0..2 {
             match variants.next() {
                 Some(CommandVariant::Unit(variant)) => {
-                    assert!(!variant.syntax.no_autocomplete);
+                    assert_eq!(false, variant.syntax.no_autocomplete);
                 }
                 v => panic!("{:?}", v),
             }
@@ -735,7 +694,7 @@ mod test {
         for _ in 2..5 {
             match variants.next() {
                 Some(CommandVariant::Unit(variant)) => {
-                    assert!(variant.syntax.no_autocomplete);
+                    assert_eq!(true, variant.syntax.no_autocomplete);
                 }
                 v => panic!("{:?}", v),
             }
@@ -920,51 +879,6 @@ mod test {
                 assert_eq!(Some(&Trait::Runnable), traits.next());
                 assert_eq!(Some(&Trait::WordList), traits.next());
                 assert_eq!(None, traits.next());
-            }
-            v => panic!("{:?}", v),
-        }
-    }
-
-    #[test]
-    fn syntax_test_autocomplete_desc() {
-        let command_enum = CommandEnum::try_from(quote! {
-            enum Foo {
-                JustAVariant,
-
-                #[command(autocomplete_desc = "Description")]
-                ADescribedVariant,
-
-                #[command(autocomplete_desc_fn(some_function))]
-                ASpecialVariant,
-            }
-        })
-        .unwrap();
-
-        let mut variants = command_enum.variants.iter();
-
-        match variants.next() {
-            Some(CommandVariant::Unit(variant)) => {
-                assert!(variant.autocomplete_desc.is_none());
-                assert!(variant.autocomplete_desc_fn.is_none());
-            }
-            v => panic!("{:?}", v),
-        }
-
-        match variants.next() {
-            Some(CommandVariant::Unit(variant)) => {
-                assert_eq!("Description", variant.autocomplete_desc.as_ref().unwrap());
-                assert!(variant.autocomplete_desc_fn.is_none());
-            }
-            v => panic!("{:?}", v),
-        }
-
-        match variants.next() {
-            Some(CommandVariant::Unit(variant)) => {
-                assert!(variant.autocomplete_desc.is_none());
-                assert_eq!(
-                    "some_function",
-                    variant.autocomplete_desc_fn.as_ref().unwrap().to_string(),
-                );
             }
             v => panic!("{:?}", v),
         }

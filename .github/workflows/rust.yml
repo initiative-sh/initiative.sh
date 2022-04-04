@@ -21,8 +21,6 @@ jobs:
         run: rustc --version && rustup update
       - name: Run rustfmt
         run: git ls-files '*.rs' | xargs rustfmt --check --edition 2021 --verbose
-      - name: Verify no mangled parens
-        run: if git grep ',)' '*.rs'; then exit 1; fi
       - name: Run Clippy
         run: cargo clippy --workspace -- --deny warnings
 

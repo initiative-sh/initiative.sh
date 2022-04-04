@@ -38,8 +38,3 @@ pub fn context_aware_parse(input: TokenStream) -> TokenStream {
         .unwrap()
         .into()
 }
-
-#[proc_macro_derive(Autocomplete, attributes(command, doc))]
-pub fn autocomplete(input: TokenStream) -> TokenStream {
-    runnable::autocomplete::run(input.into()).unwrap().into()
-}
