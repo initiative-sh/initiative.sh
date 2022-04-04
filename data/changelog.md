@@ -1,3 +1,6 @@
+* **Enhancement:** (?) Reverted past macro work. Macros seem to have done
+  nothing but add complexity, with no simplification in sight. Perhaps something
+  to take another swing at in the future.
 * **Bug:** Fixed and expand more spell content, including adding tables to
   spells like `Teleport`.
 * **Bug:** Fixed wording of several spells, including `Legend Lore`, in response
