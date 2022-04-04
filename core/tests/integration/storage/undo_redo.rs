@@ -55,13 +55,13 @@ fn undo_redo_test(
 fn nothing() {
     assert_eq!("Nothing to undo.", sync_app().command("undo").unwrap_err());
     assert_eq!(
-        Some(&(Cow::from("undo"), Cow::from("nothing to undo"))),
+        Some(&(Cow::from("undo"), Cow::from("Nothing to undo."))),
         sync_app().autocomplete("undo").first(),
     );
 
     assert_eq!("Nothing to redo.", sync_app().command("redo").unwrap_err());
     assert_eq!(
-        Some(&(Cow::from("redo"), Cow::from("nothing to redo"))),
+        Some(&(Cow::from("redo"), Cow::from("Nothing to redo."))),
         sync_app().autocomplete("redo").first(),
     );
 }

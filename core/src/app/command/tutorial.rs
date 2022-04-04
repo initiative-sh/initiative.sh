@@ -115,7 +115,7 @@ impl TutorialCommand {
                     "save".to_string(),
                     format!("save {}", inn_name),
                     StorageCommand::Save {
-                        name: inn_name.into(),
+                        name: inn_name.to_owned(),
                     }
                     .into(),
                 ));
@@ -153,7 +153,7 @@ impl TutorialCommand {
                     "2".to_string(),
                     format!("load {}", npc_name),
                     StorageCommand::Load {
-                        name: npc_name.into(),
+                        name: npc_name.to_owned(),
                     }
                     .into(),
                 ));
@@ -168,7 +168,7 @@ impl TutorialCommand {
                     "save".to_string(),
                     format!("save {}", npc_name),
                     StorageCommand::Save {
-                        name: npc_name.into(),
+                        name: npc_name.to_owned(),
                     }
                     .into(),
                 ));
@@ -369,22 +369,20 @@ impl TutorialCommand {
             Self::Weapons { .. } => {
                 matches!(
                     command,
-                    Some(CommandType::Reference(ReferenceCommand::Spell {
-                        spell: Spell::Fireball,
-                    })),
+                    Some(CommandType::Reference(ReferenceCommand::Spell(
+                        Spell::Fireball
+                    ))),
                 )
             }
             Self::Roll { .. } => {
                 matches!(
                     command,
-                    Some(CommandType::Reference(ReferenceCommand::ItemCategory {
-                        category: ItemCategory::Weapon,
-                    })),
+                    Some(CommandType::Reference(ReferenceCommand::ItemCategory(
+                        ItemCategory::Weapon
+                    ))),
                 )
             }
-            Self::Delete { .. } => {
-                matches!(command, Some(CommandType::App(AppCommand::Roll { .. })))
-            }
+            Self::Delete { .. } => matches!(command, Some(CommandType::App(AppCommand::Roll(_)))),
             Self::AdjustTime { inn_name, .. } => {
                 if let Some(CommandType::Storage(StorageCommand::Delete { name })) = command {
                     name.eq_ci(inn_name)

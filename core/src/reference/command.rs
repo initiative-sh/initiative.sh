@@ -1,50 +1,19 @@
 use super::{Item, ItemCategory, MagicItem, Spell};
-use crate::app::{AppMeta, Runnable};
+use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
+use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use caith::Roller;
-use initiative_macros::{Autocomplete, ContextAwareParse};
+use std::borrow::Cow;
 use std::fmt;
+use std::iter::repeat;
 
-#[derive(Autocomplete, Clone, ContextAwareParse, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ReferenceCommand {
-    #[command(alias = "[spell]")]
-    #[command(autocomplete_desc = "SRD spell")]
-    #[command(syntax = "srd spell [spell]", no_default_autocomplete)]
-    Spell {
-        #[command(implements(WordList))]
-        spell: Spell,
-    },
-
-    #[command(alias = "spells")]
-    #[command(autocomplete_desc = "SRD spell list")]
-    #[command(syntax = "srd spells", no_default_autocomplete)]
+    Spell(Spell),
     Spells,
-
-    #[command(alias = "[item]")]
-    #[command(autocomplete_desc = "SRD item")]
-    #[command(syntax = "srd item [item]", no_default_autocomplete)]
-    Item {
-        #[command(implements(WordList))]
-        item: Item,
-    },
-
-    #[command(alias = "[category]")]
-    #[command(autocomplete_desc = "SRD item category")]
-    #[command(syntax = "srd item category [category]", no_default_autocomplete)]
-    ItemCategory {
-        #[command(implements(WordList))]
-        category: ItemCategory,
-    },
-
-    #[command(alias = "[item]")]
-    #[command(autocomplete_desc = "SRD magic item")]
-    #[command(syntax = "srd magic item [item]", no_default_autocomplete)]
-    MagicItem {
-        #[command(implements(WordList))]
-        item: MagicItem,
-    },
-
-    #[command(syntax = "Open Game License")]
+    Item(Item),
+    ItemCategory(ItemCategory),
+    MagicItem(MagicItem),
     OpenGameLicense,
 }
 
@@ -52,11 +21,11 @@ pub enum ReferenceCommand {
 impl Runnable for ReferenceCommand {
     async fn run(self, _input: &str, _app_meta: &mut AppMeta) -> Result<String, String> {
         let (output, name) = match self {
-            Self::Spell { spell } => (format!("{}", spell), spell.get_name()),
+            Self::Spell(spell) => (format!("{}", spell), spell.get_name()),
             Self::Spells => (Spell::get_list().to_string(), "This listing"),
-            Self::Item { item } => (format!("{}", item), item.get_name()),
-            Self::ItemCategory { category } => (format!("{}", category), "This listing"),
-            Self::MagicItem { item } => (format!("{}", item), item.get_name()),
+            Self::Item(item) => (format!("{}", item), item.get_name()),
+            Self::ItemCategory(category) => (format!("{}", category), "This listing"),
+            Self::MagicItem(magic_item) => (format!("{}", magic_item), magic_item.get_name()),
             Self::OpenGameLicense => {
                 return Ok(include_str!("../../../data/ogl-1.0a.md")
                     .trim_end()
@@ -72,16 +41,92 @@ impl Runnable for ReferenceCommand {
     }
 }
 
+#[async_trait(?Send)]
+impl ContextAwareParse for ReferenceCommand {
+    async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        let exact_match = if input.eq_ci("Open Game License") {
+            Some(Self::OpenGameLicense)
+        } else if input.eq_ci("srd spells") {
+            Some(Self::Spells)
+        } else {
+            None.or_else(|| {
+                input
+                    .strip_prefix_ci("srd spell ")
+                    .and_then(|s| s.parse().ok())
+                    .map(Self::Spell)
+            })
+            .or_else(|| {
+                input
+                    .strip_prefix_ci("srd item category ")
+                    .and_then(|s| s.parse().ok())
+                    .map(Self::ItemCategory)
+            })
+            .or_else(|| {
+                input
+                    .strip_prefix_ci("srd item ")
+                    .and_then(|s| s.parse().ok())
+                    .map(Self::Item)
+            })
+            .or_else(|| {
+                input
+                    .strip_prefix_ci("srd magic item ")
+                    .and_then(|s| s.parse().ok())
+                    .map(Self::MagicItem)
+            })
+        };
+
+        let mut fuzzy_matches = Vec::new();
+
+        if let Ok(spell) = input.parse() {
+            fuzzy_matches.push(Self::Spell(spell));
+        }
+        if let Ok(item) = input.parse() {
+            fuzzy_matches.push(Self::Item(item));
+        }
+        if let Ok(category) = input.parse() {
+            fuzzy_matches.push(Self::ItemCategory(category));
+        }
+        if let Ok(magic_item) = input.parse() {
+            fuzzy_matches.push(Self::MagicItem(magic_item));
+        }
+        if input == "spells" {
+            fuzzy_matches.push(Self::Spells);
+        }
+
+        (exact_match, fuzzy_matches)
+    }
+}
+
+#[async_trait(?Send)]
+impl Autocomplete for ReferenceCommand {
+    async fn autocomplete(
+        input: &str,
+        _app_meta: &AppMeta,
+    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+        [
+            ("Open Game License", "SRD license"),
+            ("spells", "SRD index"),
+        ]
+        .into_iter()
+        .chain(Spell::get_words().zip(repeat("SRD spell")))
+        .chain(Item::get_words().zip(repeat("SRD item")))
+        .chain(ItemCategory::get_words().zip(repeat("SRD item category")))
+        .chain(MagicItem::get_words().zip(repeat("SRD magic item")))
+        .filter(|(s, _)| s.starts_with_ci(input))
+        .take(10)
+        .map(|(a, b)| (a.into(), b.into()))
+        .collect()
+    }
+}
+
 impl fmt::Display for ReferenceCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
-            Self::Spell { spell } => write!(f, "srd spell {}", spell.get_name()),
+            Self::Spell(spell) => write!(f, "srd spell {}", spell.get_name()),
             Self::Spells => write!(f, "srd spells"),
-            Self::Item { item } => write!(f, "srd item {}", item.get_name()),
-            Self::ItemCategory { category } => {
-                write!(f, "srd item category {}", category.get_name())
-            }
-            Self::MagicItem { item } => write!(f, "srd magic item {}", item.get_name()),
+            Self::Item(item) => write!(f, "srd item {}", item.get_name()),
+            Self::ItemCategory(category) => write!(f, "srd item category {}", category.get_name()),
+            Self::MagicItem(item) => write!(f, "srd magic item {}", item.get_name()),
             Self::OpenGameLicense => write!(f, "Open Game License"),
         }
     }
@@ -149,7 +194,6 @@ fn linkify_dice(input: &str) -> String {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::app::ContextAwareParse;
     use crate::storage::NullDataStore;
     use crate::Event;
     use tokio_test::block_on;
@@ -159,17 +203,11 @@ mod test {
         let app_meta = app_meta();
 
         vec![
-            ReferenceCommand::Spell {
-                spell: Spell::Shield,
-            },
+            ReferenceCommand::Spell(Spell::Shield),
             ReferenceCommand::Spells,
-            ReferenceCommand::Item { item: Item::Shield },
-            ReferenceCommand::ItemCategory {
-                category: ItemCategory::Shields,
-            },
-            ReferenceCommand::MagicItem {
-                item: MagicItem::DeckOfManyThings,
-            },
+            ReferenceCommand::Item(Item::Shield),
+            ReferenceCommand::ItemCategory(ItemCategory::Shields),
+            ReferenceCommand::MagicItem(MagicItem::DeckOfManyThings),
             ReferenceCommand::OpenGameLicense,
         ]
         .drain(..)

@@ -4,15 +4,13 @@ use crate::utils::CaseInsensitiveStr;
 use crate::world::{Npc, NpcRelations, Place, PlaceRelations, Thing, ThingRelations};
 use crate::Uuid;
 use futures::join;
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::fmt;
-use std::mem;
 
 const RECENT_MAX_LEN: usize = 100;
 const UNDO_HISTORY_LEN: usize = 10;
 
 pub struct Repository {
-    cache: HashMap<String, CacheEntry>,
     data_store: Box<dyn DataStore>,
     data_store_enabled: bool,
     recent: VecDeque<Thing>,
@@ -88,18 +86,9 @@ pub enum KeyValue {
     Time(Option<Time>),
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct CacheEntry {
-    pub name: String,
-    pub in_journal: bool,
-    pub description: String,
-    pub subtype: &'static str,
-}
-
 impl Repository {
     pub fn new(data_store: impl DataStore + 'static) -> Self {
         Self {
-            cache: HashMap::default(),
             data_store: Box::new(data_store),
             data_store_enabled: false,
             recent: VecDeque::default(),
@@ -109,11 +98,8 @@ impl Repository {
     }
 
     pub async fn init(&mut self) {
-        if let Ok(mut things) = self.data_store.get_all_the_things().await {
+        if self.data_store.health_check().await.is_ok() {
             self.data_store_enabled = true;
-            self.cache.reserve(things.len());
-
-            things.drain(..).for_each(|thing| self.cache_insert(thing));
         } else {
             self.data_store = Box::new(MemoryDataStore::default());
         }
@@ -215,16 +201,12 @@ impl Repository {
     ) -> Result<Vec<Thing>, Error> {
         let mut things = self
             .data_store
-            .get_things_by_name_start(&name.to_string(), limit)
+            .get_things_by_name_start(name, limit)
             .await
             .map_err(|_| Error::DataStoreFailed)?;
 
         self.recent()
-            .filter(|t| {
-                t.name()
-                    .value()
-                    .map_or(false, |s| s.starts_with_ci(&name.to_string()))
-            })
+            .filter(|t| t.name().value().map_or(false, |s| s.starts_with_ci(name)))
             .take(
                 limit
                     .unwrap_or(usize::MAX)
@@ -234,44 +216,6 @@ impl Repository {
             .for_each(|t| things.push(t.clone()));
 
         Ok(things)
-    }
-
-    pub fn get_cached_by_name_start(
-        &self,
-        name: &str,
-        include_journal: bool,
-        include_recent: bool,
-    ) -> Vec<&CacheEntry> {
-        let mut result: Vec<&CacheEntry> = if name.is_empty() {
-            let iter = self.cache.values();
-            match (include_journal, include_recent) {
-                (true, true) => iter.collect(),
-                (true, false) => iter.filter(|v| v.in_journal).collect(),
-                (false, true) => iter.filter(|v| !v.in_journal).collect(),
-                (false, false) => Vec::new(),
-            }
-        } else {
-            let iter = self.cache.iter();
-            let name_lower = name.to_lowercase();
-            match (include_journal, include_recent) {
-                (true, true) => iter
-                    .filter(|(k, _)| k.starts_with(&name_lower))
-                    .map(|(_, v)| v)
-                    .collect(),
-                (true, false) => iter
-                    .filter(|(k, v)| v.in_journal && k.starts_with(&name_lower))
-                    .map(|(_, v)| v)
-                    .collect(),
-                (false, true) => iter
-                    .filter(|(k, v)| !v.in_journal && k.starts_with(&name_lower))
-                    .map(|(_, v)| v)
-                    .collect(),
-                (false, false) => Vec::new(),
-            }
-        };
-
-        result.sort_by(|a, b| a.name.cmp_ci(&b.name));
-        result
     }
 
     pub fn recent(&self) -> impl Iterator<Item = &Thing> {
@@ -308,10 +252,6 @@ impl Repository {
             Ok(None) => Err(Error::NotFound),
             Err(()) => Err(Error::DataStoreFailed),
         }
-    }
-
-    pub fn get_cached_by_name(&self, name: &str) -> Option<&CacheEntry> {
-        self.cache.get(&name.to_lowercase())
     }
 
     pub async fn modify(&mut self, change: Change) -> Result<Option<Thing>, (Change, Error)> {
@@ -531,12 +471,9 @@ impl Repository {
 
     fn push_recent(&mut self, thing: Thing) {
         while self.recent.len() >= RECENT_MAX_LEN {
-            if let Some(thing) = self.recent.pop_front() {
-                self.cache_remove(&thing);
-            }
+            self.recent.pop_front();
         }
 
-        self.cache_insert_by_ref(&thing);
         self.recent.push_back(thing);
     }
 
@@ -562,7 +499,6 @@ impl Repository {
                 Err((thing, Error::NameAlreadyExists))
             } else {
                 let name = name.to_string();
-                self.cache_insert_by_ref(&thing);
                 self.push_recent(thing);
                 Ok(name)
             }
@@ -576,7 +512,6 @@ impl Repository {
             if self.get_by_name(name).await.is_ok() {
                 Err((thing, Error::NameAlreadyExists))
             } else {
-                self.cache_insert_by_ref(&thing);
                 self.save_thing(thing).await
             }
         } else {
@@ -585,8 +520,6 @@ impl Repository {
     }
 
     async fn delete_thing_by_name(&mut self, name: &str) -> Result<Thing, Error> {
-        self.cache_remove_by_name(name);
-
         if let Some(uuid) = self
             .get_by_name(name)
             .await
@@ -608,10 +541,7 @@ impl Repository {
             self.data_store.get_thing_by_uuid(uuid).await,
             self.data_store.delete_thing_by_uuid(uuid).await,
         ) {
-            (Ok(Some(thing)), Ok(())) => {
-                self.cache_remove(&thing);
-                Ok(thing)
-            }
+            (Ok(Some(thing)), Ok(())) => Ok(thing),
             (Ok(Some(thing)), Err(())) => Err((Some(thing), Error::DataStoreFailed)),
             (Ok(None), _) => Err((None, Error::NotFound)),
             (Err(_), _) => Err((None, Error::DataStoreFailed)),
@@ -640,10 +570,7 @@ impl Repository {
         };
 
         match self.data_store.save_thing(&thing).await {
-            Ok(()) => {
-                self.cache_insert(thing);
-                Ok(uuid)
-            }
+            Ok(()) => Ok(uuid),
             Err(()) => {
                 thing.clear_uuid();
                 Err((thing, Error::DataStoreFailed))
@@ -662,7 +589,6 @@ impl Repository {
         };
 
         thing.clear_uuid();
-        self.cache_insert_by_ref(&thing);
 
         match (self.create_thing(thing).await, error) {
             (Ok(s), None) => Ok(s),
@@ -687,13 +613,7 @@ impl Repository {
                 }
 
                 match self.data_store.edit_thing(&thing).await {
-                    Ok(()) => {
-                        if let Some(name) = diff.name().value() {
-                            self.cache_remove_by_name(name);
-                        }
-                        self.cache_insert(thing);
-                        Ok(diff)
-                    }
+                    Ok(()) => Ok(diff),
                     Err(()) => Err((diff, Error::DataStoreFailed)),
                 }
             }
@@ -714,18 +634,11 @@ impl Repository {
                 }
 
                 return match self.data_store.edit_thing(&thing).await {
-                    Ok(()) => {
-                        if let Some(name) = diff.name().value() {
-                            self.cache_remove_by_name(name);
-                        }
-                        let change = Change::Edit {
-                            name: thing.name().to_string(),
-                            uuid: thing.uuid().cloned(),
-                            diff,
-                        };
-                        self.cache_insert(thing);
-                        Ok(change)
-                    }
+                    Ok(()) => Ok(Change::Edit {
+                        name: thing.name().to_string(),
+                        uuid: thing.uuid().cloned(),
+                        diff,
+                    }),
                     Err(()) => Err((diff, Error::DataStoreFailed)),
                 };
             }
@@ -737,11 +650,6 @@ impl Repository {
             thing.name().value().map_or(false, |s| s.eq_ci(name)) && thing.as_str() == diff.as_str()
         }) {
             thing.try_apply_diff(&mut diff).unwrap();
-
-            if let Some(name) = diff.name().value() {
-                self.cache_remove_by_name(name);
-            }
-            self.cache_insert_by_ref(&thing);
 
             let name = thing.name().to_string();
             let uuid = match self.save_thing(thing).await {
@@ -771,26 +679,6 @@ impl Repository {
                 },
             ))
         }
-    }
-
-    fn cache_insert(&mut self, thing: Thing) {
-        let cache_entry: CacheEntry = thing.into();
-        self.cache
-            .insert(cache_entry.name.to_lowercase(), cache_entry);
-    }
-
-    fn cache_insert_by_ref(&mut self, thing: &Thing) {
-        let cache_entry: CacheEntry = thing.into();
-        self.cache
-            .insert(cache_entry.name.to_lowercase(), cache_entry);
-    }
-
-    fn cache_remove(&mut self, thing: &Thing) {
-        self.cache_remove_by_name(&thing.name().to_string());
-    }
-
-    fn cache_remove_by_name(&mut self, name: &str) {
-        self.cache.remove(&name.to_lowercase());
     }
 }
 
@@ -894,34 +782,6 @@ impl fmt::Debug for Repository {
     }
 }
 
-impl From<&Thing> for CacheEntry {
-    fn from(input: &Thing) -> CacheEntry {
-        CacheEntry {
-            description: input.display_description().to_string(),
-            in_journal: input.uuid().is_some(),
-            subtype: input.as_str(),
-            name: input.name().to_string(),
-        }
-    }
-}
-
-impl From<Thing> for CacheEntry {
-    fn from(input: Thing) -> CacheEntry {
-        CacheEntry {
-            description: input.display_description().to_string(),
-            in_journal: input.uuid().is_some(),
-            subtype: input.as_str(),
-            name: match input {
-                Thing::Npc(npc) => npc.name,
-                Thing::Place(place) => place.name,
-            }
-            .value_mut()
-            .map(mem::take)
-            .unwrap_or_default(),
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -951,15 +811,6 @@ mod test {
                 .into(),
             );
             assert_eq!(i + 1, repository.recent.len());
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: format!("Thing {}", i),
-                    in_journal: false,
-                    description: "person".to_string(),
-                    subtype: "character",
-                }),
-                repository.get_cached_by_name(&format!("THING {}", i)),
-            );
         });
 
         assert_eq!(
@@ -968,16 +819,6 @@ mod test {
                 .recent()
                 .next()
                 .and_then(|thing| thing.name().value()),
-        );
-
-        assert_eq!(
-            Some(&CacheEntry {
-                name: "Thing 0".to_string(),
-                in_journal: false,
-                description: "person".to_string(),
-                subtype: "character",
-            }),
-            repository.get_cached_by_name("THING 0"),
         );
 
         repository.push_recent(
@@ -997,8 +838,6 @@ mod test {
                 .and_then(|thing| thing.name().value()),
         );
 
-        assert_eq!(None, repository.get_cached_by_name("thing 0"));
-
         assert_eq!(
             Some(&"The Cat in the Hat".to_string()),
             repository
@@ -1006,143 +845,6 @@ mod test {
                 .last()
                 .and_then(|thing| thing.name().value()),
         );
-    }
-
-    #[test]
-    fn get_cached_by_name_test() {
-        let repo = repo();
-
-        assert_eq!(
-            Some(&CacheEntry {
-                name: "Greece".to_string(),
-                in_journal: true,
-                description: "place".to_string(),
-                subtype: "place",
-            }),
-            repo.get_cached_by_name("GREECE"),
-        );
-
-        {
-            assert_eq!(
-                vec![
-                    &CacheEntry {
-                        name: "Greece".to_string(),
-                        in_journal: true,
-                        description: "place".to_string(),
-                        subtype: "place",
-                    },
-                    &CacheEntry {
-                        name: "Odysseus".to_string(),
-                        in_journal: false,
-                        description: "person".to_string(),
-                        subtype: "character",
-                    },
-                    &CacheEntry {
-                        name: "Olympus".to_string(),
-                        in_journal: true,
-                        description: "place".to_string(),
-                        subtype: "place",
-                    },
-                    &CacheEntry {
-                        name: "River Styx".to_string(),
-                        in_journal: true,
-                        description: "place".to_string(),
-                        subtype: "place",
-                    },
-                    &CacheEntry {
-                        name: "Thessaly".to_string(),
-                        in_journal: true,
-                        description: "place".to_string(),
-                        subtype: "place",
-                    },
-                ],
-                repo.get_cached_by_name_start("", true, true),
-            );
-
-            assert_eq!(
-                vec![
-                    &CacheEntry {
-                        name: "Greece".to_string(),
-                        in_journal: true,
-                        description: "place".to_string(),
-                        subtype: "place",
-                    },
-                    &CacheEntry {
-                        name: "Olympus".to_string(),
-                        in_journal: true,
-                        description: "place".to_string(),
-                        subtype: "place",
-                    },
-                    &CacheEntry {
-                        name: "River Styx".to_string(),
-                        in_journal: true,
-                        description: "place".to_string(),
-                        subtype: "place",
-                    },
-                    &CacheEntry {
-                        name: "Thessaly".to_string(),
-                        in_journal: true,
-                        description: "place".to_string(),
-                        subtype: "place",
-                    },
-                ],
-                repo.get_cached_by_name_start("", true, false),
-            );
-
-            assert_eq!(
-                vec![&CacheEntry {
-                    name: "Odysseus".to_string(),
-                    in_journal: false,
-                    description: "person".to_string(),
-                    subtype: "character",
-                }],
-                repo.get_cached_by_name_start("", false, true),
-            );
-
-            assert!(repo.get_cached_by_name_start("", false, false).is_empty());
-        }
-
-        {
-            assert_eq!(
-                vec![
-                    &CacheEntry {
-                        name: "Odysseus".to_string(),
-                        in_journal: false,
-                        description: "person".to_string(),
-                        subtype: "character",
-                    },
-                    &CacheEntry {
-                        name: "Olympus".to_string(),
-                        in_journal: true,
-                        description: "place".to_string(),
-                        subtype: "place",
-                    },
-                ],
-                repo.get_cached_by_name_start("o", true, true),
-            );
-
-            assert_eq!(
-                vec![&CacheEntry {
-                    name: "Olympus".to_string(),
-                    in_journal: true,
-                    description: "place".to_string(),
-                    subtype: "place",
-                }],
-                repo.get_cached_by_name_start("o", true, false),
-            );
-
-            assert_eq!(
-                vec![&CacheEntry {
-                    name: "Odysseus".to_string(),
-                    in_journal: false,
-                    description: "person".to_string(),
-                    subtype: "character",
-                },],
-                repo.get_cached_by_name_start("o", false, true),
-            );
-
-            assert!(repo.get_cached_by_name_start("o", false, false).is_empty());
-        }
     }
 
     #[test]
@@ -1218,7 +920,6 @@ mod test {
             assert_eq!("deleting Olympus", result.display_undo().to_string());
             assert_eq!(3, block_on(repo.journal()).unwrap().len());
             assert_eq!(3, block_on(data_store.get_all_the_things()).unwrap().len());
-            assert_eq!(None, repo.get_cached_by_name("olympus"));
         }
 
         {
@@ -1234,21 +935,11 @@ mod test {
             assert!(block_on(repo.get_by_uuid(&OLYMPUS_UUID)).is_ok());
             assert!(block_on(repo.get_by_name("Olympus")).is_ok());
             assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Olympus".to_string(),
-                    in_journal: true,
-                    description: "place".to_string(),
-                    subtype: "place",
-                }),
-                repo.get_cached_by_name("olympus"),
-            );
         }
 
         {
             assert_eq!(Some(Ok(None)), block_on(repo.redo()));
             assert_eq!(Err(Error::NotFound), block_on(repo.get_by_name("Olympus")));
-            assert_eq!(None, repo.get_cached_by_name("olympus"));
         }
     }
 
@@ -1278,7 +969,6 @@ mod test {
             );
             assert_eq!("deleting Odysseus", result.display_undo().to_string());
             assert_eq!(0, repo.recent().count());
-            assert_eq!(None, repo.get_cached_by_name("odysseus"));
         }
 
         {
@@ -1299,21 +989,6 @@ mod test {
             );
             assert!(block_on(repo.get_by_name("odysseus")).is_ok());
             assert_eq!(1, repo.recent().count());
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Odysseus".to_string(),
-                    in_journal: false,
-                    description: "person".to_string(),
-                    subtype: "character",
-                }),
-                repo.get_cached_by_name("odysseus"),
-            );
-        }
-
-        {
-            assert_eq!(Some(Ok(None)), block_on(repo.redo()));
-            assert_eq!(0, repo.recent().count());
-            assert_eq!(None, repo.get_cached_by_name("odysseus"));
         }
     }
 
@@ -1345,7 +1020,6 @@ mod test {
             assert_eq!("deleting Olympus", result.display_undo().to_string());
             assert_eq!(3, block_on(repo.journal()).unwrap().len());
             assert_eq!(3, block_on(data_store.get_all_the_things()).unwrap().len());
-            assert_eq!(None, repo.get_cached_by_name("olympus"));
         }
 
         {
@@ -1367,15 +1041,6 @@ mod test {
             assert!(block_on(repo.get_by_uuid(&OLYMPUS_UUID)).is_ok());
             assert_eq!(4, block_on(repo.journal()).unwrap().len());
             assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Olympus".to_string(),
-                    in_journal: true,
-                    description: "place".to_string(),
-                    subtype: "place",
-                }),
-                repo.get_cached_by_name("olympus"),
-            );
         }
     }
 
@@ -1447,17 +1112,6 @@ mod test {
                 .unwrap()
                 .iter()
                 .any(|t| t.name().value().map_or(false, |s| s == "Nobody")));
-
-            assert_eq!(None, repo.get_cached_by_name("odysseus"));
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Nobody".to_string(),
-                    in_journal: true,
-                    description: "human".to_string(),
-                    subtype: "character",
-                }),
-                repo.get_cached_by_name("nobody"),
-            );
         }
 
         {
@@ -1475,17 +1129,6 @@ mod test {
             assert_eq!(4, block_on(repo.journal()).unwrap().len());
             assert_eq!(1, repo.recent().count());
             assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
-
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Odysseus".to_string(),
-                    in_journal: false,
-                    description: "person".to_string(),
-                    subtype: "character",
-                }),
-                repo.get_cached_by_name("odysseus"),
-            );
-            assert_eq!(None, repo.get_cached_by_name("nobody"));
         }
 
         {
@@ -1493,17 +1136,6 @@ mod test {
             let uuid = thing.uuid().unwrap();
             assert!(block_on(repo.get_by_name("Nobody")).is_ok());
             assert!(block_on(repo.get_by_uuid(&uuid)).is_ok());
-
-            assert_eq!(None, repo.get_cached_by_name("odysseus"));
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Nobody".to_string(),
-                    in_journal: true,
-                    description: "human".to_string(),
-                    subtype: "character",
-                }),
-                repo.get_cached_by_name("nobody"),
-            );
         }
     }
 
@@ -1731,17 +1363,6 @@ mod test {
                 .unwrap()
                 .iter()
                 .any(|t| t.name().value().map_or(false, |s| s == "Hades")));
-
-            assert_eq!(None, repo.get_cached_by_name("olympus"));
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Hades".to_string(),
-                    in_journal: true,
-                    description: "place".to_string(),
-                    subtype: "place",
-                }),
-                repo.get_cached_by_name("hades"),
-            );
         }
 
         {
@@ -1759,17 +1380,6 @@ mod test {
                 .unwrap()
                 .iter()
                 .any(|t| t.name().value().map_or(false, |s| s == "Olympus")));
-
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Olympus".to_string(),
-                    in_journal: true,
-                    description: "place".to_string(),
-                    subtype: "place",
-                }),
-                repo.get_cached_by_name("olympus"),
-            );
-            assert_eq!(None, repo.get_cached_by_name("hades"));
         }
 
         {
@@ -1783,17 +1393,6 @@ mod test {
                     .unwrap(),
             );
             assert!(block_on(repo.get_by_name("HADES")).is_ok());
-
-            assert_eq!(None, repo.get_cached_by_name("olympus"));
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Hades".to_string(),
-                    in_journal: true,
-                    description: "place".to_string(),
-                    subtype: "place",
-                }),
-                repo.get_cached_by_name("hades"),
-            );
         }
     }
 
@@ -1903,17 +1502,6 @@ mod test {
                 .unwrap()
                 .iter()
                 .any(|t| t.name().value().map_or(false, |s| s == "Hades")));
-
-            assert_eq!(None, repo.get_cached_by_name("olympus"));
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Hades".to_string(),
-                    in_journal: true,
-                    description: "place".to_string(),
-                    subtype: "place",
-                }),
-                repo.get_cached_by_name("hades"),
-            );
         }
 
         {
@@ -1932,17 +1520,6 @@ mod test {
                 .unwrap()
                 .iter()
                 .any(|t| t.name().value().map_or(false, |s| s == "Olympus")));
-
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Olympus".to_string(),
-                    in_journal: true,
-                    description: "place".to_string(),
-                    subtype: "place",
-                }),
-                repo.get_cached_by_name("olympus"),
-            );
-            assert_eq!(None, repo.get_cached_by_name("hades"));
         }
 
         {
@@ -1956,17 +1533,6 @@ mod test {
                     .unwrap(),
             );
             assert!(block_on(repo.get_by_name("Hades")).is_ok());
-
-            assert_eq!(None, repo.get_cached_by_name("olympus"));
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Hades".to_string(),
-                    in_journal: true,
-                    description: "place".to_string(),
-                    subtype: "place",
-                }),
-                repo.get_cached_by_name("hades"),
-            );
         }
     }
 
@@ -2076,17 +1642,6 @@ mod test {
             assert_eq!(2, repo.recent().count());
             assert_eq!(3, block_on(repo.journal()).unwrap().len());
             assert_eq!(3, block_on(data_store.get_all_the_things()).unwrap().len());
-
-            assert_eq!(None, repo.get_cached_by_name("olympus"));
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Hades".to_string(),
-                    in_journal: false,
-                    description: "place".to_string(),
-                    subtype: "place",
-                }),
-                repo.get_cached_by_name("hades"),
-            );
         }
 
         {
@@ -2101,17 +1656,6 @@ mod test {
                 .unwrap()
                 .iter()
                 .any(|t| t.name().value().map_or(false, |s| s == "Olympus")));
-
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Olympus".to_string(),
-                    in_journal: true,
-                    description: "place".to_string(),
-                    subtype: "place",
-                }),
-                repo.get_cached_by_name("olympus"),
-            );
-            assert_eq!(None, repo.get_cached_by_name("hades"));
         }
 
         {
@@ -2126,17 +1670,6 @@ mod test {
                     .unwrap(),
             );
             assert!(block_on(repo.get_by_name("Hades")).is_ok());
-
-            assert_eq!(None, repo.get_cached_by_name("olympus"));
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Hades".to_string(),
-                    in_journal: false,
-                    description: "place".to_string(),
-                    subtype: "place",
-                }),
-                repo.get_cached_by_name("hades"),
-            );
         }
     }
 
@@ -2157,7 +1690,7 @@ mod test {
 
     #[test]
     fn change_test_edit_and_unsave_data_store_failed() {
-        let mut repo = Repository::new(TimeBombDataStore::new(8));
+        let mut repo = Repository::new(TimeBombDataStore::new(7));
         populate_repo(&mut repo);
 
         let change = Change::EditAndUnsave {
@@ -2217,16 +1750,6 @@ mod test {
             );
             assert_eq!("creating Odysseus", result.display_undo().to_string());
             assert_eq!(1, repo.recent().count());
-
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Odysseus".to_string(),
-                    in_journal: false,
-                    description: "person".to_string(),
-                    subtype: "character",
-                }),
-                repo.get_cached_by_name("odysseus"),
-            );
         }
 
         {
@@ -2243,8 +1766,6 @@ mod test {
                 repo.redo_change,
             );
             assert_eq!(0, repo.recent().count());
-
-            assert_eq!(None, repo.get_cached_by_name("odysseus"));
         }
     }
 
@@ -2317,16 +1838,6 @@ mod test {
             assert_eq!(5, block_on(repo.journal()).unwrap().len());
             assert_eq!(5, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(0, repo.recent().count());
-
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Odysseus".to_string(),
-                    in_journal: true,
-                    description: "person".to_string(),
-                    subtype: "character",
-                }),
-                repo.get_cached_by_name("odysseus"),
-            );
         }
 
         {
@@ -2347,16 +1858,6 @@ mod test {
             assert_eq!(4, block_on(repo.journal()).unwrap().len());
             assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(1, repo.recent().count());
-
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Odysseus".to_string(),
-                    in_journal: false,
-                    description: "person".to_string(),
-                    subtype: "character",
-                }),
-                repo.get_cached_by_name("odysseus"),
-            );
         }
     }
 
@@ -2452,16 +1953,6 @@ mod test {
             assert_eq!(3, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(2, repo.recent().count());
             assert_eq!(None, block_on(repo.get_by_name("Olympus")).unwrap().uuid());
-
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Olympus".to_string(),
-                    in_journal: false,
-                    description: "place".to_string(),
-                    subtype: "place",
-                }),
-                repo.get_cached_by_name("olympus"),
-            );
         }
 
         {
@@ -2483,16 +1974,6 @@ mod test {
             assert_eq!(4, block_on(repo.journal()).unwrap().len());
             assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(1, repo.recent().count());
-
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Olympus".to_string(),
-                    in_journal: true,
-                    description: "place".to_string(),
-                    subtype: "place",
-                }),
-                repo.get_cached_by_name("olympus"),
-            );
         }
     }
 
@@ -2532,16 +2013,6 @@ mod test {
                     .uuid()
                     .unwrap(),
             );
-
-            assert_eq!(
-                Some(&CacheEntry {
-                    name: "Odysseus".to_string(),
-                    in_journal: true,
-                    description: "person".to_string(),
-                    subtype: "character",
-                }),
-                repo.get_cached_by_name("odysseus"),
-            );
         }
 
         {
@@ -2566,8 +2037,6 @@ mod test {
             );
             assert_eq!(0, block_on(repo.journal()).unwrap().len());
             assert_eq!(0, block_on(data_store.get_all_the_things()).unwrap().len());
-
-            assert_eq!(None, repo.get_cached_by_name("odysseus"));
         }
     }
 
@@ -2836,9 +2305,7 @@ mod test {
         )
         .unwrap();
 
-        block_on(repo.init());
-
-        repo.push_recent(
+        repo.recent.push_back(
             Npc {
                 name: "Odysseus".into(),
                 location_uuid: PlaceUuid::from(STYX_UUID).into(),
@@ -2846,6 +2313,8 @@ mod test {
             }
             .into(),
         );
+
+        block_on(repo.init());
     }
 
     struct TimeBombDataStore {
