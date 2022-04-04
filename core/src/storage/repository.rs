@@ -1,7 +1,9 @@
 use crate::storage::{DataStore, MemoryDataStore};
 use crate::time::Time;
 use crate::utils::CaseInsensitiveStr;
-use crate::world::{Npc, NpcRelations, Place, PlaceRelations, Thing, ThingRelations};
+use crate::world::{
+    Npc, NpcRelations, NpcUuid, Place, PlaceRelations, PlaceUuid, Thing, ThingRelations,
+};
 use crate::Uuid;
 use futures::join;
 use std::collections::VecDeque;
@@ -22,27 +24,23 @@ pub struct Repository {
 pub enum Change {
     /// Create a new thing and store it in recent entries.
     ///
-    /// Reverse: Delete { uuid: None, .. }
+    /// Reverse: Delete { id: Id::Name }
     Create { thing: Thing },
 
     /// Create a new thing and store it in the journal.
     ///
-    /// Reverse: Delete { uuid: Some(_), .. }
+    /// Reverse: Delete { id: Id::Uuid }
     CreateAndSave { thing: Thing },
 
     /// Delete a thing from recent or journal.
     ///
     /// Reverse: Create (recent) or CreateAndSave (journal)
-    Delete { name: String, uuid: Option<Uuid> },
+    Delete { name: String, id: Id },
 
     /// Edit fields on a Thing.
     ///
     /// Reverse: Edit (already in journal) or EditAndUnsave (in recent)
-    Edit {
-        name: String,
-        uuid: Option<Uuid>,
-        diff: Thing,
-    },
+    Edit { name: String, id: Id, diff: Thing },
 
     /// Edit a Thing and move it from journal to recent. The reverse of edit with autosave.
     ///
@@ -72,6 +70,12 @@ pub enum Change {
 pub struct DisplayUndo<'a>(&'a Change);
 
 pub struct DisplayRedo<'a>(&'a Change);
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Id {
+    Name(String),
+    Uuid(Uuid),
+}
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -105,34 +109,10 @@ impl Repository {
         }
     }
 
-    pub async fn get_by_change(&self, change: &Change) -> Result<Thing, Error> {
-        let (name, uuid) = match change {
-            Change::Create { thing } | Change::CreateAndSave { thing } => {
-                if let Some(uuid) = thing.uuid() {
-                    (None, Some(uuid))
-                } else {
-                    (thing.name().value(), None)
-                }
-            }
-            Change::EditAndUnsave { uuid, .. } | Change::Unsave { uuid, .. } => (None, Some(uuid)),
-            Change::Delete {
-                uuid: Some(uuid), ..
-            }
-            | Change::Edit {
-                uuid: Some(uuid), ..
-            } => (None, Some(uuid)),
-            Change::Delete { name, .. } | Change::Edit { name, .. } | Change::Save { name } => {
-                (Some(name), None)
-            }
-            Change::SetKeyValue { .. } => (None, None),
-        };
-
-        if let Some(uuid) = uuid {
-            self.get_by_uuid(uuid).await
-        } else if let Some(name) = name {
-            self.get_by_name(name).await
-        } else {
-            Err(Error::NotFound)
+    pub async fn load(&self, id: &Id) -> Result<Thing, Error> {
+        match id {
+            Id::Name(name) => self.load_thing_by_name(name).await,
+            Id::Uuid(uuid) => self.load_thing_by_uuid(uuid).await,
         }
     }
 
@@ -145,7 +125,7 @@ impl Repository {
 
             let parent = {
                 let parent_result = if let Some(uuid) = parent_uuid.value() {
-                    self.get_by_uuid(&uuid.to_owned().into())
+                    self.load_thing_by_uuid(&uuid.to_owned().into())
                         .await
                         .and_then(|thing| thing.into_place().map_err(|_| Error::NotFound))
                 } else {
@@ -162,7 +142,7 @@ impl Repository {
             if let Some(parent) = parent {
                 let grandparent = {
                     let grandparent_result = if let Some(uuid) = parent.location_uuid.value() {
-                        self.get_by_uuid(&uuid.to_owned().into())
+                        self.load_thing_by_uuid(&uuid.to_owned().into())
                             .await
                             .and_then(|thing| thing.into_place().map_err(|_| Error::NotFound))
                     } else {
@@ -229,56 +209,32 @@ impl Repository {
             .map_err(|_| Error::DataStoreFailed)
     }
 
-    pub async fn get_by_name(&self, name: &str) -> Result<Thing, Error> {
-        let (saved_thing, recent_thing) = join!(self.data_store.get_thing_by_name(name), async {
-            self.recent()
-                .find(|t| t.name().value().map_or(false, |s| s.eq_ci(name)))
-        });
-
-        if let Some(thing) = recent_thing {
-            Ok(thing.clone())
-        } else {
-            match saved_thing {
-                Ok(Some(thing)) => Ok(thing),
-                Ok(None) => Err(Error::NotFound),
-                Err(()) => Err(Error::DataStoreFailed),
+    pub async fn modify(&mut self, change: Change) -> Result<Option<Id>, (Change, Error)> {
+        self.modify_without_undo(change).await.map(|change| {
+            let id = change.id();
+            while self.undo_history.len() >= UNDO_HISTORY_LEN {
+                self.undo_history.pop_front();
             }
-        }
+            self.undo_history.push_back(change);
+            id
+        })
     }
 
-    pub async fn get_by_uuid(&self, uuid: &Uuid) -> Result<Thing, Error> {
-        match self.data_store.get_thing_by_uuid(uuid).await {
-            Ok(Some(thing)) => Ok(thing),
-            Ok(None) => Err(Error::NotFound),
-            Err(()) => Err(Error::DataStoreFailed),
-        }
-    }
-
-    pub async fn modify(&mut self, change: Change) -> Result<Option<Thing>, (Change, Error)> {
-        let undo_change = self.modify_without_undo(change).await?;
-        let thing = self.get_by_change(&undo_change).await.ok();
-
-        while self.undo_history.len() >= UNDO_HISTORY_LEN {
-            self.undo_history.pop_front();
-        }
-        self.undo_history.push_back(undo_change);
-
-        Ok(thing)
-    }
-
-    pub async fn undo(&mut self) -> Option<Result<Option<Thing>, Error>> {
+    pub async fn undo(&mut self) -> Option<Result<Option<Id>, Error>> {
         if let Some(change) = self.undo_history.pop_back() {
-            match self.modify_without_undo(change).await {
-                Ok(redo_change) => {
-                    let thing = self.get_by_change(&redo_change).await.ok();
-                    self.redo_change = Some(redo_change);
-                    Some(Ok(thing))
-                }
-                Err((undo_change, e)) => {
-                    self.undo_history.push_back(undo_change);
-                    Some(Err(e))
-                }
-            }
+            Some(
+                self.modify_without_undo(change)
+                    .await
+                    .map(|change| {
+                        let id = change.id();
+                        self.redo_change = Some(change);
+                        id
+                    })
+                    .map_err(|(change, e)| {
+                        self.undo_history.push_back(change);
+                        e
+                    }),
+            )
         } else {
             None
         }
@@ -288,15 +244,12 @@ impl Repository {
         self.undo_history.iter().rev()
     }
 
-    pub async fn redo(&mut self) -> Option<Result<Option<Thing>, Error>> {
+    pub async fn redo(&mut self) -> Option<Result<Option<Id>, Error>> {
         if let Some(change) = self.redo_change.take() {
-            match self.modify(change).await {
-                Ok(option_thing) => Some(Ok(option_thing)),
-                Err((redo_change, e)) => {
-                    self.redo_change = Some(redo_change);
-                    Some(Err(e))
-                }
-            }
+            Some(self.modify(change).await.map_err(|(change, e)| {
+                self.redo_change = Some(change);
+                e
+            }))
         } else {
             None
         }
@@ -311,99 +264,104 @@ impl Repository {
             Change::Create { thing } => self
                 .create_thing(thing)
                 .await
-                .map(|name| Change::Delete { name, uuid: None })
+                .map(|name| Change::Delete {
+                    id: name.as_str().into(),
+                    name: name.to_owned(),
+                })
                 .map_err(|(thing, e)| (Change::Create { thing }, e)),
             Change::CreateAndSave { thing } => {
                 let name = thing.name().to_string();
                 self.create_and_save_thing(thing)
                     .await
                     .map(|uuid| Change::Delete {
+                        id: uuid.into(),
                         name,
-                        uuid: Some(uuid),
                     })
                     .map_err(|(thing, e)| (Change::CreateAndSave { thing }, e))
             }
-            Change::Delete {
-                name,
-                uuid: Some(uuid),
-            } => self
-                .delete_thing_by_uuid(&uuid)
-                .await
-                .map(|thing| Change::CreateAndSave { thing })
-                .map_err(|(_, e)| {
-                    (
-                        Change::Delete {
-                            name,
-                            uuid: Some(uuid),
-                        },
-                        e,
-                    )
-                }),
-            Change::Delete { name, uuid: None } => self
-                .delete_thing_by_name(&name)
-                .await
-                .map(|thing| {
-                    if thing.uuid().is_some() {
-                        Change::CreateAndSave { thing }
-                    } else {
-                        Change::Create { thing }
-                    }
-                })
-                .map_err(|e| (Change::Delete { name, uuid: None }, e)),
-            Change::Edit {
-                name,
-                uuid: Some(uuid),
-                diff,
-            } => match self.edit_thing_by_uuid(&uuid, diff).await {
-                Ok(diff) => Ok(Change::Edit {
-                    name: self
-                        .get_by_uuid(&uuid)
+            Change::Delete { id, name } => match id {
+                Id::Name(id_name) => self
+                    .delete_thing_by_name(&id_name)
+                    .await
+                    .map(|thing| {
+                        if thing.uuid().is_some() {
+                            Change::CreateAndSave { thing }
+                        } else {
+                            Change::Create { thing }
+                        }
+                    })
+                    .map_err(|e| {
+                        (
+                            Change::Delete {
+                                id: Id::Name(id_name),
+                                name,
+                            },
+                            e,
+                        )
+                    }),
+                Id::Uuid(uuid) => self
+                    .delete_thing_by_uuid(&uuid)
+                    .await
+                    .map(|thing| Change::CreateAndSave { thing })
+                    .map_err(|(_, e)| {
+                        (
+                            Change::Delete {
+                                id: Id::Uuid(uuid),
+                                name,
+                            },
+                            e,
+                        )
+                    }),
+            },
+            Change::Edit { name, id, diff } => match id {
+                Id::Name(id_name) => {
+                    self.edit_thing_by_name(&id_name, diff)
                         .await
-                        .map(|thing| thing.name().value().map(String::from))
-                        .unwrap_or(None)
-                        .unwrap_or(name),
-                    uuid: Some(uuid),
-                    diff,
-                }),
-                Err((diff, e)) => Err((
-                    Change::Edit {
+                        .map_err(|(diff, e)| {
+                            (
+                                Change::Edit {
+                                    id: Id::Name(id_name),
+                                    name,
+                                    diff,
+                                },
+                                e,
+                            )
+                        })
+                }
+                Id::Uuid(uuid) => match self.edit_thing_by_uuid(&uuid, diff).await {
+                    Ok(diff) => Ok(Change::Edit {
                         name: self
-                            .get_by_uuid(&uuid)
+                            .load(&Id::Uuid(uuid))
                             .await
                             .map(|thing| thing.name().value().map(String::from))
                             .unwrap_or(None)
                             .unwrap_or(name),
-                        uuid: Some(uuid),
+                        id: Id::Uuid(uuid),
                         diff,
-                    },
-                    e,
-                )),
-            },
-            Change::Edit {
-                name,
-                uuid: None,
-                diff,
-            } => self
-                .edit_thing_by_name(&name, diff)
-                .await
-                .map_err(|(diff, e)| {
-                    (
+                    }),
+                    Err((diff, e)) => Err((
                         Change::Edit {
-                            name,
-                            uuid: None,
+                            name: self
+                                .load(&Id::Uuid(uuid))
+                                .await
+                                .map(|thing| thing.name().value().map(String::from))
+                                .unwrap_or(None)
+                                .unwrap_or(name),
+                            id: Id::Uuid(uuid),
                             diff,
                         },
                         e,
-                    )
-                }),
+                    )),
+                },
+            },
             Change::EditAndUnsave { name, uuid, diff } => {
                 match self.edit_thing_by_uuid(&uuid, diff).await {
                     Ok(diff) => self
                         .unsave_thing_by_uuid(&uuid)
                         .await
                         .map(|name| Change::Edit {
+                            id: name.as_str().into(),
                             name,
-                            uuid: None,
                             diff,
                         })
                         .map_err(|(s, e)| {
@@ -418,11 +376,11 @@ impl Repository {
                     Err((diff, e)) => Err((Change::EditAndUnsave { name, uuid, diff }, e)),
                 }
             }
-            Change::Save { name } => match self.save_thing_by_name(&name).await {
+            Change::Save { name } => match self.save_thing_by_name(&name.to_lowercase()).await {
                 Ok(uuid) => Ok(Change::Unsave {
                     uuid,
                     name: self
-                        .get_by_uuid(&uuid)
+                        .load_thing_by_uuid(&uuid)
                         .await
                         .map(|t| t.name().value().map(String::from))
                         .unwrap_or(None)
@@ -495,7 +453,7 @@ impl Repository {
 
     async fn create_thing(&mut self, thing: Thing) -> Result<String, (Thing, Error)> {
         if let Some(name) = thing.name().value() {
-            if self.get_by_name(name).await.is_ok() {
+            if self.load_thing_by_name(name).await.is_ok() {
                 Err((thing, Error::NameAlreadyExists))
             } else {
                 let name = name.to_string();
@@ -509,7 +467,7 @@ impl Repository {
 
     async fn create_and_save_thing(&mut self, thing: Thing) -> Result<Uuid, (Thing, Error)> {
         if let Some(name) = thing.name().value() {
-            if self.get_by_name(name).await.is_ok() {
+            if self.load_thing_by_name(name).await.is_ok() {
                 Err((thing, Error::NameAlreadyExists))
             } else {
                 self.save_thing(thing).await
@@ -520,15 +478,17 @@ impl Repository {
     }
 
     async fn delete_thing_by_name(&mut self, name: &str) -> Result<Thing, Error> {
+        let name_matches = |s: &String| s.to_lowercase() == name;
+
         if let Some(uuid) = self
-            .get_by_name(name)
+            .load_thing_by_name(name)
             .await
             .ok()
             .and_then(|t| t.uuid().cloned())
         {
             self.delete_thing_by_uuid(&uuid).await.map_err(|(_, e)| e)
         } else if let Some(thing) =
-            self.take_recent(|t| t.name().value().map_or(false, |s| s.eq_ci(name)))
+            self.take_recent(|t| t.name().value().map_or(false, name_matches))
         {
             Ok(thing)
         } else {
@@ -548,8 +508,34 @@ impl Repository {
         }
     }
 
+    async fn load_thing_by_name(&self, name: &str) -> Result<Thing, Error> {
+        let (saved_thing, recent_thing) = join!(self.data_store.get_thing_by_name(name), async {
+            self.recent()
+                .find(|t| t.name().value().map_or(false, |s| s.eq_ci(name)))
+        });
+
+        if let Some(thing) = recent_thing {
+            Ok(thing.clone())
+        } else {
+            match saved_thing {
+                Ok(Some(thing)) => Ok(thing),
+                Ok(None) => Err(Error::NotFound),
+                Err(()) => Err(Error::DataStoreFailed),
+            }
+        }
+    }
+
+    async fn load_thing_by_uuid(&self, uuid: &Uuid) -> Result<Thing, Error> {
+        match self.data_store.get_thing_by_uuid(uuid).await {
+            Ok(Some(thing)) => Ok(thing),
+            Ok(None) => Err(Error::NotFound),
+            Err(()) => Err(Error::DataStoreFailed),
+        }
+    }
+
     async fn save_thing_by_name(&mut self, name: &str) -> Result<Uuid, Error> {
-        if let Some(thing) = self.take_recent(|t| t.name().value().map_or(false, |s| s.eq_ci(name)))
+        if let Some(thing) =
+            self.take_recent(|t| t.name().value().map_or(false, |s| s.to_lowercase() == name))
         {
             self.save_thing(thing).await.map_err(|(thing, e)| {
                 self.push_recent(thing);
@@ -636,7 +622,7 @@ impl Repository {
                 return match self.data_store.edit_thing(&thing).await {
                     Ok(()) => Ok(Change::Edit {
                         name: thing.name().to_string(),
-                        uuid: thing.uuid().cloned(),
+                        id: thing.uuid().unwrap().to_owned().into(),
                         diff,
                     }),
                     Err(()) => Err((diff, Error::DataStoreFailed)),
@@ -647,7 +633,11 @@ impl Repository {
         };
 
         if let Some(mut thing) = self.take_recent(|thing| {
-            thing.name().value().map_or(false, |s| s.eq_ci(name)) && thing.as_str() == diff.as_str()
+            thing
+                .name()
+                .value()
+                .map_or(false, |s| s.to_lowercase() == name)
+                && thing.as_str() == diff.as_str()
         }) {
             thing.try_apply_diff(&mut diff).unwrap();
 
@@ -657,8 +647,8 @@ impl Repository {
                 Err((thing, Error::DataStoreFailed)) => {
                     self.push_recent(thing);
                     return Ok(Change::Edit {
+                        id: name.as_str().into(),
                         name,
-                        uuid: None,
                         diff,
                     });
                 }
@@ -728,6 +718,22 @@ impl Change {
             Self::SetKeyValue { key_value } => key_value.key_raw().to_string(),
         }
     }
+
+    pub fn id(&self) -> Option<Id> {
+        let uuid = match self {
+            Change::Create { thing } | Change::CreateAndSave { thing } => thing.uuid(),
+            Change::Delete { id, .. } | Change::Edit { id, .. } => return Some(id.to_owned()),
+            Change::Unsave { uuid, .. } | Change::EditAndUnsave { uuid, .. } => Some(uuid),
+            Change::Save { .. } => None,
+            Change::SetKeyValue { .. } => return None,
+        };
+
+        Some(if let Some(uuid) = uuid {
+            Id::Uuid(uuid.to_owned())
+        } else {
+            self.name().as_str().into()
+        })
+    }
 }
 
 impl<'a> fmt::Display for DisplayUndo<'a> {
@@ -772,6 +778,36 @@ impl<'a> fmt::Display for DisplayRedo<'a> {
     }
 }
 
+impl From<Uuid> for Id {
+    fn from(input: Uuid) -> Self {
+        Id::Uuid(input)
+    }
+}
+
+impl From<NpcUuid> for Id {
+    fn from(input: NpcUuid) -> Self {
+        Uuid::from(input).into()
+    }
+}
+
+impl From<PlaceUuid> for Id {
+    fn from(input: PlaceUuid) -> Self {
+        Uuid::from(input).into()
+    }
+}
+
+impl From<&String> for Id {
+    fn from(input: &String) -> Self {
+        input.as_str().into()
+    }
+}
+
+impl From<&str> for Id {
+    fn from(input: &str) -> Self {
+        Id::Name(input.to_lowercase())
+    }
+}
+
 impl fmt::Debug for Repository {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -787,7 +823,7 @@ mod test {
     use super::*;
     use crate::storage::data_store::{MemoryDataStore, NullDataStore};
     use crate::world::npc::{Npc, Species};
-    use crate::world::{Place, PlaceUuid};
+    use crate::world::Place;
     use async_trait::async_trait;
     use std::cell::RefCell;
     use std::rc::Rc;
@@ -855,10 +891,10 @@ mod test {
     }
 
     #[test]
-    fn get_by_name_test_from_recent() {
+    fn load_test_from_recent_by_name() {
         assert_eq!(
             "Odysseus",
-            block_on(repo().get_by_name("ODYSSEUS"))
+            block_on(repo().load(&"ODYSSEUS".into()))
                 .map(|thing| thing.name().value().map(String::from))
                 .unwrap()
                 .unwrap(),
@@ -866,10 +902,10 @@ mod test {
     }
 
     #[test]
-    fn get_by_name_test_from_journal() {
+    fn load_test_from_journal_by_name() {
         assert_eq!(
             "Olympus",
-            block_on(repo().get_by_name("OLYMPUS"))
+            block_on(repo().load(&"OLYMPUS".into()))
                 .map(|thing| thing.name().value().map(String::from))
                 .unwrap()
                 .unwrap(),
@@ -877,15 +913,18 @@ mod test {
     }
 
     #[test]
-    fn get_by_name_test_not_found() {
-        assert_eq!(Err(Error::NotFound), block_on(repo().get_by_name("NOBODY")));
+    fn load_test_not_found() {
+        assert_eq!(
+            Err(Error::NotFound),
+            block_on(repo().load(&"NOBODY".into())),
+        );
     }
 
     #[test]
-    fn get_by_uuid_test_from_journal() {
+    fn load_test_by_uuid() {
         assert_eq!(
             "Olympus",
-            block_on(repo().get_by_uuid(&OLYMPUS_UUID))
+            block_on(repo().load(&OLYMPUS_UUID.into()))
                 .map(|thing| thing.name().value().map(String::from))
                 .unwrap()
                 .unwrap(),
@@ -896,13 +935,16 @@ mod test {
     fn change_test_delete_by_name_from_journal_success() {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::Delete {
+            id: "OLYMPUS".into(),
             name: "Olympus".to_string(),
-            uuid: None,
         };
         assert_eq!("deleting Olympus", change.display_redo().to_string());
 
         {
-            assert_eq!(Ok(None), block_on(repo.modify(change)));
+            assert_eq!(
+                Id::Uuid(OLYMPUS_UUID),
+                block_on(repo.modify(change)).unwrap().unwrap(),
+            );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -924,22 +966,20 @@ mod test {
 
         {
             assert_eq!(
-                &OLYMPUS_UUID,
-                block_on(repo.undo())
-                    .unwrap()
-                    .unwrap()
-                    .unwrap()
-                    .uuid()
-                    .unwrap(),
+                Id::Uuid(OLYMPUS_UUID),
+                block_on(repo.undo()).unwrap().unwrap().unwrap(),
             );
-            assert!(block_on(repo.get_by_uuid(&OLYMPUS_UUID)).is_ok());
-            assert!(block_on(repo.get_by_name("Olympus")).is_ok());
+            assert!(block_on(repo.load(&OLYMPUS_UUID.into())).is_ok());
+            assert!(block_on(repo.load(&"Olympus".into())).is_ok());
             assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
         {
-            assert_eq!(Some(Ok(None)), block_on(repo.redo()));
-            assert_eq!(Err(Error::NotFound), block_on(repo.get_by_name("Olympus")));
+            assert_eq!(
+                Id::Uuid(OLYMPUS_UUID),
+                block_on(repo.redo()).unwrap().unwrap().unwrap(),
+            );
+            assert_eq!(Err(Error::NotFound), block_on(repo.load(&"Olympus".into())));
         }
     }
 
@@ -947,13 +987,16 @@ mod test {
     fn change_test_delete_by_name_from_recent_success() {
         let mut repo = repo();
         let change = Change::Delete {
+            id: "ODYSSEUS".into(),
             name: "Odysseus".to_string(),
-            uuid: None,
         };
         assert_eq!("deleting Odysseus", change.display_redo().to_string());
 
         {
-            assert_eq!(Ok(None), block_on(repo.modify(change)));
+            assert_eq!(
+                Id::from("Odysseus"),
+                block_on(repo.modify(change)).unwrap().unwrap(),
+            );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -972,22 +1015,16 @@ mod test {
         }
 
         {
-            match block_on(repo.undo()) {
-                Some(Ok(Some(Thing::Npc(npc)))) => {
-                    assert!(npc.uuid.is_none());
-                    assert_eq!("Odysseus", npc.name.value().unwrap());
-                }
-                v => panic!("{:?}", v),
-            }
+            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
 
             assert_eq!(
                 Some(Change::Delete {
+                    id: "odysseus".into(),
                     name: "Odysseus".to_string(),
-                    uuid: None,
                 }),
                 repo.redo_change,
             );
-            assert!(block_on(repo.get_by_name("odysseus")).is_ok());
+            assert!(block_on(repo.load(&"odysseus".into())).is_ok());
             assert_eq!(1, repo.recent().count());
         }
     }
@@ -996,13 +1033,16 @@ mod test {
     fn change_test_delete_by_uuid_success() {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::Delete {
+            id: OLYMPUS_UUID.into(),
             name: "olympus".to_string(),
-            uuid: Some(OLYMPUS_UUID),
         };
         assert_eq!("deleting olympus", change.display_redo().to_string());
 
         {
-            assert_eq!(Ok(None), block_on(repo.modify(change)));
+            assert_eq!(
+                Id::Uuid(OLYMPUS_UUID),
+                block_on(repo.modify(change)).unwrap().unwrap(),
+            );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
@@ -1023,22 +1063,16 @@ mod test {
         }
 
         {
-            match block_on(repo.undo()) {
-                Some(Ok(Some(Thing::Place(place)))) => {
-                    assert_eq!(Some(PlaceUuid::from(OLYMPUS_UUID)), place.uuid);
-                    assert_eq!("Olympus", place.name.value().unwrap());
-                }
-                v => panic!("{:?}", v),
-            }
+            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
 
             assert_eq!(
                 Some(Change::Delete {
+                    id: OLYMPUS_UUID.into(),
                     name: "Olympus".to_string(),
-                    uuid: Some(OLYMPUS_UUID),
                 }),
                 repo.redo_change,
             );
-            assert!(block_on(repo.get_by_uuid(&OLYMPUS_UUID)).is_ok());
+            assert!(block_on(repo.load(&OLYMPUS_UUID.into())).is_ok());
             assert_eq!(4, block_on(repo.journal()).unwrap().len());
             assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
         }
@@ -1047,8 +1081,8 @@ mod test {
     #[test]
     fn change_test_delete_by_uuid_not_found() {
         let change = Change::Delete {
+            id: Uuid::nil().into(),
             name: "Nobody".to_string(),
-            uuid: Some(Uuid::nil()),
         };
 
         let result = block_on(repo().modify(change.clone())).unwrap_err();
@@ -1059,8 +1093,8 @@ mod test {
     #[test]
     fn change_test_delete_by_uuid_data_store_failed() {
         let change = Change::Delete {
+            id: OLYMPUS_UUID.into(),
             name: "Olympus".to_string(),
-            uuid: Some(OLYMPUS_UUID),
         };
 
         let result = block_on(null_repo().modify(change.clone())).unwrap_err();
@@ -1072,8 +1106,8 @@ mod test {
     fn change_test_edit_by_name_from_recent_success() {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::Edit {
+            id: "ODYSSEUS".into(),
             name: "Odysseus".into(),
-            uuid: None,
             diff: Npc {
                 name: "Nobody".into(),
                 species: Species::Human.into(),
@@ -1083,15 +1117,13 @@ mod test {
         };
         assert_eq!("editing Odysseus", change.display_redo().to_string());
 
-        {
-            let thing = block_on(repo.modify(change)).unwrap().unwrap();
-            let uuid = thing.uuid().unwrap();
+        if let Id::Uuid(uuid) = block_on(repo.modify(change)).unwrap().unwrap() {
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
                 &Change::EditAndUnsave {
                     name: "Nobody".into(),
-                    uuid: *uuid,
+                    uuid,
                     diff: Npc {
                         name: "Odysseus".into(),
                         species: None.into(),
@@ -1102,9 +1134,9 @@ mod test {
                 result,
             );
 
-            assert!(block_on(repo.get_by_uuid(uuid)).is_ok());
+            assert!(block_on(repo.load(&uuid.to_owned().into())).is_ok());
             assert_eq!("editing Nobody", result.display_undo().to_string());
-            assert!(block_on(repo.get_by_name("Nobody")).is_ok());
+            assert!(block_on(repo.load(&"Nobody".into())).is_ok());
             assert_eq!(5, block_on(repo.journal()).unwrap().len());
             assert_eq!(0, repo.recent().count());
             assert_eq!(5, block_on(data_store.get_all_the_things()).unwrap().len());
@@ -1112,30 +1144,26 @@ mod test {
                 .unwrap()
                 .iter()
                 .any(|t| t.name().value().map_or(false, |s| s == "Nobody")));
+        } else {
+            panic!();
         }
 
         {
             assert_eq!(
-                "Odysseus",
-                block_on(repo.undo())
-                    .unwrap()
-                    .unwrap()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap(),
+                Id::from("ODYSSEUS"),
+                block_on(repo.undo()).unwrap().unwrap().unwrap(),
             );
-            assert!(block_on(repo.get_by_name("Odysseus")).is_ok());
+            assert!(block_on(repo.load(&"Odysseus".into())).is_ok());
             assert_eq!(4, block_on(repo.journal()).unwrap().len());
             assert_eq!(1, repo.recent().count());
             assert_eq!(4, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
-        {
-            let thing = block_on(repo.redo()).unwrap().unwrap().unwrap();
-            let uuid = thing.uuid().unwrap();
-            assert!(block_on(repo.get_by_name("Nobody")).is_ok());
-            assert!(block_on(repo.get_by_uuid(&uuid)).is_ok());
+        if let Id::Uuid(uuid) = block_on(repo.redo()).unwrap().unwrap().unwrap() {
+            assert!(block_on(repo.load(&"Nobody".into())).is_ok());
+            assert!(block_on(repo.load(&uuid.into())).is_ok());
+        } else {
+            panic!();
         }
     }
 
@@ -1143,8 +1171,8 @@ mod test {
     fn change_test_edit_by_name_from_recent_wrong_type() {
         let mut repo = repo();
         let change = Change::Edit {
+            id: "ODYSSEUS".into(),
             name: "Odysseus".into(),
-            uuid: None,
             diff: Place::default().into(),
         };
 
@@ -1154,7 +1182,7 @@ mod test {
         );
         assert_eq!(1, repo.recent().count());
         assert_eq!(4, block_on(repo.journal()).unwrap().len());
-        assert!(block_on(repo.get_by_name("Odysseus")).is_ok());
+        assert!(block_on(repo.load(&"Odysseus".into())).is_ok());
     }
 
     #[test]
@@ -1162,8 +1190,8 @@ mod test {
         let mut repo = repo();
         repo.data_store = Box::new(NullDataStore::default());
         let change = Change::Edit {
+            id: "ODYSSEUS".into(),
             name: "Odysseus".into(),
-            uuid: None,
             diff: Npc {
                 species: Species::Human.into(),
                 ..Default::default()
@@ -1172,21 +1200,13 @@ mod test {
         };
 
         {
-            assert_eq!(
-                "Odysseus",
-                block_on(repo.modify(change))
-                    .unwrap()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap()
-            );
+            assert_eq!(Ok(Some("Odysseus".into())), block_on(repo.modify(change)));
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
                 &Change::Edit {
+                    id: "ODYSSEUS".into(),
                     name: "Odysseus".into(),
-                    uuid: None,
                     diff: Npc {
                         species: None.into(),
                         ..Default::default()
@@ -1207,14 +1227,8 @@ mod test {
 
         {
             assert_eq!(
-                "Odysseus",
-                block_on(repo.undo())
-                    .unwrap()
-                    .unwrap()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap(),
+                Id::from("ODYSSEUS"),
+                block_on(repo.undo()).unwrap().unwrap().unwrap(),
             );
             assert_eq!(
                 Some(false),
@@ -1227,14 +1241,8 @@ mod test {
 
         {
             assert_eq!(
-                "Odysseus",
-                block_on(repo.redo())
-                    .unwrap()
-                    .unwrap()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap(),
+                Id::from("ODYSSEUS"),
+                block_on(repo.redo()).unwrap().unwrap().unwrap(),
             );
             assert_eq!(
                 Some(&Species::Human),
@@ -1251,8 +1259,8 @@ mod test {
         let mut repo = repo();
         repo.data_store = Box::new(NullDataStore::default());
         let change = Change::Edit {
+            id: "ODYSSEUS".into(),
             name: "Odysseus".into(),
-            uuid: None,
             diff: Npc {
                 name: "Nobody".into(),
                 ..Default::default()
@@ -1261,21 +1269,13 @@ mod test {
         };
 
         {
-            assert_eq!(
-                "Nobody",
-                block_on(repo.modify(change))
-                    .unwrap()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap()
-            );
+            assert_eq!(Ok(Some("NOBODY".into())), block_on(repo.modify(change)));
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
                 &Change::Edit {
+                    id: "NOBODY".into(),
                     name: "Nobody".into(),
-                    uuid: None,
                     diff: Npc {
                         name: "Odysseus".into(),
                         ..Default::default()
@@ -1290,14 +1290,8 @@ mod test {
 
         {
             assert_eq!(
-                "Odysseus",
-                block_on(repo.undo())
-                    .unwrap()
-                    .unwrap()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap(),
+                Id::from("ODYSSEUS"),
+                block_on(repo.undo()).unwrap().unwrap().unwrap(),
             );
 
             assert!(repo.recent().any(|t| t.name().to_string() == "Odysseus"));
@@ -1305,14 +1299,8 @@ mod test {
 
         {
             assert_eq!(
-                "Nobody",
-                block_on(repo.redo())
-                    .unwrap()
-                    .unwrap()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap(),
+                Id::from("NOBODY"),
+                block_on(repo.redo()).unwrap().unwrap().unwrap(),
             );
             assert!(repo.recent().any(|t| t.name().to_string() == "Nobody"));
         }
@@ -1322,8 +1310,8 @@ mod test {
     fn change_test_edit_by_name_from_journal_success() {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::Edit {
+            id: "OLYMPUS".into(),
             name: "Olympus".into(),
-            uuid: None,
             diff: Place {
                 name: "Hades".into(),
                 description: "This really is hell!".into(),
@@ -1335,19 +1323,15 @@ mod test {
 
         {
             assert_eq!(
-                &OLYMPUS_UUID,
-                block_on(repo.modify(change))
-                    .unwrap()
-                    .unwrap()
-                    .uuid()
-                    .unwrap(),
+                Id::Uuid(OLYMPUS_UUID),
+                block_on(repo.modify(change)).unwrap().unwrap(),
             );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
                 &Change::Edit {
+                    id: OLYMPUS_UUID.into(),
                     name: "Hades".into(),
-                    uuid: Some(OLYMPUS_UUID),
                     diff: Place {
                         name: "Olympus".into(),
                         description: None.into(),
@@ -1358,7 +1342,7 @@ mod test {
                 result,
             );
             assert_eq!("editing Hades", result.display_undo().to_string());
-            assert!(block_on(repo.get_by_name("Hades")).is_ok());
+            assert!(block_on(repo.load(&"Hades".into())).is_ok());
             assert!(block_on(data_store.get_all_the_things())
                 .unwrap()
                 .iter()
@@ -1367,15 +1351,10 @@ mod test {
 
         {
             assert_eq!(
-                &OLYMPUS_UUID,
-                block_on(repo.undo())
-                    .unwrap()
-                    .unwrap()
-                    .unwrap()
-                    .uuid()
-                    .unwrap(),
+                Id::Uuid(OLYMPUS_UUID),
+                block_on(repo.undo()).unwrap().unwrap().unwrap(),
             );
-            assert!(block_on(repo.get_by_name("OLYMPUS")).is_ok());
+            assert!(block_on(repo.load(&"OLYMPUS".into())).is_ok());
             assert!(block_on(data_store.get_all_the_things())
                 .unwrap()
                 .iter()
@@ -1384,15 +1363,10 @@ mod test {
 
         {
             assert_eq!(
-                &OLYMPUS_UUID,
-                block_on(repo.redo())
-                    .unwrap()
-                    .unwrap()
-                    .unwrap()
-                    .uuid()
-                    .unwrap(),
+                Id::Uuid(OLYMPUS_UUID),
+                block_on(repo.redo()).unwrap().unwrap().unwrap(),
             );
-            assert!(block_on(repo.get_by_name("HADES")).is_ok());
+            assert!(block_on(repo.load(&"HADES".into())).is_ok());
         }
     }
 
@@ -1400,8 +1374,8 @@ mod test {
     fn change_test_edit_by_name_from_journal_wrong_type() {
         let mut repo = repo();
         let change = Change::Edit {
+            id: "OLYMPUS".into(),
             name: "Olympus".into(),
-            uuid: None,
             diff: Npc::default().into(),
         };
 
@@ -1416,8 +1390,8 @@ mod test {
         let mut repo = repo();
         repo.data_store = Box::new(NullDataStore::default());
         let change = Change::Edit {
+            id: "OLYMPUS".into(),
             name: "Olympus".into(),
-            uuid: None,
             diff: Place {
                 name: "Hades".into(),
                 ..Default::default()
@@ -1428,8 +1402,8 @@ mod test {
         assert_eq!(
             Err((
                 Change::Edit {
+                    id: "Olympus".into(),
                     name: "Olympus".into(),
-                    uuid: None,
                     diff: Place {
                         name: "Hades".into(),
                         ..Default::default()
@@ -1446,8 +1420,8 @@ mod test {
     fn change_test_edit_by_name_not_found() {
         let mut repo = repo();
         let change = Change::Edit {
+            id: "NOBODY".into(),
             name: "Nobody".into(),
-            uuid: None,
             diff: Npc::default().into(),
         };
 
@@ -1461,8 +1435,8 @@ mod test {
     fn change_test_edit_by_uuid_success() {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::Edit {
+            id: OLYMPUS_UUID.into(),
             name: "Olympus".into(),
-            uuid: Some(OLYMPUS_UUID),
             diff: Place {
                 name: "Hades".into(),
                 description: "This really is hell!".into(),
@@ -1474,19 +1448,15 @@ mod test {
 
         {
             assert_eq!(
-                &OLYMPUS_UUID,
-                block_on(repo.modify(change))
-                    .unwrap()
-                    .unwrap()
-                    .uuid()
-                    .unwrap(),
+                Id::Uuid(OLYMPUS_UUID),
+                block_on(repo.modify(change)).unwrap().unwrap(),
             );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
                 &Change::Edit {
+                    id: OLYMPUS_UUID.into(),
                     name: "Hades".into(),
-                    uuid: Some(OLYMPUS_UUID),
                     diff: Place {
                         name: "Olympus".into(),
                         description: None.into(),
@@ -1497,7 +1467,7 @@ mod test {
                 result,
             );
             assert_eq!("editing Hades", result.display_undo().to_string());
-            assert!(block_on(repo.get_by_name("Hades")).is_ok());
+            assert!(block_on(repo.load(&"Hades".into())).is_ok());
             assert!(block_on(data_store.get_all_the_things())
                 .unwrap()
                 .iter()
@@ -1506,16 +1476,11 @@ mod test {
 
         {
             assert_eq!(
-                &OLYMPUS_UUID,
-                block_on(repo.undo())
-                    .unwrap()
-                    .unwrap()
-                    .unwrap()
-                    .uuid()
-                    .unwrap(),
+                Id::Uuid(OLYMPUS_UUID),
+                block_on(repo.undo()).unwrap().unwrap().unwrap(),
             );
 
-            assert!(block_on(repo.get_by_name("Olympus")).is_ok());
+            assert!(block_on(repo.load(&"Olympus".into())).is_ok());
             assert!(block_on(data_store.get_all_the_things())
                 .unwrap()
                 .iter()
@@ -1524,15 +1489,10 @@ mod test {
 
         {
             assert_eq!(
-                &OLYMPUS_UUID,
-                block_on(repo.redo())
-                    .unwrap()
-                    .unwrap()
-                    .unwrap()
-                    .uuid()
-                    .unwrap(),
+                Id::Uuid(OLYMPUS_UUID),
+                block_on(repo.redo()).unwrap().unwrap().unwrap(),
             );
-            assert!(block_on(repo.get_by_name("Hades")).is_ok());
+            assert!(block_on(repo.load(&"Hades".into())).is_ok());
         }
     }
 
@@ -1540,8 +1500,8 @@ mod test {
     fn change_test_edit_by_uuid_wrong_type() {
         let mut repo = repo();
         let change = Change::Edit {
+            id: OLYMPUS_UUID.into(),
             name: "Olympus".into(),
-            uuid: Some(OLYMPUS_UUID),
             diff: Npc::default().into(),
         };
 
@@ -1555,8 +1515,8 @@ mod test {
     fn change_test_edit_by_uuid_not_found() {
         let mut repo = repo();
         let change = Change::Edit {
+            id: Uuid::nil().into(),
             name: "Nobody".into(),
-            uuid: Some(Uuid::nil()),
             diff: Npc::default().into(),
         };
 
@@ -1571,8 +1531,8 @@ mod test {
         let mut repo = repo();
         repo.data_store = Box::new(NullDataStore::default());
         let change = Change::Edit {
+            id: OLYMPUS_UUID.into(),
             name: "Olympus".into(),
-            uuid: Some(OLYMPUS_UUID),
             diff: Place {
                 name: "Hades".into(),
                 ..Default::default()
@@ -1583,8 +1543,8 @@ mod test {
         assert_eq!(
             Err((
                 Change::Edit {
+                    id: OLYMPUS_UUID.into(),
                     name: "Olympus".into(),
-                    uuid: Some(OLYMPUS_UUID),
                     diff: Place {
                         name: "Hades".into(),
                         ..Default::default()
@@ -1614,20 +1574,15 @@ mod test {
 
         {
             assert_eq!(
-                "Hades",
-                block_on(repo.modify(change))
-                    .unwrap()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap(),
+                Id::from("Hades"),
+                block_on(repo.modify(change)).unwrap().unwrap(),
             );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
                 &Change::Edit {
+                    id: "Hades".into(),
                     name: "Hades".into(),
-                    uuid: None,
                     diff: Place {
                         name: "Olympus".into(),
                         description: None.into(),
@@ -1638,38 +1593,32 @@ mod test {
                 result,
             );
             assert_eq!("editing Hades", result.display_undo().to_string());
-            assert!(block_on(repo.get_by_name("Hades")).is_ok());
+            assert!(block_on(repo.load(&"Hades".into())).is_ok());
             assert_eq!(2, repo.recent().count());
             assert_eq!(3, block_on(repo.journal()).unwrap().len());
             assert_eq!(3, block_on(data_store.get_all_the_things()).unwrap().len());
         }
 
-        {
-            let thing = block_on(repo.undo()).unwrap().unwrap().unwrap();
-            let uuid = thing.uuid().unwrap();
-            assert_ne!(&OLYMPUS_UUID, uuid);
-            assert!(block_on(repo.get_by_name("Olympus")).is_ok());
-            assert!(block_on(repo.get_by_uuid(&uuid)).is_ok());
+        if let Id::Uuid(uuid) = block_on(repo.undo()).unwrap().unwrap().unwrap() {
+            assert_ne!(OLYMPUS_UUID, uuid);
+            assert!(block_on(repo.load(&"Olympus".into())).is_ok());
+            assert!(block_on(repo.load(&uuid.into())).is_ok());
             assert_eq!(1, repo.recent().count());
             assert_eq!(4, block_on(repo.journal()).unwrap().len());
             assert!(block_on(data_store.get_all_the_things())
                 .unwrap()
                 .iter()
                 .any(|t| t.name().value().map_or(false, |s| s == "Olympus")));
+        } else {
+            panic!();
         }
 
         {
             assert_eq!(
-                "Hades",
-                block_on(repo.redo())
-                    .unwrap()
-                    .unwrap()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap(),
+                Id::from("Hades"),
+                block_on(repo.redo()).unwrap().unwrap().unwrap(),
             );
-            assert!(block_on(repo.get_by_name("Hades")).is_ok());
+            assert!(block_on(repo.load(&"Hades".into())).is_ok());
         }
     }
 
@@ -1714,7 +1663,7 @@ mod test {
             ),
             block_on(repo.modify(change)).unwrap_err(),
         );
-        assert!(block_on(repo.get_by_name("Hades")).is_ok());
+        assert!(block_on(repo.load(&"Hades".into())).is_ok());
     }
 
     #[test]
@@ -1731,20 +1680,15 @@ mod test {
 
         {
             assert_eq!(
-                "Odysseus",
-                block_on(repo.modify(change))
-                    .unwrap()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap(),
+                Id::from("Odysseus"),
+                block_on(repo.modify(change)).unwrap().unwrap(),
             );
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
                 &Change::Delete {
+                    id: "Odysseus".into(),
                     name: "Odysseus".to_string(),
-                    uuid: None,
                 },
                 result,
             );
@@ -1753,7 +1697,7 @@ mod test {
         }
 
         {
-            assert_eq!(Some(Ok(None)), block_on(repo.undo()));
+            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
 
             assert_eq!(
                 Some(Change::Create {
@@ -1819,15 +1763,13 @@ mod test {
             change.display_redo().to_string(),
         );
 
-        {
-            let thing = block_on(repo.modify(change)).unwrap().unwrap();
-            let uuid = thing.uuid().unwrap();
+        if let Id::Uuid(uuid) = block_on(repo.modify(change)).unwrap().unwrap() {
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
                 &Change::Unsave {
                     name: "Odysseus".into(),
-                    uuid: *uuid,
+                    uuid,
                 },
                 result,
             );
@@ -1838,16 +1780,12 @@ mod test {
             assert_eq!(5, block_on(repo.journal()).unwrap().len());
             assert_eq!(5, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(0, repo.recent().count());
+        } else {
+            panic!();
         }
 
         {
-            match block_on(repo.undo()) {
-                Some(Ok(Some(Thing::Npc(npc)))) => {
-                    assert!(npc.uuid.is_none());
-                    assert_eq!("Odysseus", npc.name.value().unwrap());
-                }
-                v => panic!("{:?}", v),
-            }
+            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
 
             assert_eq!(
                 Some(Change::Save {
@@ -1929,13 +1867,8 @@ mod test {
 
         {
             assert_eq!(
-                "Olympus",
-                block_on(repo.modify(change))
-                    .unwrap()
-                    .unwrap()
-                    .name()
-                    .value()
-                    .unwrap(),
+                Id::from("Olympus"),
+                block_on(repo.modify(change)).unwrap().unwrap(),
             );
             let result = repo.undo_history().next().unwrap();
 
@@ -1952,22 +1885,16 @@ mod test {
             assert_eq!(3, block_on(repo.journal()).unwrap().len());
             assert_eq!(3, block_on(data_store.get_all_the_things()).unwrap().len());
             assert_eq!(2, repo.recent().count());
-            assert_eq!(None, block_on(repo.get_by_name("Olympus")).unwrap().uuid());
+            assert_eq!(None, block_on(repo.load(&"Olympus".into())).unwrap().uuid());
         }
 
         {
-            match block_on(repo.undo()) {
-                Some(Ok(Some(Thing::Place(place)))) => {
-                    assert!(place.uuid.is_some());
-                    assert_eq!("Olympus", place.name.value().unwrap());
-                }
-                v => panic!("{:?}", v),
-            }
+            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
 
             if let Some(Change::Unsave { ref name, uuid }) = repo.redo_change {
                 assert_eq!("Olympus", name);
                 assert_ne!(OLYMPUS_UUID, uuid);
-                assert!(block_on(repo.get_by_uuid(&uuid)).is_ok());
+                assert!(block_on(repo.load(&uuid.into())).is_ok());
             } else {
                 panic!();
             }
@@ -1989,23 +1916,21 @@ mod test {
         };
         assert_eq!("creating Odysseus", change.display_redo().to_string());
 
-        {
-            let thing = block_on(repo.modify(change)).unwrap().unwrap();
-            let uuid = thing.uuid().unwrap();
+        if let Id::Uuid(uuid) = block_on(repo.modify(change)).unwrap().unwrap() {
             let result = repo.undo_history().next().unwrap();
 
             assert_eq!(
                 &Change::Delete {
+                    id: Id::Uuid(uuid),
                     name: "Odysseus".into(),
-                    uuid: Some(*uuid),
                 },
                 result,
             );
-            assert!(block_on(repo.get_by_uuid(uuid)).is_ok());
+            assert!(block_on(repo.load(&uuid.to_owned().into())).is_ok());
             assert_eq!("creating Odysseus", result.display_undo().to_string());
             assert_eq!(1, block_on(repo.journal()).unwrap().len());
             assert_eq!(
-                uuid,
+                &uuid,
                 block_on(data_store.get_all_the_things())
                     .unwrap()
                     .first()
@@ -2013,6 +1938,8 @@ mod test {
                     .uuid()
                     .unwrap(),
             );
+        } else {
+            panic!();
         }
 
         {
@@ -2022,7 +1949,7 @@ mod test {
                 .unwrap()
                 .uuid()
                 .unwrap();
-            assert_eq!(Some(Ok(None)), block_on(repo.undo()));
+            let _undo_result = block_on(repo.undo()).unwrap().unwrap();
 
             assert_eq!(
                 Some(Change::CreateAndSave {
@@ -2182,7 +2109,7 @@ mod test {
     #[test]
     fn load_relations_test_with_parent_success() {
         let repo = repo();
-        let odysseus = block_on(repo.get_by_name("Odysseus")).unwrap();
+        let odysseus = block_on(repo.load(&"Odysseus".into())).unwrap();
 
         match block_on(repo.load_relations(&odysseus)) {
             Ok(ThingRelations::Npc(NpcRelations {
@@ -2197,7 +2124,7 @@ mod test {
     #[test]
     fn load_relations_test_with_grandparent_success() {
         let repo = repo();
-        let olympus = block_on(repo.get_by_uuid(&OLYMPUS_UUID)).unwrap();
+        let olympus = block_on(repo.load(&OLYMPUS_UUID.into())).unwrap();
 
         match block_on(repo.load_relations(&olympus)) {
             Ok(ThingRelations::Place(PlaceRelations {

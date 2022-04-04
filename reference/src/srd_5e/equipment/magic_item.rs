@@ -1,4 +1,4 @@
-use crate::srd_5e::write_text_block;
+use crate::srd_5e::{write_text_block, Reference};
 use serde::Deserialize;
 use std::fmt;
 
@@ -9,6 +9,8 @@ pub struct MagicItem {
 
     #[serde(default)]
     desc: Vec<String>,
+
+    equipment_category: Reference,
 }
 
 impl MagicItem {

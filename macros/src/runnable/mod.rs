@@ -107,7 +107,6 @@ struct Field {
 
 #[derive(Debug, PartialEq)]
 enum Trait {
-    FromStr,
     Runnable,
     WordList,
 }
@@ -333,10 +332,7 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                 },
                 &mut |mut variant, path, value| match path {
                     ["command", "implements"] => {
-                        if value.filter_path(|path| path.is_ident("FromStr")) {
-                            variant.implements = Trait::FromStr;
-                            Ok(variant)
-                        } else if value.filter_path(|path| path.is_ident("Runnable")) {
+                        if value.filter_path(|path| path.is_ident("Runnable")) {
                             variant.implements = Trait::Runnable;
                             Ok(variant)
                         } else if value.filter_path(|path| path.is_ident("WordList")) {
@@ -369,12 +365,7 @@ impl TryFrom<&syn::Variant> for CommandVariant {
                                     },
                                     &mut |mut field, path, value| match path {
                                         ["command", "implements"] => {
-                                            if value.filter_path(|path| path.is_ident("FromStr")) {
-                                                field.implements = Trait::FromStr;
-                                                Ok(field)
-                                            } else if value
-                                                .filter_path(|path| path.is_ident("Runnable"))
-                                            {
+                                            if value.filter_path(|path| path.is_ident("Runnable")) {
                                                 field.implements = Trait::Runnable;
                                                 Ok(field)
                                             } else if value
@@ -804,13 +795,8 @@ mod test {
         let command_enum = CommandEnum::try_from(quote! {
             enum Foo {
                 RunnableTuple(bool),
-
-                #[command(implements(FromStr))]
-                FromStrTuple(bool),
-
                 #[command(implements(Runnable))]
                 AnotherRunnableTuple(bool),
-
                 #[command(implements(WordList))]
                 WordListTuple(bool),
             }
@@ -822,13 +808,6 @@ mod test {
         match variants.next() {
             Some(CommandVariant::Tuple(variant)) => {
                 assert_eq!(Trait::Runnable, variant.implements);
-            }
-            v => panic!("{:?}", v),
-        }
-
-        match variants.next() {
-            Some(CommandVariant::Tuple(variant)) => {
-                assert_eq!(Trait::FromStr, variant.implements);
             }
             v => panic!("{:?}", v),
         }
@@ -857,9 +836,6 @@ mod test {
                 Variant {
                     runnable_field: bool,
 
-                    #[command(implements(FromStr))]
-                    from_str_field: bool,
-
                     #[command(implements(Runnable))]
                     another_runnable_field: bool,
 
@@ -875,7 +851,6 @@ mod test {
                 let mut traits = variant.fields.iter().map(|field| &field.implements);
 
                 assert_eq!(Some(&Trait::Runnable), traits.next());
-                assert_eq!(Some(&Trait::FromStr), traits.next());
                 assert_eq!(Some(&Trait::Runnable), traits.next());
                 assert_eq!(Some(&Trait::WordList), traits.next());
                 assert_eq!(None, traits.next());

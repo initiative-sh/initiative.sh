@@ -11,20 +11,14 @@ use std::iter;
 #[derive(Clone, ContextAwareParse, Debug, PartialEq)]
 pub enum TimeCommand {
     #[command(syntax = "+[interval]")]
-    Add {
-        #[command(implements(FromStr))]
-        interval: Interval,
-    },
+    Add { interval: Interval },
 
     #[command(alias = "time")]
     #[command(alias = "date")]
     Now,
 
     #[command(syntax = "-[interval]")]
-    Sub {
-        #[command(implements(FromStr))]
-        interval: Interval,
-    },
+    Sub { interval: Interval },
 }
 
 #[async_trait(?Send)]

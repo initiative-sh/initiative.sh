@@ -1,5 +1,5 @@
 use super::{
-    CommandEnum, CommandVariant, CommandVariantSyntax, CommandVariantSyntaxPart, Trait,
+    CommandEnum, CommandVariant, CommandVariantSyntax, CommandVariantSyntaxPart,
     UnitStructCommandVariant,
 };
 use proc_macro2::TokenStream;
@@ -27,7 +27,6 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
             use crate::app::{AppMeta, ContextAwareParse};
             use crate::utils::CaseInsensitiveStr;
             use async_trait::async_trait;
-            use std::str::FromStr;
 
             #[async_trait(?Send)]
             impl ContextAwareParse for #enum_ident {
@@ -109,26 +108,18 @@ fn get_tuple_cases(command_enum: &CommandEnum) -> Result<Option<TokenStream>, St
             let ident = &variant.ident;
             let ty = &variant.ty;
 
-            match variant.implements {
-                Trait::Runnable => quote! {
-                    {
-                        let (subcommand_exact_match, subcommand_fuzzy_matches) = #ty::parse_input(input, app_meta).await;
+            quote! {
+                {
+                    let (subcommand_exact_match, subcommand_fuzzy_matches) = #ty::parse_input(input, app_meta).await;
 
-                        if let Some(command) = subcommand_exact_match {
-                            exact_match = exact_match.or_else(|| Some(Self::#ident(command)));
-                        }
+                    if let Some(command) = subcommand_exact_match {
+                        exact_match = Some(Self::#ident(command));
+                    }
 
-                        for command in subcommand_fuzzy_matches {
-                            fuzzy_matches.push(Self::#ident(command));
-                        }
+                    for command in subcommand_fuzzy_matches {
+                        fuzzy_matches.push(Self::#ident(command));
                     }
-                },
-                Trait::FromStr | Trait::WordList => quote! {
-                    {
-                        exact_match = exact_match
-                            .or_else(|| #ty::from_str(input).ok().map(|word| Self::#ident(word)));
-                    }
-                },
+                }
             }
         })
         .collect();
@@ -208,46 +199,28 @@ fn parse_struct_syntax(
                 .expect("Type must be defined!");
             let ty = &field.ty;
 
-            Ok(if is_canonical {
-                quote! {
+            if is_canonical {
+                Ok(quote! {
                     if let Some(remainder) = input.strip_prefix_ci(#start) {
-                        let mut subcommand_exact_match = #ty::from_str(remainder.trim_start()).ok();
-
-                        exact_match = exact_match.or_else(|| subcommand_exact_match.take().map(|command| {
-                            Self::#variant_ident { #field_ident: command }
-                        }));
-
-                        for command in subcommand_exact_match.into_iter() {
-                            fuzzy_matches.push(Self::#variant_ident { #field_ident: command });
+                        if let Ok(field_val) = remainder.trim_start().parse() {
+                            exact_match = Some(Self::#variant_ident { #field_ident: field_val });
                         }
                     }
-                }
+                })
             } else {
-                let parse_expr = match &field.implements {
-                    Trait::FromStr | Trait::WordList => quote! {
-                        #ty::from_str(remainder.trim_start()).ok()
-                    },
-                    Trait::Runnable => quote! {
-                        {
-                            let (subcommand_exact_match, mut subcommand_fuzzy_matches) = #ty::parse_input(remainder.trim_start(), app_meta).await;
-                            for command in subcommand_fuzzy_matches.drain(..) {
-                                fuzzy_matches.push(Self::#variant_ident { #field_ident: command });
-                            }
-                            subcommand_exact_match
-                        }
-                    },
-                };
-
-                quote! {
+                Ok(quote! {
                     if let Some(remainder) = input.strip_prefix_ci(#start) {
-                        let mut subcommand_exact_match = #parse_expr;
+                        let (mut subcommand_exact_match, mut subcommand_fuzzy_matches) = #ty::parse_input(remainder.trim_start(), app_meta).await;
 
-                        for command in subcommand_exact_match.into_iter() {
+                        for command in subcommand_exact_match
+                            .into_iter()
+                            .chain(subcommand_fuzzy_matches.drain(..))
+                        {
                             fuzzy_matches.push(Self::#variant_ident { #field_ident: command });
                         }
                     }
-                }
-            })
+                })
+            }
         }
         (Some(CommandVariantSyntaxPart::Ident(field_ident)), None, None) => {
             let ty = &variant

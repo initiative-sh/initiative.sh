@@ -392,10 +392,10 @@ mod test {
 
         assert_eq!(
             CommandType::Storage(StorageCommand::Load {
-                name: "Gandalf the Grey".into(),
+                name: "Gandalf the Grey".to_string(),
             }),
             StorageCommand::Load {
-                name: "Gandalf the Grey".into(),
+                name: "Gandalf the Grey".to_string(),
             }
             .into(),
         );
