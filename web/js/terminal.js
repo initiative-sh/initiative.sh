@@ -182,7 +182,7 @@ function initialize(elementId, autocompleteCallback) {
   window.addEventListener("mousedown", () => mouseMoveEvents = 0)
   window.addEventListener("mousemove", () => mouseMoveEvents++)
   window.addEventListener("mouseup", async (event) => {
-    if (event.button == 0 && mouseMoveEvents < 5) {
+    if (event.button === 0 && mouseMoveEvents < 5 && event.detail === 1) {
       if (event.target.nodeName === "CODE") {
         await runCommand(event.target.innerText)
       } else {
