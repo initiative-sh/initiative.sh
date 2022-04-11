@@ -80,7 +80,9 @@ fn magic_weapons() {
 * `Trident Of Fish Command`
 * `Vicious Weapon`
 * `Vorpal Sword`
-* `Weapon, +1, +2, Or +3`
+* `Weapon, +1`
+* `Weapon, +2`
+* `Weapon, +3`
 
 *This listing is Open Game Content subject to the `Open Game License`.*",
         output,

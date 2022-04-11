@@ -1,4 +1,4 @@
-use crate::srd_5e::write_text_block;
+use crate::srd_5e::{write_text_block, Reference};
 use serde::Deserialize;
 use std::fmt;
 
@@ -9,6 +9,9 @@ pub struct MagicItem {
 
     #[serde(default)]
     desc: Vec<String>,
+
+    #[serde(default)]
+    variants: Vec<Reference>,
 }
 
 impl MagicItem {
@@ -26,6 +29,10 @@ impl MagicItem {
 
     pub fn display_details(&self) -> DetailsView {
         DetailsView(self)
+    }
+
+    pub fn has_variants(&self) -> bool {
+        !self.variants.is_empty()
     }
 }
 

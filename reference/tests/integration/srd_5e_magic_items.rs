@@ -26,30 +26,29 @@ Once a card is drawn, it fades from existence. Unless the card is the Fool or th
 
 | Playing Card | Card |
 |---|---|
-| Ace of diamonds | Vizier\\* |
+| Ace of diamonds | Vizier* |
 | King of diamonds | Sun |
 | Queen of diamonds | Moon |
 | Jack of diamonds | Star |
-| Two of diamonds | Comet\\* |
-| Ace of hearts | The Fates\\* |
+| Two of diamonds | Comet* |
+| Ace of hearts | The Fates* |
 | King of hearts | Throne |
 | Queen of hearts | Key |
 | Jack of hearts | Knight |
-| Two of hearts | Gem\\* |
-| Ace of clubs | Talons\\* |
+| Two of hearts | Gem* |
+| Ace of clubs | Talons* |
 | King of clubs | The Void |
 | Queen of clubs | Flames |
 | Jack of clubs | Skull |
-| Two of clubs | Idiot\\* |
-| Ace of spades | Donjon\\* |
+| Two of clubs | Idiot* |
+| Ace of spades | Donjon* |
 | King of spades | Ruin |
 | Queen of spades | Euryale |
 | Jack of spades | Rogue |
-| Two of spades | Balance\\* |
-| Joker (with TM) | Fool\\* |
+| Two of spades | Balance* |
+| Joker (with TM) | Fool* |
 | Joker (without TM) | Jester |
-
-\\* Found only in a deck with twenty-two cards
+* Found only in a deck with twenty-two cards
 
 ***Balance.*** Your mind suffers a wrenching alteration, causing your alignment to change. Lawful becomes chaotic, good becomes evil, and vice versa. If you are true neutral or unaligned, this card has no effect on you.
 
