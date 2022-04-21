@@ -69,4 +69,9 @@ module.exports = {
   devServer: {
     contentBase: path.join(__dirname, 'static'),
   },
+  resolve: {
+    alias: {
+      'initiative-web': path.resolve(__dirname, 'pkg/initiative_web.js'),
+    },
+  },
 }
