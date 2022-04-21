@@ -5,7 +5,7 @@ cd "$(dirname "$0")/web"
 if ! command -v rustup; then
   wget https://sh.rustup.rs -O rustup.sh
   chmod a+x rustup.sh
-  ./rustup.sh -y
+  ./rustup.sh -y --target wasm32-unknown-unknown --profile minimal
   rm rustup.sh
 
   # shellcheck disable=SC1090
