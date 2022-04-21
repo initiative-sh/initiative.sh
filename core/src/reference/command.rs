@@ -1,4 +1,4 @@
-use super::{Item, ItemCategory, MagicItem, Spell};
+use super::{Item, ItemCategory, MagicItem, Spell, Trait};
 use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
@@ -9,20 +9,19 @@ use std::iter::repeat;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ReferenceCommand {
-    Spell(Spell),
-    Spells,
     Item(Item),
     ItemCategory(ItemCategory),
     MagicItem(MagicItem),
     OpenGameLicense,
+    Spell(Spell),
+    Spells,
+    Trait(Trait),
 }
 
 #[async_trait(?Send)]
 impl Runnable for ReferenceCommand {
     async fn run(self, _input: &str, _app_meta: &mut AppMeta) -> Result<String, String> {
         let (output, name) = match self {
-            Self::Spell(spell) => (format!("{}", spell), spell.get_name()),
-            Self::Spells => (Spell::get_list().to_string(), "This listing"),
             Self::Item(item) => (format!("{}", item), item.get_name()),
             Self::ItemCategory(category) => (format!("{}", category), "This listing"),
             Self::MagicItem(magic_item) => (format!("{}", magic_item), magic_item.get_name()),
@@ -31,6 +30,9 @@ impl Runnable for ReferenceCommand {
                     .trim_end()
                     .to_string());
             }
+            Self::Spell(spell) => (format!("{}", spell), spell.get_name()),
+            Self::Spells => (Spell::get_list().to_string(), "This listing"),
+            Self::Trait(t) => (t.to_string(), t.get_name()),
         };
 
         Ok(format!(
@@ -51,9 +53,9 @@ impl ContextAwareParse for ReferenceCommand {
         } else {
             None.or_else(|| {
                 input
-                    .strip_prefix_ci("srd spell ")
+                    .strip_prefix_ci("srd item ")
                     .and_then(|s| s.parse().ok())
-                    .map(Self::Spell)
+                    .map(Self::Item)
             })
             .or_else(|| {
                 input
@@ -63,23 +65,26 @@ impl ContextAwareParse for ReferenceCommand {
             })
             .or_else(|| {
                 input
-                    .strip_prefix_ci("srd item ")
-                    .and_then(|s| s.parse().ok())
-                    .map(Self::Item)
-            })
-            .or_else(|| {
-                input
                     .strip_prefix_ci("srd magic item ")
                     .and_then(|s| s.parse().ok())
                     .map(Self::MagicItem)
+            })
+            .or_else(|| {
+                input
+                    .strip_prefix_ci("srd spell ")
+                    .and_then(|s| s.parse().ok())
+                    .map(Self::Spell)
+            })
+            .or_else(|| {
+                input
+                    .strip_prefix_ci("srd trait ")
+                    .and_then(|s| s.parse().ok())
+                    .map(Self::Trait)
             })
         };
 
         let mut fuzzy_matches = Vec::new();
 
-        if let Ok(spell) = input.parse() {
-            fuzzy_matches.push(Self::Spell(spell));
-        }
         if let Ok(item) = input.parse() {
             fuzzy_matches.push(Self::Item(item));
         }
@@ -88,6 +93,12 @@ impl ContextAwareParse for ReferenceCommand {
         }
         if let Ok(magic_item) = input.parse() {
             fuzzy_matches.push(Self::MagicItem(magic_item));
+        }
+        if let Ok(spell) = input.parse() {
+            fuzzy_matches.push(Self::Spell(spell));
+        }
+        if let Ok(t) = input.parse() {
+            fuzzy_matches.push(Self::Trait(t));
         }
         if input == "spells" {
             fuzzy_matches.push(Self::Spells);
@@ -112,6 +123,7 @@ impl Autocomplete for ReferenceCommand {
         .chain(Item::get_words().zip(repeat("SRD item")))
         .chain(ItemCategory::get_words().zip(repeat("SRD item category")))
         .chain(MagicItem::get_words().zip(repeat("SRD magic item")))
+        .chain(Trait::get_words().zip(repeat("SRD trait")))
         .filter(|(s, _)| s.starts_with_ci(input))
         .take(10)
         .map(|(a, b)| (a.into(), b.into()))
@@ -122,12 +134,13 @@ impl Autocomplete for ReferenceCommand {
 impl fmt::Display for ReferenceCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
-            Self::Spell(spell) => write!(f, "srd spell {}", spell.get_name()),
-            Self::Spells => write!(f, "srd spells"),
             Self::Item(item) => write!(f, "srd item {}", item.get_name()),
             Self::ItemCategory(category) => write!(f, "srd item category {}", category.get_name()),
             Self::MagicItem(item) => write!(f, "srd magic item {}", item.get_name()),
             Self::OpenGameLicense => write!(f, "Open Game License"),
+            Self::Spell(spell) => write!(f, "srd spell {}", spell.get_name()),
+            Self::Spells => write!(f, "srd spells"),
+            Self::Trait(species_trait) => write!(f, "srd trait {}", species_trait.get_name()),
         }
     }
 }

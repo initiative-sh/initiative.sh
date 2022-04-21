@@ -18,3 +18,31 @@ You gain the ability to comprehend and verbally communicate with beasts for the 
         sync_app().command("Speak With Animals").unwrap(),
     );
 }
+
+#[test]
+fn darkvision() {
+    assert_eq!(
+        "\
+There are several possible interpretations of this command. Did you mean:
+
+* `srd spell Darkvision`
+* `srd trait Darkvision`",
+        sync_app().command("Darkvision").unwrap_err(),
+    );
+
+    assert_eq!(
+        "\
+# Darkvision
+*2nd-level transmutation*
+
+**Casting Time:** 1 action\\
+**Range:** Touch\\
+**Components:** V, S, M (either a pinch of dried carrot or an agate)\\
+**Duration:** 8 hours
+
+You touch a willing creature to grant it the ability to see in the dark. For the duration, that creature has darkvision out to a range of 60 feet.
+
+*Darkvision is Open Game Content subject to the `Open Game License`.*",
+        sync_app().command("srd spell Darkvision").unwrap(),
+    );
+}
