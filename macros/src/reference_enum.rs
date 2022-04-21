@@ -89,6 +89,18 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                 )
             })
             .collect(),
+        "Trait" => srd_5e::traits()?
+            .iter()
+            .filter(|t| !t.has_parent())
+            .map(|t| {
+                (
+                    syn::parse_str(&t.token()).unwrap(),
+                    t.name.to_string(),
+                    Vec::new(),
+                    t.display_details().to_string(),
+                )
+            })
+            .collect(),
         _ => unimplemented!(),
     };
 

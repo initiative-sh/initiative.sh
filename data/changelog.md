@@ -1,3 +1,5 @@
+* **Enhancement:** Added traits such as `Stonecunning` and `Breath Weapon` to
+  the reference corpus.
 * **Enhancement:** The input field will now automatically complete when only one
   suggestion is available in the autofill popup, so it is no longer necessary to
   finish typing before pressing enter.

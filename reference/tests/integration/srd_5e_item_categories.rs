@@ -335,21 +335,38 @@ fn potions() {
 * `Oil Of Sharpness`
 * `Oil Of Slipperiness`
 * `Philter Of Love`
+* `Potion Of Acid Resistance`
 * `Potion Of Animal Friendship`
 * `Potion Of Clairvoyance`
 * `Potion Of Climbing`
+* `Potion Of Cloud Giant Strength`
+* `Potion Of Cold Resistance`
 * `Potion Of Diminution`
+* `Potion Of Fire Giant Strength`
+* `Potion Of Fire Resistance`
 * `Potion Of Flying`
+* `Potion Of Force Resistance`
+* `Potion Of Frost Giant Strength`
 * `Potion Of Gaseous Form`
-* `Potion Of Giant Strength`
+* `Potion Of Greater Healing`
 * `Potion Of Growth`
 * `Potion Of Healing`
 * `Potion Of Heroism`
+* `Potion Of Hill Giant Strength`
 * `Potion Of Invisibility`
+* `Potion Of Lightning Resistance`
 * `Potion Of Mind Reading`
+* `Potion Of Necrotic Resistance`
 * `Potion Of Poison`
-* `Potion Of Resistance`
+* `Potion Of Poison Resistance`
+* `Potion Of Psychic Resistance`
+* `Potion Of Radiant Resistance`
 * `Potion Of Speed`
+* `Potion Of Stone Giant Strength`
+* `Potion Of Storm Giant Strength`
+* `Potion Of Superior Healing`
+* `Potion Of Supreme Healing`
+* `Potion Of Thunder Resistance`
 * `Potion Of Water Breathing`",
         format!(
             "{}",

@@ -1,16 +1,13 @@
 pub use equipment::{Item, ItemCategory, MagicItem};
 pub use spell::Spell;
 pub use std::fmt;
+pub use traits::Trait;
 
 mod equipment;
 mod spell;
+mod traits;
 
 use serde::Deserialize;
-
-pub fn spells() -> Result<Vec<Spell>, String> {
-    serde_json::from_str(include_str!("../../../data/srd_5e/src/5e-SRD-Spells.json"))
-        .map_err(|e| format!("{}", e))
-}
 
 pub fn items() -> Result<Vec<Item>, String> {
     serde_json::from_str(include_str!(
@@ -30,7 +27,22 @@ pub fn magic_items() -> Result<Vec<MagicItem>, String> {
     serde_json::from_str(include_str!(
         "../../../data/srd_5e/src/5e-SRD-Magic-Items.json",
     ))
+    .map(|mut v: Vec<MagicItem>| {
+        v.drain(..)
+            .filter(|magic_item| !magic_item.has_variants())
+            .collect()
+    })
     .map_err(|e| format!("{}", e))
+}
+
+pub fn spells() -> Result<Vec<Spell>, String> {
+    serde_json::from_str(include_str!("../../../data/srd_5e/src/5e-SRD-Spells.json"))
+        .map_err(|e| format!("{}", e))
+}
+
+pub fn traits() -> Result<Vec<Trait>, String> {
+    serde_json::from_str(include_str!("../../../data/srd_5e/src/5e-SRD-Traits.json"))
+        .map_err(|e| format!("{}", e))
 }
 
 #[derive(Debug, Deserialize)]
