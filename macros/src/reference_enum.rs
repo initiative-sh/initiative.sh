@@ -2,30 +2,81 @@ use initiative_reference::srd_5e;
 use proc_macro::TokenStream;
 use quote::quote;
 
+/*
+struct Entry {
+    ident: syn::Ident,
+    name: String,
+    aliases: Vec<String>,
+    details: String,
+}
+*/
+
+#[derive(Default)]
+struct EntryBuilder {
+    ident: Option<syn::Ident>,
+    name: Option<String>,
+    aliases: Vec<String>,
+    details: Option<String>,
+}
+
+impl EntryBuilder {
+    fn with_ident(mut self, ident: &str) -> Self {
+        self.ident = syn::parse_str(ident).ok();
+        self
+    }
+
+    fn with_name(mut self, name: String) -> Self {
+        self.name = Some(name);
+        self
+    }
+
+    fn with_aliases(mut self, aliases: Vec<String>) -> Self {
+        self.aliases = aliases;
+        self
+    }
+
+    fn with_details(mut self, details: &impl ToString) -> Self {
+        self.details = Some(details.to_string());
+        self
+    }
+
+    fn into_tuple(self) -> Result<(syn::Ident, String, Vec<String>, String), ()> {
+        Ok((
+            self.ident.ok_or(())?,
+            self.name.ok_or(())?,
+            self.aliases,
+            self.details.ok_or(())?,
+        ))
+    }
+}
+
 pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     let ident = parse_args(input)?;
 
-    let data: Vec<(syn::Ident, String, Vec<String>, String)> = match format!("{}", ident).as_str() {
+    let entries: Vec<(syn::Ident, String, Vec<String>, String)> = match format!("{}", ident)
+        .as_str()
+    {
         "Spell" => srd_5e::spells()?
             .iter()
             .map(|spell| {
-                (
-                    syn::parse_str(&spell.token()).unwrap(),
-                    spell.name(),
-                    Vec::new(),
-                    format!("{}", spell.display_details()),
-                )
+                EntryBuilder::default()
+                    .with_ident(&spell.token())
+                    .with_name(spell.name())
+                    .with_details(&spell.display_details())
+                    .into_tuple()
+                    .unwrap()
             })
             .collect(),
         "Item" => srd_5e::items()?
             .iter()
             .map(|item| {
-                (
-                    syn::parse_str(&item.token()).unwrap(),
-                    item.name(),
-                    item.alt_name().into_iter().collect(),
-                    format!("{}", item.display_details()),
-                )
+                EntryBuilder::default()
+                    .with_ident(&item.token())
+                    .with_name(item.name())
+                    .with_aliases(item.alt_name().into_iter().collect())
+                    .with_details(&item.display_details())
+                    .into_tuple()
+                    .unwrap()
             })
             .collect(),
         "ItemCategory" => {
@@ -38,40 +89,48 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                     (category.has_items(), category.has_magic_items());
 
                 if has_items {
-                    result.push((
-                        syn::parse_str(&category.token()).unwrap(),
-                        category.name().to_lowercase(),
-                        category.alt_names(),
-                        format!("{}", category.display_item_table(&items)),
-                    ));
+                    result.push(
+                        EntryBuilder::default()
+                            .with_ident(&category.token())
+                            .with_name(category.name().to_lowercase())
+                            .with_aliases(category.alt_names())
+                            .with_details(&category.display_item_table(&items))
+                            .into_tuple()
+                            .unwrap(),
+                    );
                 }
 
                 if has_magic_items {
                     let category_name = category.name();
 
                     if has_items {
-                        result.push((
-                            syn::parse_str(&format!("Magic{}", category.token())).unwrap(),
-                            format!("magic {}", category_name.to_lowercase()),
-                            vec![format!("{}, magic", category_name.to_lowercase())],
-                            format!(
-                                "{}",
-                                category.display_magic_item_list(
+                        result.push(
+                            EntryBuilder::default()
+                                .with_ident(&format!("Magic{}", category.token()))
+                                .with_name(format!("magic {}", category_name.to_lowercase()))
+                                .with_aliases(vec![format!(
+                                    "{}, magic",
+                                    category_name.to_lowercase()
+                                )])
+                                .with_details(&category.display_magic_item_list(
                                     &magic_items,
                                     &format!("Magic {}", category_name),
-                                )
-                            ),
-                        ));
+                                ))
+                                .into_tuple()
+                                .unwrap(),
+                        );
                     } else {
-                        result.push((
-                            syn::parse_str(&category.token()).unwrap(),
-                            category_name.to_lowercase(),
-                            category.alt_names(),
-                            format!(
-                                "{}",
-                                &category.display_magic_item_list(&magic_items, &category_name)
-                            ),
-                        ));
+                        result.push(
+                            EntryBuilder::default()
+                                .with_ident(&category.token())
+                                .with_name(category_name.to_lowercase())
+                                .with_aliases(category.alt_names())
+                                .with_details(
+                                    &category.display_magic_item_list(&magic_items, &category_name),
+                                )
+                                .into_tuple()
+                                .unwrap(),
+                        );
                     }
                 }
             }
@@ -81,32 +140,34 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
         "MagicItem" => srd_5e::magic_items()?
             .iter()
             .map(|item| {
-                (
-                    syn::parse_str(&item.token()).unwrap(),
-                    item.name(),
-                    Vec::new(),
-                    format!("{}", item.display_details()),
-                )
+                EntryBuilder::default()
+                    .with_ident(&item.token())
+                    .with_name(item.name())
+                    .with_details(&item.display_details())
+                    .into_tuple()
+                    .unwrap()
             })
             .collect(),
         "Trait" => srd_5e::traits()?
             .iter()
             .filter(|t| !t.has_parent())
             .map(|t| {
-                (
-                    syn::parse_str(&t.token()).unwrap(),
-                    t.name.to_string(),
-                    Vec::new(),
-                    t.display_details().to_string(),
-                )
+                EntryBuilder::default()
+                    .with_ident(&t.token())
+                    .with_name(t.name.to_owned())
+                    .with_details(&t.display_details())
+                    .into_tuple()
+                    .unwrap()
             })
             .collect(),
         _ => unimplemented!(),
     };
 
-    let variants = data.iter().map(|(variant, _, _, _)| quote! { #variant, });
+    let variants = entries
+        .iter()
+        .map(|(variant, _, _, _)| quote! { #variant, });
 
-    let inputs_to_ok_variants = data.iter().flat_map(|(variant, name, alt_names, _)| {
+    let inputs_to_ok_variants = entries.iter().flat_map(|(variant, name, alt_names, _)| {
         let name_lc = name.to_lowercase();
 
         std::iter::once(quote! { #name_lc => Ok(#ident::#variant), }).chain(
@@ -120,11 +181,11 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
         )
     });
 
-    let variants_to_names = data
+    let variants_to_names = entries
         .iter()
         .map(|(variant, name, _, _)| quote! { #ident::#variant => #name, });
 
-    let variants_to_outputs = data
+    let variants_to_outputs = entries
         .iter()
         .map(|(variant, _, _, output)| quote! { #ident::#variant => #output, });
 
@@ -143,7 +204,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
         quote! {}
     };
 
-    let words = data.iter().flat_map(|(_, name, alt_names, _)| {
+    let words = entries.iter().flat_map(|(_, name, alt_names, _)| {
         std::iter::once(quote! { #name, })
             .chain(alt_names.iter().map(|alt_name| quote! { #alt_name, }))
     });
