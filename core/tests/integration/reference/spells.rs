@@ -15,4 +15,9 @@ fn spells() {
     );
 
     assert_eq!(322, output.lines().count(), "{}", output);
+
+    assert_eq!(
+        vec![("spells".into(), "SRD index".into())],
+        sync_app().autocomplete("Spells"),
+    );
 }

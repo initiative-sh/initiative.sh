@@ -19,4 +19,13 @@ fn light_crossbow() {
     );
 
     assert_eq!(output, sync_app().command("Crossbow, Light").unwrap());
+    assert_eq!(
+        output,
+        sync_app().command("srd item Light Crossbow").unwrap(),
+    );
+
+    assert_eq!(
+        vec![("Light Crossbow".into(), "SRD item".into())],
+        sync_app().autocomplete("light crossbow"),
+    );
 }

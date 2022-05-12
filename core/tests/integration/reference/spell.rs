@@ -2,6 +2,8 @@ use crate::common::sync_app;
 
 #[test]
 fn speak_with_animals() {
+    let output = sync_app().command("Speak With Animals").unwrap();
+
     assert_eq!(
         "\
 # Speak With Animals
@@ -15,7 +17,17 @@ fn speak_with_animals() {
 You gain the ability to comprehend and verbally communicate with beasts for the duration. The knowledge and awareness of many beasts is limited by their intelligence, but at a minimum, beasts can give you information about nearby locations and monsters, including whatever they can perceive or have perceived within the past day. You might be able to persuade a beast to perform a small favor for you, at the DM's discretion.
 
 *Speak With Animals is Open Game Content subject to the `Open Game License`.*",
-        sync_app().command("Speak With Animals").unwrap(),
+        output,
+    );
+
+    assert_eq!(
+        output,
+        sync_app().command("srd spell Speak With Animals").unwrap(),
+    );
+
+    assert_eq!(
+        vec![("Speak With Animals".into(), "SRD spell".into())],
+        sync_app().autocomplete("speak with animals"),
     );
 }
 
@@ -45,4 +57,10 @@ You touch a willing creature to grant it the ability to see in the dark. For the
 *Darkvision is Open Game Content subject to the `Open Game License`.*",
         sync_app().command("srd spell Darkvision").unwrap(),
     );
+
+    assert_eq!(2, sync_app().autocomplete("darkvision").len());
+    assert!(sync_app()
+        .autocomplete("darkvision")
+        .iter()
+        .any(|item| item == &("Darkvision".into(), "SRD spell".into())));
 }

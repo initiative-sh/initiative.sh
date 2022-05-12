@@ -1,3 +1,4 @@
+mod condition;
 mod item;
 mod item_category;
 mod magic_item;
