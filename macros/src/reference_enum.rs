@@ -51,13 +51,13 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     let ident = parse_args(input)?;
 
     let entries: Vec<Entry> = match format!("{}", ident).as_str() {
-        "Spell" => srd_5e::spells()?
+        "Condition" => srd_5e::conditions()?
             .iter()
-            .map(|spell| {
+            .map(|condition| {
                 EntryBuilder::default()
-                    .with_ident(&spell.token())
-                    .with_name(spell.name())
-                    .with_details(&spell.display_details())
+                    .with_ident(&condition.token())
+                    .with_name(condition.name.to_owned())
+                    .with_details(&condition.display_details())
                     .into_entry()
                     .unwrap()
             })
@@ -139,6 +139,17 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                     .with_ident(&item.token())
                     .with_name(item.name())
                     .with_details(&item.display_details())
+                    .into_entry()
+                    .unwrap()
+            })
+            .collect(),
+        "Spell" => srd_5e::spells()?
+            .iter()
+            .map(|spell| {
+                EntryBuilder::default()
+                    .with_ident(&spell.token())
+                    .with_name(spell.name())
+                    .with_details(&spell.display_details())
                     .into_entry()
                     .unwrap()
             })

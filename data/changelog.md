@@ -1,3 +1,6 @@
+* **Enhancement:** Added conditions such as `Prone` and `Stunned` to the
+  reference corpus. There aren't a lot of them, but I keep having to look up
+  their details anyway!
 * **Enhancement:** Added traits such as `Stonecunning` and `Breath Weapon` to
   the reference corpus.
 * **Enhancement:** The input field will now automatically complete when only one

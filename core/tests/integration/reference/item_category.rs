@@ -89,4 +89,10 @@ fn magic_weapons() {
     );
 
     assert_eq!(output, sync_app().command("weapons, magic").unwrap());
+    assert_eq!(
+        output,
+        sync_app()
+            .command("srd item category magic weapons")
+            .unwrap(),
+    );
 }

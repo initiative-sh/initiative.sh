@@ -1,4 +1,4 @@
-use super::{Item, ItemCategory, MagicItem, Spell, Trait};
+use super::{Condition, Item, ItemCategory, MagicItem, Spell, Trait};
 use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
@@ -9,6 +9,7 @@ use std::iter::repeat;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ReferenceCommand {
+    Condition(Condition),
     Item(Item),
     ItemCategory(ItemCategory),
     MagicItem(MagicItem),
@@ -22,6 +23,7 @@ pub enum ReferenceCommand {
 impl Runnable for ReferenceCommand {
     async fn run(self, _input: &str, _app_meta: &mut AppMeta) -> Result<String, String> {
         let (output, name) = match self {
+            Self::Condition(condition) => (format!("{}", condition), condition.get_name()),
             Self::Item(item) => (format!("{}", item), item.get_name()),
             Self::ItemCategory(category) => (format!("{}", category), "This listing"),
             Self::MagicItem(magic_item) => (format!("{}", magic_item), magic_item.get_name()),
@@ -52,6 +54,12 @@ impl ContextAwareParse for ReferenceCommand {
             Some(Self::Spells)
         } else {
             None.or_else(|| {
+                input
+                    .strip_prefix_ci("srd condition ")
+                    .and_then(|s| s.parse().ok())
+                    .map(Self::Condition)
+            })
+            .or_else(|| {
                 input
                     .strip_prefix_ci("srd item ")
                     .and_then(|s| s.parse().ok())
@@ -85,6 +93,9 @@ impl ContextAwareParse for ReferenceCommand {
 
         let mut fuzzy_matches = Vec::new();
 
+        if let Ok(condition) = input.parse() {
+            fuzzy_matches.push(Self::Condition(condition));
+        }
         if let Ok(item) = input.parse() {
             fuzzy_matches.push(Self::Item(item));
         }
@@ -120,6 +131,7 @@ impl Autocomplete for ReferenceCommand {
         ]
         .into_iter()
         .chain(Spell::get_words().zip(repeat("SRD spell")))
+        .chain(Condition::get_words().zip(repeat("SRD condition")))
         .chain(Item::get_words().zip(repeat("SRD item")))
         .chain(ItemCategory::get_words().zip(repeat("SRD item category")))
         .chain(MagicItem::get_words().zip(repeat("SRD magic item")))
@@ -134,6 +146,7 @@ impl Autocomplete for ReferenceCommand {
 impl fmt::Display for ReferenceCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
+            Self::Condition(condition) => write!(f, "srd condition {}", condition.get_name()),
             Self::Item(item) => write!(f, "srd item {}", item.get_name()),
             Self::ItemCategory(category) => write!(f, "srd item category {}", category.get_name()),
             Self::MagicItem(item) => write!(f, "srd magic item {}", item.get_name()),

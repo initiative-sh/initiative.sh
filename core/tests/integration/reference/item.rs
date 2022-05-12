@@ -19,4 +19,8 @@ fn light_crossbow() {
     );
 
     assert_eq!(output, sync_app().command("Crossbow, Light").unwrap());
+    assert_eq!(
+        output,
+        sync_app().command("srd item Light Crossbow").unwrap(),
+    );
 }
