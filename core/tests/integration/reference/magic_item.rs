@@ -22,4 +22,9 @@ You can use an action to present the rod and command obedience from each creatur
             .command("srd magic item Rod Of Rulership")
             .unwrap(),
     );
+
+    assert_eq!(
+        vec![("Rod Of Rulership".into(), "SRD magic item".into())],
+        sync_app().autocomplete("rod of rulership"),
+    );
 }

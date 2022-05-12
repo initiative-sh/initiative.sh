@@ -17,4 +17,9 @@ fn stunned() {
     );
 
     assert_eq!(output, sync_app().command("srd condition Stunned").unwrap());
+
+    assert_eq!(
+        vec![("Stunned".into(), "SRD condition".into())],
+        sync_app().autocomplete("stunned"),
+    );
 }

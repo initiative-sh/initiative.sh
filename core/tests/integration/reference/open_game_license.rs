@@ -10,4 +10,9 @@ fn open_game_license() {
             .lines()
             .count()
     );
+
+    assert_eq!(
+        vec![("Open Game License".into(), "SRD license".into())],
+        sync_app().autocomplete("open game license"),
+    );
 }

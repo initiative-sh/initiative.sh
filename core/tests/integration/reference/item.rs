@@ -23,4 +23,9 @@ fn light_crossbow() {
         output,
         sync_app().command("srd item Light Crossbow").unwrap(),
     );
+
+    assert_eq!(
+        vec![("Light Crossbow".into(), "SRD item".into())],
+        sync_app().autocomplete("light crossbow"),
+    );
 }

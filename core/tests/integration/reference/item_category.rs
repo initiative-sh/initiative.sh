@@ -44,6 +44,17 @@ fn weapons() {
     );
 
     assert_eq!(output, sync_app().command("weapons, melee").unwrap());
+    assert_eq!(
+        output,
+        sync_app()
+            .command("srd item category melee weapons")
+            .unwrap(),
+    );
+
+    assert_eq!(
+        vec![("melee weapons".into(), "SRD item category".into())],
+        sync_app().autocomplete("melee weapons"),
+    );
 }
 
 #[test]
@@ -94,5 +105,10 @@ fn magic_weapons() {
         sync_app()
             .command("srd item category magic weapons")
             .unwrap(),
+    );
+
+    assert_eq!(
+        vec![("magic weapons".into(), "SRD item category".into())],
+        sync_app().autocomplete("magic weapons"),
     );
 }
