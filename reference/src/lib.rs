@@ -1,13 +1,6 @@
 pub mod srd_5e;
 
 fn to_camel_case(input: &str) -> String {
-    capitalize(input)
-        .chars()
-        .filter(|c| c.is_alphanumeric())
-        .collect()
-}
-
-fn capitalize(input: &str) -> String {
     let mut word_break = true;
     let mut result = String::with_capacity(input.len());
     for c in input.chars() {
@@ -19,10 +12,10 @@ fn capitalize(input: &str) -> String {
             }
             word_break = false;
         } else {
-            result.push(c);
             word_break = c != '\'';
         }
     }
+    result.shrink_to_fit();
     result
 }
 
@@ -37,14 +30,5 @@ mod test {
         assert_eq!("FooBar", to_camel_case("foo  ~~~~  bar"));
         assert_eq!("ArcanistsMagicAura", to_camel_case("arcanist's magic aura"));
         assert_eq!("", to_camel_case(""));
-    }
-
-    #[test]
-    fn capitalize_test() {
-        assert_eq!("Potato", capitalize("potato"));
-        assert_eq!("Potato/Spud", capitalize("potato/spud"));
-        assert_eq!("Foo  ~~~~  Bar", capitalize("foo  ~~~~  bar"));
-        assert_eq!("Arcanist's Magic Aura", capitalize("arcanist's magic aura"));
-        assert_eq!("", capitalize(""));
     }
 }

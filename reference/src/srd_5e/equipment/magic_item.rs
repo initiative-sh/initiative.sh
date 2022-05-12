@@ -5,7 +5,7 @@ use std::fmt;
 #[derive(Debug, Deserialize)]
 pub struct MagicItem {
     index: String,
-    name: String,
+    pub name: String,
 
     #[serde(default)]
     desc: Vec<String>,
@@ -15,10 +15,6 @@ pub struct MagicItem {
 }
 
 impl MagicItem {
-    pub fn name(&self) -> String {
-        crate::capitalize(&self.name)
-    }
-
     pub fn token(&self) -> String {
         crate::to_camel_case(&self.index)
     }
@@ -44,7 +40,7 @@ impl<'a> fmt::Display for SummaryView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let magic_item = &self.0;
 
-        write!(f, "`{}`", magic_item.name())?;
+        write!(f, "`{}`", magic_item.name)?;
 
         Ok(())
     }
@@ -54,7 +50,7 @@ impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let magic_item = self.0;
 
-        writeln!(f, "# {}", magic_item.name())?;
+        writeln!(f, "# {}", magic_item.name)?;
 
         if let Some(line) = magic_item.desc.first() {
             writeln!(f, "\n*{}*", line)?;

@@ -5,16 +5,16 @@ fn deck_of_many_things() {
     let magic_items = magic_items().unwrap();
     let magic_item = magic_items
         .iter()
-        .find(|i| i.name() == "Deck Of Many Things")
+        .find(|i| i.name == "Deck of Many Things")
         .unwrap();
 
     assert_eq!(
-        "`Deck Of Many Things`",
+        "`Deck of Many Things`",
         format!("{}", magic_item.display_summary()),
     );
 
     assert_eq!("\
-# Deck Of Many Things
+# Deck of Many Things
 
 *Wondrous item, legendary*
 

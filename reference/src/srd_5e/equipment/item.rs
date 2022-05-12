@@ -6,7 +6,7 @@ use std::fmt;
 #[derive(Debug, Deserialize)]
 pub struct Item {
     index: String,
-    name: String,
+    pub name: String,
 
     cost: ValueWithUnit,
     weight: Option<f32>,
@@ -65,15 +65,20 @@ pub struct Range {
 
 impl Item {
     pub fn name(&self) -> String {
-        let mut name = if self.name.contains(", ") {
-            if let Some((start, end)) = self.name.split_once(", ") {
-                if let Some((end, end_paren)) = end.split_once(" (") {
-                    format!("{} {} ({}", end, start, end_paren)
-                } else {
-                    format!("{} {}", end, start)
-                }
+        let mut name = if let Some((start, end)) = self.name.split_once(", ") {
+            let name = if let Some((end, end_paren)) = end.split_once(" (") {
+                format!("{} {} ({}", end, start, end_paren)
             } else {
-                unreachable!();
+                format!("{} {}", end, start)
+            };
+
+            if name.starts_with(char::is_lowercase) {
+                name.chars()
+                    .enumerate()
+                    .map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c })
+                    .collect()
+            } else {
+                name
             }
         } else {
             self.name.to_owned()
@@ -86,12 +91,12 @@ impl Item {
             name.push_str(" Armor");
         }
 
-        crate::capitalize(&name)
+        name
     }
 
     pub fn alt_name(&self) -> Option<String> {
         if self.name.contains(", ") {
-            Some(crate::capitalize(&self.name))
+            Some(self.name.to_string())
         } else {
             None
         }

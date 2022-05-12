@@ -22,7 +22,7 @@ fn weapons() {
 | `Handaxe` | 5 gp | `1d6` slashing | 2 lb. | Light, monk, thrown (range 20/60) |
 | `Javelin` | 5 sp | `1d6` piercing | 2 lb. | Monk, thrown (range 30/120) |
 | `Lance` | 10 gp | `1d12` piercing | 6 lb. | Reach, special |
-| `Light Hammer` | 2 gp | `1d4` bludgeoning | 2 lb. | Light, monk, thrown (range 20/60) |
+| `Light hammer` | 2 gp | `1d4` bludgeoning | 2 lb. | Light, monk, thrown (range 20/60) |
 | `Longsword` | 15 gp | `1d8` slashing | 3 lb. | Versatile (`1d10`) |
 | `Mace` | 5 gp | `1d6` bludgeoning | 4 lb. | Monk |
 | `Maul` | 10 gp | `2d6` bludgeoning | 10 lb. | Heavy, two-handed |
@@ -35,7 +35,7 @@ fn weapons() {
 | `Sickle` | 1 gp | `1d4` slashing | 2 lb. | Light, monk |
 | `Spear` | 1 gp | `1d6` piercing | 3 lb. | Monk, thrown (range 20/60), versatile (`1d8`) |
 | `Trident` | 5 gp | `1d6` slashing | 4 lb. | Thrown (range 20/60), versatile (`1d8`) |
-| `War Pick` | 5 gp | `1d8` piercing | 2 lb. | — |
+| `War pick` | 5 gp | `1d8` piercing | 2 lb. | — |
 | `Warhammer` | 15 gp | `1d8` bludgeoning | 2 lb. | Versatile (`1d10`) |
 | `Whip` | 2 gp | `1d4` slashing | 3 lb. | Finesse, reach |
 
@@ -63,10 +63,10 @@ fn magic_weapons() {
 
     assert_eq!(
         "\
-# Magic weapons
+# Magic Weapons
 
 * `Berserker Axe`
-* `Dagger Of Venom`
+* `Dagger of Venom`
 * `Dancing Sword`
 * `Defender`
 * `Dragon Slayer`
@@ -74,21 +74,21 @@ fn magic_weapons() {
 * `Flame Tongue`
 * `Frost Brand`
 * `Giant Slayer`
-* `Hammer Of Thunderbolts`
+* `Hammer of Thunderbolts`
 * `Holy Avenger`
-* `Javelin Of Lightning`
+* `Javelin of Lightning`
 * `Luck Blade`
-* `Mace Of Disruption`
-* `Mace Of Smiting`
-* `Mace Of Terror`
+* `Mace of Disruption`
+* `Mace of Smiting`
+* `Mace of Terror`
 * `Nine Lives Stealer`
 * `Oathbow`
-* `Scimitar Of Speed`
+* `Scimitar of Speed`
 * `Sun Blade`
-* `Sword Of Life Stealing`
-* `Sword Of Sharpness`
-* `Sword Of Wounding`
-* `Trident Of Fish Command`
+* `Sword of Life Stealing`
+* `Sword of Sharpness`
+* `Sword of Wounding`
+* `Trident of Fish Command`
 * `Vicious Weapon`
 * `Vorpal Sword`
 * `Weapon, +1`

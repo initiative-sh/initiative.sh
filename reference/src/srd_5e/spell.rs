@@ -5,7 +5,7 @@ use std::fmt;
 #[derive(Debug, Deserialize)]
 pub struct Spell {
     index: String,
-    name: String,
+    pub name: String,
 
     level: u8,
 
@@ -43,10 +43,6 @@ pub struct SummaryView<'a>(&'a Spell);
 pub struct DetailsView<'a>(&'a Spell);
 
 impl Spell {
-    pub fn name(&self) -> String {
-        crate::capitalize(&self.name)
-    }
-
     pub fn token(&self) -> String {
         crate::to_camel_case(&self.index)
     }
@@ -76,7 +72,7 @@ impl<'a> fmt::Display for SummaryView<'a> {
         write!(
             f,
             "`{}` ({})",
-            spell.name(),
+            spell.name,
             spell.get_level_school().to_lowercase(),
         )
     }
@@ -86,7 +82,7 @@ impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let spell = self.0;
 
-        write!(f, "# {}\n*{}", spell.name(), spell.get_level_school())?;
+        write!(f, "# {}\n*{}", spell.name, spell.get_level_school())?;
 
         if spell.ritual {
             write!(f, " (ritual)")?;

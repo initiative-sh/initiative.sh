@@ -30,7 +30,7 @@ use initiative_reference::srd_5e::items;
 #[test]
 fn leather_armor() {
     let items = items().unwrap();
-    let item = items.iter().find(|i| i.name() == "Leather Armor").unwrap();
+    let item = items.iter().find(|i| i.name == "Leather Armor").unwrap();
 
     assert_eq!(
         "\
@@ -49,7 +49,7 @@ fn leather_armor() {
 #[test]
 fn chain_shirt() {
     let items = items().unwrap();
-    let item = items.iter().find(|i| i.name() == "Chain Shirt").unwrap();
+    let item = items.iter().find(|i| i.name == "Chain Shirt").unwrap();
 
     assert_eq!(
         "\
@@ -68,7 +68,7 @@ fn chain_shirt() {
 #[test]
 fn splint_armor() {
     let items = items().unwrap();
-    let item = items.iter().find(|i| i.name() == "Splint Armor").unwrap();
+    let item = items.iter().find(|i| i.name == "Splint Armor").unwrap();
 
     assert_eq!(
         "\
@@ -87,7 +87,7 @@ fn splint_armor() {
 #[test]
 fn shield() {
     let items = items().unwrap();
-    let item = items.iter().find(|i| i.name() == "Shield").unwrap();
+    let item = items.iter().find(|i| i.name == "Shield").unwrap();
 
     assert_eq!(
         "\
@@ -106,7 +106,7 @@ fn shield() {
 #[test]
 fn trident() {
     let items = items().unwrap();
-    let item = items.iter().find(|i| i.name() == "Trident").unwrap();
+    let item = items.iter().find(|i| i.name == "Trident").unwrap();
 
     assert_eq!(
         "\
@@ -142,7 +142,7 @@ fn light_crossbow() {
 #[test]
 fn mastiff() {
     let items = items().unwrap();
-    let item = items.iter().find(|i| i.name() == "Mastiff").unwrap();
+    let item = items.iter().find(|i| i.name == "Mastiff").unwrap();
 
     assert_eq!(
         "\
@@ -161,12 +161,12 @@ fn holy_water_flask() {
     let items = items().unwrap();
     let item = items
         .iter()
-        .find(|i| i.name() == "Holy Water (Flask)")
+        .find(|i| i.name == "Holy water (flask)")
         .unwrap();
 
     assert_eq!(
         "\
-# Holy Water (Flask)
+# Holy water (flask)
 *Adventuring Gear (Standard Gear)*
 
 **Cost:** 25 gp\\
@@ -186,7 +186,7 @@ The ritual takes 1 hour to perform, uses 25 gp worth of powdered silver, and req
 #[test]
 fn lance() {
     let items = items().unwrap();
-    let item = items.iter().find(|i| i.name() == "Lance").unwrap();
+    let item = items.iter().find(|i| i.name == "Lance").unwrap();
 
     assert_eq!("\
 # Lance

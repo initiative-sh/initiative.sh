@@ -137,7 +137,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
             .map(|item| {
                 EntryBuilder::default()
                     .with_ident(&item.token())
-                    .with_name(item.name())
+                    .with_name(item.name.to_owned())
                     .with_details(&item.display_details())
                     .into_entry()
                     .unwrap()
@@ -148,7 +148,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
             .map(|spell| {
                 EntryBuilder::default()
                     .with_ident(&spell.token())
-                    .with_name(spell.name())
+                    .with_name(spell.name.to_owned())
                     .with_details(&spell.display_details())
                     .into_entry()
                     .unwrap()
