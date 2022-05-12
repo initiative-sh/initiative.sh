@@ -2,15 +2,12 @@ use initiative_reference::srd_5e;
 use proc_macro::TokenStream;
 use quote::quote;
 
-/*
 struct Entry {
     ident: syn::Ident,
     name: String,
     aliases: Vec<String>,
     details: String,
 }
-*/
-
 #[derive(Default)]
 struct EntryBuilder {
     ident: Option<syn::Ident>,
@@ -40,22 +37,20 @@ impl EntryBuilder {
         self
     }
 
-    fn into_tuple(self) -> Result<(syn::Ident, String, Vec<String>, String), ()> {
-        Ok((
-            self.ident.ok_or(())?,
-            self.name.ok_or(())?,
-            self.aliases,
-            self.details.ok_or(())?,
-        ))
+    fn into_entry(self) -> Result<Entry, ()> {
+        Ok(Entry {
+            ident: self.ident.ok_or(())?,
+            name: self.name.ok_or(())?,
+            aliases: self.aliases,
+            details: self.details.ok_or(())?,
+        })
     }
 }
 
 pub fn run(input: TokenStream) -> Result<TokenStream, String> {
     let ident = parse_args(input)?;
 
-    let entries: Vec<(syn::Ident, String, Vec<String>, String)> = match format!("{}", ident)
-        .as_str()
-    {
+    let entries: Vec<Entry> = match format!("{}", ident).as_str() {
         "Spell" => srd_5e::spells()?
             .iter()
             .map(|spell| {
@@ -63,7 +58,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                     .with_ident(&spell.token())
                     .with_name(spell.name())
                     .with_details(&spell.display_details())
-                    .into_tuple()
+                    .into_entry()
                     .unwrap()
             })
             .collect(),
@@ -75,7 +70,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                     .with_name(item.name())
                     .with_aliases(item.alt_name().into_iter().collect())
                     .with_details(&item.display_details())
-                    .into_tuple()
+                    .into_entry()
                     .unwrap()
             })
             .collect(),
@@ -95,7 +90,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                             .with_name(category.name().to_lowercase())
                             .with_aliases(category.alt_names())
                             .with_details(&category.display_item_table(&items))
-                            .into_tuple()
+                            .into_entry()
                             .unwrap(),
                     );
                 }
@@ -116,7 +111,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                                     &magic_items,
                                     &format!("Magic {}", category_name),
                                 ))
-                                .into_tuple()
+                                .into_entry()
                                 .unwrap(),
                         );
                     } else {
@@ -128,7 +123,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                                 .with_details(
                                     &category.display_magic_item_list(&magic_items, &category_name),
                                 )
-                                .into_tuple()
+                                .into_entry()
                                 .unwrap(),
                         );
                     }
@@ -144,7 +139,7 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                     .with_ident(&item.token())
                     .with_name(item.name())
                     .with_details(&item.display_details())
-                    .into_tuple()
+                    .into_entry()
                     .unwrap()
             })
             .collect(),
@@ -156,44 +151,51 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
                     .with_ident(&t.token())
                     .with_name(t.name.to_owned())
                     .with_details(&t.display_details())
-                    .into_tuple()
+                    .into_entry()
                     .unwrap()
             })
             .collect(),
         _ => unimplemented!(),
     };
 
-    let variants = entries
-        .iter()
-        .map(|(variant, _, _, _)| quote! { #variant, });
+    let variants = entries.iter().map(|entry| &entry.ident);
 
-    let inputs_to_ok_variants = entries.iter().flat_map(|(variant, name, alt_names, _)| {
-        let name_lc = name.to_lowercase();
+    let parse_cs_cases = entries.iter().flat_map(|entry| {
+        let variant = &entry.ident;
+        let name_lc = entry.name.to_lowercase();
 
-        std::iter::once(quote! { #name_lc => Ok(#ident::#variant), }).chain(
-            alt_names
+        std::iter::once(quote! { #name_lc => Ok(#ident::#variant) }).chain(
+            entry
+                .aliases
                 .iter()
                 .zip(std::iter::repeat(variant))
                 .map(|(alt_name, variant)| {
                     let alt_name_lc = alt_name.to_lowercase();
-                    quote! { #alt_name_lc => Ok(#ident::#variant), }
+                    quote! { #alt_name_lc => Ok(#ident::#variant) }
                 }),
         )
     });
 
-    let variants_to_names = entries
-        .iter()
-        .map(|(variant, name, _, _)| quote! { #ident::#variant => #name, });
+    let get_name_cases = entries.iter().map(|entry| {
+        let variant = &entry.ident;
+        let name = &entry.name;
+        quote! { #ident::#variant => #name }
+    });
 
-    let variants_to_outputs = entries
-        .iter()
-        .map(|(variant, _, _, output)| quote! { #ident::#variant => #output, });
+    let get_output_cases = entries.iter().map(|entry| {
+        let variant = &entry.ident;
+        let output = &entry.details;
+        quote! { #ident::#variant => #output }
+    });
 
     let get_list = if ident == "Spell" {
-        let mut list_output = format!("# {}s", ident);
-        srd_5e::spells()?
-            .iter()
-            .for_each(|spell| list_output.push_str(&format!("\n* {}", spell.display_summary())));
+        let list_output: String = std::iter::once(format!("# {}s", ident))
+            .chain(
+                srd_5e::spells()?
+                    .iter()
+                    .map(|spell| format!("\n* {}", spell.display_summary())),
+            )
+            .collect();
 
         quote! {
             pub fn get_list() -> &'static str {
@@ -204,15 +206,16 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
         quote! {}
     };
 
-    let words = entries.iter().flat_map(|(_, name, alt_names, _)| {
+    let words = entries.iter().flat_map(|entry| {
+        let name = &entry.name;
         std::iter::once(quote! { #name, })
-            .chain(alt_names.iter().map(|alt_name| quote! { #alt_name, }))
+            .chain(entry.aliases.iter().map(|alt_name| quote! { #alt_name, }))
     });
 
     let result = quote! {
         #[derive(Clone, Debug, PartialEq)]
         pub enum #ident {
-            #(#variants)*
+            #(#variants),*
         }
 
         impl #ident {
@@ -224,19 +227,19 @@ pub fn run(input: TokenStream) -> Result<TokenStream, String> {
 
             pub fn get_name(&self) -> &'static str {
                 match self {
-                    #(#variants_to_names)*
+                    #(#get_name_cases),*
                 }
             }
 
             pub fn get_output(&self) -> &'static str {
                 match self {
-                    #(#variants_to_outputs)*
+                    #(#get_output_cases),*
                 }
             }
 
             pub fn parse_cs(input: &str) -> Result<Self, ()> {
                 match input {
-                    #(#inputs_to_ok_variants)*
+                    #(#parse_cs_cases),*,
                     _ => Err(()),
                 }
             }
