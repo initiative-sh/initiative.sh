@@ -20,11 +20,13 @@ Existing things can be edited by describing them with "is", for instance:
 * once you have created `a character named Roger`, you can say that
   `Roger is a halfling`
 
-Proper (capitalized) nouns will give you existing people, places, or reference
-items from the 5th edition D&D Systems Reference Document. For instance:
+You can invoke terms from the 5th edition D&D Systems Reference Document to pull
+up the relevant details or rule reference. For instance:
 
-* `spells` (`Acid Arrow` to `Zone Of Truth`)
-* `weapons`, `adventuring gear`, `tools`, etc. (`Abacus` to `Yew Wand`)
+* `spells` (from `Acid Arrow` to `Zone of Truth`)
+* `weapons`, `adventuring gear`, `tools`, etc. (from `Abacus` to `Yew Wand`)
+* conditions (`exhaustion`, `paralyzed`, etc.)
+* traits (`stonecunning`, `lucky`, `hellish resistance`)
 * more to come
 
 The journal allows you to save and load generated characters, places, etc.
@@ -33,7 +35,7 @@ next time you visit initiative.sh.
 
 * `journal` lists all journal entries.
 * `save [name]` saves a generated character, place, etc. to your journal.
-* `load [name]` (or just `[name]`) loads the named entry from your journal or
+* `[name]` (or `load [name]`) loads the named entry from your journal or
   recently generated entries.
 * `delete [name]` deletes a journal entry.
 * `export` and `import` journal backups.
