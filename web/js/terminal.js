@@ -272,7 +272,6 @@ function initialize(elementId, autocompleteCallback) {
 
   function tabEvent(event) {
     if (autoCompleteJS.cursor > -1) {
-      console.log(autoCompleteJS.feedback.results[autoCompleteJS.cursor].value.suggestion)
       selectBracketedExpression(
         autoCompleteJS.feedback.results[autoCompleteJS.cursor].value.suggestion
       )
@@ -280,10 +279,12 @@ function initialize(elementId, autocompleteCallback) {
       const commonPrefix = autoCompleteJS.feedback.results
         .map((result) => result.value.suggestion)
         .reduce((a, b) => {
-          let acc = ""
-          for (let i = 0; i < a.length && i < b.length; i++) {
+          let acc = promptElement.value
+          for (let i = promptElement.value.length; i < a.length && i < b.length; i++) {
             if (a[i] == b[i]) {
               acc += a[i]
+            } else if (a[i].toLowerCase() == b[i].toLowerCase()) {
+              acc += a[i].toLowerCase()
             } else {
               break
             }
