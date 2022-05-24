@@ -1,3 +1,5 @@
+* **Bug:** Fixed the tab key unexpectedly clearing the input field under certain
+  circumstances.
 * **Enhancement:** Added conditions such as `Prone` and `Stunned` to the
   reference corpus. There aren't a lot of them, but I keep having to look up
   their details anyway!
