@@ -1,3 +1,6 @@
+* **Bug:** Update outdated references in the documentation about the app being
+  case-sensitive, and a bit of expectation management around the project being
+  in "active development".
 * **Bug:** Fixed the tab key unexpectedly clearing the input field under certain
   circumstances.
 * **Enhancement:** Added conditions such as `Prone` and `Stunned` to the

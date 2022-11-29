@@ -16,8 +16,8 @@ It aims to do that through three principles:
   history and can be saved to your `journal`, so you don't need to worry about
   forgetting to scribble down a generated name that came up in conversation.
 
-*(initiative.sh is under active development and not all features described have
-been implemented yet. Please check back regularly for updates, which will be
-published in the `changelog`.)*
+*(initiative.sh is incomplete and not all features described have been
+implemented yet. Please check back for updates, which will be published in the
+`changelog`.)*
 
 Type or click `help` to get started.
