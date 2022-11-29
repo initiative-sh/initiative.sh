@@ -10,7 +10,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::iter::repeat;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StorageCommand {
     Delete { name: String },
     Export,

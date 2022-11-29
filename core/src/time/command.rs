@@ -7,7 +7,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::iter;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TimeCommand {
     Add { interval: Interval },
     Now,

@@ -7,7 +7,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::iter::repeat;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ReferenceCommand {
     Condition(Condition),
     Item(Item),

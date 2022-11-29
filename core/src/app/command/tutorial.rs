@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use std::borrow::Cow;
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TutorialCommand {
     Introduction,
     Inn,

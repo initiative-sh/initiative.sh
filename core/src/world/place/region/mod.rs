@@ -4,7 +4,7 @@ mod political;
 use initiative_macros::WordList;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, WordList)]
 #[serde(into = "&'static str", try_from = "&str")]
 pub enum RegionType {
     #[term = "region"]

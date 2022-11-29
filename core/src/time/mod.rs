@@ -7,7 +7,7 @@ mod interval;
 use std::fmt;
 use std::str::FromStr;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Time {
     days: i32,
     hours: u8,

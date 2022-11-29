@@ -11,7 +11,7 @@ use std::ops::Range;
 mod autocomplete;
 mod parse;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WorldCommand {
     Create {
         thing: ParsedThing<Thing>,
@@ -25,7 +25,7 @@ pub enum WorldCommand {
     },
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParsedThing<T> {
     pub thing: T,
     pub unknown_words: Vec<Range<usize>>,

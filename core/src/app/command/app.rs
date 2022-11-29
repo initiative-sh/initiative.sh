@@ -6,7 +6,7 @@ use initiative_macros::changelog;
 use std::borrow::Cow;
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AppCommand {
     About,
     Changelog,

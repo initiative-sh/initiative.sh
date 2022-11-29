@@ -3,7 +3,7 @@ use std::fmt;
 use std::ops::AddAssign;
 use std::str::FromStr;
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Interval {
     pub days: i32,
     pub hours: i32,
