@@ -171,8 +171,11 @@ fn gen_name(
 
     let mut result = weighted_index_from_tuple(rng, start_dist).to_string();
     for _ in 2..syllable_count {
+        // following Clippy's advice leads to a compile error as of 1.65
+        #[allow(clippy::explicit_auto_deref)]
         result.push_str(*weighted_index_from_tuple(rng, mid_dist));
     }
+    #[allow(clippy::explicit_auto_deref)]
     result.push_str(*weighted_index_from_tuple(rng, end_dist));
     result
 }

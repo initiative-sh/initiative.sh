@@ -21,7 +21,7 @@ use futures::join;
 use std::borrow::Cow;
 use std::fmt;
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Command {
     exact_match: Option<CommandType>,
     fuzzy_matches: Vec<CommandType>,
@@ -188,7 +188,7 @@ impl Autocomplete for Command {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CommandType {
     Alias(CommandAlias),
     App(AppCommand),

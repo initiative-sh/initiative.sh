@@ -8,12 +8,12 @@ use std::iter;
 type GroupMap = HashMap<(Species, Ethnicity), u64>;
 type GroupMapSerialized = Vec<(Species, Ethnicity, u64)>;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Demographics {
     groups: GroupMapWrapper,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(from = "GroupMapSerialized", into = "GroupMapSerialized")]
 struct GroupMapWrapper(GroupMap);
 

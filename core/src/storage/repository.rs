@@ -18,7 +18,7 @@ pub struct Repository {
     undo_history: VecDeque<Change>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Change {
     /// Create a new thing and store it in recent entries.
     ///
@@ -73,7 +73,7 @@ pub struct DisplayUndo<'a>(&'a Change);
 
 pub struct DisplayRedo<'a>(&'a Change);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Error {
     DataStoreFailed,
     MissingName,
@@ -81,7 +81,7 @@ pub enum Error {
     NotFound,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum KeyValue {
     Time(Option<Time>),
 }

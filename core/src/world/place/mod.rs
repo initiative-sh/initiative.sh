@@ -13,7 +13,7 @@ use std::fmt;
 
 initiative_macros::uuid!();
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Default, Eq, PartialEq, Serialize)]
 pub struct Place {
     pub uuid: Option<Uuid>,
     pub location_uuid: Field<Uuid>,
@@ -37,7 +37,7 @@ pub struct PlaceRelations {
     pub location: Option<(Place, Option<Place>)>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, WordList, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, WordList)]
 #[serde(into = "&'static str", try_from = "&str")]
 pub enum PlaceType {
     #[term = "place"]

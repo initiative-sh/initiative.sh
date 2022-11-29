@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 initiative_macros::uuid!();
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Npc {
     pub uuid: Option<Uuid>,
     pub name: Field<String>,
