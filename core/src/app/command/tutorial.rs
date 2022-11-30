@@ -186,10 +186,9 @@ impl TutorialCommand {
                 include_str!("../../../../data/tutorial/08-load-by-name.md"),
                 npc_name = npc_name,
             )),
-            Self::Weapons { npc_name, .. } => output.push_str(&format!(
-                include_str!("../../../../data/tutorial/09-spell.md"),
-                npc_name = npc_name,
-            )),
+            Self::Weapons { .. } => {
+                output.push_str(include_str!("../../../../data/tutorial/09-spell.md"))
+            }
             Self::Roll { inn_name, npc_name } => output.push_str(&format!(
                 include_str!("../../../../data/tutorial/10-weapons.md"),
                 inn_name = inn_name,

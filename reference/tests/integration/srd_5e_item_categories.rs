@@ -3,7 +3,7 @@ use initiative_reference::srd_5e::{item_categories, items, magic_items};
 #[test]
 fn armor() {
     let categories = item_categories().unwrap();
-    let category = categories.iter().find(|i| i.name() == "armor").unwrap();
+    let category = categories.iter().find(|i| i.name() == "Armor").unwrap();
     let items = items().unwrap();
 
     assert_eq!(
@@ -32,7 +32,7 @@ fn armor() {
 #[test]
 fn weapons() {
     let categories = item_categories().unwrap();
-    let category = categories.iter().find(|i| i.name() == "weapons").unwrap();
+    let category = categories.iter().find(|i| i.name() == "Weapons").unwrap();
     let items = items().unwrap();
 
     assert_eq!(
@@ -44,9 +44,9 @@ fn weapons() {
 | `Battleaxe` | 10 gp | 1d8 slashing | 4 lb. | Versatile (1d10) |
 | `Blowgun` | 10 gp | 1d1 piercing | 1 lb. | Ammunition (range 25/100), loading |
 | `Club` | 1 sp | 1d4 bludgeoning | 2 lb. | Light, monk |
-| `Crossbow, Hand` | 75 gp | 1d6 piercing | 3 lb. | Ammunition (range 30/120), light, loading |
-| `Crossbow, Heavy` | 50 gp | 1d10 piercing | 18 lb. | Ammunition (range 100/400), heavy, loading, two-handed |
-| `Crossbow, Light` | 25 gp | 1d8 piercing | 5 lb. | Ammunition (range 80/320), loading, two-handed |
+| `Crossbow, hand` | 75 gp | 1d6 piercing | 3 lb. | Ammunition (range 30/120), light, loading |
+| `Crossbow, heavy` | 50 gp | 1d10 piercing | 18 lb. | Ammunition (range 100/400), heavy, loading, two-handed |
+| `Crossbow, light` | 25 gp | 1d8 piercing | 5 lb. | Ammunition (range 80/320), loading, two-handed |
 | `Dagger` | 2 gp | 1d4 piercing | 1 lb. | Finesse, light, monk, thrown (range 20/60) |
 | `Dart` | 5 cp | 1d4 piercing | 0.25 lb. | Finesse, thrown (range 20/60) |
 | `Flail` | 10 gp | 1d8 bludgeoning | 2 lb. | — |
@@ -58,7 +58,7 @@ fn weapons() {
 | `Handaxe` | 5 gp | 1d6 slashing | 2 lb. | Light, monk, thrown (range 20/60) |
 | `Javelin` | 5 sp | 1d6 piercing | 2 lb. | Monk, thrown (range 30/120) |
 | `Lance` | 10 gp | 1d12 piercing | 6 lb. | Reach, special |
-| `Light Hammer` | 2 gp | 1d4 bludgeoning | 2 lb. | Light, monk, thrown (range 20/60) |
+| `Light hammer` | 2 gp | 1d4 bludgeoning | 2 lb. | Light, monk, thrown (range 20/60) |
 | `Longbow` | 50 gp | 1d8 piercing | 2 lb. | Ammunition (range 150/600), heavy, two-handed |
 | `Longsword` | 15 gp | 1d8 slashing | 3 lb. | Versatile (1d10) |
 | `Mace` | 5 gp | 1d6 bludgeoning | 4 lb. | Monk |
@@ -75,7 +75,7 @@ fn weapons() {
 | `Sling` | 1 sp | 1d4 bludgeoning | 0 lb. | Ammunition (range 30/120) |
 | `Spear` | 1 gp | 1d6 piercing | 3 lb. | Monk, thrown (range 20/60), versatile (1d8) |
 | `Trident` | 5 gp | 1d6 slashing | 4 lb. | Thrown (range 20/60), versatile (1d8) |
-| `War Pick` | 5 gp | 1d8 piercing | 2 lb. | — |
+| `War pick` | 5 gp | 1d8 piercing | 2 lb. | — |
 | `Warhammer` | 15 gp | 1d8 bludgeoning | 2 lb. | Versatile (1d10) |
 | `Whip` | 2 gp | 1d4 slashing | 3 lb. | Finesse, reach |",
         format!("{}", category.display_item_table(&items[..])),
@@ -87,7 +87,7 @@ fn adventuring_gear() {
     let categories = item_categories().unwrap();
     let category = categories
         .iter()
-        .find(|i| i.name() == "adventuring gear")
+        .find(|i| i.name() == "Adventuring Gear")
         .unwrap();
     let items = items().unwrap();
 
@@ -98,41 +98,41 @@ fn adventuring_gear() {
 | Name | Cost | Weight |
 |---|--:|--:|
 | `Abacus` | 2 gp | 2 lb. |
-| `Acid (Vial)` | 25 gp | 1 lb. |
-| `Alchemist's Fire (Flask)` | 50 gp | 1 lb. |
-| `Alms Box` | 0 cp | 0 lb. |
+| `Acid (vial)` | 25 gp | 1 lb. |
+| `Alchemist's fire (flask)` | 50 gp | 1 lb. |
+| `Alms box` | 0 cp | 0 lb. |
 | `Amulet` | 5 gp | 1 lb. |
-| `Antitoxin (Vial)` | 50 gp | 0 lb. |
+| `Antitoxin (vial)` | 50 gp | 0 lb. |
 | `Arrow` | 1 gp | 1 lb. |
 | `Backpack` | 2 gp | 5 lb. |
-| `Ball Bearings (Bag Of 1,000)` | 1 gp | 2 lb. |
+| `Ball bearings (bag of 1,000)` | 1 gp | 2 lb. |
 | `Barrel` | 2 gp | 70 lb. |
 | `Basket` | 4 sp | 2 lb. |
 | `Bedroll` | 1 gp | 7 lb. |
 | `Bell` | 1 gp | 0 lb. |
 | `Blanket` | 5 sp | 3 lb. |
-| `Block And Tackle` | 1 gp | 5 lb. |
-| `Block Of Incense` | 0 cp | 0 lb. |
-| `Blowgun Needle` | 1 gp | 1 lb. |
+| `Block and tackle` | 1 gp | 5 lb. |
+| `Block of incense` | 0 cp | 0 lb. |
+| `Blowgun needle` | 1 gp | 1 lb. |
 | `Book` | 25 gp | 5 lb. |
-| `Bottle, Glass` | 2 gp | 2 lb. |
+| `Bottle, glass` | 2 gp | 2 lb. |
 | `Bucket` | 5 cp | 2 lb. |
 | `Burglar's Pack` | 16 gp | — |
 | `Caltrops` | 5 cp | 2 lb. |
 | `Candle` | 1 cp | 0 lb. |
-| `Case, Crossbow Bolt` | 1 gp | 1 lb. |
-| `Case, Map Or Scroll` | 1 gp | 1 lb. |
+| `Case, crossbow bolt` | 1 gp | 1 lb. |
+| `Case, map or scroll` | 1 gp | 1 lb. |
 | `Censer` | 0 cp | 0 lb. |
-| `Chain (10 Feet)` | 5 gp | 10 lb. |
-| `Chalk (1 Piece)` | 1 cp | 0 lb. |
+| `Chain (10 feet)` | 5 gp | 10 lb. |
+| `Chalk (1 piece)` | 1 cp | 0 lb. |
 | `Chest` | 5 gp | 25 lb. |
 | `Climber's Kit` | 25 gp | 12 lb. |
-| `Clothes, Common` | 5 sp | 3 lb. |
-| `Clothes, Costume` | 5 gp | 4 lb. |
-| `Clothes, Fine` | 15 gp | 6 lb. |
-| `Clothes, Traveler's` | 2 gp | 4 lb. |
-| `Component Pouch` | 25 gp | 2 lb. |
-| `Crossbow Bolt` | 1 gp | 1.5 lb. |
+| `Clothes, common` | 5 sp | 3 lb. |
+| `Clothes, costume` | 5 gp | 4 lb. |
+| `Clothes, fine` | 15 gp | 6 lb. |
+| `Clothes, traveler's` | 2 gp | 4 lb. |
+| `Component pouch` | 25 gp | 2 lb. |
+| `Crossbow bolt` | 1 gp | 1.5 lb. |
 | `Crowbar` | 2 gp | 5 lb. |
 | `Crystal` | 10 gp | 1 lb. |
 | `Diplomat's Pack` | 39 gp | — |
@@ -141,68 +141,68 @@ fn adventuring_gear() {
 | `Emblem` | 5 gp | 0 lb. |
 | `Entertainer's Pack` | 40 gp | — |
 | `Explorer's Pack` | 10 gp | — |
-| `Fishing Tackle` | 1 gp | 4 lb. |
-| `Flask Or Tankard` | 2 cp | 1 lb. |
+| `Fishing tackle` | 1 gp | 4 lb. |
+| `Flask or tankard` | 2 cp | 1 lb. |
 | `Forgery Kit` | 15 gp | 5 lb. |
-| `Grappling Hook` | 2 gp | 4 lb. |
+| `Grappling hook` | 2 gp | 4 lb. |
 | `Hammer` | 1 gp | 3 lb. |
-| `Hammer, Sledge` | 2 gp | 10 lb. |
+| `Hammer, sledge` | 2 gp | 10 lb. |
 | `Healer's Kit` | 5 gp | 3 lb. |
 | `Herbalism Kit` | 5 gp | 3 lb. |
-| `Holy Water (Flask)` | 25 gp | 1 lb. |
+| `Holy water (flask)` | 25 gp | 1 lb. |
 | `Hourglass` | 25 gp | 1 lb. |
-| `Hunting Trap` | 5 gp | 25 lb. |
-| `Ink (1 Ounce Bottle)` | 10 gp | 0 lb. |
-| `Ink Pen` | 2 cp | 0 lb. |
-| `Jug Or Pitcher` | 2 cp | 4 lb. |
-| `Ladder (10-Foot)` | 1 sp | 25 lb. |
+| `Hunting trap` | 5 gp | 25 lb. |
+| `Ink (1 ounce bottle)` | 10 gp | 0 lb. |
+| `Ink pen` | 2 cp | 0 lb. |
+| `Jug or pitcher` | 2 cp | 4 lb. |
+| `Ladder (10-foot)` | 1 sp | 25 lb. |
 | `Lamp` | 5 sp | 1 lb. |
-| `Lantern, Bullseye` | 10 gp | 2 lb. |
-| `Lantern, Hooded` | 5 gp | 2 lb. |
-| `Little Bag Of Sand` | 0 cp | 0 lb. |
+| `Lantern, bullseye` | 10 gp | 2 lb. |
+| `Lantern, hooded` | 5 gp | 2 lb. |
+| `Little bag of sand` | 0 cp | 0 lb. |
 | `Lock` | 10 gp | 1 lb. |
-| `Magnifying Glass` | 100 gp | 0 lb. |
+| `Magnifying glass` | 100 gp | 0 lb. |
 | `Manacles` | 2 gp | 6 lb. |
 | `Mess Kit` | 2 sp | 1 lb. |
-| `Mirror, Steel` | 5 gp | 0.5 lb. |
-| `Oil (Flask)` | 1 sp | 1 lb. |
+| `Mirror, steel` | 5 gp | 0.5 lb. |
+| `Oil (flask)` | 1 sp | 1 lb. |
 | `Orb` | 20 gp | 3 lb. |
-| `Paper (One Sheet)` | 2 sp | 0 lb. |
-| `Parchment (One Sheet)` | 1 sp | 0 lb. |
-| `Perfume (Vial)` | 5 gp | 0 lb. |
-| `Pick, Miner's` | 2 gp | 10 lb. |
+| `Paper (one sheet)` | 2 sp | 0 lb. |
+| `Parchment (one sheet)` | 1 sp | 0 lb. |
+| `Perfume (vial)` | 5 gp | 0 lb. |
+| `Pick, miner's` | 2 gp | 10 lb. |
 | `Piton` | 5 cp | 0.25 lb. |
-| `Poison, Basic (Vial)` | 100 gp | 0 lb. |
+| `Poison, basic (vial)` | 100 gp | 0 lb. |
 | `Poisoner's Kit` | 50 gp | 2 lb. |
-| `Pole (10-Foot)` | 5 cp | 7 lb. |
-| `Pot, Iron` | 2 gp | 10 lb. |
+| `Pole (10-foot)` | 5 cp | 7 lb. |
+| `Pot, iron` | 2 gp | 10 lb. |
 | `Pouch` | 5 sp | 1 lb. |
 | `Priest's Pack` | 19 gp | — |
 | `Quiver` | 1 gp | 1 lb. |
-| `Ram, Portable` | 4 gp | 35 lb. |
-| `Rations (1 Day)` | 5 sp | 2 lb. |
+| `Ram, portable` | 4 gp | 35 lb. |
+| `Rations (1 day)` | 5 sp | 2 lb. |
 | `Reliquary` | 5 gp | 2 lb. |
 | `Robes` | 1 gp | 4 lb. |
 | `Rod` | 10 gp | 2 lb. |
-| `Rope, Hempen (50 Feet)` | 1 gp | 10 lb. |
-| `Rope, Silk (50 Feet)` | 10 gp | 5 lb. |
+| `Rope, hempen (50 feet)` | 1 gp | 10 lb. |
+| `Rope, silk (50 feet)` | 10 gp | 5 lb. |
 | `Sack` | 1 cp | 0.5 lb. |
-| `Scale, Merchant's` | 5 gp | 3 lb. |
+| `Scale, merchant's` | 5 gp | 3 lb. |
 | `Scholar's Pack` | 40 gp | — |
-| `Sealing Wax` | 5 sp | 0 lb. |
+| `Sealing wax` | 5 sp | 0 lb. |
 | `Shovel` | 2 gp | 5 lb. |
-| `Signal Whistle` | 5 cp | 0 lb. |
-| `Signet Ring` | 5 gp | 0 lb. |
-| `Sling Bullet` | 4 cp | 1.5 lb. |
-| `Small Knife` | 0 cp | 0 lb. |
+| `Signal whistle` | 5 cp | 0 lb. |
+| `Signet ring` | 5 gp | 0 lb. |
+| `Sling bullet` | 4 cp | 1.5 lb. |
+| `Small knife` | 0 cp | 0 lb. |
 | `Soap` | 2 cp | 0 lb. |
 | `Spellbook` | 50 gp | 3 lb. |
-| `Spike, Iron` | 1 sp | 5 lb. |
-| `Sprig Of Mistletoe` | 1 gp | 0 lb. |
+| `Spike, iron` | 1 sp | 5 lb. |
+| `Sprig of mistletoe` | 1 gp | 0 lb. |
 | `Spyglass` | 1000 gp | 1 lb. |
 | `Staff` | 5 gp | 4 lb. |
-| `String (10 Feet)` | 0 cp | 0 lb. |
-| `Tent, Two-Person` | 2 gp | 20 lb. |
+| `String (10 feet)` | 0 cp | 0 lb. |
+| `Tent, two-person` | 2 gp | 20 lb. |
 | `Tinderbox` | 5 sp | 1 lb. |
 | `Torch` | 1 cp | 1 lb. |
 | `Totem` | 1 gp | 0 lb. |
@@ -211,8 +211,8 @@ fn adventuring_gear() {
 | `Wand` | 10 gp | 1 lb. |
 | `Waterskin` | 2 sp | 5 lb. |
 | `Whetstone` | 1 cp | 1 lb. |
-| `Wooden Staff` | 5 gp | 4 lb. |
-| `Yew Wand` | 10 gp | 1 lb. |",
+| `Wooden staff` | 5 gp | 4 lb. |
+| `Yew wand` | 10 gp | 1 lb. |",
         format!("{}", category.display_item_table(&items[..])),
     );
 }
@@ -220,7 +220,7 @@ fn adventuring_gear() {
 #[test]
 fn tools() {
     let categories = item_categories().unwrap();
-    let category = categories.iter().find(|i| i.name() == "tools").unwrap();
+    let category = categories.iter().find(|i| i.name() == "Tools").unwrap();
     let items = items().unwrap();
 
     assert_eq!(
@@ -236,7 +236,7 @@ fn tools() {
 | `Carpenter's Tools` | 8 gp | 6 lb. |
 | `Cartographer's Tools` | 15 gp | 6 lb. |
 | `Cobbler's Tools` | 5 gp | 5 lb. |
-| `Cook's Utensils` | 1 gp | 8 lb. |
+| `Cook's utensils` | 1 gp | 8 lb. |
 | `Dice Set` | 1 sp | 0 lb. |
 | `Drum` | 6 gp | 3 lb. |
 | `Dulcimer` | 25 gp | 10 lb. |
@@ -250,7 +250,7 @@ fn tools() {
 | `Mason's Tools` | 10 gp | 8 lb. |
 | `Navigator's Tools` | 25 gp | 2 lb. |
 | `Painter's Supplies` | 10 gp | 5 lb. |
-| `Pan Flute` | 12 gp | 2 lb. |
+| `Pan flute` | 12 gp | 2 lb. |
 | `Playing Card Set` | 5 sp | 0 lb. |
 | `Potter's Tools` | 10 gp | 3 lb. |
 | `Shawm` | 2 gp | 1 lb. |
@@ -269,37 +269,37 @@ fn mounts_and_vehicles() {
     let categories = item_categories().unwrap();
     let category = categories
         .iter()
-        .find(|i| i.name() == "mounts and vehicles")
+        .find(|i| i.name() == "Mounts and Vehicles")
         .unwrap();
     let items = items().unwrap();
 
     assert_eq!(
         "\
-# Mounts And Vehicles
+# Mounts and Vehicles
 
 | Name | Cost | Speed |
 |---|--:|--:|
-| `Animal Feed (1 Day)` | 5 cp | — |
+| `Animal Feed (1 day)` | 5 cp | — |
 | `Barding: Breastplate` | 1600 gp | — |
-| `Barding: Chain Mail` | 300 gp | — |
-| `Barding: Chain Shirt` | 200 gp | — |
-| `Barding: Half Plate` | 3000 gp | — |
+| `Barding: Chain mail` | 300 gp | — |
+| `Barding: Chain shirt` | 200 gp | — |
+| `Barding: Half plate` | 3000 gp | — |
 | `Barding: Hide` | 40 gp | — |
 | `Barding: Leather` | 40 gp | — |
 | `Barding: Padded` | 20 gp | — |
 | `Barding: Plate` | 6000 gp | — |
-| `Barding: Ring Mail` | 12 gp | — |
-| `Barding: Scale Mail` | 200 gp | — |
+| `Barding: Ring mail` | 12 gp | — |
+| `Barding: Scale mail` | 200 gp | — |
 | `Barding: Splint` | 800 gp | — |
 | `Barding: Studded Leather` | 180 gp | — |
-| `Bit And Bridle` | 2 gp | — |
+| `Bit and bridle` | 2 gp | — |
 | `Carriage` | 100 gp | — |
 | `Cart` | 15 gp | — |
 | `Chariot` | 250 gp | — |
 | `Elephant` | 200 gp | 40 ft/round |
 | `Galley` | 30000 gp | 4 mph |
-| `Horse, Draft` | 50 gp | 40 ft/round |
-| `Horse, Riding` | 75 gp | 60 ft/round |
+| `Horse, draft` | 50 gp | 40 ft/round |
+| `Horse, riding` | 75 gp | 60 ft/round |
 | `Keelboat` | 3000 gp | 1 mph |
 | `Longship` | 10000 gp | 3 mph |
 | `Mastiff` | 25 gp | 40 ft/round |
@@ -311,9 +311,9 @@ fn mounts_and_vehicles() {
 | `Saddle, Pack` | 5 gp | — |
 | `Saddle, Riding` | 10 gp | — |
 | `Saddlebags` | 4 gp | — |
-| `Sailing Ship` | 10000 gp | 2 mph |
+| `Sailing ship` | 10000 gp | 2 mph |
 | `Sled` | 20 gp | — |
-| `Stabling (1 Day)` | 5 sp | — |
+| `Stabling (1 day)` | 5 sp | — |
 | `Wagon` | 35 gp | — |
 | `Warhorse` | 400 gp | 60 ft/round |
 | `Warship` | 25000 gp | 2.5 mph |",
@@ -324,50 +324,50 @@ fn mounts_and_vehicles() {
 #[test]
 fn potions() {
     let categories = item_categories().unwrap();
-    let category = categories.iter().find(|i| i.name() == "potions").unwrap();
+    let category = categories.iter().find(|i| i.name() == "Potions").unwrap();
     let magic_items = magic_items().unwrap();
 
     assert_eq!(
         "\
 # Potions
 
-* `Oil Of Etherealness`
-* `Oil Of Sharpness`
-* `Oil Of Slipperiness`
-* `Philter Of Love`
-* `Potion Of Acid Resistance`
-* `Potion Of Animal Friendship`
-* `Potion Of Clairvoyance`
-* `Potion Of Climbing`
-* `Potion Of Cloud Giant Strength`
-* `Potion Of Cold Resistance`
-* `Potion Of Diminution`
-* `Potion Of Fire Giant Strength`
-* `Potion Of Fire Resistance`
-* `Potion Of Flying`
-* `Potion Of Force Resistance`
-* `Potion Of Frost Giant Strength`
-* `Potion Of Gaseous Form`
-* `Potion Of Greater Healing`
-* `Potion Of Growth`
-* `Potion Of Healing`
-* `Potion Of Heroism`
-* `Potion Of Hill Giant Strength`
-* `Potion Of Invisibility`
-* `Potion Of Lightning Resistance`
-* `Potion Of Mind Reading`
-* `Potion Of Necrotic Resistance`
-* `Potion Of Poison`
-* `Potion Of Poison Resistance`
-* `Potion Of Psychic Resistance`
-* `Potion Of Radiant Resistance`
-* `Potion Of Speed`
-* `Potion Of Stone Giant Strength`
-* `Potion Of Storm Giant Strength`
-* `Potion Of Superior Healing`
-* `Potion Of Supreme Healing`
-* `Potion Of Thunder Resistance`
-* `Potion Of Water Breathing`",
+* `Oil of Etherealness`
+* `Oil of Sharpness`
+* `Oil of Slipperiness`
+* `Philter of Love`
+* `Potion of Acid Resistance`
+* `Potion of Animal Friendship`
+* `Potion of Clairvoyance`
+* `Potion of Climbing`
+* `Potion of Cloud Giant Strength`
+* `Potion of Cold Resistance`
+* `Potion of Diminution`
+* `Potion of Fire Giant Strength`
+* `Potion of Fire Resistance`
+* `Potion of Flying`
+* `Potion of Force Resistance`
+* `Potion of Frost Giant Strength`
+* `Potion of Gaseous Form`
+* `Potion of Greater Healing`
+* `Potion of Growth`
+* `Potion of Healing`
+* `Potion of Heroism`
+* `Potion of Hill Giant Strength`
+* `Potion of Invisibility`
+* `Potion of Lightning Resistance`
+* `Potion of Mind Reading`
+* `Potion of Necrotic Resistance`
+* `Potion of Poison`
+* `Potion of Poison Resistance`
+* `Potion of Psychic Resistance`
+* `Potion of Radiant Resistance`
+* `Potion of Speed`
+* `Potion of Stone Giant Strength`
+* `Potion of Storm Giant Strength`
+* `Potion of Superior Healing`
+* `Potion of Supreme Healing`
+* `Potion of Thunder Resistance`
+* `Potion of Water Breathing`",
         format!(
             "{}",
             category.display_magic_item_list(&magic_items[..], "Potions"),
@@ -398,81 +398,81 @@ fn list_all_categories() {
         vec![
             (
                 "AdventuringGear",
-                vec!["adventuring gear", "gear, adventuring"],
+                vec!["Adventuring Gear", "Gear, Adventuring"],
             ),
-            ("Ammunition", vec!["ammunition"]),
-            ("ArcaneFoci", vec!["arcane foci", "foci, arcane"]),
-            ("Armor", vec!["armor"]),
-            ("ArtisansTools", vec!["artisan's tools", "tools, artisan's"]),
-            ("DruidicFoci", vec!["druidic foci", "foci, druidic"]),
+            ("Ammunition", vec!["Ammunition"]),
+            ("ArcaneFoci", vec!["Arcane Foci", "Foci, Arcane"]),
+            ("Armor", vec!["Armor"]),
+            ("ArtisansTools", vec!["Artisan's Tools", "Tools, Artisan's"]),
+            ("DruidicFoci", vec!["Druidic Foci", "Foci, Druidic"]),
             (
                 "EquipmentPacks",
-                vec!["equipment packs", "packs, equipment"],
+                vec!["Equipment Packs", "Packs, Equipment"],
             ),
-            ("GamingSets", vec!["gaming sets", "sets, gaming"]),
-            ("HeavyArmor", vec!["heavy armor", "armor, heavy"]),
-            ("HolySymbols", vec!["holy symbols", "symbols, holy"]),
-            ("Kits", vec!["kits"]),
-            ("LandVehicles", vec!["land vehicles", "vehicles, land"]),
-            ("LightArmor", vec!["light armor", "armor, light"]),
+            ("GamingSets", vec!["Gaming Sets", "Sets, Gaming"]),
+            ("HeavyArmor", vec!["Heavy Armor", "Armor, Heavy"]),
+            ("HolySymbols", vec!["Holy Symbols", "Symbols, Holy"]),
+            ("Kits", vec!["Kits"]),
+            ("LandVehicles", vec!["Land Vehicles", "Vehicles, Land"]),
+            ("LightArmor", vec!["Light Armor", "Armor, Light"]),
             (
                 "MartialMeleeWeapons",
-                vec!["martial melee weapons", "weapons, martial melee"],
+                vec!["Martial Melee Weapons", "Weapons, Martial Melee"],
             ),
             (
                 "MartialRangedWeapons",
-                vec!["martial ranged weapons", "weapons, martial ranged"],
+                vec!["Martial Ranged Weapons", "Weapons, Martial Ranged"],
             ),
             (
                 "MartialWeapons",
-                vec!["martial weapons", "weapons, martial"],
+                vec!["Martial Weapons", "Weapons, Martial"],
             ),
-            ("MediumArmor", vec!["medium armor", "armor, medium"]),
-            ("MeleeWeapons", vec!["melee weapons", "weapons, melee"]),
+            ("MediumArmor", vec!["Medium Armor", "Armor, Medium"]),
+            ("MeleeWeapons", vec!["Melee Weapons", "Weapons, Melee"]),
             (
                 "MountsAndOtherAnimals",
-                vec!["mounts and other animals", "animals"],
+                vec!["Mounts and Other Animals", "Animals"],
             ),
-            ("MountsAndVehicles", vec!["mounts and vehicles"]),
+            ("MountsAndVehicles", vec!["Mounts and Vehicles"]),
             (
                 "MusicalInstruments",
-                vec!["musical instruments", "instruments, musical"],
+                vec!["Musical Instruments", "Instruments, Musical"],
             ),
-            ("OtherTools", vec!["other tools", "tools, other"]),
-            ("Potion", vec!["potions"]),
-            ("RangedWeapons", vec!["ranged weapons", "weapons, ranged"]),
-            ("Ring", vec!["rings"]),
-            ("Rod", vec!["rods"]),
-            ("Scroll", vec!["scrolls"]),
-            ("Shields", vec!["shields"]),
+            ("OtherTools", vec!["Other Tools", "Tools, Other"]),
+            ("Potion", vec!["Potions"]),
+            ("RangedWeapons", vec!["Ranged Weapons", "Weapons, Ranged"]),
+            ("Ring", vec!["Rings"]),
+            ("Rod", vec!["Rods"]),
+            ("Scroll", vec!["Scrolls"]),
+            ("Shields", vec!["Shields"]),
             (
                 "SimpleMeleeWeapons",
-                vec!["simple melee weapons", "weapons, simple melee"],
+                vec!["Simple Melee Weapons", "Weapons, Simple Melee"],
             ),
             (
                 "SimpleRangedWeapons",
-                vec!["simple ranged weapons", "weapons, simple ranged"],
+                vec!["Simple Ranged Weapons", "Weapons, Simple Ranged"],
             ),
-            ("SimpleWeapons", vec!["simple weapons", "weapons, simple"]),
-            ("Staff", vec!["staves"]),
-            ("StandardGear", vec!["standard gear", "gear, standard"]),
+            ("SimpleWeapons", vec!["Simple Weapons", "Weapons, Simple"]),
+            ("Staff", vec!["Staves"]),
+            ("StandardGear", vec!["Standard Gear", "Gear, Standard"]),
             (
                 "TackHarnessAndDrawnVehicles",
-                vec!["tack, harness, and drawn vehicles"],
+                vec!["Tack, Harness, and Drawn Vehicles"],
             ),
-            ("Tools", vec!["tools"]),
-            ("Wand", vec!["wands"]),
+            ("Tools", vec!["Tools"]),
+            ("Wand", vec!["Wands"]),
             (
                 "WaterborneVehicles",
                 vec![
-                    "waterborne vehicles",
-                    "vehicles, waterborne",
-                    "ships",
-                    "boats"
+                    "Waterborne Vehicles",
+                    "Vehicles, Waterborne",
+                    "Ships",
+                    "Boats"
                 ],
             ),
-            ("Weapon", vec!["weapons"]),
-            ("WondrousItems", vec!["wondrous items", "items, wondrous"]),
+            ("Weapon", vec!["Weapons"]),
+            ("WondrousItems", vec!["Wondrous Items", "Items, Wondrous"]),
         ],
         categories_str
     );

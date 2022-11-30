@@ -6,7 +6,7 @@ fn speak_with_animals() {
 
     assert_eq!(
         "\
-# Speak With Animals
+# Speak with Animals
 *1st-level divination (ritual)*
 
 **Casting Time:** 1 action\\
@@ -16,17 +16,17 @@ fn speak_with_animals() {
 
 You gain the ability to comprehend and verbally communicate with beasts for the duration. The knowledge and awareness of many beasts is limited by their intelligence, but at a minimum, beasts can give you information about nearby locations and monsters, including whatever they can perceive or have perceived within the past day. You might be able to persuade a beast to perform a small favor for you, at the DM's discretion.
 
-*Speak With Animals is Open Game Content subject to the `Open Game License`.*",
+*Speak with Animals is Open Game Content subject to the `Open Game License`.*",
         output,
     );
 
     assert_eq!(
         output,
-        sync_app().command("srd spell Speak With Animals").unwrap(),
+        sync_app().command("srd spell Speak with Animals").unwrap(),
     );
 
     assert_eq!(
-        vec![("Speak With Animals".into(), "SRD spell".into())],
+        vec![("Speak with Animals".into(), "SRD spell".into())],
         sync_app().autocomplete("speak with animals"),
     );
 }

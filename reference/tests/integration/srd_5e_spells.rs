@@ -28,7 +28,7 @@ use initiative_reference::srd_5e::spells;
 #[test]
 fn acid_splash() {
     let spells = spells().unwrap();
-    let spell = spells.iter().find(|s| s.name() == "Acid Splash").unwrap();
+    let spell = spells.iter().find(|s| s.name == "Acid Splash").unwrap();
 
     assert_eq!("AcidSplash", spell.token());
     assert_eq!(
@@ -55,7 +55,7 @@ This spell's damage increases by 1d6 when you reach 5th level (2d6), 11th level 
 #[test]
 fn alarm() {
     let spells = spells().unwrap();
-    let spell = spells.iter().find(|s| s.name() == "Alarm").unwrap();
+    let spell = spells.iter().find(|s| s.name == "Alarm").unwrap();
 
     assert_eq!("Alarm", spell.token());
     assert_eq!(
@@ -86,7 +86,7 @@ fn blindness_deafness() {
     let spells = spells().unwrap();
     let spell = spells
         .iter()
-        .find(|s| s.name() == "Blindness/Deafness")
+        .find(|s| s.name == "Blindness/Deafness")
         .unwrap();
 
     assert_eq!("BlindnessDeafness", spell.token());
@@ -114,7 +114,7 @@ You can blind or deafen a foe. Choose one creature that you can see within range
 #[test]
 fn animate_dead() {
     let spells = spells().unwrap();
-    let spell = spells.iter().find(|s| s.name() == "Animate Dead").unwrap();
+    let spell = spells.iter().find(|s| s.name == "Animate Dead").unwrap();
 
     assert_eq!("AnimateDead", spell.token());
     assert_eq!(
@@ -147,17 +147,17 @@ fn dispel_evil_and_good() {
     let spells = spells().unwrap();
     let spell = spells
         .iter()
-        .find(|s| s.name() == "Dispel Evil And Good")
+        .find(|s| s.name == "Dispel Evil and Good")
         .unwrap();
 
     assert_eq!("DispelEvilAndGood", spell.token());
     assert_eq!(
-        "`Dispel Evil And Good` (5th-level abjuration)",
+        "`Dispel Evil and Good` (5th-level abjuration)",
         format!("{}", spell.display_summary()),
     );
     assert_eq!(
         "\
-# Dispel Evil And Good
+# Dispel Evil and Good
 *5th-level abjuration*
 
 **Casting Time:** 1 action\\
@@ -179,7 +179,7 @@ You can end the spell early by using either of the following special functions.
 #[test]
 fn augury() {
     let spells = spells().unwrap();
-    let spell = spells.iter().find(|s| s.name() == "Augury").unwrap();
+    let spell = spells.iter().find(|s| s.name == "Augury").unwrap();
 
     assert_eq!("Augury", spell.token());
     assert_eq!(

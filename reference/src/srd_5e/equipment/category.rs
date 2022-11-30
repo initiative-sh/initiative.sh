@@ -26,25 +26,23 @@ impl ItemCategory {
     pub fn name(&self) -> String {
         match self.name.as_str() {
             "Potion" | "Ring" | "Rod" | "Scroll" | "Wand" | "Weapon" => {
-                let mut name = self.name.to_lowercase();
-                name.push('s');
-                name
+                format!("{}s", self.name)
             }
-            "Staff" => "staves".to_string(),
-            name => name.to_lowercase(),
+            "Staff" => "Staves".to_string(),
+            name => name.to_string(),
         }
     }
 
     pub fn alt_names(&self) -> Vec<String> {
         match self.index.as_str() {
-            "mounts-and-other-animals" => vec!["animals".to_string()],
-            "waterborne-vehicles" => ["vehicles, waterborne", "ships", "boats"]
+            "mounts-and-other-animals" => vec!["Animals".to_string()],
+            "waterborne-vehicles" => ["Vehicles, Waterborne", "Ships", "Boats"]
                 .iter()
                 .map(|&s| String::from(s))
                 .collect(),
             _ if self.name.contains(' ') && !self.name.contains(" and ") => {
                 let (start, end) = self.name.rsplit_once(' ').unwrap();
-                vec![format!("{}, {}", end, start).to_lowercase()]
+                vec![format!("{}, {}", end, start)]
             }
             _ => Vec::new(),
         }
@@ -92,7 +90,7 @@ impl ItemCategory {
 
 impl<'a> fmt::Display for ItemTableView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "# {}\n\n|", crate::capitalize(&self.category.name()))?;
+        write!(f, "# {}\n\n|", &self.category.name())?;
 
         let columns = if self.category.index.contains("armor") {
             &[
@@ -169,7 +167,7 @@ impl<'a> fmt::Display for MagicItemListView<'a> {
             .filter(|i| tokens.contains(&i.token()))
             .collect();
 
-        magic_items.sort_by_key(|item| item.name());
+        magic_items.sort_by_key(|item| &item.name);
 
         magic_items
             .drain(..)
