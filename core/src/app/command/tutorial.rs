@@ -12,54 +12,69 @@ use async_trait::async_trait;
 use std::borrow::Cow;
 use std::fmt;
 
+/// An enum representing each possible state of the tutorial. The Introduction variant is mapped to
+/// the `tutorial` command, while each other variant is registered as a [`CommandAlias`] upon
+/// completion of the previous step.
+///
+/// **What's up with the data fields?** There is some dynamically generated content that gets
+/// carried along from one tutorial step to the next. In order for the "Deleting Things" step to
+/// drop the name of the randomly generated inn, it needs to be persisted through the entire
+/// process.
+///
+/// While the tutorial is active, *every* user input is interpreted as a [`TutorialCommand`] by
+/// registering a [`CommandAlias::StrictWildcard`]. [`TutorialCommand::run`] then re-parses the user
+/// input, displaying the result in all cases. If the input parsed to the correct command, it
+/// advances the tutorial to the next step and appends its own output to the end of the command
+/// output. If the user did something different, the command takes effect anyway, and a brief note
+/// about the tutorial still being active is appended to the output.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TutorialCommand {
     Introduction,
-    Inn,
-    Save,
-    Npc {
+    GeneratingLocations,
+    SavingLocations,
+    GeneratingCharacters {
         inn_name: String,
     },
-    NpcMore {
+    GeneratingAlternatives {
         inn_name: String,
     },
-    NpcOther {
-        inn_name: String,
-        npc_name: String,
-    },
-    Editing {
+    ViewingAlternatives {
         inn_name: String,
         npc_name: String,
     },
-    Journal {
+    EditingCharacters {
         inn_name: String,
         npc_name: String,
     },
-    LoadByName {
+    TheJournal {
         inn_name: String,
         npc_name: String,
     },
-    Spell {
+    LoadingFromJournal {
         inn_name: String,
         npc_name: String,
     },
-    Weapons {
+    SrdReference {
         inn_name: String,
         npc_name: String,
     },
-    Roll {
+    SrdReferenceLists {
         inn_name: String,
         npc_name: String,
     },
-    Delete {
+    RollingDice {
         inn_name: String,
         npc_name: String,
     },
-    AdjustTime {
+    DeletingThings {
         inn_name: String,
         npc_name: String,
     },
-    Time {
+    AdvancingTime {
+        inn_name: String,
+        npc_name: String,
+    },
+    CheckingTheTime {
         inn_name: String,
         npc_name: String,
     },
@@ -80,6 +95,20 @@ pub enum TutorialCommand {
 }
 
 impl TutorialCommand {
+    /// Generate the output to be displayed to the user when invoking [`TutorialCommand::Run`]. This
+    /// is done in a separate method because it can be invoked in two ways: by satisfying a
+    /// tutorial step and advancing to the next step, and by running the `resume` command to get a
+    /// reminder prompt indicating what the user is supposed to do.
+    ///
+    /// **Very counterintuitively**, there is an off-by-one state going on here. The `resume`
+    /// command doesn't have access to the *current* step, only the *next* step, which is
+    /// registered as an alias and monitoring the app state until its prompt is satisfied.
+    /// [`Self::Resume`], then, runs on that registered alias, while the various registered
+    /// variants work around this limitation by running the `output` method of the alias after
+    /// registration.
+    ///
+    /// That was the reasoning, anyhow. Whether or not it was a good decision is left to the
+    /// judgement of the reader.
     fn output(
         &self,
         command_output: Option<Result<String, String>>,
@@ -100,17 +129,19 @@ impl TutorialCommand {
 
         match self {
             Self::Introduction | Self::Cancel { .. } | Self::Resume | Self::Restart { .. } => {}
-            Self::Inn => {
+            Self::GeneratingLocations => {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "next".to_string(),
                     "continue the tutorial".to_string(),
-                    Self::Inn.into(),
+                    Self::GeneratingLocations.into(),
                 ));
 
-                output.push_str(include_str!("../../../../data/tutorial/00-intro.md"));
+                output.push_str(include_str!("../../../../data/tutorial/00-introduction.md"));
             }
-            Self::Save => output.push_str(include_str!("../../../../data/tutorial/01-inn.md")),
-            Self::Npc { inn_name } => {
+            Self::SavingLocations => output.push_str(include_str!(
+                "../../../../data/tutorial/01-generating-locations.md"
+            )),
+            Self::GeneratingCharacters { inn_name } => {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "save".to_string(),
                     format!("save {}", inn_name),
@@ -121,14 +152,14 @@ impl TutorialCommand {
                 ));
 
                 output.push_str(&format!(
-                    include_str!("../../../../data/tutorial/02-save.md"),
+                    include_str!("../../../../data/tutorial/02-saving-locations.md"),
                     inn_name = inn_name,
                 ));
             }
-            Self::NpcMore { .. } => {
-                output.push_str(include_str!("../../../../data/tutorial/03-npc.md"))
-            }
-            Self::NpcOther { npc_name, .. } => {
+            Self::GeneratingAlternatives { .. } => output.push_str(include_str!(
+                "../../../../data/tutorial/03-generating-characters.md"
+            )),
+            Self::ViewingAlternatives { npc_name, .. } => {
                 let thing = Thing::from(Npc {
                     species: Species::Human.into(),
                     ethnicity: Ethnicity::Human.into(),
@@ -144,11 +175,11 @@ impl TutorialCommand {
                 ));
 
                 output.push_str(&format!(
-                    include_str!("../../../../data/tutorial/04-npc-more.md"),
+                    include_str!("../../../../data/tutorial/04-generating-alternatives.md"),
                     npc_name = npc_name,
                 ));
             }
-            Self::Editing { npc_name, .. } => {
+            Self::EditingCharacters { npc_name, .. } => {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "2".to_string(),
                     format!("load {}", npc_name),
@@ -159,11 +190,11 @@ impl TutorialCommand {
                 ));
 
                 output.push_str(&format!(
-                    include_str!("../../../../data/tutorial/05-npc-other.md"),
+                    include_str!("../../../../data/tutorial/05-viewing-alternatives.md"),
                     npc_name = npc_name,
                 ));
             }
-            Self::Journal { npc_name, .. } => {
+            Self::TheJournal { npc_name, .. } => {
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "save".to_string(),
                     format!("save {}", npc_name),
@@ -174,41 +205,41 @@ impl TutorialCommand {
                 ));
 
                 output.push_str(&format!(
-                    include_str!("../../../../data/tutorial/06-editing.md"),
+                    include_str!("../../../../data/tutorial/06-editing-characters.md"),
                     npc_name = npc_name,
                 ));
             }
-            Self::LoadByName { inn_name, .. } => output.push_str(&format!(
-                include_str!("../../../../data/tutorial/07-journal.md"),
+            Self::LoadingFromJournal { inn_name, .. } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/07-the-journal.md"),
                 inn_name = inn_name,
             )),
-            Self::Spell { npc_name, .. } => output.push_str(&format!(
-                include_str!("../../../../data/tutorial/08-load-by-name.md"),
+            Self::SrdReference { npc_name, .. } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/08-loading-from-journal.md"),
                 npc_name = npc_name,
             )),
-            Self::Weapons { .. } => {
-                output.push_str(include_str!("../../../../data/tutorial/09-spell.md"))
-            }
-            Self::Roll { inn_name, npc_name } => output.push_str(&format!(
-                include_str!("../../../../data/tutorial/10-weapons.md"),
-                inn_name = inn_name,
-                npc_name = npc_name,
+            Self::SrdReferenceLists { .. } => output.push_str(include_str!(
+                "../../../../data/tutorial/09-srd-reference.md"
             )),
-            Self::Delete { npc_name, .. } => output.push_str(&format!(
-                include_str!("../../../../data/tutorial/11-roll.md"),
-                npc_name = npc_name,
-            )),
-            Self::AdjustTime { inn_name, npc_name } => output.push_str(&format!(
-                include_str!("../../../../data/tutorial/12-delete.md"),
+            Self::RollingDice { inn_name, npc_name } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/10-srd-reference-lists.md"),
                 inn_name = inn_name,
                 npc_name = npc_name,
             )),
-            Self::Time { .. } => {
-                output.push_str(include_str!("../../../../data/tutorial/13-adjust-time.md"))
-            }
-            Self::Conclusion { .. } => {
-                output.push_str(include_str!("../../../../data/tutorial/14-time.md"))
-            }
+            Self::DeletingThings { npc_name, .. } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/11-rolling-dice.md"),
+                npc_name = npc_name,
+            )),
+            Self::AdvancingTime { inn_name, npc_name } => output.push_str(&format!(
+                include_str!("../../../../data/tutorial/12-deleting-things.md"),
+                inn_name = inn_name,
+                npc_name = npc_name,
+            )),
+            Self::CheckingTheTime { .. } => output.push_str(include_str!(
+                "../../../../data/tutorial/13-advancing-time.md"
+            )),
+            Self::Conclusion { .. } => output.push_str(include_str!(
+                "../../../../data/tutorial/14-checking-the-time.md"
+            )),
         }
 
         if is_ok {
@@ -218,22 +249,26 @@ impl TutorialCommand {
         }
     }
 
+    /// Extract the inn name from the enum variant, if present.
     fn inn_name(&self) -> Option<String> {
         match self {
-            Self::Introduction | Self::Inn | Self::Save | Self::Resume => None,
+            Self::Introduction
+            | Self::GeneratingLocations
+            | Self::SavingLocations
+            | Self::Resume => None,
 
-            Self::Npc { inn_name }
-            | Self::NpcMore { inn_name }
-            | Self::NpcOther { inn_name, .. }
-            | Self::Editing { inn_name, .. }
-            | Self::Journal { inn_name, .. }
-            | Self::LoadByName { inn_name, .. }
-            | Self::Spell { inn_name, .. }
-            | Self::Weapons { inn_name, .. }
-            | Self::Roll { inn_name, .. }
-            | Self::Delete { inn_name, .. }
-            | Self::AdjustTime { inn_name, .. }
-            | Self::Time { inn_name, .. }
+            Self::GeneratingCharacters { inn_name }
+            | Self::GeneratingAlternatives { inn_name }
+            | Self::ViewingAlternatives { inn_name, .. }
+            | Self::EditingCharacters { inn_name, .. }
+            | Self::TheJournal { inn_name, .. }
+            | Self::LoadingFromJournal { inn_name, .. }
+            | Self::SrdReference { inn_name, .. }
+            | Self::SrdReferenceLists { inn_name, .. }
+            | Self::RollingDice { inn_name, .. }
+            | Self::DeletingThings { inn_name, .. }
+            | Self::AdvancingTime { inn_name, .. }
+            | Self::CheckingTheTime { inn_name, .. }
             | Self::Conclusion { inn_name, .. } => Some(inn_name.clone()),
 
             Self::Cancel { inn_name, .. } | Self::Restart { inn_name, .. } => {
@@ -242,25 +277,26 @@ impl TutorialCommand {
         }
     }
 
+    /// Extract the NPC name from the enum variant, if present.
     fn npc_name(&self) -> Option<String> {
         match self {
             Self::Introduction
-            | Self::Inn
-            | Self::Save
+            | Self::GeneratingLocations
+            | Self::SavingLocations
             | Self::Resume
-            | Self::Npc { .. }
-            | Self::NpcMore { .. }
-            | Self::NpcOther { .. } => None,
+            | Self::GeneratingCharacters { .. }
+            | Self::GeneratingAlternatives { .. }
+            | Self::ViewingAlternatives { .. } => None,
 
-            Self::Editing { npc_name, .. }
-            | Self::Journal { npc_name, .. }
-            | Self::LoadByName { npc_name, .. }
-            | Self::Spell { npc_name, .. }
-            | Self::Weapons { npc_name, .. }
-            | Self::Roll { npc_name, .. }
-            | Self::Delete { npc_name, .. }
-            | Self::AdjustTime { npc_name, .. }
-            | Self::Time { npc_name, .. }
+            Self::EditingCharacters { npc_name, .. }
+            | Self::TheJournal { npc_name, .. }
+            | Self::LoadingFromJournal { npc_name, .. }
+            | Self::SrdReference { npc_name, .. }
+            | Self::SrdReferenceLists { npc_name, .. }
+            | Self::RollingDice { npc_name, .. }
+            | Self::DeletingThings { npc_name, .. }
+            | Self::AdvancingTime { npc_name, .. }
+            | Self::CheckingTheTime { npc_name, .. }
             | Self::Conclusion { npc_name, .. } => Some(npc_name.clone()),
 
             Self::Cancel { npc_name, .. } | Self::Restart { npc_name, .. } => {
@@ -269,12 +305,19 @@ impl TutorialCommand {
         }
     }
 
+    /// Is this the command that is required to advance to the next step of the tutorial? This is
+    /// determined not by a string match but by validating the parsed result, eg. `time` and `now`
+    /// are equally recognized for the CheckingTheTime step because they both parse to
+    /// `CommandType::Time(TimeCommand::Now)`.
     fn is_correct_command(&self, command: Option<&CommandType>) -> bool {
         match self {
             Self::Cancel { .. } | Self::Resume => false,
             Self::Introduction | Self::Restart { .. } => true,
-            Self::Inn => matches!(command, Some(CommandType::Tutorial(Self::Inn))),
-            Self::Save => {
+            Self::GeneratingLocations => matches!(
+                command,
+                Some(CommandType::Tutorial(Self::GeneratingLocations))
+            ),
+            Self::SavingLocations => {
                 if let Some(CommandType::World(WorldCommand::Create {
                     thing: parsed_thing,
                 })) = command
@@ -284,14 +327,14 @@ impl TutorialCommand {
                     false
                 }
             }
-            Self::Npc { inn_name } => {
+            Self::GeneratingCharacters { inn_name } => {
                 if let Some(CommandType::Storage(StorageCommand::Save { name })) = command {
                     name.eq_ci(inn_name)
                 } else {
                     false
                 }
             }
-            Self::NpcMore { .. } => {
+            Self::GeneratingAlternatives { .. } => {
                 if let Some(CommandType::World(WorldCommand::Create {
                     thing:
                         ParsedThing {
@@ -313,7 +356,7 @@ impl TutorialCommand {
                     false
                 }
             }
-            Self::NpcOther { .. } => {
+            Self::ViewingAlternatives { .. } => {
                 if let Some(CommandType::World(WorldCommand::CreateMultiple { thing })) = command {
                     thing.npc()
                         == Some(&Npc {
@@ -327,14 +370,14 @@ impl TutorialCommand {
                     false
                 }
             }
-            Self::Editing { npc_name, .. } => {
+            Self::EditingCharacters { npc_name, .. } => {
                 if let Some(CommandType::Storage(StorageCommand::Load { name })) = command {
                     name.eq_ci(npc_name)
                 } else {
                     false
                 }
             }
-            Self::Journal { npc_name, .. } => {
+            Self::TheJournal { npc_name, .. } => {
                 if let Some(CommandType::World(WorldCommand::Edit {
                     name,
                     diff:
@@ -355,17 +398,17 @@ impl TutorialCommand {
                     false
                 }
             }
-            Self::LoadByName { .. } => {
+            Self::LoadingFromJournal { .. } => {
                 matches!(command, Some(CommandType::Storage(StorageCommand::Journal)))
             }
-            Self::Spell { npc_name, .. } => {
+            Self::SrdReference { npc_name, .. } => {
                 if let Some(CommandType::Storage(StorageCommand::Load { name })) = command {
                     name.eq_ci(npc_name)
                 } else {
                     false
                 }
             }
-            Self::Weapons { .. } => {
+            Self::SrdReferenceLists { .. } => {
                 matches!(
                     command,
                     Some(CommandType::Reference(ReferenceCommand::Spell(
@@ -373,7 +416,7 @@ impl TutorialCommand {
                     ))),
                 )
             }
-            Self::Roll { .. } => {
+            Self::RollingDice { .. } => {
                 matches!(
                     command,
                     Some(CommandType::Reference(ReferenceCommand::ItemCategory(
@@ -381,15 +424,17 @@ impl TutorialCommand {
                     ))),
                 )
             }
-            Self::Delete { .. } => matches!(command, Some(CommandType::App(AppCommand::Roll(_)))),
-            Self::AdjustTime { inn_name, .. } => {
+            Self::DeletingThings { .. } => {
+                matches!(command, Some(CommandType::App(AppCommand::Roll(_))))
+            }
+            Self::AdvancingTime { inn_name, .. } => {
                 if let Some(CommandType::Storage(StorageCommand::Delete { name })) = command {
                     name.eq_ci(inn_name)
                 } else {
                     false
                 }
             }
-            Self::Time { .. } => {
+            Self::CheckingTheTime { .. } => {
                 matches!(command, Some(CommandType::Time(TimeCommand::Add { .. })))
             }
             Self::Conclusion { .. } => matches!(command, Some(CommandType::Time(TimeCommand::Now))),
@@ -436,14 +481,14 @@ impl Runnable for TutorialCommand {
             match self {
                 Self::Cancel { .. } | Self::Resume => unreachable!(),
                 Self::Introduction | Self::Restart { .. } => {
-                    let next = Self::Inn;
+                    let next = Self::GeneratingLocations;
                     (next.output(None, app_meta), Some(next))
                 }
-                Self::Inn => {
-                    let next = Self::Save;
+                Self::GeneratingLocations => {
+                    let next = Self::SavingLocations;
                     (next.output(None, app_meta), Some(next))
                 }
-                Self::Save => {
+                Self::SavingLocations => {
                     let command_output = input_command.run(input, app_meta).await;
 
                     if let Ok(output) = command_output {
@@ -454,21 +499,21 @@ impl Runnable for TutorialCommand {
                             .trim_start_matches(&[' ', '#'][..])
                             .to_string();
 
-                        let next = Self::Npc { inn_name };
+                        let next = Self::GeneratingCharacters { inn_name };
                         (next.output(Some(Ok(output)), app_meta), Some(next))
                     } else {
                         (command_output, Some(self))
                     }
                 }
-                Self::Npc { inn_name } => {
-                    let next = Self::NpcMore { inn_name };
+                Self::GeneratingCharacters { inn_name } => {
+                    let next = Self::GeneratingAlternatives { inn_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
                         Some(next),
                     )
                 }
-                Self::NpcMore { inn_name } => {
+                Self::GeneratingAlternatives { inn_name } => {
                     let command_output = input_command.run(input, app_meta).await;
 
                     if let Ok(output) = command_output {
@@ -477,17 +522,20 @@ impl Runnable for TutorialCommand {
                             .find(|s| s.starts_with('#'))
                             .map(|s| s.trim_start_matches(&[' ', '#'][..]).to_string())
                         {
-                            let next = Self::NpcOther { inn_name, npc_name };
+                            let next = Self::ViewingAlternatives { inn_name, npc_name };
 
                             (next.output(Some(Ok(output)), app_meta), Some(next))
                         } else {
-                            (Ok(output), Some(Self::NpcMore { inn_name }))
+                            (Ok(output), Some(Self::GeneratingAlternatives { inn_name }))
                         }
                     } else {
-                        (command_output, Some(Self::NpcMore { inn_name }))
+                        (
+                            command_output,
+                            Some(Self::GeneratingAlternatives { inn_name }),
+                        )
                     }
                 }
-                Self::NpcOther { inn_name, npc_name } => {
+                Self::ViewingAlternatives { inn_name, npc_name } => {
                     let command_output = input_command.run(input, app_meta).await;
 
                     if let Ok(output) = command_output {
@@ -497,86 +545,95 @@ impl Runnable for TutorialCommand {
                             .and_then(|s| s.find('(').map(|i| (i, s)))
                             .map(|(i, s)| s[10..i - 2].to_string())
                         {
-                            let next = Self::Editing { npc_name, inn_name };
+                            let next = Self::EditingCharacters { npc_name, inn_name };
 
                             (next.output(Some(Ok(output)), app_meta), Some(next))
                         } else {
-                            (Ok(output), Some(Self::NpcOther { inn_name, npc_name }))
+                            (
+                                Ok(output),
+                                Some(Self::ViewingAlternatives { inn_name, npc_name }),
+                            )
                         }
                     } else {
-                        (command_output, Some(Self::NpcOther { inn_name, npc_name }))
+                        (
+                            command_output,
+                            Some(Self::ViewingAlternatives { inn_name, npc_name }),
+                        )
                     }
                 }
-                Self::Editing { inn_name, npc_name } => {
+                Self::EditingCharacters { inn_name, npc_name } => {
                     let command_output = input_command.run(input, app_meta).await;
 
                     if let Ok(output) = command_output {
-                        let next = Self::Journal { inn_name, npc_name };
+                        let next = Self::TheJournal { inn_name, npc_name };
 
                         (next.output(Some(Ok(output)), app_meta), Some(next))
                     } else {
-                        (command_output, Some(Self::Editing { inn_name, npc_name }))
+                        (
+                            command_output,
+                            Some(Self::EditingCharacters { inn_name, npc_name }),
+                        )
                     }
                 }
-                Self::Journal { inn_name, npc_name } => {
-                    let next = Self::LoadByName { inn_name, npc_name };
+                Self::TheJournal { inn_name, npc_name } => {
+                    let next = Self::LoadingFromJournal { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
                         Some(next),
                     )
                 }
-                Self::LoadByName { inn_name, npc_name } => {
-                    let next = Self::Spell { inn_name, npc_name };
+                Self::LoadingFromJournal { inn_name, npc_name } => {
+                    let next = Self::SrdReference { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
                         Some(next),
                     )
                 }
-                Self::Spell { inn_name, npc_name } => {
-                    let next = Self::Weapons { inn_name, npc_name };
+                Self::SrdReference { inn_name, npc_name } => {
+                    let next = Self::SrdReferenceLists { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
                         Some(next),
                     )
                 }
-                Self::Weapons { inn_name, npc_name } => {
-                    let next = Self::Roll { inn_name, npc_name };
+                Self::SrdReferenceLists { inn_name, npc_name } => {
+                    let next = Self::RollingDice { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
                         Some(next),
                     )
                 }
-                Self::Roll { inn_name, npc_name } => {
-                    let next = Self::Delete { inn_name, npc_name };
+                Self::RollingDice { inn_name, npc_name } => {
+                    let next = Self::DeletingThings { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
                         Some(next),
                     )
                 }
-                Self::Delete { inn_name, npc_name } => {
-                    let next = Self::AdjustTime { inn_name, npc_name };
+                Self::DeletingThings { inn_name, npc_name } => {
+                    let next = Self::AdvancingTime { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
                         Some(next),
                     )
                 }
-                Self::AdjustTime {
+                Self::AdvancingTime {
                     inn_name, npc_name, ..
                 } => {
-                    let next = Self::Time { inn_name, npc_name };
+                    let next = Self::CheckingTheTime { inn_name, npc_name };
 
                     (
                         next.output(Some(input_command.run(input, app_meta).await), app_meta),
                         Some(next),
                     )
                 }
-                Self::Time { inn_name, npc_name } => {
+                Self::CheckingTheTime { inn_name, npc_name } => {
                     let next = Self::Conclusion { inn_name, npc_name };
 
                     (
