@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euxo pipefail
-cd "$(dirname "$0")/web"
+
+project_root="$(dirname "$(readlink -m "$0")")"
+
 
 if ! command -v rustup; then
   wget https://sh.rustup.rs -O rustup.sh
@@ -16,6 +18,13 @@ if ! command -v wasm-pack; then
   npm install -g wasm-pack
 fi
 
+
+cd "$project_root/web"
 wasm-pack build --release
 npm install
 npm run build
+
+
+cd "$project_root"
+cargo doc --workspace --no-deps --document-private-items
+mv target/doc web/dist/
