@@ -1,51 +1,72 @@
-# initiative.sh
+# Introducing initiative.sh
 
-Initiative.sh is a storytelling aid for game masters. It's specifically designed
-to be used at the table, to support the creative process as your sessions evolve
-in real time.
+initiative.sh's design philosophy is to minimize the time and effort between the
+question ("Is there a blacksmith nearby?") and the answer ("Yes, it's called
+Frosthammer & Sons, and Fenrik Frosthammer is at the forge.").
 
-To that end, it's intended to minimize the time and effort between the question
-("is there a blacksmith nearby?") and the answer ("yes, it's called Frosthammer
-& Sons, and Fenrik Frosthammer is currently at the forge"). It does this with a
-few simple design principles:
+* **Keyboard first:** All commands can be typed. Most can be run at any time, so
+  you don't need to waste time navigating menus to find the tool you want.
+* **Persistence:** The people and places you generate remain visible in your
+  scrollback history and can be saved to your journal, so you don't need to
+  worry about forgetting to scribble down a generated name that came up in
+  conversation.
 
-## Text-based interface
+### Other features on the roadmap
 
-Just type the name of the thing you're looking for. Nouns ("inn", "npc",
-"human") will generate a new thing of that type, as well as a bunch of
-alternatives in case you're not wild about the first suggestion. Typing a proper
-noun ("Hidden Tiger Inn") will load a saved location.
+The following features have not yet been implemented:
 
-## Context
+* [**Context:**](https://github.com/orgs/initiative-sh/projects/2) With your
+  guidance, initiative.sh will track your party's location and the demographics
+  in the area. If you're in a dwarvish settlement, the innkeeper and most of the
+  patrons will probably be dwarves.
+* [**Integrations:**](https://github.com/orgs/initiative-sh/projects/3)
+  Integrate with Spotify to switch playlists as your players move through the
+  world, with Home Assistant to dim the lights as the party beds down for the
+  night, or use web hooks to build your own integrations.
+* [**Cloud sync:**](https://github.com/initiative-sh/initiative.sh/issues/149)
+  Keep your journal in sync between devices.
 
-With your help, initiative.sh will track your party's location and the
-demographics in that area. If your party walks into a tavern in a dwarven
-settlement, most of the patrons will be dwarves, so you don't have to spend your
-time paging past results that make no sense in the current context.
+## Running the project
 
-## Persistence (premium)
+Dependencies:
 
-Ever forget to write down a generated name or location after making it canon?
-If you use initiative.sh to manage your notes, you can simply tell it which
-generated content to save and the Humble Hedgehog will be ready and waiting next
-time your players return to Rust Bottom.
+* [Rust/Cargo](https://www.rust-lang.org/learn/get-started)
+* [wasm-pack](https://rustwasm.github.io/) (for web)
+* [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) (for
+  web)
 
-## Integrations (premium)
+Note that the project includes
+[5e-database](https://github.com/5e-bits/5e-database) as a Git submodule, so
+actions such as building and starting a dev server may fail until you run:
 
-Music, maps, and smart lighting all add to the game experience, but it can be
-hard to orchestrate all of that and tell a coherent story at the same time. By
-setting up integrations, you can use context changes in initiative.sh to trigger
-updates in your game environment. When the party enters an inn, you can trigger
-a Spotify playlist and have your lights grow dimmer and warmer.
+    git submodule update --init
 
-# Running the project
+### Web
 
-Dependencies: rustup, wasm-pack (for web)
+1. Run `./dev-server.sh` from the project root at the command line.
+2. Find the dev server URL in the command line output and open it in your
+   browser. Typically, this will be [localhost:8080](http://localhost:8080/).
 
-## Linux
+### Command line
 
-`cargo run`
+*Note: The command line interface lost feature parity with the web version early
+in the development process. Notably, it lacks autocomplete support, and the
+"rich" version doesn't support scrolling or text formatting. For details, see
+[#287](https://github.com/initiative-sh/initiative.sh/issues/287).*
 
-## WebAssembly
+#### Rich version
 
-`(cd web && wasm-pack build && cd www && npm start)`
+    cargo run
+
+#### Light version
+
+The light version is selected when the input is not from a tty, such as when you
+pipe a command into `cargo run`.
+
+    echo npc | cargo run
+
+# Contributing to the project
+
+Please see
+[CONTRIBUTING.md](https://github.com/initiative-sh/initiative.sh/blob/main/CONTRIBUTING.md)
+for details.
