@@ -7,9 +7,6 @@ mod human;
 mod orcish;
 mod tiefling;
 
-#[cfg(feature = "eberron")]
-mod warforged;
-
 use super::{Age, Gender, Npc, Species};
 use crate::world::weighted_index_from_tuple;
 use initiative_macros::WordList;
@@ -28,9 +25,6 @@ pub enum Ethnicity {
     Halfling,
     Human,
     Tiefling,
-
-    #[cfg(feature = "eberron")]
-    Warforged,
 }
 
 impl Ethnicity {
@@ -44,9 +38,6 @@ impl Ethnicity {
             Self::Orcish => Species::HalfOrc,
             Self::Halfling => Species::Halfling,
             Self::Tiefling => Species::Tiefling,
-
-            #[cfg(feature = "eberron")]
-            Self::Warforged => Species::Warforged,
         }
     }
 }
@@ -132,9 +123,6 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
             Ethnicity::Halfling => halfling::Ethnicity::regenerate(rng, npc),
             Ethnicity::Human => human::Ethnicity::regenerate(rng, npc),
             Ethnicity::Tiefling => tiefling::Ethnicity::regenerate(rng, npc),
-
-            #[cfg(feature = "eberron")]
-            Ethnicity::Warforged => warforged::Ethnicity::regenerate(rng, npc),
         }
     }
 }
@@ -150,9 +138,6 @@ impl fmt::Display for Ethnicity {
             Self::Halfling => write!(f, "halfling"),
             Self::Human => write!(f, "human"),
             Self::Tiefling => write!(f, "tiefling"),
-
-            #[cfg(feature = "eberron")]
-            Self::Warforged => write!(f, "warforged"),
         }
     }
 }
