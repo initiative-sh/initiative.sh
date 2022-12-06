@@ -27,4 +27,5 @@ npm run build
 
 cd "$project_root"
 cargo doc --workspace --no-deps --document-private-items
+rm -r web/dist/doc || true
 mv target/doc web/dist/
