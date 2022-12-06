@@ -25,4 +25,3 @@ tokio-test = "0.4"
 
 [features]
 js = ["uuid/stdweb"]
-eberron = []

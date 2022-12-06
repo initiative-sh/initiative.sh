@@ -8,9 +8,6 @@ mod halfling;
 mod human;
 mod tiefling;
 
-#[cfg(feature = "eberron")]
-mod warforged;
-
 use super::{Age, Ethnicity, Gender, Npc, Size};
 use initiative_macros::WordList;
 use rand::prelude::*;
@@ -35,9 +32,6 @@ pub enum Species {
     Halfling,
     Human,
     Tiefling,
-
-    #[cfg(feature = "eberron")]
-    Warforged,
 }
 
 trait Generate {
@@ -96,9 +90,6 @@ pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
             Species::Halfling => halfling::Species::regenerate(rng, npc),
             Species::Human => human::Species::regenerate(rng, npc),
             Species::Tiefling => tiefling::Species::regenerate(rng, npc),
-
-            #[cfg(feature = "eberron")]
-            Species::Warforged => warforged::Species::regenerate(rng, npc),
         }
     }
 }
@@ -137,9 +128,6 @@ impl Species {
             Self::Halfling => Ethnicity::Halfling,
             Self::Human => Ethnicity::Human,
             Self::Tiefling => Ethnicity::Tiefling,
-
-            #[cfg(feature = "eberron")]
-            Self::Warforged => Ethnicity::Warforged,
         }
     }
 }
@@ -156,9 +144,6 @@ impl fmt::Display for Species {
             Self::Halfling => write!(f, "halfling"),
             Self::Human => write!(f, "human"),
             Self::Tiefling => write!(f, "tiefling"),
-
-            #[cfg(feature = "eberron")]
-            Self::Warforged => write!(f, "warforged"),
         }
     }
 }

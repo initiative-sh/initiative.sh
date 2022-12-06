@@ -13,6 +13,3 @@ termion = "1.5"
 tokio = { version = "1.9", features = ["full"] }
 
 initiative-core = { path = "../core" }
-
-[features]
-eberron = ["initiative-core/eberron"]
