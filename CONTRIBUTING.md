@@ -1,20 +1,38 @@
 # Contributing to initiative.sh
 
-Awesome! Thank you for your interest in contributing to the project.
+Everyone's experience as a game master is different. Thank you for bringing your
+unique perspective to this project.
 
-initiative.sh is a unique kind of web app that has a unique set of design
-principles and constraints. **For this reason, unapproved contributions are
-likely to be regretfully declined.** Please follow the contribution process
-detailed below to avoid wasted effort.
+initiative.sh is a particular kind of tool for a particular kind of game master,
+who favours off-the-cuff world building over extensive prep and isn't
+intimidated by a command line (but doesn't necessarily relish reading docs). If
+that's you, great! Welcome aboard. If not, that's totally okay - the ecosystem
+surrounding D&D and pen-and-paper RPGs in general is truly mind-boggling, and
+you'll find tons of other tools that might suit your play style better.
+
+I've deliberately resisted installing any sort of metric tracking on the
+website, so feedback in the form of bug reports and feature requests is
+invaluable. If you're motivated to fix a bug or implement a feature yourself,
+that's even better, and of course the [GitHub
+issues](https://github.com/initiative-sh/initiative.sh/issues) are kept curated
+to provide plenty of opportunities to dive into the code if you're so inclined.
+
+Optimizing for user experience is by far the hardest aspect of this project.
+Due to the reliance on discoverability over documentation, it's important to
+keep that experience as tight and consistent as possible. For this reason, I
+prefer to maintain creative control over project features and direction. One UX
+choice or priority isn't necessarily objectively better than another, but by
+keeping decision-making centralized, I hope to foster a more coherent, usable
+product for everyone.
 
 ### How to contribute
 
 1. Create or comment on an [open
    issue](https://github.com/initiative-sh/initiative.sh/issues). Wait for
-   consensus and approval before beginning work, especially with regard to
-   command syntax and autocomplete behaviour.
+   approval before beginning work, especially with regard to command syntax and
+   autocomplete behaviour.
 2. For nontrivial work, post a work-in-progress pull request with a rough draft
-   of your change.
+   of your change for review and discussion.
 3. Complete implementation and add test coverage for your change. Include a
    brief summary of your change to the top of
    [data/changelog.md](https://github.com/initiative-sh/initiative.sh/blob/main/data/changelog.md),
@@ -23,7 +41,8 @@ detailed below to avoid wasted effort.
 
 When in doubt, ask! I try to be as responsive as possible [on
 Discord](https://discord.gg/ZrqJPpxXVZ) and [by
-email](mailto:support@initiative.sh).
+email](mailto:support@initiative.sh). I'm also happy to jump into a pair
+programming or brainstorming session as time permits.
 
 ### UX design principles
 
@@ -40,6 +59,12 @@ text UI.
   line. This means using plain English syntax (even if it might be unnecessarily
   verbose), multiple synonyms, and forgiving grammar parsing (eg. ignoring words
   like "a" and "the").
+
+These principles sometimes conflict with new features. I'm reluctant to adopt
+new features (of my own or someone else's conception) until I have a clear idea
+of how the user can interact with them according to those design principles.
+Building an intuitive command line that does not require thorough reading of
+docs is a delicate balancing act.
 
 ## Development
 
