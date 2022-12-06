@@ -1,10 +1,12 @@
 [package]
 name = "initiative-scripts"
 version = "0.1.0"
-authors = ["Mikkel Paulson <git@email.mikkel.ca>"]
+authors = ["Mikkel Paulson <initiative@email.mikkel.ca>"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Throwaway scripts used for initiative.sh, a web-based command line for game masters"
+repository = "https://github.com/initiative-sh/initiative.sh"
+license = "GPL-3.0-or-later"
 
 [dependencies]
 regex = "1.4"
