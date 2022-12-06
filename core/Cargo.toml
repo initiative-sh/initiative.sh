@@ -1,10 +1,12 @@
 [package]
 name = "initiative-core"
 version = "0.1.0"
-authors = ["Mikkel Paulson <git@email.mikkel.ca>"]
+authors = ["Mikkel Paulson <initiative@email.mikkel.ca>"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Core functionality of initiative.sh, a web-based command line for game masters"
+repository = "https://github.com/initiative-sh/initiative.sh"
+license = "GPL-3.0-or-later"
 
 [dependencies]
 async-trait = "0.1"

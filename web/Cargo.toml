@@ -1,8 +1,12 @@
 [package]
 name = "initiative-web"
 version = "0.1.0"
-authors = ["Mikkel Paulson <git@email.mikkel.ca>"]
+authors = ["Mikkel Paulson <initiative@email.mikkel.ca>"]
 edition = "2021"
+
+description = "WebAssembly frontend for initiative.sh, a web-based command line for game masters"
+repository = "https://github.com/initiative-sh/initiative.sh"
+license = "GPL-3.0-or-later"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

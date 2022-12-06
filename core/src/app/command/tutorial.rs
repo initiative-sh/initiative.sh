@@ -95,7 +95,7 @@ pub enum TutorialCommand {
 }
 
 impl TutorialCommand {
-    /// Generate the output to be displayed to the user when invoking [`TutorialCommand::Run`]. This
+    /// Generate the output to be displayed to the user when invoking [`TutorialCommand::run`]. This
     /// is done in a separate method because it can be invoked in two ways: by satisfying a
     /// tutorial step and advancing to the next step, and by running the `resume` command to get a
     /// reminder prompt indicating what the user is supposed to do.
