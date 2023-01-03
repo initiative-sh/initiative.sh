@@ -25,7 +25,7 @@ body {
 }
 
 #output {
-    margin: 0.5rem 0.5rem 0;
+    margin: 0.5rem 0.5rem 3.5rem;
     padding: 0 0 1rem;
 }
 
@@ -199,11 +199,15 @@ body {
 }
 
 #prompt-form {
-    background: var(--solarized-scheme2);
+    background: linear-gradient(rgb(0,0,0,0),var(--solarized-scheme3),var(--solarized-scheme3));
     color: var(--solarized-scheme01);
-    margin: 1.4rem 0.5rem 0.5rem;
-    position: relative;
+    padding: 1.4rem 0.5rem 0.5rem;
+    position: fixed;
     white-space: nowrap;
+    bottom: 0;
+    width: 100%;
+    max-width: 100ch;
+    box-sizing: border-box;
 }
 
 #prompt-form::before {
@@ -211,7 +215,7 @@ body {
 }
 
 #prompt {
-    background: none;
+    background: var(--solarized-scheme2);
     border: none;
     color: var(--solarized-scheme02);
     font-weight: bold;
