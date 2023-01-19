@@ -44,7 +44,7 @@ impl Runnable for WorldCommand {
                 let mut output = None;
 
                 if let Some(place) = diff.place() {
-                    if place.subtype.value().map_or(true, |t| t.as_str() != "inn")
+                    if place.subtype.value().map_or(true, |t| t.as_str() != "inn" && t.as_str() != "shrine")
                         && place.name.is_unlocked()
                     {
                         return Err(format!("The only place name generator currently implemented is `inn`. For other types, you must specify a name using `{} named [name]`.", place.display_description()));

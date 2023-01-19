@@ -50,6 +50,7 @@ pub fn generate(place: &mut Place, rng: &mut impl Rng, demographics: &Demographi
         #[allow(clippy::single_match)]
         match subtype {
             BuildingType::Business(_) => business::generate(place, rng, demographics),
+            BuildingType::Religious(_) => religious::generate(place, rng, demographics),
             _ => {}
         }
     }
