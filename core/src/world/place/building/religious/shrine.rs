@@ -34,14 +34,11 @@ fn building(rng: &mut impl Rng) -> &'static str {
         "Shrine",
         "Cave",
         "Tree",
-        "Figure",
         "Gate",
-        "Monolith",
         "Obelisk",
         "Pagoda",
         "Pillar",
         "Pillars",
-        "Icon",
     ];
     BUILDINGS[rng.gen_range(0..BUILDINGS.len())]
 }
@@ -52,7 +49,7 @@ fn feature(rng: &mut impl Rng) -> &'static str {
     const FEATURES: &[&str] = 
         &[
         "Basin","Boulder","Cavern","Grove","Pond","Pool","Menhir",
-        "Grotto","Cenote", "Grove", "Tree", "Stones", "Cave"
+        "Grotto","Cenote", "Tree", "Stones", "Cave"
         ];
     FEATURES[rng.gen_range(0..FEATURES.len())]
 }
@@ -85,15 +82,18 @@ fn action(rng: &mut impl Rng) -> String {
     #[rustfmt::skip]
     const ACTIONS: &[&str] = &[
         "Dance","Whisper","Shiver","Rot","Rise","Fall","Laugh","Travel","Creep",
-        "Sing","Fade","Glow","Shine","Stand","Weep","Drown","Howl","Smile",
+        "Sing","Fade","Glow","Shine","Stand","Weep","Drown","Howl","Smile","Hunt"
     ];
     ACTIONS[rng.gen_range(0..ACTIONS.len())].to_string()
 }
 
 fn gerund(verb: String) -> String {
     let last_char = verb.chars().last().unwrap();
+    let last_two_chars = &verb[verb.len() - 2..verb.len()];
     if last_char == 'e' {
         format!("{}ing", &verb[..verb.len() - 1])
+    } else if last_two_chars == "ot"{
+        format!("{}ting", &verb[..verb.len() - 1])
     } else {
         format!("{}ing", verb)
     }
@@ -170,69 +170,15 @@ fn animal(rng: &mut impl Rng) -> String {
 }
 //DIVINE CONCEPT
 fn concept(rng: &mut impl Rng) -> &'static str {
+    #[rustfmt::skip]
     const CONCEPTS: &[&str] = &[
-        "Creation",
-        "Destruction",
-        "Life",
-        "Death",
-        "Love",
-        "War",
-        "Peace",
-        "Knowledge",
-        "Wisdom",
-        "Truth",
-        "Justice",
-        "Mercy",
-        "Protection",
-        "Healing",
-        "Strength",
-        "Courage",
-        "Fortune",
-        "Fertility",
-        "Harvest",
-        "Nature",
-        "Storms",
-        "Fire",
-        "Water",
-        "Earth",
-        "Air",
-        "Time",
-        "Space",
-        "Light",
-        "Shadow",
-        "Dreams",
-        "Prophecy",
-        "Music",
-        "Poetry",
-        "Dance",
-        "Ancestors",
-        "Transcendence",
-        "Anguish",
-        "Blight",
-        "Bonds",
-        "Chaos",
-        "Confessions",
-        "Connections",
-        "Courage",
-        "Decay",
-        "Defeat",
-        "Destiny",
-        "Lore",
-        "Oblivion",
-        "Winter",
-        "Silence",
-        "Twilight",
-        "Triumph",
-        "Wisdom",
-        "Promise",
-        "Mending",
-        "Healing",
-        "Destruction",
-        "Judgement",
-        "Forgiveness",
-        "Redemption",
-        "Justice",
-        "Textiles",
+        "Creation","Destruction","Life","Death","Love","War","Peace","Knowledge",
+        "Wisdom","Truth","Justice","Mercy","Protection","Healing","Strength","Courage",
+        "Fortune","Fertility","Harvest","Nature","Storms","Fire","Water","Earth","Air",
+        "Time","Space","Light","Shadow","Dreams","Prophecy","Music","Poetry","Dance","Ancestors",
+        "Transcendence","Anguish","Blight","Bonds","Chaos","Confessions","Connections","Courage",
+        "Decay","Defeat","Destiny","Lore","Oblivion","Winter","Silence","Twilight","Triumph","Wisdom",
+        "Promise","Mending","Healing","Destruction","Judgement","Forgiveness","Redemption","Justice","Textiles", 
     ];
     CONCEPTS[rng.gen_range(0..CONCEPTS.len())]
 }
