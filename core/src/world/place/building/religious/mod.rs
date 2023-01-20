@@ -3,7 +3,7 @@ use initiative_macros::WordList;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-use crate::world::{Place, Demographics, place::PlaceType};
+use crate::world::{place::PlaceType, Demographics, Place};
 
 use super::BuildingType;
 
