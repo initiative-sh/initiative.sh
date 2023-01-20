@@ -101,7 +101,7 @@ impl Repository {
         if self.data_store.health_check().await.is_ok() {
             self.data_store_enabled = true;
         } else {
-            self.data_store = Box::new(MemoryDataStore::default());
+            self.data_store = Box::<MemoryDataStore>::default();
         }
     }
 
