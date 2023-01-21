@@ -1,5 +1,6 @@
 use crate::world::{Demographics, Place};
 use rand::prelude::*;
+use crate::utils::pluralize;
 
 pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demographics) {
     place.name.replace_with(|_| name(rng));
@@ -93,25 +94,9 @@ fn gerund(verb: String) -> String {
     if last_char == 'e' {
         format!("{}ing", &verb[..verb.len() - 1])
     } else if last_two_chars == "ot"{
-        format!("{}ting", &verb[..verb.len() - 1])
+        format!("{}ting", &verb)
     } else {
         format!("{}ing", verb)
-    }
-}
-
-fn pluralize(noun: String) -> String {
-    let last_char = noun.chars().last().unwrap();
-    let last_two_chars = &noun[noun.len() - 2..noun.len()];
-    if last_char == 'y' && !vec!['a', 'e', 'i', 'o', 'u'].contains(&noun.chars().nth(noun.len() - 2).unwrap()) {
-        format!("{}ies", &noun[..noun.len() - 1])
-    } else if last_two_chars == "ch" || last_two_chars == "sh" {
-        format!("{}es", noun)
-    } else if last_char == 's' || last_char == 'x' || last_char == 'z' {
-        format!("{}es", noun)
-    } else if last_char == 'f'{
-        format!("{}ves",&noun[..noun.len() -1])
-    }else {
-        format!("{}s", noun)
     }
 }
 
@@ -156,7 +141,7 @@ fn person(rng: &mut impl Rng) -> &'static str {
     PEOPLE[rng.gen_range(0..PEOPLE.len())]
 }
 //ANIMAL
-fn animal(rng: &mut impl Rng) -> String {
+fn animal(rng: &mut impl Rng) -> &str {
     #[rustfmt::skip]
     const ANIMALS: &[&str] = &[
         "Bear","Beetle","Carp","Cat","Cormorant","Cow","Crab","Deer","Dog","Fox",
@@ -166,7 +151,7 @@ fn animal(rng: &mut impl Rng) -> String {
         "Snake","Spider","Squid","Squirrel","Stag","Tiger","Toad","Tortoise","Turtle",
         "Unicorn", "Vulture", "Wolf",
     ];
-    ANIMALS[rng.gen_range(0..ANIMALS.len())].to_string()
+    ANIMALS[rng.gen_range(0..ANIMALS.len())]
 }
 //DIVINE CONCEPT
 fn concept(rng: &mut impl Rng) -> &'static str {
