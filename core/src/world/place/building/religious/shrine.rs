@@ -7,11 +7,11 @@ pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demograph
 }
 
 fn name(rng: &mut impl Rng) -> String {
-    match rng.gen_range(0..8) {
-        0..=2 => format!("The {} {}", descriptor(rng), place(rng)),
-        3..=5 => format!("{} of {}", place(rng), deity(rng)),
-        6 => format!("Place where the {} {}",pluralize(animal(rng)),action(rng)),
-        7 => format!("{} of the {} {}",place(rng),number(rng),pluralize(animal(rng))),
+    match rng.gen_range(0..10) {
+        0..=3 => format!("The {} {}", descriptor(rng), place(rng)),
+        4..=7 => format!("{} of {}", place(rng), deity(rng)),
+        8 => format!("Place where the {} {}",pluralize(animal(rng)),action(rng)),
+        9 => format!("{} of the {} {}",place(rng),number(rng),pluralize(animal(rng))),
         _ => unreachable!(),
     }
 }
@@ -33,8 +33,6 @@ fn building(rng: &mut impl Rng) -> &'static str {
         "Fane",
         "Pagoda",
         "Shrine",
-        "Cave",
-        "Tree",
         "Gate",
         "Obelisk",
         "Pagoda",
@@ -55,12 +53,11 @@ fn feature(rng: &mut impl Rng) -> &'static str {
     FEATURES[rng.gen_range(0..FEATURES.len())]
 }
 
-//DESCRIPTOR can be an ADJECTIVE, an ACTION, or another noun that fits well e.g. PHOENIX
+//DESCRIPTOR can be an ADJECTIVE or an ACTION
 fn descriptor(rng: &mut impl Rng) -> String {
-    match rng.gen_range(0..3) {
+    match rng.gen_range(0..2) {
         0 => adjective(rng),
         1 => gerund(action(rng)),
-        2 => noun(rng),
         _ => unreachable!(),
     }
 }
@@ -69,12 +66,14 @@ fn descriptor(rng: &mut impl Rng) -> String {
 fn adjective(rng: &mut impl Rng) -> String {
     #[rustfmt::skip]
     const ADJECTIVES: &[&str] = &[
-        "Amaranthine","Ancestral","Ancient","Angelic","Argent","Astral","Azure",
+        "Amaranthine","Ancestral","Ancient","Angelic","Astral",
         "Blessed","Blue","Bright","Celestial","Corrupted","Dark","Devout",
         "Divine","Elder","Eternal","Ethereal","Exalted","Foul","Golden","Guilty","Hallowed",
         "Heavenly","Immortal","Impure","Ivory","Shining","Lucent","Pale","Primal","Putrid",
         "Radiant","Red","Rusted","Sacred","Sanctified","Sanguine","Silver","Solemn","Tainted",
-        "Timeless","Tribal","True","Vile","White","Wicked",
+        "Timeless","Tribal","True","Vile","White","Wicked","Still","Alabaster", "Blight",
+        "Death","Ghost","Honor","Pearl","Phantom","Spirit",
+        "Soul","Iron",
     ];
     ADJECTIVES[rng.gen_range(0..ADJECTIVES.len())].to_string()
 }
@@ -83,7 +82,8 @@ fn action(rng: &mut impl Rng) -> String {
     #[rustfmt::skip]
     const ACTIONS: &[&str] = &[
         "Dance","Whisper","Shiver","Rot","Rise","Fall","Laugh","Travel","Creep",
-        "Sing","Fade","Glow","Shine","Stand","Weep","Drown","Howl","Smile","Hunt"
+        "Sing","Fade","Glow","Shine","Stand","Weep","Drown","Howl","Smile","Hunt",
+        "Burn","Return","Dream","Wake","Slumber"
     ];
     ACTIONS[rng.gen_range(0..ACTIONS.len())].to_string()
 }
@@ -104,25 +104,15 @@ fn number(rng: &mut impl Rng) -> &'static str {
     #[rustfmt::skip]
     const NUMBERS: &[&str] = 
         &[
-            "Two","Three","Four","Five","Six","Seven","Eight","Eight and a Half","Nine",
-            "Twelve","Thirty-Six", "Forty","Seventy-Two","Nine and Twenty", "Ninety-Nine","Thousand"
+            "Two","Three","Four","Five","Six","Seven","Eight","Eight-and-a-Half","Nine",
+            "Twelve","Thirty-Six", "Forty","Seventy-Two","Nine-and-Twenty", "Ninety-Nine","Thousand","Thousand-Thousand"
         ];
     NUMBERS[rng.gen_range(0..NUMBERS.len())]
 }
 
-//NOUN
-fn noun(rng: &mut impl Rng) -> String {
-    #[rustfmt::skip]
-    const NOUNS: &[&str] = &[
-        "Blight","Death","Ghost","Honor", "Mirror","Omen","Oracle","Pearl",
-        "Phantom","Pheonix","Spirit","Soul","Shadow","Blood","Dream","Emerald","Iron"
-    ];
-
-    NOUNS[rng.gen_range(0..NOUNS.len())].to_string()
-}
 //DEITY can be PERSON, ANIMAL, or DIVINE CONCEPT
 fn deity(rng: &mut impl Rng) -> String {
-    match rng.gen_range(0..6) {
+    match rng.gen_range(0..10) {
         0..=1 => format!("The {}",person(rng)),
         2     => format!("The {} {}",descriptor(rng),person(rng)),
         3..=4 => format!("The {}",animal(rng)),
@@ -136,7 +126,7 @@ fn deity(rng: &mut impl Rng) -> String {
 fn person(rng: &mut impl Rng) -> &'static str {
     #[rustfmt::skip]
     const PEOPLE: &[&str] = &[
-        "Father","Mother","Parent","Sibling","Hunter","Emperor","Empress","Ruler","Warrior","Sage"
+        "Father","Mother","Parent","Sibling","Hunter","Emperor","Empress","Warrior","Sage","Ancestor"
     ];
     PEOPLE[rng.gen_range(0..PEOPLE.len())]
 }
@@ -144,26 +134,23 @@ fn person(rng: &mut impl Rng) -> &'static str {
 fn animal(rng: &mut impl Rng) -> &str {
     #[rustfmt::skip]
     const ANIMALS: &[&str] = &[
-        "Bear","Beetle","Carp","Cat","Cormorant","Cow","Crab","Deer","Dog","Fox",
-        "Frog","Goat","Hart","Hawk","Heron","Horse",
-        "Hound","Lion","Magpie","Owl","Panther","Peacock","Phoenix",
-        "Rabbit","Ram","Rat","Raven","Salamander","Scorpion","Rat","Rabbit",
-        "Snake","Spider","Squid","Squirrel","Stag","Tiger","Toad","Tortoise","Turtle",
-        "Unicorn", "Vulture", "Wolf",
+        "Bear","Beetle","Carp","Cat","Cormorant","Cow","Deer","Dog","Fox",
+        "Frog","Goat","Hart","Hawk","Heron","Horse","Hound","Lion","Magpie",
+        "Owl","Panther","Peacock","Phoenix", "Rabbit","Ram","Rat","Raven","Salamander",
+        "Scorpion","Rat","Rabbit","Snake","Spider","Squirrel","Stag","Tiger",
+        "Toad","Tortoise","Turtle","Unicorn","Vulture","Wolf","Beetle","Locust"
     ];
     ANIMALS[rng.gen_range(0..ANIMALS.len())]
 }
-//DIVINE CONCEPT
+
+//DIVINE CONCEPT are more abstract stuff that doesn't go well with "the" in front of it.
 fn concept(rng: &mut impl Rng) -> &'static str {
     #[rustfmt::skip]
     const CONCEPTS: &[&str] = &[
-        "Creation","Destruction","Life","Death","Love","War","Peace","Knowledge",
-        "Wisdom","Truth","Justice","Mercy","Protection","Healing","Strength","Courage",
-        "Fortune","Fertility","Harvest","Nature","Storms","Fire","Water","Earth","Air",
-        "Time","Space","Light","Shadow","Dreams","Prophecy","Music","Poetry","Dance","Ancestors",
-        "Transcendence","Anguish","Blight","Bonds","Chaos","Confessions","Connections","Courage",
-        "Decay","Defeat","Destiny","Lore","Oblivion","Winter","Silence","Twilight","Triumph","Wisdom",
-        "Promise","Mending","Healing","Destruction","Judgement","Forgiveness","Redemption","Justice","Textiles", 
+        "Love","Knowledge","Wisdom","Truth","Justice","Mercy","Protection","Healing","Strength","Courage",
+        "Fortune","Fertility","Storms","Fire","Water","Earth","Air","Dreams","Music","Poetry","Dance",
+        "Ancestors","Transcendence","Anguish","Blight","Confessions","Connections","Courage","Decay",
+        "Lore","Silence","Triumph","Wisdom","Mending","Healing","Judgement","Forgiveness","Justice","Textiles", 
     ];
     CONCEPTS[rng.gen_range(0..CONCEPTS.len())]
 }
