@@ -1,4 +1,7 @@
-* **New:** Added a name generator for shrines. @alfonsomartinezs
+
+* **Enhancement:** Name generator now works for shrines. @alfonsomartinezs
+* **Enhancement:** GitHub usernames in the changelog are now links, making it
+  easier to attribute work. @MikkelPaulson
 * **Enhancement:** The input box now scrolls with the page. @alfonsomartinezs
 * **Bug:** Update outdated references in the documentation about the app being
   case-sensitive, and a bit of expectation management around the project being
