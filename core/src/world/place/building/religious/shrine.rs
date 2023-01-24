@@ -10,8 +10,14 @@ fn name(rng: &mut impl Rng) -> String {
     match rng.gen_range(0..10) {
         0..=3 => format!("The {} {}", descriptor(rng), place(rng)),
         4..=7 => format!("{} of {}", place(rng), deity(rng)),
-        8 => format!("Place where the {} {}",pluralize(animal(rng)),action(rng)),
-        9 => format!("{} of the {} {}",place(rng),number(rng),pluralize(animal(rng))),
+        8 => {
+            let (animal ,s)= pluralize(animal(rng));
+            format!("Place where the {}{} {}",animal,s,action(rng))
+        },
+        9 => {
+            let (animal ,s)= pluralize(animal(rng));
+            format!("{} of the {} {}{}",place(rng),number(rng),animal,s)
+        },
         _ => unreachable!(),
     }
 }
