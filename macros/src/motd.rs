@@ -1,3 +1,4 @@
+use super::changelog::linkify;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::LitStr;
@@ -16,12 +17,14 @@ Latest `changelog` entry:
 
 {}",
         base_motd.trim_end(),
-        changelog
-            .lines()
-            .enumerate()
-            .take_while(|&(i, s)| i == 0 || !s.starts_with('*'))
-            .map(|(_, s)| s)
-            .collect::<String>()
+        linkify(
+            &changelog
+                .lines()
+                .enumerate()
+                .take_while(|&(i, s)| i == 0 || !s.starts_with('*'))
+                .map(|(_, s)| s)
+                .collect::<String>()
+        )
     );
 
     let motd_len = motd.len();
