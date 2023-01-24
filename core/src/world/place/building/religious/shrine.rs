@@ -77,7 +77,7 @@ fn adjective(rng: &mut impl Rng) -> String {
         "Divine","Elder","Eternal","Ethereal","Exalted","Foul","Golden","Guilty","Hallowed",
         "Heavenly","Immortal","Impure","Ivory","Shining","Lucent","Pale","Primal","Putrid",
         "Radiant","Red","Rusted","Sacred","Sanctified","Sanguine","Silver","Solemn","Tainted",
-        "Timeless","Tribal","True","Vile","White","Wicked","Still","Alabaster", "Blight",
+        "Timeless","Tribal","White","Wicked","Still","Alabaster", "Blight",
         "Death","Ghost","Honor","Pearl","Phantom","Spirit",
         "Soul","Iron",
     ];
@@ -137,18 +137,17 @@ fn person(rng: &mut impl Rng) -> &'static str {
     PEOPLE[rng.gen_range(0..PEOPLE.len())]
 }
 //ANIMAL
-fn animal(rng: &mut impl Rng) -> &str {
+fn animal(rng: &mut impl Rng) -> &'static str {
     #[rustfmt::skip]
     const ANIMALS: &[&str] = &[
         "Bear","Beetle","Carp","Cat","Cormorant","Cow","Deer","Dog","Fox",
         "Frog","Goat","Hart","Hawk","Heron","Horse","Hound","Lion","Magpie",
         "Owl","Panther","Peacock","Phoenix", "Rabbit","Ram","Rat","Raven","Salamander",
         "Scorpion","Rat","Rabbit","Snake","Spider","Squirrel","Stag","Tiger",
-        "Toad","Tortoise","Turtle","Unicorn","Vulture","Wolf","Beetle","Locust"
+        "Toad","Tortoise","Turtle","Vulture","Wolf","Beetle","Locust"
     ];
     ANIMALS[rng.gen_range(0..ANIMALS.len())]
 }
-
 //DIVINE CONCEPT are more abstract stuff that doesn't go well with "the" in front of it.
 fn concept(rng: &mut impl Rng) -> &'static str {
     #[rustfmt::skip]

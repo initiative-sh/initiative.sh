@@ -1,5 +1,6 @@
 use crate::world::{Demographics, Place};
 use rand::prelude::*;
+use crate::utils::pluralize;
 
 pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demographics) {
     place.name.replace_with(|_| name(rng));
@@ -9,7 +10,7 @@ fn name(rng: &mut impl Rng) -> String {
     match rng.gen_range(0..6) {
         0 => format!("The {}", thing(rng)),
         1 => {
-            let (profession, s) = plural(profession(rng));
+            let (profession, s) = pluralize(profession(rng));
             format!("{}{} Arms", profession, s)
         }
         2..=3 => {
@@ -18,7 +19,7 @@ fn name(rng: &mut impl Rng) -> String {
         }
         4 => format!("The {} {}", adjective(rng), thing(rng)),
         5 => {
-            let (thing, s) = plural(thing(rng));
+            let (thing, s) = pluralize(thing(rng));
             format!("{} {}{}", number(rng), thing, s)
         }
         _ => unreachable!(),
@@ -65,19 +66,6 @@ fn thing_thing(rng: &mut impl Rng) -> (&'static str, &'static str) {
         thing_thing(rng)
     } else {
         (thing1, thing2)
-    }
-}
-
-fn plural(word: &str) -> (&str, &str) {
-    match word {
-        "Goose" => ("geese", ""),
-        "Key" => ("key", "s"),
-        "Beef" | "Carp" | "Cod" | "Deer" | "Perch" | "Potatoes" | "Sheep" | "Squid" => (word, ""),
-        s if s.ends_with('f') => (&word[..(word.len() - 1)], "ves"),
-        s if s.ends_with("ey") => (&word[..(word.len() - 2)], "ies"),
-        s if s.ends_with('y') => (&word[..(word.len() - 1)], "ies"),
-        s if s.ends_with(&['s', 'x'][..]) => (word, "es"),
-        _ => (word, "s"),
     }
 }
 
