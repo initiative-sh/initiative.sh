@@ -1,6 +1,6 @@
+use crate::utils::pluralize;
 use crate::world::{Demographics, Place};
 use rand::prelude::*;
-use crate::utils::pluralize;
 
 pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demographics) {
     place.name.replace_with(|_| name(rng));

@@ -1,6 +1,6 @@
+use crate::utils::pluralize;
 use crate::world::{Demographics, Place};
 use rand::prelude::*;
-use crate::utils::pluralize;
 
 pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demographics) {
     place.name.replace_with(|_| name(rng));
@@ -11,13 +11,13 @@ fn name(rng: &mut impl Rng) -> String {
         0..=3 => format!("The {} {}", descriptor(rng), place(rng)),
         4..=7 => format!("{} of {}", place(rng), deity(rng)),
         8 => {
-            let (animal ,s)= pluralize(animal(rng));
-            format!("Place where the {}{} {}",animal,s,action(rng))
-        },
+            let (animal, s) = pluralize(animal(rng));
+            format!("Place where the {}{} {}", animal, s, action(rng))
+        }
         9 => {
-            let (animal ,s)= pluralize(animal(rng));
-            format!("{} of the {} {}{}",place(rng),number(rng),animal,s)
-        },
+            let (animal, s) = pluralize(animal(rng));
+            format!("{} of the {} {}{}", place(rng), number(rng), animal, s)
+        }
         _ => unreachable!(),
     }
 }
@@ -35,15 +35,7 @@ fn place(rng: &mut impl Rng) -> &'static str {
 //commonly worshipped places
 fn building(rng: &mut impl Rng) -> &'static str {
     const BUILDINGS: &[&str] = &[
-        "Altar",
-        "Fane",
-        "Pagoda",
-        "Shrine",
-        "Gate",
-        "Obelisk",
-        "Pagoda",
-        "Pillar",
-        "Pillars",
+        "Altar", "Fane", "Pagoda", "Shrine", "Gate", "Obelisk", "Pagoda", "Pillar", "Pillars",
     ];
     BUILDINGS[rng.gen_range(0..BUILDINGS.len())]
 }
@@ -51,11 +43,10 @@ fn building(rng: &mut impl Rng) -> &'static str {
 //less common places of worship, typically natural formations
 fn feature(rng: &mut impl Rng) -> &'static str {
     #[rustfmt::skip]
-    const FEATURES: &[&str] = 
-        &[
+    const FEATURES: &[&str] = &[
         "Basin","Boulder","Cavern","Grove","Pond","Pool","Menhir",
         "Grotto","Cenote", "Tree", "Stones", "Cave"
-        ];
+    ];
     FEATURES[rng.gen_range(0..FEATURES.len())]
 }
 
@@ -99,8 +90,10 @@ fn gerund(verb: String) -> String {
     let last_two_chars = &verb[verb.len() - 2..verb.len()];
     if last_char == 'e' {
         format!("{}ing", &verb[..verb.len() - 1])
-    } else if last_two_chars == "ot"{
+    } else if last_two_chars == "ot" {
         format!("{}ting", &verb)
+    } else if last_two_chars == "el" {
+        format!("{}ling", &verb)
     } else {
         format!("{}ing", verb)
     }
@@ -108,23 +101,22 @@ fn gerund(verb: String) -> String {
 
 fn number(rng: &mut impl Rng) -> &'static str {
     #[rustfmt::skip]
-    const NUMBERS: &[&str] = 
-        &[
-            "Two","Three","Four","Five","Six","Seven","Eight","Eight-and-a-Half","Nine",
-            "Twelve","Thirty-Six", "Forty","Seventy-Two","Nine-and-Twenty", "Ninety-Nine","Thousand","Thousand-Thousand"
-        ];
+    const NUMBERS: &[&str] = &[
+        "Two","Three","Four","Five","Six","Seven","Eight","Eight-and-a-Half","Nine",
+        "Twelve","Thirty-Six", "Forty","Seventy-Two","Nine-and-Twenty", "Ninety-Nine","Thousand","Thousand-Thousand"
+    ];
     NUMBERS[rng.gen_range(0..NUMBERS.len())]
 }
 
 //DEITY can be PERSON, ANIMAL, or DIVINE CONCEPT
 fn deity(rng: &mut impl Rng) -> String {
     match rng.gen_range(0..10) {
-        0..=1 => format!("The {}",person(rng)),
-        2     => format!("The {} {}",descriptor(rng),person(rng)),
-        3..=4 => format!("The {}",animal(rng)),
-        5 => format!("The {} {}",descriptor(rng),animal(rng)),
-        6..=8 => format!("{}",concept(rng)),
-        9 => format!("{} {}",descriptor(rng),concept(rng)),
+        0..=1 => format!("The {}", person(rng)),
+        2 => format!("The {} {}", descriptor(rng), person(rng)),
+        3..=4 => format!("The {}", animal(rng)),
+        5 => format!("The {} {}", descriptor(rng), animal(rng)),
+        6..=8 => format!("{}", concept(rng)),
+        9 => format!("{} {}", descriptor(rng), concept(rng)),
         _ => unreachable!(),
     }
 }
