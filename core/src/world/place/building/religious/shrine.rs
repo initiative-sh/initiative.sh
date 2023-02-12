@@ -24,18 +24,18 @@ fn name(rng: &mut impl Rng) -> String {
 
 //place of worship can be a building or a natural feature
 fn place(rng: &mut impl Rng) -> &'static str {
-    let choice = rng.gen_range(0..3);
-    if choice == 0 {
-        feature(rng)
-    } else {
-        building(rng)
+    match rng.gen_range(0..6){
+        0..=2 => "Shrine",
+        3..=4 => building(rng),
+        5     => feature(rng), 
+        _     => unreachable!()
     }
 }
 
 //commonly worshipped places
 fn building(rng: &mut impl Rng) -> &'static str {
     const BUILDINGS: &[&str] = &[
-        "Altar", "Fane", "Pagoda", "Shrine", "Gate", "Obelisk", "Pagoda", "Pillar", "Pillars",
+        "Altar", "Pagoda", "Gate", "Obelisk", "Pagoda", "Pillar", "Pillars",
     ];
     BUILDINGS[rng.gen_range(0..BUILDINGS.len())]
 }
@@ -44,7 +44,7 @@ fn building(rng: &mut impl Rng) -> &'static str {
 fn feature(rng: &mut impl Rng) -> &'static str {
     #[rustfmt::skip]
     const FEATURES: &[&str] = &[
-        "Basin","Boulder","Cavern","Grove","Pond","Pool","Menhir",
+        "Basin","Cavern","Grove","Pond","Pool","Menhir",
         "Grotto","Cenote", "Tree", "Stones", "Cave"
     ];
     FEATURES[rng.gen_range(0..FEATURES.len())]
@@ -52,9 +52,9 @@ fn feature(rng: &mut impl Rng) -> &'static str {
 
 //DESCRIPTOR can be an ADJECTIVE or an ACTION
 fn descriptor(rng: &mut impl Rng) -> String {
-    match rng.gen_range(0..2) {
-        0 => adjective(rng),
-        1 => gerund(action(rng)),
+    match rng.gen_range(0..3) {
+        0..=1 => adjective(rng),
+        2 => gerund(action(rng)),
         _ => unreachable!(),
     }
 }
@@ -63,11 +63,11 @@ fn descriptor(rng: &mut impl Rng) -> String {
 fn adjective(rng: &mut impl Rng) -> String {
     #[rustfmt::skip]
     const ADJECTIVES: &[&str] = &[
-        "Amaranthine","Ancestral","Ancient","Angelic","Astral",
+        "Amaranthine","Ancestral","Ancient","Astral",
         "Blessed","Blue","Bright","Celestial","Corrupted","Dark","Devout",
         "Divine","Elder","Eternal","Ethereal","Exalted","Foul","Golden","Guilty","Hallowed",
         "Heavenly","Immortal","Impure","Ivory","Shining","Lucent","Pale","Primal","Putrid",
-        "Radiant","Red","Rusted","Sacred","Sanctified","Sanguine","Silver","Solemn","Tainted",
+        "Radiant","Red","Rusted","Sacred","Sanctified","Sanguine","Silver","Tainted",
         "Timeless","Tribal","White","Wicked","Still","Alabaster", "Blight",
         "Death","Ghost","Honor","Pearl","Phantom","Spirit",
         "Soul","Iron",
