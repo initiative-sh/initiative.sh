@@ -115,7 +115,7 @@ fn deity(rng: &mut impl Rng) -> String {
         2 => format!("The {} {}", descriptor(rng), person(rng)),
         3..=4 => format!("The {}", animal(rng)),
         5 => format!("The {} {}", descriptor(rng), animal(rng)),
-        6..=8 => format!("{}", concept(rng)),
+        6..=8 => concept(rng).to_string(),
         9 => format!("{} {}", descriptor(rng), concept(rng)),
         _ => unreachable!(),
     }
