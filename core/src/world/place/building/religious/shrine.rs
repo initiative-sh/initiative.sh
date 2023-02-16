@@ -24,11 +24,11 @@ fn name(rng: &mut impl Rng) -> String {
 
 //place of worship can be a building or a natural feature
 fn place(rng: &mut impl Rng) -> &'static str {
-    match rng.gen_range(0..6){
+    match rng.gen_range(0..6) {
         0..=2 => "Shrine",
         3..=4 => building(rng),
-        5     => feature(rng), 
-        _     => unreachable!()
+        5 => feature(rng),
+        _ => unreachable!(),
     }
 }
 
