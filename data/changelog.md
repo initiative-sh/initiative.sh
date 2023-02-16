@@ -1,4 +1,3 @@
-
 * **Enhancement:** Name generator now works for shrines. @alfonsomartinezs
 * **Enhancement:** GitHub usernames in the changelog are now links, making it
   easier to attribute work. @MikkelPaulson
