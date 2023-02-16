@@ -163,7 +163,7 @@ fn generate_location_with_no_name_generator() {
     let mut app = sync_app();
 
     assert_eq!(
-        "The only place name generator currently implemented is `inn`. For other types, you must specify a name using `kingdom named [name]`.",
+        "There is no name generator implemented for that type. You must specify your own name using `kingdom named [name]`.",
         app.command("kingdom").unwrap_err(),
     );
 
