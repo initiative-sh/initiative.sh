@@ -64,7 +64,7 @@ fn adjective(rng: &mut impl Rng) -> String {
     #[rustfmt::skip]
     const ADJECTIVES: &[&str] = &[
         "Amaranthine","Ancestral","Ancient","Astral",
-        "Blessed","Blue","Bright","Celestial","Corrupted","Dark","Devout",
+        "Blessed","Blue","Bright","Celestial","Corrupted","Dark",
         "Divine","Elder","Eternal","Ethereal","Exalted","Foul","Golden","Guilty","Hallowed",
         "Heavenly","Immortal","Impure","Ivory","Shining","Lucent","Pale","Primal","Putrid",
         "Radiant","Red","Rusted","Sacred","Sanctified","Sanguine","Silver","Tainted",
@@ -145,9 +145,48 @@ fn concept(rng: &mut impl Rng) -> &'static str {
     #[rustfmt::skip]
     const CONCEPTS: &[&str] = &[
         "Love","Knowledge","Wisdom","Truth","Justice","Mercy","Protection","Healing","Strength","Courage",
-        "Fortune","Fertility","Storms","Fire","Water","Earth","Air","Dreams","Music","Poetry","Dance",
+        "Fortune","Prosperity","Storms","Fire","Water","Earth","Air","Dreams","Music","Poetry","Dance",
         "Ancestors","Transcendence","Anguish","Blight","Confessions","Connections","Courage","Decay",
         "Lore","Silence","Triumph","Wisdom","Mending","Healing","Judgement","Forgiveness","Justice","Textiles", 
     ];
     CONCEPTS[rng.gen_range(0..CONCEPTS.len())]
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn name_test() {
+        let mut rng = SmallRng::seed_from_u64(0);
+
+        assert_eq!(
+            [
+                "Shrine of The Wolf",
+                "Shrine of Courage",
+                "Shrine of Foul Decay",
+                "The Singing Cave",
+                "The Fading Basin",
+                "The Exalted Gate",
+                "The Creeping Shrine",
+                "The Alabaster Shrine",
+                "Pillar of the Five Deer",
+                "The Pale Pagoda",
+                "The Immortal Shrine",
+                "Place where the Tigers Sing",
+                "Tree of Shining Textiles",
+                "The Hunting Shrine",
+                "The Creeping Shrine",
+                "Shrine of the Thirty-Six Snakes",
+                "Shrine of The Iron Deer",
+                "The Spirit Altar",
+                "Shrine of Forgiveness",
+                "The Dark Shrine"
+            ]
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>(),
+            (0..20).map(|_| name(&mut rng)).collect::<Vec<String>>(),
+        );
+    }
 }
