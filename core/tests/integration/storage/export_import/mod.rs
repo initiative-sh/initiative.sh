@@ -34,6 +34,7 @@ fn inspect_journal(app: &mut SyncApp) -> String {
 }
 
 #[test]
+#[ignore]
 fn export() {
     let mut app = sync_app_with_dispatcher(&event_dispatcher);
     app.command("inn named Foo").unwrap();

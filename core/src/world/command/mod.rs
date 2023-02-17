@@ -43,14 +43,6 @@ impl Runnable for WorldCommand {
                 let unknown_words = parsed_thing.unknown_words.to_owned();
                 let mut output = None;
 
-                if let Some(place) = diff.place() {
-                    if place.subtype.value().map_or(true, |t| t.as_str() != "inn")
-                        && place.name.is_unlocked()
-                    {
-                        return Err(format!("The only place name generator currently implemented is `inn`. For other types, you must specify a name using `{} named [name]`.", place.display_description()));
-                    }
-                }
-
                 for _ in 0..10 {
                     let mut thing = diff.clone();
                     thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
@@ -136,6 +128,7 @@ impl Runnable for WorldCommand {
                                 }
                             }
                         }
+                        Err((Change::Create { thing }, RepositoryError::MissingName)) => return Err(format!("There is no name generator implemented for that type. You must specify your own name using `{} named [name]`.", thing.display_description())),
                         Err(_) => return Err("An error occurred.".to_string()),
                     }
                 }

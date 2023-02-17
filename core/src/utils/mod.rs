@@ -19,6 +19,21 @@ pub fn capitalize(input: &str) -> String {
     result
 }
 
+pub fn pluralize(word: &str) -> (&str, &str) {
+    match word {
+        "Goose" => ("Geese", ""),
+        "Beef" | "Carp" | "Cod" | "Deer" | "Perch" | "Potatoes" | "Sheep" | "Squid" => (word, ""),
+        s if s.ends_with('f') => (&word[..(word.len() - 1)], "ves"),
+        s if s.ends_with("ey") => (&word[..(word.len() - 2)], "ies"),
+        s if s.ends_with('y') => (&word[..(word.len() - 1)], "ies"),
+        s if s.ends_with(&['s', 'x', 'z'][..]) => (word, "es"),
+        s if s.ends_with("ch") => (word, "es"),
+        s if s.ends_with("sh") => (word, "es"),
+        s if s.ends_with(&['s', 'x'][..]) => (word, "es"),
+        _ => (word, "s"),
+    }
+}
+
 pub struct Word<'a> {
     phrase: &'a str,
     inner_range: Range<usize>,
