@@ -12,7 +12,7 @@ fn name(rng: &mut impl Rng) -> String {
         4..=7 => format!("{} of {}", place(rng), deity(rng)),
         8 => {
             let (animal, s) = pluralize(animal(rng));
-            format!("Place where the {}{} {}", animal, s, action(rng))
+            format!("Place Where the {}{} {}", animal, s, action(rng))
         }
         9 => {
             let (animal, s) = pluralize(animal(rng));
@@ -111,10 +111,10 @@ fn number(rng: &mut impl Rng) -> &'static str {
 //DEITY can be PERSON, ANIMAL, or DIVINE CONCEPT
 fn deity(rng: &mut impl Rng) -> String {
     match rng.gen_range(0..10) {
-        0..=1 => format!("The {}", person(rng)),
-        2 => format!("The {} {}", descriptor(rng), person(rng)),
-        3..=4 => format!("The {}", animal(rng)),
-        5 => format!("The {} {}", descriptor(rng), animal(rng)),
+        0..=1 => format!("the {}", person(rng)),
+        2 => format!("the {} {}", descriptor(rng), person(rng)),
+        3..=4 => format!("the {}", animal(rng)),
+        5 => format!("the {} {}", descriptor(rng), animal(rng)),
         6..=8 => concept(rng).to_string(),
         9 => format!("{} {}", descriptor(rng), concept(rng)),
         _ => unreachable!(),
