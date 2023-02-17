@@ -162,7 +162,7 @@ mod test {
 
         assert_eq!(
             [
-                "Shrine of The Wolf",
+                "Shrine of the Wolf",
                 "Shrine of Courage",
                 "Shrine of Foul Decay",
                 "The Singing Cave",
@@ -173,12 +173,12 @@ mod test {
                 "Pillar of the Five Deer",
                 "The Pale Pagoda",
                 "The Immortal Shrine",
-                "Place where the Tigers Sing",
+                "Place Where the Tigers Sing",
                 "Tree of Shining Textiles",
                 "The Hunting Shrine",
                 "The Creeping Shrine",
                 "Shrine of the Thirty-Six Snakes",
-                "Shrine of The Iron Deer",
+                "Shrine of the Iron Deer",
                 "The Spirit Altar",
                 "Shrine of Forgiveness",
                 "The Dark Shrine"

@@ -1,4 +1,4 @@
-* **Enhancement:** Name generator now works for shrines. @alfonsomartinezs
+* **Enhancement:** Name generator now works for `shrine`. @alfonsomartinezs
 * **Enhancement:** GitHub usernames in the changelog are now links, making it
   easier to attribute work. @MikkelPaulson
 * **Enhancement:** The input box now scrolls with the page. @alfonsomartinezs
