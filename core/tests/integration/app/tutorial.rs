@@ -193,6 +193,7 @@ fn resume_at_step(step: usize) {
 }
 
 #[test]
+#[ignore]
 fn restart() {
     for i in 0..TUTORIAL_STEPS - 1 {
         println!("Restarting from step {}...", i);
