@@ -1,6 +1,8 @@
 use initiative_macros::WordList;
 use serde::{Deserialize, Serialize};
 
+mod beach;
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, WordList)]
 #[serde(into = "&'static str", try_from = "&str")]
 pub enum GeographicalType {
