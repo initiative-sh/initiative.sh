@@ -128,12 +128,6 @@ fn placement(rng: &mut impl Rng) -> &'static str {
     PLACEMENT[rng.gen_range(0..PLACEMENT.len())]
 }
 
-fn number(rng: &mut impl Rng) -> &'static str {
-    #[rustfmt::skip]
-    const NUMBERS: &[&str] = &["Three", "Five", "Seven", "Ten"];
-    NUMBERS[rng.gen_range(0..NUMBERS.len())]
-}
-
 fn cardinal_direction(rng: &mut impl Rng) -> &'static str {
     const CARDINAL_DIRS: &[&str] = &["North", "South", "East", "West"];
     CARDINAL_DIRS[rng.gen_range(0..CARDINAL_DIRS.len())]
