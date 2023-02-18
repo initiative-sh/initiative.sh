@@ -1,7 +1,12 @@
+mod beach;
+
 use initiative_macros::WordList;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-mod beach;
+use crate::world::{place::PlaceType, Demographics, Place};
+
+use super::LocationType;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, WordList)]
 #[serde(into = "&'static str", try_from = "&str")]
@@ -40,6 +45,17 @@ impl GeographicalType {
             Self::Monolith => Some("🗿"),
             Self::Oasis => Some("🌴"),
             Self::Cave | Self::Rift => None,
+        }
+    }
+}
+
+pub fn generate(place: &mut Place, rng: &mut impl Rng, demographics: &Demographics) {
+    #[allow(clippy::collapsible_match)]
+    if let Some(PlaceType::Location(LocationType::Geographical(subtype))) = place.subtype.value() {
+        #[allow(clippy::single_match)]
+        match subtype {
+            GeographicalType::Beach => beach::generate(place, rng, demographics),
+            _ => {}
         }
     }
 }
