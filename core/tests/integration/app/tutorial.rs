@@ -18,7 +18,7 @@ fn happy_path() {
 
         let tutorial_pos = output.find("# Tutorial").unwrap();
 
-        if output.contains("# Tutorial: Conclusion") {
+        if output.contains("## Tutorial: Conclusion") {
             assert_eq!(TUTORIAL_STEPS - 2, i);
             return;
         }
@@ -49,7 +49,7 @@ fn shouting_happy_path() {
 
         let tutorial_pos = output.find("# Tutorial").unwrap();
 
-        if output.contains("# Tutorial: Conclusion") {
+        if output.contains("## Tutorial: Conclusion") {
             assert_eq!(TUTORIAL_STEPS - 2, i);
             return;
         }
@@ -80,7 +80,7 @@ fn works_without_local_storage() {
 
         let tutorial_pos = output.find("# Tutorial").unwrap();
 
-        if output.contains("# Tutorial: Conclusion") {
+        if output.contains("## Tutorial: Conclusion") {
             assert_eq!(TUTORIAL_STEPS - 2, i);
             return;
         }
@@ -163,7 +163,7 @@ fn resume_at_step(step: usize) {
     }
 
     let output = app.command("about").unwrap();
-    assert!(output.contains("# Tutorial"), "{}", output);
+    assert!(output.contains("## Tutorial"), "{}", output);
     command = "resume".to_string();
 
     for i in step..TUTORIAL_STEPS {
@@ -193,10 +193,9 @@ fn resume_at_step(step: usize) {
 }
 
 #[test]
-#[ignore]
 fn restart() {
     for i in 0..TUTORIAL_STEPS - 1 {
-        println!("Restarting from step {}...", i);
+        println!("\n\nRestarting from step {}...\n\n", i);
         restart_from_step(i);
     }
 }
@@ -204,7 +203,8 @@ fn restart() {
 fn restart_from_step(step: usize) {
     let mut app = sync_app();
 
-    app.command("tutorial").unwrap();
+    println!("> tutorial\n");
+    println!("{}", app.command("tutorial").unwrap());
 
     let mut command = "next".to_string();
 
@@ -220,10 +220,14 @@ fn restart_from_step(step: usize) {
             .to_string();
     }
 
+    println!("> about\n");
     let output = app.command("about").unwrap();
-    assert!(output.contains("# Tutorial"), "{}", output);
+    println!("{}", output);
+    assert!(output.contains("## Tutorial"), "{}", output);
 
+    println!("> restart\n");
     let output = app.command("restart").unwrap();
+    println!("{}", output);
     assert!(output.contains("# Tutorial: Introduction"), "{}", output);
 
     command = "next".to_string();
@@ -240,9 +244,12 @@ fn restart_from_step(step: usize) {
             .to_string();
     }
 
-    app.command("cancel").unwrap_err();
+    println!("> cancel\n");
+    println!("{}\n", app.command("cancel").unwrap_err());
 
+    println!("> journal\n");
     let journal_output = app.command("journal").unwrap();
+    println!("{}", journal_output);
     assert!(
         journal_output.contains("Your journal is currently empty."),
         "{}",

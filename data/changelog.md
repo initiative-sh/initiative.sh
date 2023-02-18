@@ -1,3 +1,5 @@
+* **Bug:** Fixed an edge case where unsaved journal entries might not be
+  accessible, including possibly in the tutorial. @MikkelPaulson
 * **Enhancement:** Name generator now works for `beach`. @chrisrenfrow
 * **Enhancement:** Name generator now works for `shrine`. @alfonsomartinezs
 * **Enhancement:** GitHub usernames in the changelog are now links, making it

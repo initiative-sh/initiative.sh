@@ -219,7 +219,8 @@ impl Repository {
     }
 
     pub fn recent(&self) -> impl Iterator<Item = &Thing> {
-        self.recent.as_slices().0.iter()
+        let (a, b) = self.recent.as_slices();
+        a.iter().chain(b.iter())
     }
 
     pub async fn journal(&self) -> Result<Vec<Thing>, Error> {
