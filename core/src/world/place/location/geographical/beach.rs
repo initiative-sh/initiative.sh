@@ -1,4 +1,7 @@
-use crate::world::{Demographics, Place};
+use crate::{
+    utils::pluralize,
+    world::{Demographics, Place},
+};
 use rand::prelude::*;
 
 pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demographics) {
@@ -30,19 +33,6 @@ fn thing(rng: &mut impl Rng) -> &'static str {
         6 => symbol(rng),
         7 => gem(rng),
         _ => unreachable!(),
-    }
-}
-
-fn pluralize(word: &str) -> (&str, &str) {
-    match word {
-        "Goose" => ("geese", ""),
-        "Key" => ("key", "s"),
-        "Beef" | "Carp" | "Cod" | "Deer" | "Perch" | "Potatoes" | "Sheep" | "Squid" => (word, ""),
-        s if s.ends_with('f') => (&word[..(word.len() - 1)], "ves"),
-        s if s.ends_with("ey") => (&word[..(word.len() - 2)], "ies"),
-        s if s.ends_with('y') => (&word[..(word.len() - 1)], "ies"),
-        s if s.ends_with(&['s', 'x'][..]) => (word, "es"),
-        _ => (word, "s"),
     }
 }
 
