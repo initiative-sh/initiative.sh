@@ -24,14 +24,14 @@ fn name(rng: &mut impl Rng) -> String {
 }
 
 fn thing(rng: &mut impl Rng) -> &'static str {
-    match rng.gen_range(0..7) {
+    match rng.gen_range(0..=10) {
         0 => land_animal(rng),
         1..=2 => coastal_animal(rng),
         3 => enemy(rng),
         4 => food(rng),
         5 => profession(rng),
         6 => symbol(rng),
-        7 => gem(rng),
+        7..=10 => gem(rng),
         _ => unreachable!(),
     }
 }
