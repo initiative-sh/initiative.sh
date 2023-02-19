@@ -158,11 +158,11 @@ mod test {
 
         #[rustfmt::skip]
         assert_eq!(
-            ["Gold Hammer Point", "Hawk Bank", "Hop Landing", "Adventurers Waterfront",
-             "The Last Bank", "Bronze Peacock Coast", "Green Lance Beach", "North Beach",
-             "Bronze Coast", "The First Embankment", "Grouchy Berm", "Osprey Shoreline",
-             "Lone Satyr Shore", "Enchanters Strand", "Wasted Waterfront", "The Last Shoreline",
-             "Locket Shore", "Diviners Beach", "Jovial Shoreline", "Millers Shoreline"]
+            ["Gold Beryl Point", "Hawk Bank", "Warrior Sands", "Abbey Waterfront", "The Last Bank",
+             "Bronze Peacock Coast", "Green Brewer Point", "Octopus Coast", "Watermans Bank",
+             "East Cove", "Hop Shoreline", "Lone Emerald Shore", "Enchanters Strand",
+             "Wasted Waterfront", "The Last Shoreline", "Sapphire Landing", "Red Beryl Cove",
+             "Jovial Shoreline", "Millers Shoreline", "Millers Point"]
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>(),
