@@ -3,7 +3,12 @@ mod landmark;
 mod settlement;
 
 use initiative_macros::WordList;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
+
+use crate::world::Demographics;
+
+use super::{Place, PlaceType};
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, WordList)]
 #[serde(into = "&'static str", try_from = "&str")]
@@ -23,6 +28,17 @@ impl LocationType {
             Self::Geographical(subtype) => subtype.get_emoji(),
             Self::Landmark(subtype) => subtype.get_emoji(),
             Self::Settlement(subtype) => subtype.get_emoji(),
+        }
+    }
+}
+
+pub fn generate(place: &mut Place, rng: &mut impl Rng, demographics: &Demographics) {
+    #[allow(clippy::collapsible_match)]
+    if let Some(PlaceType::Location(subtype)) = place.subtype.value() {
+        #[allow(clippy::single_match)]
+        match subtype {
+            LocationType::Geographical(_) => geographical::generate(place, rng, demographics),
+            _ => {}
         }
     }
 }

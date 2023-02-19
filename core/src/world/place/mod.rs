@@ -112,6 +112,7 @@ impl Generate for Place {
             #[allow(clippy::single_match)]
             match value {
                 PlaceType::Building(_) => building::generate(self, rng, demographics),
+                PlaceType::Location(_) => location::generate(self, rng, demographics),
                 _ => {}
             }
         }

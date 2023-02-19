@@ -1,3 +1,4 @@
+* **Enhancement:** Name generator now works for `beach`. @chrisrenfrow
 * **Enhancement:** Name generator now works for `shrine`. @alfonsomartinezs
 * **Enhancement:** GitHub usernames in the changelog are now links, making it
   easier to attribute work. @MikkelPaulson
