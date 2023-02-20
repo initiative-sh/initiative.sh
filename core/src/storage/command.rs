@@ -1,6 +1,8 @@
 use super::backup::export;
 use super::{Change, RepositoryError};
-use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Event, Runnable};
+use crate::app::{
+    AppMeta, Autocomplete, CommandAlias, CommandMatches, ContextAwareParse, Event, Runnable,
+};
 use crate::utils::CaseInsensitiveStr;
 use crate::world::Thing;
 use async_trait::async_trait;
@@ -222,43 +224,40 @@ impl Runnable for StorageCommand {
 
 #[async_trait(?Send)]
 impl ContextAwareParse for StorageCommand {
-    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut fuzzy_matches = Vec::new();
+    async fn parse_input(input: &str, app_meta: &AppMeta) -> CommandMatches<Self> {
+        let mut matches = CommandMatches::default();
 
         if app_meta.repository.get_by_name(input).await.is_ok() {
-            fuzzy_matches.push(Self::Load {
+            matches.push_fuzzy(Self::Load {
                 name: input.to_string(),
             });
         }
 
-        (
-            if let Some(name) = input.strip_prefix_ci("delete ") {
-                Some(Self::Delete {
-                    name: name.to_string(),
-                })
-            } else if let Some(name) = input.strip_prefix_ci("load ") {
-                Some(Self::Load {
-                    name: name.to_string(),
-                })
-            } else if let Some(name) = input.strip_prefix_ci("save ") {
-                Some(Self::Save {
-                    name: name.to_string(),
-                })
-            } else if input.eq_ci("journal") {
-                Some(Self::Journal)
-            } else if input.eq_ci("undo") {
-                Some(Self::Undo)
-            } else if input.eq_ci("redo") {
-                Some(Self::Redo)
-            } else if input.eq_ci("export") {
-                Some(Self::Export)
-            } else if input.eq_ci("import") {
-                Some(Self::Import)
-            } else {
-                None
-            },
-            fuzzy_matches,
-        )
+        if let Some(name) = input.strip_prefix_ci("delete ") {
+            matches.push_canonical(Self::Delete {
+                name: name.to_string(),
+            });
+        } else if let Some(name) = input.strip_prefix_ci("load ") {
+            matches.push_canonical(Self::Load {
+                name: name.to_string(),
+            });
+        } else if let Some(name) = input.strip_prefix_ci("save ") {
+            matches.push_canonical(Self::Save {
+                name: name.to_string(),
+            });
+        } else if input.eq_ci("journal") {
+            matches.push_canonical(Self::Journal);
+        } else if input.eq_ci("undo") {
+            matches.push_canonical(Self::Undo);
+        } else if input.eq_ci("redo") {
+            matches.push_canonical(Self::Redo);
+        } else if input.eq_ci("export") {
+            matches.push_canonical(Self::Export);
+        } else if input.eq_ci("import") {
+            matches.push_canonical(Self::Import);
+        }
+
+        matches
     }
 }
 
@@ -350,9 +349,9 @@ impl Autocomplete for StorageCommand {
             }
 
             let suggestion = format!("{}{}", prefix, thing.name());
-            let (exact_match, mut fuzzy_matches) = Self::parse_input(&suggestion, app_meta).await;
+            let matches = Self::parse_input(&suggestion, app_meta).await;
 
-            if let Some(command) = exact_match.or_else(|| fuzzy_matches.drain(..).next()) {
+            if let Some(command) = matches.take_best_match() {
                 suggestions.push((
                     suggestion.into(),
                     match command {
@@ -406,17 +405,14 @@ mod test {
         let app_meta = app_meta();
 
         assert_eq!(
-            (Option::<StorageCommand>::None, Vec::new()),
+            CommandMatches::default(),
             block_on(StorageCommand::parse_input("Gandalf the Grey", &app_meta)),
         );
 
         assert_eq!(
-            (
-                Some(StorageCommand::Delete {
-                    name: "Gandalf the Grey".to_string(),
-                }),
-                Vec::new(),
-            ),
+            CommandMatches::new_canonical(StorageCommand::Delete {
+                name: "Gandalf the Grey".to_string(),
+            }),
             block_on(StorageCommand::parse_input(
                 "delete Gandalf the Grey",
                 &app_meta
@@ -435,12 +431,9 @@ mod test {
         );
 
         assert_eq!(
-            (
-                Some(StorageCommand::Save {
-                    name: "Gandalf the Grey".to_string(),
-                }),
-                Vec::new(),
-            ),
+            CommandMatches::new_canonical(StorageCommand::Save {
+                name: "Gandalf the Grey".to_string(),
+            }),
             block_on(StorageCommand::parse_input(
                 "save Gandalf the Grey",
                 &app_meta
@@ -459,12 +452,9 @@ mod test {
         );
 
         assert_eq!(
-            (
-                Some(StorageCommand::Load {
-                    name: "Gandalf the Grey".to_string()
-                }),
-                Vec::new(),
-            ),
+            CommandMatches::new_canonical(StorageCommand::Load {
+                name: "Gandalf the Grey".to_string()
+            }),
             block_on(StorageCommand::parse_input(
                 "load Gandalf the Grey",
                 &app_meta
@@ -483,17 +473,17 @@ mod test {
         );
 
         assert_eq!(
-            (Some(StorageCommand::Journal), Vec::new()),
+            CommandMatches::new_canonical(StorageCommand::Journal),
             block_on(StorageCommand::parse_input("journal", &app_meta)),
         );
 
         assert_eq!(
-            (Some(StorageCommand::Journal), Vec::new()),
+            CommandMatches::new_canonical(StorageCommand::Journal),
             block_on(StorageCommand::parse_input("JOURNAL", &app_meta)),
         );
 
         assert_eq!(
-            (None, Vec::<StorageCommand>::new()),
+            CommandMatches::default(),
             block_on(StorageCommand::parse_input("potato", &app_meta)),
         );
     }
@@ -702,7 +692,7 @@ mod test {
             let command_string = command.to_string();
             assert_ne!("", command_string);
             assert_eq!(
-                (Some(command), Vec::new()),
+                CommandMatches::new_canonical(command),
                 block_on(StorageCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,

@@ -1,5 +1,7 @@
 use super::{Field, Npc, Place, Thing};
-use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
+use crate::app::{
+    AppMeta, Autocomplete, CommandAlias, CommandMatches, ContextAwareParse, Runnable,
+};
 use crate::storage::{Change, RepositoryError, StorageCommand};
 use crate::utils::{quoted_words, CaseInsensitiveStr};
 use async_trait::async_trait;
@@ -233,21 +235,20 @@ impl Runnable for WorldCommand {
 
 #[async_trait(?Send)]
 impl ContextAwareParse for WorldCommand {
-    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut exact_match = None;
-        let mut fuzzy_matches = Vec::new();
+    async fn parse_input(input: &str, app_meta: &AppMeta) -> CommandMatches<Self> {
+        let mut matches = CommandMatches::default();
 
         if let Some(Ok(thing)) = input
             .strip_prefix_ci("create ")
             .map(|s| s.parse::<ParsedThing<Thing>>())
         {
             if thing.unknown_words.is_empty() {
-                exact_match = Some(Self::Create { thing });
+                matches.push_canonical(Self::Create { thing });
             } else {
-                fuzzy_matches.push(Self::Create { thing });
+                matches.push_fuzzy(Self::Create { thing });
             }
         } else if let Ok(thing) = input.parse::<ParsedThing<Thing>>() {
-            fuzzy_matches.push(Self::Create { thing });
+            matches.push_fuzzy(Self::Create { thing });
         }
 
         if let Some(word) = quoted_words(input)
@@ -287,11 +288,11 @@ impl ContextAwareParse for WorldCommand {
                     *range = range.start + word.range().end + 1..range.end + word.range().end + 1
                 });
 
-                fuzzy_matches.push(Self::Edit { name, diff });
+                matches.push_fuzzy(Self::Edit { name, diff });
             }
         }
 
-        (exact_match, fuzzy_matches)
+        matches
     }
 }
 
@@ -520,28 +521,25 @@ mod test {
         let mut app_meta = app_meta();
 
         assert_eq!(
-            (None, vec![create(Npc::default())]),
+            CommandMatches::new_fuzzy(create(Npc::default())),
             block_on(WorldCommand::parse_input("npc", &app_meta)),
         );
 
         assert_eq!(
-            (Some(create(Npc::default())), Vec::new()),
+            CommandMatches::new_canonical(create(Npc::default())),
             block_on(WorldCommand::parse_input("create npc", &app_meta)),
         );
 
         assert_eq!(
-            (
-                None,
-                vec![create(Npc {
-                    species: Species::Elf.into(),
-                    ..Default::default()
-                })],
-            ),
+            CommandMatches::new_fuzzy(create(Npc {
+                species: Species::Elf.into(),
+                ..Default::default()
+            })),
             block_on(WorldCommand::parse_input("elf", &app_meta)),
         );
 
         assert_eq!(
-            (None, Vec::<WorldCommand>::new()),
+            CommandMatches::default(),
             block_on(WorldCommand::parse_input("potato", &app_meta)),
         );
 
@@ -558,22 +556,19 @@ mod test {
             .unwrap();
 
             assert_eq!(
-                (
-                    None,
-                    vec![WorldCommand::Edit {
-                        name: "Spot".into(),
-                        diff: ParsedThing {
-                            thing: Npc {
-                                age: Age::Child.into(),
-                                gender: Gender::Masculine.into(),
-                                ..Default::default()
-                            }
-                            .into(),
-                            unknown_words: vec![10..14],
-                            word_count: 2,
-                        },
-                    }],
-                ),
+                CommandMatches::new_fuzzy(WorldCommand::Edit {
+                    name: "Spot".into(),
+                    diff: ParsedThing {
+                        thing: Npc {
+                            age: Age::Child.into(),
+                            gender: Gender::Masculine.into(),
+                            ..Default::default()
+                        }
+                        .into(),
+                        unknown_words: vec![10..14],
+                        word_count: 2,
+                    },
+                }),
                 block_on(WorldCommand::parse_input("Spot is a good boy", &app_meta)),
             );
         }
@@ -701,14 +696,14 @@ mod test {
             assert_ne!("", command_string);
 
             assert_eq!(
-                (Some(command.clone()), Vec::new()),
+                CommandMatches::new_canonical(command.clone()),
                 block_on(WorldCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,
             );
 
             assert_eq!(
-                (Some(command), Vec::new()),
+                CommandMatches::new_canonical(command),
                 block_on(WorldCommand::parse_input(
                     &command_string.to_uppercase(),
                     &app_meta

@@ -1,4 +1,4 @@
-use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
+use crate::app::{AppMeta, Autocomplete, CommandMatches, ContextAwareParse, Runnable};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use caith::Roller;
@@ -53,30 +53,24 @@ impl Runnable for AppCommand {
 
 #[async_trait(?Send)]
 impl ContextAwareParse for AppCommand {
-    async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut fuzzy_matches = Vec::new();
-
-        (
-            if input.eq_ci("about") {
-                Some(Self::About)
-            } else if input.eq_ci("changelog") {
-                Some(Self::Changelog)
-            } else if input.eq_ci("debug") {
-                Some(Self::Debug)
-            } else if input.eq_ci("help") {
-                Some(Self::Help)
-            } else if input.starts_with_ci("roll ") {
-                Some(Self::Roll(input[5..].to_string()))
-            } else if !input.chars().all(|c| c.is_ascii_digit())
-                && Roller::new(input).map_or(false, |r| r.roll().is_ok())
-            {
-                fuzzy_matches.push(Self::Roll(input.to_string()));
-                None
-            } else {
-                None
-            },
-            fuzzy_matches,
-        )
+    async fn parse_input(input: &str, _app_meta: &AppMeta) -> CommandMatches<Self> {
+        if input.eq_ci("about") {
+            CommandMatches::new_canonical(Self::About)
+        } else if input.eq_ci("changelog") {
+            CommandMatches::new_canonical(Self::Changelog)
+        } else if input.eq_ci("debug") {
+            CommandMatches::new_canonical(Self::Debug)
+        } else if input.eq_ci("help") {
+            CommandMatches::new_canonical(Self::Help)
+        } else if input.starts_with_ci("roll ") {
+            CommandMatches::new_canonical(Self::Roll(input[5..].to_string()))
+        } else if !input.chars().all(|c| c.is_ascii_digit())
+            && Roller::new(input).map_or(false, |r| r.roll().is_ok())
+        {
+            CommandMatches::new_fuzzy(Self::Roll(input.to_string()))
+        } else {
+            CommandMatches::default()
+        }
     }
 }
 
@@ -133,25 +127,22 @@ mod test {
         let app_meta = app_meta();
 
         assert_eq!(
-            (Some(AppCommand::Debug), Vec::<AppCommand>::new()),
+            CommandMatches::new_canonical(AppCommand::Debug),
             block_on(AppCommand::parse_input("debug", &app_meta)),
         );
 
         assert_eq!(
-            (
-                Some(AppCommand::Roll("d20".to_string())),
-                Vec::<AppCommand>::new(),
-            ),
+            CommandMatches::new_canonical(AppCommand::Roll("d20".to_string())),
             block_on(AppCommand::parse_input("roll d20", &app_meta)),
         );
 
         assert_eq!(
-            (None, vec![AppCommand::Roll("d20".to_string())]),
+            CommandMatches::new_fuzzy(AppCommand::Roll("d20".to_string())),
             block_on(AppCommand::parse_input("d20", &app_meta)),
         );
 
         assert_eq!(
-            (None, Vec::<AppCommand>::new()),
+            CommandMatches::default(),
             block_on(AppCommand::parse_input("potato", &app_meta)),
         );
     }
@@ -216,14 +207,14 @@ mod test {
             assert_ne!("", command_string);
 
             assert_eq!(
-                (Some(command.clone()), Vec::new()),
+                CommandMatches::new_canonical(command.clone()),
                 block_on(AppCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,
             );
 
             assert_eq!(
-                (Some(command), Vec::new()),
+                CommandMatches::new_canonical(command),
                 block_on(AppCommand::parse_input(
                     &command_string.to_uppercase(),
                     &app_meta
@@ -236,12 +227,12 @@ mod test {
         assert_eq!("roll d20", AppCommand::Roll("d20".to_string()).to_string());
 
         assert_eq!(
-            (Some(AppCommand::Roll("d20".to_string())), Vec::new()),
+            CommandMatches::new_canonical(AppCommand::Roll("d20".to_string())),
             block_on(AppCommand::parse_input("roll d20", &app_meta)),
         );
 
         assert_eq!(
-            (Some(AppCommand::Roll("D20".to_string())), Vec::new()),
+            CommandMatches::new_canonical(AppCommand::Roll("D20".to_string())),
             block_on(AppCommand::parse_input("ROLL D20", &app_meta)),
         );
     }

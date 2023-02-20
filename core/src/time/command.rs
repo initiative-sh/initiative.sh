@@ -1,5 +1,5 @@
 use super::Interval;
-use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
+use crate::app::{AppMeta, Autocomplete, CommandMatches, ContextAwareParse, Runnable};
 use crate::storage::{Change, KeyValue};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
@@ -63,29 +63,26 @@ impl Runnable for TimeCommand {
 
 #[async_trait(?Send)]
 impl ContextAwareParse for TimeCommand {
-    async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut fuzzy_matches = Vec::new();
-
-        (
-            if input.eq_ci("now") {
-                Some(Self::Now)
-            } else if input.in_ci(&["time", "date"]) {
-                fuzzy_matches.push(Self::Now);
-                None
-            } else {
+    async fn parse_input(input: &str, _app_meta: &AppMeta) -> CommandMatches<Self> {
+        if input.eq_ci("now") {
+            CommandMatches::new_canonical(Self::Now)
+        } else if input.in_ci(&["time", "date"]) {
+            CommandMatches::new_fuzzy(Self::Now)
+        } else if let Some(canonical_match) = input
+            .strip_prefix('+')
+            .and_then(|s| s.parse().ok())
+            .map(|interval| Self::Add { interval })
+            .or_else(|| {
                 input
-                    .strip_prefix('+')
+                    .strip_prefix('-')
                     .and_then(|s| s.parse().ok())
-                    .map(|interval| Self::Add { interval })
-                    .or_else(|| {
-                        input
-                            .strip_prefix('-')
-                            .and_then(|s| s.parse().ok())
-                            .map(|interval| Self::Sub { interval })
-                    })
-            },
-            fuzzy_matches,
-        )
+                    .map(|interval| Self::Sub { interval })
+            })
+        {
+            CommandMatches::new_canonical(canonical_match)
+        } else {
+            CommandMatches::default()
+        }
     }
 }
 
@@ -166,37 +163,28 @@ mod test {
         let app_meta = app_meta();
 
         assert_eq!(
-            (
-                Some(TimeCommand::Add {
-                    interval: Interval::new(0, 0, 1, 0, 0),
-                }),
-                Vec::<TimeCommand>::new(),
-            ),
+            CommandMatches::new_canonical(TimeCommand::Add {
+                interval: Interval::new(0, 0, 1, 0, 0),
+            }),
             block_on(TimeCommand::parse_input("+1m", &app_meta)),
         );
 
         assert_eq!(
-            (
-                Some(TimeCommand::Add {
-                    interval: Interval::new(1, 0, 0, 0, 0),
-                }),
-                Vec::<TimeCommand>::new(),
-            ),
+            CommandMatches::new_canonical(TimeCommand::Add {
+                interval: Interval::new(1, 0, 0, 0, 0),
+            }),
             block_on(TimeCommand::parse_input("+d", &app_meta)),
         );
 
         assert_eq!(
-            (
-                Some(TimeCommand::Sub {
-                    interval: Interval::new(0, 10, 0, 0, 0),
-                }),
-                Vec::<TimeCommand>::new(),
-            ),
+            CommandMatches::new_canonical(TimeCommand::Sub {
+                interval: Interval::new(0, 10, 0, 0, 0),
+            }),
             block_on(TimeCommand::parse_input("-10h", &app_meta)),
         );
 
         assert_eq!(
-            (None, Vec::<TimeCommand>::new()),
+            CommandMatches::default(),
             block_on(TimeCommand::parse_input("1d2h", &app_meta)),
         );
     }
@@ -337,14 +325,14 @@ mod test {
             assert_ne!("", command_string);
 
             assert_eq!(
-                (Some(command.clone()), Vec::new()),
+                CommandMatches::new_canonical(command.clone()),
                 block_on(TimeCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,
             );
 
             assert_eq!(
-                (Some(command), Vec::new()),
+                CommandMatches::new_canonical(command),
                 block_on(TimeCommand::parse_input(
                     &command_string.to_uppercase(),
                     &app_meta

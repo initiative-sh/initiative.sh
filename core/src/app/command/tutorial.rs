@@ -1,6 +1,7 @@
 use super::CommandType;
 use crate::app::{
-    AppCommand, AppMeta, Autocomplete, Command, CommandAlias, ContextAwareParse, Runnable,
+    AppCommand, AppMeta, Autocomplete, Command, CommandAlias, CommandMatches, ContextAwareParse,
+    Runnable,
 };
 use crate::reference::{ItemCategory, ReferenceCommand, Spell};
 use crate::storage::{Change, StorageCommand};
@@ -743,15 +744,12 @@ impl Runnable for TutorialCommand {
 
 #[async_trait(?Send)]
 impl ContextAwareParse for TutorialCommand {
-    async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        (
-            if input.eq_ci("tutorial") {
-                Some(TutorialCommand::Introduction)
-            } else {
-                None
-            },
-            Vec::new(),
-        )
+    async fn parse_input(input: &str, _app_meta: &AppMeta) -> CommandMatches<Self> {
+        if input.eq_ci("tutorial") {
+            CommandMatches::new_canonical(TutorialCommand::Introduction)
+        } else {
+            CommandMatches::default()
+        }
     }
 }
 
