@@ -1,4 +1,5 @@
 use crate::utils::pluralize;
+use crate::world::vocabulary::*;
 use crate::world::{Demographics, Place};
 use rand::prelude::*;
 
@@ -11,11 +12,11 @@ fn name(rng: &mut impl Rng) -> String {
         0..=3 => format!("The {} {}", descriptor(rng), place(rng)),
         4..=7 => format!("{} of {}", place(rng), deity(rng)),
         8 => {
-            let (animal, s) = pluralize(animal(rng));
+            let (animal, s) = pluralize(any_animal(rng));
             format!("Place Where the {}{} {}", animal, s, action(rng))
         }
         9 => {
-            let (animal, s) = pluralize(animal(rng));
+            let (animal, s) = pluralize(any_animal(rng));
             format!("{} of the {} {}{}", place(rng), number(rng), animal, s)
         }
         _ => unreachable!(),
@@ -34,55 +35,38 @@ fn place(rng: &mut impl Rng) -> &'static str {
 
 //commonly worshipped places
 fn building(rng: &mut impl Rng) -> &'static str {
-    const BUILDINGS: &[&str] = &[
+    ListGenerator(&[
         "Altar", "Pagoda", "Gate", "Obelisk", "Pagoda", "Pillar", "Pillars",
-    ];
-    BUILDINGS[rng.gen_range(0..BUILDINGS.len())]
+    ])
+    .gen(rng)
 }
 
 //less common places of worship, typically natural formations
+#[rustfmt::skip]
 fn feature(rng: &mut impl Rng) -> &'static str {
-    #[rustfmt::skip]
-    const FEATURES: &[&str] = &[
+    ListGenerator(&[
         "Basin","Cavern","Grove","Pond","Pool","Menhir",
         "Grotto","Cenote", "Tree", "Stones", "Cave"
-    ];
-    FEATURES[rng.gen_range(0..FEATURES.len())]
+    ]).gen(rng)
 }
 
 //DESCRIPTOR can be an ADJECTIVE or an ACTION
 fn descriptor(rng: &mut impl Rng) -> String {
     match rng.gen_range(0..3) {
-        0..=1 => adjective(rng),
+        0..=1 => adjective(rng).to_string(),
         2 => gerund(action(rng)),
         _ => unreachable!(),
     }
 }
 
-//ADJECTIVE
-fn adjective(rng: &mut impl Rng) -> String {
-    #[rustfmt::skip]
-    const ADJECTIVES: &[&str] = &[
-        "Amaranthine","Ancestral","Ancient","Astral",
-        "Blessed","Blue","Bright","Celestial","Corrupted","Dark",
-        "Divine","Elder","Eternal","Ethereal","Exalted","Foul","Golden","Guilty","Hallowed",
-        "Heavenly","Immortal","Impure","Ivory","Shining","Lucent","Pale","Primal","Putrid",
-        "Radiant","Red","Rusted","Sacred","Sanctified","Sanguine","Silver","Tainted",
-        "Timeless","Tribal","White","Wicked","Still","Alabaster", "Blight",
-        "Death","Ghost","Honor","Pearl","Phantom","Spirit",
-        "Soul","Iron",
-    ];
-    ADJECTIVES[rng.gen_range(0..ADJECTIVES.len())].to_string()
-}
 //ACTION
+#[rustfmt::skip]
 fn action(rng: &mut impl Rng) -> String {
-    #[rustfmt::skip]
-    const ACTIONS: &[&str] = &[
+    ListGenerator(&[
         "Dance","Whisper","Shiver","Rot","Rise","Fall","Laugh","Travel","Creep",
         "Sing","Fade","Glow","Shine","Stand","Weep","Drown","Howl","Smile","Hunt",
         "Burn","Return","Dream","Wake","Slumber"
-    ];
-    ACTIONS[rng.gen_range(0..ACTIONS.len())].to_string()
+    ]).gen(rng)
 }
 
 fn gerund(verb: String) -> String {
@@ -99,13 +83,12 @@ fn gerund(verb: String) -> String {
     }
 }
 
+#[rustfmt::skip]
 fn number(rng: &mut impl Rng) -> &'static str {
-    #[rustfmt::skip]
-    const NUMBERS: &[&str] = &[
+    ListGenerator(&[
         "Two","Three","Four","Five","Six","Seven","Eight","Eight-and-a-Half","Nine",
         "Twelve","Thirty-Six", "Forty","Seventy-Two","Nine-and-Twenty", "Ninety-Nine","Thousand","Thousand-Thousand"
-    ];
-    NUMBERS[rng.gen_range(0..NUMBERS.len())]
+    ]).gen(rng)
 }
 
 //DEITY can be PERSON, ANIMAL, or DIVINE CONCEPT
@@ -113,43 +96,23 @@ fn deity(rng: &mut impl Rng) -> String {
     match rng.gen_range(0..10) {
         0..=1 => format!("the {}", person(rng)),
         2 => format!("the {} {}", descriptor(rng), person(rng)),
-        3..=4 => format!("the {}", animal(rng)),
-        5 => format!("the {} {}", descriptor(rng), animal(rng)),
+        3..=4 => format!("the {}", any_animal(rng)),
+        5 => format!("the {} {}", descriptor(rng), any_animal(rng)),
         6..=8 => concept(rng).to_string(),
         9 => format!("{} {}", descriptor(rng), concept(rng)),
         _ => unreachable!(),
     }
 }
-//PERSON
-fn person(rng: &mut impl Rng) -> &'static str {
-    #[rustfmt::skip]
-    const PEOPLE: &[&str] = &[
-        "Father","Mother","Parent","Sibling","Hunter","Emperor","Empress","Warrior","Sage","Ancestor"
-    ];
-    PEOPLE[rng.gen_range(0..PEOPLE.len())]
-}
-//ANIMAL
-fn animal(rng: &mut impl Rng) -> &'static str {
-    #[rustfmt::skip]
-    const ANIMALS: &[&str] = &[
-        "Bear","Beetle","Carp","Cat","Cormorant","Cow","Deer","Dog","Fox",
-        "Frog","Goat","Hart","Hawk","Heron","Horse","Hound","Lion","Magpie",
-        "Owl","Panther","Peacock","Phoenix", "Rabbit","Ram","Rat","Raven","Salamander",
-        "Scorpion","Rat","Rabbit","Snake","Spider","Squirrel","Stag","Tiger",
-        "Toad","Tortoise","Turtle","Vulture","Wolf","Beetle","Locust"
-    ];
-    ANIMALS[rng.gen_range(0..ANIMALS.len())]
-}
+
 //DIVINE CONCEPT are more abstract stuff that doesn't go well with "the" in front of it.
+#[rustfmt::skip]
 fn concept(rng: &mut impl Rng) -> &'static str {
-    #[rustfmt::skip]
-    const CONCEPTS: &[&str] = &[
+    ListGenerator(&[
         "Love","Knowledge","Wisdom","Truth","Justice","Mercy","Protection","Healing","Strength","Courage",
         "Fortune","Prosperity","Storms","Fire","Water","Earth","Air","Dreams","Music","Poetry","Dance",
         "Ancestors","Transcendence","Anguish","Blight","Confessions","Connections","Courage","Decay",
         "Lore","Silence","Triumph","Wisdom","Mending","Healing","Judgement","Forgiveness","Justice","Textiles", 
-    ];
-    CONCEPTS[rng.gen_range(0..CONCEPTS.len())]
+    ]).gen(rng)
 }
 
 #[cfg(test)]

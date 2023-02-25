@@ -1,5 +1,5 @@
 use crate::utils::pluralize;
-use crate::world::{Demographics, Place};
+use crate::world::{vocabulary::*, Demographics, Place};
 use rand::prelude::*;
 
 pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demographics) {
@@ -28,7 +28,7 @@ fn name(rng: &mut impl Rng) -> String {
 
 fn thing(rng: &mut impl Rng) -> &'static str {
     match rng.gen_range(0..5) {
-        0 => animal(rng),
+        0 => any_animal(rng),
         1 => enemy(rng),
         2 => food(rng),
         3 => profession(rng),
@@ -41,7 +41,7 @@ fn thing_thing(rng: &mut impl Rng) -> (&'static str, &'static str) {
     // We're more likely to have two things in the same category.
     let (thing1, thing2) = if rng.gen_bool(0.5) {
         match rng.gen_range(0..5) {
-            0 => (animal(rng), animal(rng)),
+            0 => (any_animal(rng), any_animal(rng)),
             1 => (enemy(rng), enemy(rng)),
             2 => (food(rng), food(rng)),
             3 => (profession(rng), profession(rng)),
@@ -69,85 +69,9 @@ fn thing_thing(rng: &mut impl Rng) -> (&'static str, &'static str) {
     }
 }
 
-fn adjective(rng: &mut impl Rng) -> &'static str {
-    #[rustfmt::skip]
-    const ADJECTIVES: &[&str] = &[
-        "Blue", "Bronze", "Brown", "Burgundy", "Driven", "Enchanted", "Gold", "Green", "Grey",
-        "Grouchy", "Hallowed", "Happy", "Hidden", "Hungry", "Jovial", "Lone", "Lost", "Lucky",
-        "Merry", "Moody", "Morose", "Orange", "Purple", "Red", "Silent", "Silver", "Thirsty",
-        "Wasted", "Wild",
-    ];
-    ADJECTIVES[rng.gen_range(0..ADJECTIVES.len())]
-}
-
-fn animal(rng: &mut impl Rng) -> &'static str {
-    #[rustfmt::skip]
-    const ANIMALS: &[&str] = &[
-        "Antelope", "Ape", "Baboon", "Badger", "Bat", "Bear", "Beaver", "Bee", "Beetle", "Boar",
-        "Camel", "Carp", "Cat", "Cod", "Cormorant", "Cow", "Crab", "Deer", "Dog", "Dolphin",
-        "Donkey", "Dove", "Dragonfly", "Duck", "Eagle", "Eel", "Elephant", "Elk", "Ermine", "Fox",
-        "Frog", "Goat", "Goose", "Hare", "Hart", "Hawk", "Hedgehog", "Heron", "Herring", "Horse",
-        "Hound", "Hyena", "Jackal", "Lamb", "Leopard", "Lion", "Magpie", "Mermaid", "Mole",
-        "Octopus", "Osprey", "Otter", "Owl", "Panther", "Peacock", "Pelican", "Perch", "Phoenix",
-        "Pony", "Porcupine", "Rabbit", "Ram", "Rat", "Raven", "Salamander", "Salmon", "Scorpion",
-        "Seagull", "Seal", "Shark", "Sheep", "Snake", "Spider", "Squid", "Squirrel", "Stag",
-        "Stoat", "Stork", "Swan", "Tiger", "Toad", "Tortoise", "Trout", "Turkey", "Turtle",
-        "Unicorn", "Vulture", "Weasel", "Whale", "Whelk", "Wolf",
-    ];
-    ANIMALS[rng.gen_range(0..ANIMALS.len())]
-}
-
-fn enemy(rng: &mut impl Rng) -> &'static str {
-    #[rustfmt::skip]
-    const ENEMIES: &[&str] = &[
-        "Angel", "Bandit", "Brigand", "Centaur", "Chimera", "Demon", "Devil", "Dragon", "Fairy",
-        "Ghost", "Giant", "Goblin", "Gorgon", "Gremlin", "Hag", "Harpy", "Hydra", "Imp", "Kappa",
-        "Lich", "Manticore", "Minotaur", "Necromancer", "Oni", "Orc", "Peryton", "Pirate", "Roc",
-        "Satyr", "Seraph", "Siren", "Sorcerer", "Sphinx", "Thief", "Trickster", "Troll", "Unicorn",
-        "Vampire", "Werewolf", "Witch", "Wyvern", "Zombie",
-    ];
-    ENEMIES[rng.gen_range(0..ENEMIES.len())]
-}
-
-fn food(rng: &mut impl Rng) -> &'static str {
-    #[rustfmt::skip]
-    const FOODS: &[&str] = &[
-        "Barley", "Barrel", "Beef", "Beer", "Bread", "Cask", "Cheese", "Hop", "Keg", "Malt",
-        "Mead", "Meat", "Mutton", "Pint", "Pork", "Potatoes", "Rye", "Tun", "Veal", "Venison",
-        "Vine",
-    ];
-    FOODS[rng.gen_range(0..FOODS.len())]
-}
-
+#[rustfmt::skip]
 fn number(rng: &mut impl Rng) -> &'static str {
-    #[rustfmt::skip]
-    const NUMBERS: &[&str] = &["Three", "Five", "Seven", "Ten"];
-    NUMBERS[rng.gen_range(0..NUMBERS.len())]
-}
-
-fn profession(rng: &mut impl Rng) -> &'static str {
-    #[rustfmt::skip]
-    const PROFESSIONS: &[&str] = &[
-        "Adventurer", "Baker", "Beggar", "Blacksmith", "Brewer", "Bricklayer", "Builder",
-        "Butcher", "Carpenter", "Conjurer", "Cooper", "Diviner", "Enchanter", "Evoker", "Farrier",
-        "Ferryman", "Fisherman", "Glazier", "Illusionist", "Knight", "Mage", "Magician", "Mason",
-        "Miller", "Plumber", "Porter", "Printer", "Roper", "Sailor", "Shipwright", "Smith",
-        "Soldier", "Waterman", "Warrior", "Wizard",
-    ];
-    PROFESSIONS[rng.gen_range(0..PROFESSIONS.len())]
-}
-
-fn symbol(rng: &mut impl Rng) -> &'static str {
-    #[rustfmt::skip]
-    const SYMBOLS: &[&str] = &[
-        "Abbey", "Anchor", "Anvil", "Arrow", "Axe", "Belfry", "Bell", "Book", "Buckle", "Cap",
-        "Castle", "Column", "Crescent", "Crown", "Drum", "Feather", "Foil", "Hammer", "Harp",
-        "Harrow", "Helmet", "Horseshoe", "Key", "Lance", "Lance", "Locket", "Mace", "Mill",
-        "Mitre", "Moon", "Nail", "Oar", "Phalactary", "Rake", "Rook", "Scale", "Sceptre", "Scythe",
-        "Ship", "Shovel", "Spear", "Spur", "Star", "Steeple", "Sun", "Sword", "Thunderbolt",
-        "Tower", "Trumpet", "Wand", "Wheel",
-    ];
-    SYMBOLS[rng.gen_range(0..SYMBOLS.len())]
+    ListGenerator(&["Three", "Five", "Seven", "Ten"]).gen(rng)
 }
 
 #[cfg(test)]
