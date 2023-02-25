@@ -43,7 +43,7 @@ pub fn gem(rng: &mut impl Rng) -> &'static str {
 }
 
 #[rustfmt::skip]
-fn person(rng: &mut impl Rng) -> &'static str {
+pub fn person(rng: &mut impl Rng) -> &'static str {
     ListGenerator(&[
         "Father", "Mother", "Parent", "Sibling", "Hunter", "Emperor", "Empress", "Warrior",
         "Sage", "Ancestor"
