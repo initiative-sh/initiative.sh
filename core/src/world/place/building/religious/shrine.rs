@@ -66,7 +66,7 @@ fn action(rng: &mut impl Rng) -> String {
         "Dance","Whisper","Shiver","Rot","Rise","Fall","Laugh","Travel","Creep",
         "Sing","Fade","Glow","Shine","Stand","Weep","Drown","Howl","Smile","Hunt",
         "Burn","Return","Dream","Wake","Slumber"
-    ]).gen(rng)
+    ]).gen(rng).to_string()
 }
 
 fn gerund(verb: String) -> String {
