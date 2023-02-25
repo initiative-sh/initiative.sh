@@ -1,3 +1,6 @@
+* **Enhancement:** Centralize word generators to one module 
+  (`world/vocabulary`) and provide a simple interface (`ListGenerator`) for 
+  creating new word generators.
 * **Bug:** Fixed an edge case where unsaved journal entries might not be
   accessible, including possibly in the tutorial. @MikkelPaulson
 * **Enhancement:** Name generator now works for `beach`. @chrisrenfrow
