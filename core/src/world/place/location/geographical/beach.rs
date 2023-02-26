@@ -1,6 +1,6 @@
 use crate::{
     utils::pluralize,
-    world::{vocabulary::*, Demographics, Place},
+    world::{word, word::ListGenerator, Demographics, Place},
 };
 use rand::prelude::*;
 
@@ -12,11 +12,16 @@ fn name(rng: &mut impl Rng) -> String {
     match rng.gen_range(0..=5) {
         0 => format!("{} {}", thing(rng), beach_synonym(rng)),
         1 => format!("The {} {}", placement(rng), beach_synonym(rng)),
-        2 => format!("{} {}", cardinal_direction(rng), beach_synonym(rng)),
-        3 => format!("{} {}", adjective(rng), beach_synonym(rng)),
-        4 => format!("{} {} {}", adjective(rng), thing(rng), beach_synonym(rng)),
+        2 => format!("{} {}", word::cardinal_direction(rng), beach_synonym(rng)),
+        3 => format!("{} {}", word::adjective(rng), beach_synonym(rng)),
+        4 => format!(
+            "{} {} {}",
+            word::adjective(rng),
+            thing(rng),
+            beach_synonym(rng)
+        ),
         5 => {
-            let (profession, s) = pluralize(profession(rng));
+            let (profession, s) = pluralize(word::profession(rng));
             format!("{}{} {}", profession, s, beach_synonym(rng))
         }
         _ => unreachable!(),
@@ -25,13 +30,13 @@ fn name(rng: &mut impl Rng) -> String {
 
 fn thing(rng: &mut impl Rng) -> &'static str {
     match rng.gen_range(0..=10) {
-        0 => land_animal(rng),
-        1..=2 => coastal_animal(rng),
-        3 => enemy(rng),
-        4 => food(rng),
-        5 => profession(rng),
-        6 => symbol(rng),
-        7..=10 => gem(rng),
+        0 => word::land_animal(rng),
+        1..=2 => word::coastal_animal(rng),
+        3 => word::enemy(rng),
+        4 => word::food(rng),
+        5 => word::profession(rng),
+        6 => word::symbol(rng),
+        7..=10 => word::gem(rng),
         _ => unreachable!(),
     }
 }

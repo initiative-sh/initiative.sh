@@ -12,7 +12,7 @@ pub use thing::{Thing, ThingRelations};
 mod command;
 mod field;
 mod thing;
-mod vocabulary;
+mod word;
 
 use rand::Rng;
 

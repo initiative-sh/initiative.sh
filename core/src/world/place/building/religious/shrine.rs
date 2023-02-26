@@ -1,5 +1,5 @@
 use crate::utils::pluralize;
-use crate::world::vocabulary::*;
+use crate::world::{word, word::ListGenerator};
 use crate::world::{Demographics, Place};
 use rand::prelude::*;
 
@@ -12,11 +12,11 @@ fn name(rng: &mut impl Rng) -> String {
         0..=3 => format!("The {} {}", descriptor(rng), place(rng)),
         4..=7 => format!("{} of {}", place(rng), deity(rng)),
         8 => {
-            let (animal, s) = pluralize(any_animal(rng));
+            let (animal, s) = pluralize(word::animal(rng));
             format!("Place Where the {}{} {}", animal, s, action(rng))
         }
         9 => {
-            let (animal, s) = pluralize(any_animal(rng));
+            let (animal, s) = pluralize(word::animal(rng));
             format!("{} of the {} {}{}", place(rng), number(rng), animal, s)
         }
         _ => unreachable!(),
@@ -53,7 +53,7 @@ fn feature(rng: &mut impl Rng) -> &'static str {
 //DESCRIPTOR can be an ADJECTIVE or an ACTION
 fn descriptor(rng: &mut impl Rng) -> String {
     match rng.gen_range(0..3) {
-        0..=1 => adjective(rng).to_string(),
+        0..=1 => word::adjective(rng).to_string(),
         2 => gerund(action(rng)),
         _ => unreachable!(),
     }
@@ -94,10 +94,10 @@ fn number(rng: &mut impl Rng) -> &'static str {
 //DEITY can be PERSON, ANIMAL, or DIVINE CONCEPT
 fn deity(rng: &mut impl Rng) -> String {
     match rng.gen_range(0..10) {
-        0..=1 => format!("the {}", person(rng)),
-        2 => format!("the {} {}", descriptor(rng), person(rng)),
-        3..=4 => format!("the {}", any_animal(rng)),
-        5 => format!("the {} {}", descriptor(rng), any_animal(rng)),
+        0..=1 => format!("the {}", word::person(rng)),
+        2 => format!("the {} {}", descriptor(rng), word::person(rng)),
+        3..=4 => format!("the {}", word::animal(rng)),
+        5 => format!("the {} {}", descriptor(rng), word::animal(rng)),
         6..=8 => concept(rng).to_string(),
         9 => format!("{} {}", descriptor(rng), concept(rng)),
         _ => unreachable!(),

@@ -108,7 +108,7 @@ pub fn symbol(rng: &mut impl Rng) -> &'static str {
     ListGenerator(SYMBOLS).gen(rng)
 }
 
-pub fn any_animal(rng: &mut impl Rng) -> &'static str {
+pub fn animal(rng: &mut impl Rng) -> &'static str {
     let dist = WeightedIndex::new(&[LAND_ANIMALS.len(), COASTAL_ANIMALS.len()]).unwrap();
     match dist.sample(rng) {
         0 => land_animal(rng),
