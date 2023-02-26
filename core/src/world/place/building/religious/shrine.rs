@@ -137,14 +137,14 @@ mod test {
                 "The Wasted Pagoda",
                 "Shrine of the Empress",
                 "The Singing Shrine",
-                "Place Where the Otters Shine",
+                "Place Where the Unicorns Weep",
+                "Gate of the Emperor",
                 "The Orange Tree",
                 "The Creeping Shrine",
-                "Shrine of the Thirty-Six Sharks",
-                "Shrine of the Wild Seagull",
-                "Pillars of the Five Otters",
-                "Shrine of Laughing Forgiveness",
-                "The Thirsty Pillar"
+                "Gate of the Thirty-Six Rams",
+                "Shrine of the Wild Cat",
+                "The Wasted Altar",
+                "Shrine of Forgiveness"
             ]
             .iter()
             .map(|s| s.to_string())

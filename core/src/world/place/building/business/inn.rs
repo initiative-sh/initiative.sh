@@ -89,21 +89,21 @@ mod test {
                 "The Column",
                 "Coopers Arms",
                 "The Orange Unicorn",
-                "Otter and Cask",
-                "Smiths Arms",
-                "The Hallowed Crown",
-                "The Thirsty Porter",
-                "Glazier and Warrior",
-                "The Porter",
-                "Three Castles",
+                "Imp and Satyr",
+                "Otter and Rye",
+                "Seven Printers",
+                "Shovel and Crown",
+                "Seven Porters",
+                "The Bread",
+                "Mace and Phalactary",
+                "Three Kegs",
                 "Blacksmiths Arms",
                 "Ten Beggars",
                 "Bandit and Hydra",
                 "The Burgundy Potatoes",
                 "The Green Cooper",
                 "The Giant",
-                "The Lucky Wheel",
-                "Printer and Plumber"
+                "The Lucky Wheel"
             ]
             .iter()
             .map(|s| s.to_string())
