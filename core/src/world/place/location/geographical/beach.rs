@@ -55,15 +55,31 @@ mod test {
 
     #[test]
     fn name_test() {
-        let mut rng = SmallRng::seed_from_u64(2);
+        let mut rng = SmallRng::seed_from_u64(0);
 
-        #[rustfmt::skip]
         assert_eq!(
-            ["Gold Beryl Point", "Hawk Bank", "Warrior Sands", "Abbey Waterfront", "The Last Bank",
-             "Bronze Peacock Coast", "Green Brewer Point", "Octopus Coast", "Watermans Bank",
-             "East Cove", "Hop Shoreline", "Lone Emerald Shore", "Enchanters Strand",
-             "Wasted Waterfront", "The Last Shoreline", "Sapphire Landing", "Red Beryl Cove",
-             "Jovial Shoreline", "Millers Shoreline", "Millers Point"]
+            [
+                "East Embankment",
+                "The Last Bank",
+                "Carpenters Shoreline",
+                "Lost Otter Strand",
+                "Amber Cove",
+                "Coopers Cove",
+                "The Last Embankment",
+                "Quartz Cove",
+                "South Cove",
+                "West Sands",
+                "Herring Shore",
+                "Enchanted Herring Waterfront",
+                "Lucky Sands",
+                "Otter Sands",
+                "Citrine Strand",
+                "Wasted Emerald Embankment",
+                "Green Waterfront",
+                "The Last Strand",
+                "Hallowed Beryl Coast",
+                "Thirsty Opal Shore"
+            ]
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>(),

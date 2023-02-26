@@ -125,26 +125,26 @@ mod test {
 
         assert_eq!(
             [
-                "Shrine of the Wolf",
-                "Shrine of Courage",
-                "Shrine of Foul Decay",
+                "Shrine of the Pelican",
+                "Place Where the Weasels Drown",
+                "The Gold Pillar",
                 "The Singing Cave",
                 "The Fading Basin",
-                "The Exalted Gate",
+                "The Grey Gate",
                 "The Creeping Shrine",
-                "The Alabaster Shrine",
-                "Pillar of the Five Deer",
-                "The Pale Pagoda",
-                "The Immortal Shrine",
-                "Place Where the Tigers Sing",
-                "Tree of Shining Textiles",
-                "The Hunting Shrine",
+                "The Red Shrine",
+                "Pillar of the Five Camels",
+                "The Wasted Pagoda",
+                "Shrine of the Empress",
+                "The Singing Shrine",
+                "Place Where the Otters Shine",
+                "The Orange Tree",
                 "The Creeping Shrine",
-                "Shrine of the Thirty-Six Snakes",
-                "Shrine of the Iron Deer",
-                "The Spirit Altar",
-                "Shrine of Forgiveness",
-                "The Dark Shrine"
+                "Shrine of the Thirty-Six Sharks",
+                "Shrine of the Wild Seagull",
+                "Pillars of the Five Otters",
+                "Shrine of Laughing Forgiveness",
+                "The Thirsty Pillar"
             ]
             .iter()
             .map(|s| s.to_string())
