@@ -1,4 +1,5 @@
 mod beach;
+mod canyon;
 
 use initiative_macros::WordList;
 use rand::Rng;
@@ -55,6 +56,7 @@ pub fn generate(place: &mut Place, rng: &mut impl Rng, demographics: &Demographi
         #[allow(clippy::single_match)]
         match subtype {
             GeographicalType::Beach => beach::generate(place, rng, demographics),
+            GeographicalType::Canyon => canyon::generate(place, rng, demographics),
             _ => {}
         }
     }
