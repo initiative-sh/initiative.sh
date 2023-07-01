@@ -53,7 +53,6 @@ impl GeographicalType {
 pub fn generate(place: &mut Place, rng: &mut impl Rng, demographics: &Demographics) {
     #[allow(clippy::collapsible_match)]
     if let Some(PlaceType::Location(LocationType::Geographical(subtype))) = place.subtype.value() {
-        #[allow(clippy::single_match)]
         match subtype {
             GeographicalType::Beach => beach::generate(place, rng, demographics),
             GeographicalType::Canyon => canyon::generate(place, rng, demographics),
