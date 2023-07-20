@@ -16,8 +16,9 @@ pub enum Thing {
     Place(Place),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub enum ThingRelations {
+    #[default]
     None,
     Npc(NpcRelations),
     Place(PlaceRelations),
@@ -162,12 +163,6 @@ impl From<Npc> for Thing {
 impl From<Place> for Thing {
     fn from(place: Place) -> Self {
         Thing::Place(place)
-    }
-}
-
-impl Default for ThingRelations {
-    fn default() -> Self {
-        ThingRelations::None
     }
 }
 
