@@ -71,7 +71,7 @@ impl Demographics {
         } else {
             let (groups, weights): (Vec<(Species, Ethnicity)>, Vec<u64>) =
                 self.groups().iter().unzip();
-            let dist = WeightedIndex::new(&weights).unwrap();
+            let dist = WeightedIndex::new(weights).unwrap();
             groups[dist.sample(rng)]
         }
     }
