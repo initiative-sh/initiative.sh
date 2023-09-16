@@ -90,6 +90,12 @@ impl<'a> fmt::Display for DetailsView<'a> {
 
         write!(f, "\n*{}*", place.display_description())?;
 
+        place
+            .location
+            .value()
+            .map(|location| write!(f, "\n\n**Location name:** {}", location))
+            .transpose()?;
+
         relations
             .location
             .as_ref()

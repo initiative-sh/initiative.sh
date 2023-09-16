@@ -69,6 +69,10 @@ impl FromStr for ParsedThing<Place> {
                 word_count -= 1;
             } else if let Ok(place_type) = word_str.parse() {
                 place.subtype = Field::new(place_type);
+            } else if word_str.in_ci(&["in", "at", "on"]) {
+                place.location =
+                    Field::new(description[word.range().end..].trim_start().to_string());
+                break;
             } else {
                 unknown_words.push(word.range().to_owned());
             }
