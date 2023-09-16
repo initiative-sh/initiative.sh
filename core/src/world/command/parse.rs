@@ -1,6 +1,8 @@
 use crate::utils::{capitalize, quoted_words, CaseInsensitiveStr};
+use async_trait::async_trait;
+use crate::app::{AppMeta, ContextAwareParse};
 use crate::world::command::ParsedThing;
-use crate::world::{Field, Npc, Place};
+use crate::world::{Thing, Field, Npc, Place};
 use std::str::FromStr;
 
 fn split_name(input: &str) -> Option<(&str, &str)> {
@@ -46,10 +48,18 @@ fn split_name(input: &str) -> Option<(&str, &str)> {
     }
 }
 
+/// TODO: DELETE ME
 impl FromStr for ParsedThing<Place> {
     type Err = ();
 
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
+    fn from_str(_input: &str) -> Result<Self, Self::Err> {
+        Err(())
+    }
+}
+
+#[async_trait(?Send)]
+impl ContextAwareParse for ParsedThing<Place> {
+    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
         let mut place = Place::default();
         let mut unknown_words = Vec::new();
         let mut word_count = 0;
@@ -70,23 +80,30 @@ impl FromStr for ParsedThing<Place> {
             } else if let Ok(place_type) = word_str.parse() {
                 place.subtype = Field::new(place_type);
             } else if word_str.in_ci(&["in", "at", "on"]) {
-                place.location =
-                    Field::new(description[word.range().end..].trim_start().to_string());
+                let location_name = description[word.range().end..].trim_start();
+
+                if let Ok(Thing::Place(location)) = app_meta.repository.get_by_name(location_name).await {
+                    place.location_uuid = location.uuid.into();
+                }
+
                 break;
             } else {
                 unknown_words.push(word.range().to_owned());
             }
         }
 
-        if unknown_words.is_empty() || unknown_words.len() <= word_count / 2 {
-            Ok(ParsedThing {
-                thing: place,
-                unknown_words,
-                word_count,
-            })
-        } else {
-            Err(())
-        }
+        (
+            if unknown_words.is_empty() || unknown_words.len() <= word_count / 2 {
+                Some(ParsedThing {
+                    thing: place,
+                    unknown_words,
+                    word_count,
+                })
+            } else {
+                None
+            },
+            Vec::new(),
+        )
     }
 }
 

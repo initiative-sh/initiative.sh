@@ -261,13 +261,15 @@ impl ContextAwareParse for WorldCommand {
 
             let (diff, thing) = if let Ok(thing) = app_meta.repository.get_by_name(name).await {
                 (
-                    match thing { // ParsedThing<Thing>
+                    match thing { // Result<ParsedThing<Thing>, ()>
                         Thing::Npc(_) => description
                             .parse::<ParsedThing<Npc>>()
                             .map(|npc| npc.into_thing()),
-                        Thing::Place(_) => description
-                            .parse::<ParsedThing<Place>>()
-                            .map(|place| place.into_thing()),
+                        Thing::Place(_) => ParsedThing::<Place>::parse_input(description, app_meta)
+                            .await
+                            .0
+                            .map(|place| place.into_thing())
+                            .ok_or(()),
                     }
                     .or_else(|_| description.parse()),
                     Some(thing),

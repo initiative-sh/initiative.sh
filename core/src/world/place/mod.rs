@@ -21,7 +21,6 @@ pub struct Place {
 
     pub name: Field<String>,
     pub description: Field<String>,
-    pub location: Field<String>,
     // pub architecture: Option<String>,
     // pub floors: Field<u8>,
     // pub owner: Field<Vec<NpcUuid>>,
@@ -74,14 +73,12 @@ impl Place {
         let Self {
             uuid: _,
             location_uuid,
-            location,
             subtype,
             name,
             description,
         } = self;
 
         location_uuid.lock();
-        location.lock();
         subtype.lock();
         name.lock();
         description.lock();
@@ -91,14 +88,12 @@ impl Place {
         let Self {
             uuid: _,
             location_uuid,
-            location,
             subtype,
             name,
             description,
         } = self;
 
         location_uuid.apply_diff(&mut diff.location_uuid);
-        location.apply_diff(&mut diff.location);
         subtype.apply_diff(&mut diff.subtype);
         name.apply_diff(&mut diff.name);
         description.apply_diff(&mut diff.description);

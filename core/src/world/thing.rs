@@ -1,4 +1,6 @@
 use super::{Demographics, Field, Generate, Npc, NpcRelations, Place, PlaceRelations};
+use async_trait::async_trait;
+use crate::app::{AppMeta, ContextAwareParse};
 use crate::world::command::ParsedThing;
 use crate::world::npc::{DetailsView as NpcDetailsView, Gender};
 use crate::world::place::DetailsView as PlaceDetailsView;
@@ -198,27 +200,38 @@ impl From<ThingRelations> for PlaceRelations {
     }
 }
 
+/// TODO: DELETE ME
 impl FromStr for ParsedThing<Thing> {
     type Err = ();
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        match (
-            raw.parse::<ParsedThing<Npc>>(),
-            raw.parse::<ParsedThing<Place>>(),
-        ) {
-            (Ok(parsed_npc), Ok(parsed_place)) => match parsed_npc
-                .unknown_words
-                .len()
-                .cmp(&parsed_place.unknown_words.len())
-            {
-                Ordering::Less => Ok(parsed_npc.into_thing()),
-                Ordering::Equal => Err(()),
-                Ordering::Greater => Ok(parsed_place.into_thing()),
+        Err(())
+    }
+}
+
+#[async_trait(?Send)]
+impl ContextAwareParse for ParsedThing<Thing> {
+    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
+        (
+            match (
+                input.parse::<ParsedThing<Npc>>().ok(),
+                ParsedThing::<Place>::parse_input(input, app_meta).await.0,
+            ) {
+                (Some(parsed_npc), Some(parsed_place)) => match parsed_npc
+                    .unknown_words
+                    .len()
+                    .cmp(&parsed_place.unknown_words.len())
+                {
+                    Ordering::Less => Some(parsed_npc.into_thing()),
+                    Ordering::Equal => None,
+                    Ordering::Greater => Some(parsed_place.into_thing()),
+                },
+                (Some(parsed_npc), None) => Some(parsed_npc.into_thing()),
+                (None, Some(parsed_place)) => Some(parsed_place.into_thing()),
+                (None, None) => None,
             },
-            (Ok(parsed_npc), Err(())) => Ok(parsed_npc.into_thing()),
-            (Err(()), Ok(parsed_place)) => Ok(parsed_place.into_thing()),
-            (Err(()), Err(())) => Err(()),
-        }
+            Vec::new(),
+        )
     }
 }
 
