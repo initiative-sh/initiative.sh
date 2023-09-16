@@ -4,7 +4,7 @@ use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let data_store = core::NullDataStore::default();
+    let data_store = core::NullDataStore;
     cli::run(core::app(data_store, &event_dispatcher)).await?;
     Ok(())
 }
