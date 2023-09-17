@@ -8,3 +8,5 @@ members = [
     "scripts",
     "web",
 ]
+
+resolver = "2"
