@@ -22,7 +22,7 @@ fi
 cd "$project_root/web"
 wasm-pack build --release
 npm install
-npm run build
+NODE_OPTIONS=--openssl-legacy-provider npm run build
 
 
 cd "$project_root"
