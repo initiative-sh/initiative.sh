@@ -75,7 +75,7 @@ static mut ROOT_ELEMENT_ID: Option<String> = None;
 fn app() -> &'static mut core::app::App {
     unsafe {
         if APP.is_none() {
-            let data_store = DataStore::default();
+            let data_store = DataStore;
             APP = Some(core::app(data_store, &event_dispatcher));
         }
 
