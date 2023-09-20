@@ -1,20 +1,29 @@
 use crate::world::{Demographics, Place};
-use rand::prelude::*;
+use rand::{distributions::WeightedIndex, prelude::*};
 
 pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demographics) {
     place.name.replace_with(|_| name(rng));
 }
 
 fn name(rng: &mut impl Rng) -> String {
-    match rng.gen_range(0..=5) {
-        0 => format!("{} {}", thing(rng), canyon_synonym(rng)),
-        1 => format!("The {} {}", placement(rng), canyon_synonym(rng)),
-        2 => format!("{} {}", cardinal_direction(rng), canyon_synonym(rng)),
-        3 => format!("{} {}", adjective(rng), canyon_synonym(rng)),
-        4 => format!("{} {} {}", adjective(rng), thing(rng), canyon_synonym(rng)),
-        5 => format!("{}'s {}", profession(rng), canyon_synonym(rng)),
-        _ => unreachable!(),
-    }
+    let names_and_weights = [
+        (format!("{} {}", thing(rng), canyon_synonym(rng)), 1),
+        (format!("The {} {}", placement(rng), canyon_synonym(rng)), 1),
+        (
+            format!("{} {}", cardinal_direction(rng), canyon_synonym(rng)),
+            1,
+        ),
+        (format!("{} {}", adjective(rng), canyon_synonym(rng)), 1),
+        (
+            format!("{} {} {}", adjective(rng), thing(rng), canyon_synonym(rng)),
+            1,
+        ),
+        (format!("{}'s {}", profession(rng), canyon_synonym(rng)), 1),
+    ];
+
+    let distribution = WeightedIndex::new(names_and_weights.iter().map(|item| item.1)).unwrap();
+
+    names_and_weights[distribution.sample(rng)].0.to_string()
 }
 
 fn thing(rng: &mut impl Rng) -> &'static str {
@@ -160,13 +169,12 @@ mod test {
 
         #[rustfmt::skip]
         assert_eq!(
-            ["Gold Enchanter Ravine", "The Last Ravine", "South Canyon",
-             "The First Flume", "West Fissure", "Blacksmith's Fissure",
-             "Hyena Gap", "Anvil Ravine", "Farrier's Crevice",
-             "The Last Canyon", "Butcher's Canyon", "Miller's Flume",
-             "The First Abyss", "Slim Thunderbolt Ravine", "Stoic Bell Gorge",
-             "Enchanted Fissure", "East Flume", "White Drum Fissure",
-             "Silver Diamond Abyss", "The Last Ravine"]
+            ["Cheese Trench", "The Last Flume", "Diviner's Trench",
+             "Grey Rye Abyss", "Evoker's Fissure", "Solemn Crevice",
+             "Glazier's Flume", "White Canyon", "Lizard Gorge", "Hawk Fissure",
+             "Green Abyss", "Engorged Scorpion Canyon", "Elegant Mill Gorge",
+             "White Trench", "The First Fissure", "Bloated Canyon",
+             "Quartz Gap", "Goat Crevice", "The Last Canyon", "East Flume"]
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>(),
