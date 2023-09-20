@@ -17,7 +17,7 @@ fn name(rng: &mut impl Rng) -> String {
         4 => format!("{} {} {}", adjective(rng), thing(rng), canyon_synonym(rng)),
         5 => {
             let (profession, s) = pluralize(profession(rng));
-            format!("{}{} {}", profession, s, canyon_synonym(rng))
+            format!("{}'{} {}", profession, s, canyon_synonym(rng))
         }
         _ => unreachable!(),
     }
@@ -52,8 +52,11 @@ fn adjective(rng: &mut impl Rng) -> &'static str {
 fn canyon_synonym(rng: &mut impl Rng) -> &'static str {
     #[rustfmt::skip]
     const CANYON_SYNONYMS: &[&str] = &[
-        "Canyon", "Ravine", "Gorge", "Crevice", "Gorge", "Gap", "Abyss",
-        "Flume", "Fissure", "Trench"
+        // Doubling-up on some options to increase odds as per this discussion
+        // `github.com/initiative-sh/initiative.sh/pull/313/files/2b3195490641b537abbaab23aa38e279a4fb1216#r1331670310`
+        // Could use rand::distributions::WeightedIndex in future if desired.
+        "Canyon", "Canyon", "Ravine", "Ravine", "Gorge", "Gorge", "Crevice",
+        "Gap", "Abyss", "Flume", "Fissure", "Trench"
     ];
     CANYON_SYNONYMS[rng.gen_range(0..CANYON_SYNONYMS.len())]
 }
@@ -163,13 +166,13 @@ mod test {
 
         #[rustfmt::skip]
         assert_eq!(
-            ["Gold Enchanter Gorge", "Gold Gorge", "The Last Ravine",
-             "The First Fissure", "West Fissure", "Condor Gap",
-             "Thirsty Hyena Gorge", "West Abyss", "The First Gap",
-             "Enchanted Owl Crevice", "Slim Thunderbolt Gorge",
-             "Stoic Bell Gorge", "Enchanted Gorge", "Magicians Flume",
-             "The Last Trench", "Silver Gorge", "The Last Abyss",
-             "West Fissure", "Smiths Gorge", "The Last Gorge"]
+            ["Gold Enchanter Ravine", "The Last Ravine", "South Canyon",
+             "The First Flume", "West Fissure", "Blacksmith's Fissure",
+             "Hyena Gap", "Anvil Ravine", "Farrier's Crevice",
+             "The Last Canyon", "Butcher's Canyon", "Miller's Flume",
+             "The First Abyss", "Slim Thunderbolt Ravine", "Stoic Bell Gorge",
+             "Enchanted Fissure", "East Flume", "White Drum Fissure",
+             "Silver Diamond Abyss", "The Last Ravine"]
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>(),
