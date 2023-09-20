@@ -26,9 +26,14 @@ jobs:
           Please add a brief description of your change to the top of data/changelog.md.
           See existing changes for formatting; accepted tags are "Bug", "Enhancement"
           (minor change to an existing feature), and "New" (completely new feature).
+          Contributors are also encouraged to tag changelog entries with their GitHub
+          @username.
 
           Changelog data will be shown on the landing page, in response to the
-          `changelog` command, and broadcast to Discord upon release.' >&2
+          `changelog` command, and broadcast to Discord upon release.
+
+          This reminder can be ignored for changes with no user-facing impact, such as
+          dependency updates and refactors. Or not! It's up to you, really.' >&2
 
             exit 1
           fi
