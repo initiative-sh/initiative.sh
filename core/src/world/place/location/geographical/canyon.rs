@@ -1,7 +1,4 @@
-use crate::{
-    utils::pluralize,
-    world::{Demographics, Place},
-};
+use crate::world::{Demographics, Place};
 use rand::prelude::*;
 
 pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demographics) {
@@ -15,10 +12,7 @@ fn name(rng: &mut impl Rng) -> String {
         2 => format!("{} {}", cardinal_direction(rng), canyon_synonym(rng)),
         3 => format!("{} {}", adjective(rng), canyon_synonym(rng)),
         4 => format!("{} {} {}", adjective(rng), thing(rng), canyon_synonym(rng)),
-        5 => {
-            let (profession, s) = pluralize(profession(rng));
-            format!("{}'{} {}", profession, s, canyon_synonym(rng))
-        }
+        5 => format!("{}'s {}", profession(rng), canyon_synonym(rng)),
         _ => unreachable!(),
     }
 }
