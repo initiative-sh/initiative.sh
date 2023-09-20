@@ -34,7 +34,7 @@ pub async fn command(input: JsValue) -> JsValue {
 #[wasm_bindgen]
 pub async fn autocomplete(input: JsValue) -> JsValue {
     if let Some(input) = input.as_string() {
-        serde_wasm_bindgen::to_value(&app().autocomplete(&input).await).unwrap()
+        JsValue::from_serde(&app().autocomplete(&input).await).unwrap()
     } else {
         JsValue::undefined()
     }
@@ -43,7 +43,7 @@ pub async fn autocomplete(input: JsValue) -> JsValue {
 #[wasm_bindgen]
 pub async fn bulk_import(data: JsValue) -> Result<String, String> {
     app()
-        .bulk_import(serde_wasm_bindgen::from_value(data).map_err(|e| {
+        .bulk_import(data.into_serde().map_err(|e| {
             format!(
                 "The file you tried to import is not valid. The parser error was {}.",
                 e
@@ -56,7 +56,7 @@ fn event_dispatcher(event: core::Event) {
     let js_event = match event {
         core::Event::Export(data) => {
             let mut init = CustomEventInit::new();
-            init.detail(&serde_wasm_bindgen::to_value(&data).unwrap());
+            init.detail(&JsValue::from_serde(&data).unwrap());
             CustomEvent::new_with_event_init_dict("initiative.export", &init).unwrap()
         }
         core::Event::Import => CustomEvent::new("initiative.startImport").unwrap(),

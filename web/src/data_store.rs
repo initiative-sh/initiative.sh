@@ -27,20 +27,26 @@ impl initiative_core::DataStore for DataStore {
     }
 
     async fn get_all_the_things(&self) -> Result<Vec<Thing>, ()> {
-        serde_wasm_bindgen::from_value(get_all_the_things().await.map_err(|_| ())?).map_err(|_| ())
+        get_all_the_things()
+            .await
+            .map_err(|_| ())?
+            .into_serde()
+            .map_err(|_| ())
     }
 
     async fn get_thing_by_uuid(&self, uuid: &Uuid) -> Result<Option<Thing>, ()> {
-        serde_wasm_bindgen::from_value(
-            get_thing_by_uuid(uuid.to_string().into())
-                .await
-                .map_err(|_| ())?,
-        )
-        .map_err(|_| ())
+        get_thing_by_uuid(uuid.to_string().into())
+            .await
+            .map_err(|_| ())?
+            .into_serde()
+            .map_err(|_| ())
     }
 
     async fn get_thing_by_name(&self, name: &str) -> Result<Option<Thing>, ()> {
-        serde_wasm_bindgen::from_value(get_thing_by_name(name).await.map_err(|_| ())?)
+        get_thing_by_name(name)
+            .await
+            .map_err(|_| ())?
+            .into_serde()
             .map_err(|_| ())
     }
 
@@ -49,16 +55,15 @@ impl initiative_core::DataStore for DataStore {
         name: &str,
         limit: Option<usize>,
     ) -> Result<Vec<Thing>, ()> {
-        serde_wasm_bindgen::from_value(
-            get_things_by_name_start(name, limit.unwrap_or(usize::MAX))
-                .await
-                .map_err(|_| ())?,
-        )
-        .map_err(|_| ())
+        get_things_by_name_start(name, limit.unwrap_or(usize::MAX))
+            .await
+            .map_err(|_| ())?
+            .into_serde()
+            .map_err(|_| ())
     }
 
     async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()> {
-        save_thing(serde_wasm_bindgen::to_value(thing).unwrap())
+        save_thing(JsValue::from_serde(thing).unwrap())
             .await
             .map(|_| ())
             .map_err(|_| ())
