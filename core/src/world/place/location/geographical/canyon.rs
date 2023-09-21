@@ -6,13 +6,13 @@ pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demograph
 }
 
 fn name(rng: &mut impl Rng) -> String {
-    match rng.gen_range(0..=5) {
-        0 => format!("{} {}", thing(rng), canyon_synonym(rng)),
-        1 => format!("The {} {}", placement(rng), canyon_synonym(rng)),
-        2 => format!("{} {}", cardinal_direction(rng), canyon_synonym(rng)),
-        3 => format!("{} {}", adjective(rng), canyon_synonym(rng)),
-        4 => format!("{} {} {}", adjective(rng), thing(rng), canyon_synonym(rng)),
-        5 => format!("{}'s {}", profession(rng), canyon_synonym(rng)),
+    match rng.gen_range(0..=7) {
+        0 => format!("The {} {}", placement(rng), canyon_synonym(rng)),
+        1 => format!("{} {}", cardinal_direction(rng), canyon_synonym(rng)),
+        2 => format!("{} {}", adjective(rng), canyon_synonym(rng)),
+        3 => format!("{} {} {}", adjective(rng), thing(rng), canyon_synonym(rng)),
+        4..=5 => format!("{} {}", thing(rng), canyon_synonym(rng)),
+        6..=7 => format!("{}'s {}", profession(rng), canyon_synonym(rng)),
         _ => unreachable!(),
     }
 }
@@ -160,13 +160,12 @@ mod test {
 
         #[rustfmt::skip]
         assert_eq!(
-            ["Gold Enchanter Ravine", "The Last Ravine", "South Canyon",
-             "The First Flume", "West Fissure", "Blacksmith's Fissure",
-             "Hyena Gap", "Anvil Ravine", "Farrier's Crevice",
-             "The Last Canyon", "Butcher's Canyon", "Miller's Flume",
-             "The First Abyss", "Slim Thunderbolt Ravine", "Stoic Bell Gorge",
-             "Enchanted Fissure", "East Flume", "White Drum Fissure",
-             "Silver Diamond Abyss", "The Last Ravine"]
+            ["Printer Gorge", "Viper Gorge", "The Last Flume", "West Fissure",
+             "Mage Canyon", "The First Crevice", "Tortoise Fissure",
+             "Badger Fissure", "Rye Ravine", "Porter's Fissure", "Ram Gorge",
+             "Cooper's Fissure", "Evoker's Abyss", "Porter's Ravine",
+             "Keg Flume", "Smith's Ravine", "Rabbit Trench", "Grey Pork Flume",
+             "Plumber Canyon", "Gorgon Canyon"]
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>(),
