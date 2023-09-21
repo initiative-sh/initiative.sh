@@ -1,9 +1,10 @@
 use super::{Condition, Item, ItemCategory, MagicItem, Spell, Trait};
-use crate::app::{AppMeta, Autocomplete, CommandMatches, ContextAwareParse, Runnable};
+use crate::app::{
+    AppMeta, Autocomplete, AutocompleteSuggestion, CommandMatches, ContextAwareParse, Runnable,
+};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use caith::Roller;
-use std::borrow::Cow;
 use std::fmt;
 use std::iter::repeat;
 
@@ -114,10 +115,7 @@ impl ContextAwareParse for ReferenceCommand {
 
 #[async_trait(?Send)]
 impl Autocomplete for ReferenceCommand {
-    async fn autocomplete(
-        input: &str,
-        _app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
         [
             ("Open Game License", "SRD license"),
             ("spells", "SRD index"),
@@ -129,9 +127,9 @@ impl Autocomplete for ReferenceCommand {
         .chain(ItemCategory::get_words().zip(repeat("SRD item category")))
         .chain(MagicItem::get_words().zip(repeat("SRD magic item")))
         .chain(Trait::get_words().zip(repeat("SRD trait")))
-        .filter(|(s, _)| s.starts_with_ci(input))
+        .filter(|(term, _)| term.starts_with_ci(input))
         .take(10)
-        .map(|(a, b)| (a.into(), b.into()))
+        .map(|(term, summary)| AutocompleteSuggestion::new(term, summary))
         .collect()
     }
 }

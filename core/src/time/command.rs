@@ -1,9 +1,10 @@
 use super::Interval;
-use crate::app::{AppMeta, Autocomplete, CommandMatches, ContextAwareParse, Runnable};
+use crate::app::{
+    AppMeta, Autocomplete, AutocompleteSuggestion, CommandMatches, ContextAwareParse, Runnable,
+};
 use crate::storage::{Change, KeyValue};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
-use std::borrow::Cow;
 use std::fmt;
 use std::iter;
 
@@ -88,25 +89,22 @@ impl ContextAwareParse for TimeCommand {
 
 #[async_trait(?Send)]
 impl Autocomplete for TimeCommand {
-    async fn autocomplete(
-        input: &str,
-        _app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
         if input.starts_with(&['+', '-'][..]) {
-            let suggest = |suffix: &str| -> Result<(Cow<'static, str>, Cow<'static, str>), ()> {
-                let suggestion = format!("{}{}", input, suffix);
-                let description = if input.starts_with('+') {
+            let suggest = |suffix: &str| -> Result<AutocompleteSuggestion, ()> {
+                let term = format!("{}{}", input, suffix);
+                let summary = if input.starts_with('+') {
                     format!(
                         "advance time by {}",
-                        &suggestion[1..].parse::<Interval>()?.display_long(),
+                        &term[1..].parse::<Interval>()?.display_long(),
                     )
                 } else {
                     format!(
                         "rewind time by {}",
-                        &suggestion[1..].parse::<Interval>()?.display_long(),
+                        &term[1..].parse::<Interval>()?.display_long(),
                     )
                 };
-                Ok((suggestion.into(), description.into()))
+                Ok(AutocompleteSuggestion::new(term, summary))
             };
 
             let suggest_all = || {
@@ -116,14 +114,13 @@ impl Autocomplete for TimeCommand {
             };
 
             match input {
-                "+" | "-" => iter::once((
-                    format!("{}[number]", input).into(),
+                "+" | "-" => iter::once(AutocompleteSuggestion::new(
+                    format!("{}[number]", input),
                     if input == "+" {
                         "advance time"
                     } else {
                         "rewind time"
-                    }
-                    .into(),
+                    },
                 ))
                 .chain(suggest_all())
                 .collect(),
@@ -132,8 +129,8 @@ impl Autocomplete for TimeCommand {
         } else if !input.is_empty() {
             ["now", "time", "date"]
                 .into_iter()
-                .filter(|s| s.starts_with_ci(input))
-                .map(|s| (s.into(), "get the current time".into()))
+                .filter(|term| term.starts_with_ci(input))
+                .map(|term| AutocompleteSuggestion::new(term, "get the current time"))
                 .collect()
         } else {
             Vec::new()
@@ -194,7 +191,7 @@ mod test {
         let app_meta = app_meta();
 
         assert_eq!(
-            Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
+            Vec::<AutocompleteSuggestion>::new(),
             block_on(TimeCommand::autocomplete("", &app_meta)),
         );
 

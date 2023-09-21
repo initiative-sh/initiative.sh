@@ -1,9 +1,10 @@
-use crate::app::{AppMeta, Autocomplete, CommandMatches, ContextAwareParse, Runnable};
+use crate::app::{
+    AppMeta, Autocomplete, AutocompleteSuggestion, CommandMatches, ContextAwareParse, Runnable,
+};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use caith::Roller;
 use initiative_macros::changelog;
-use std::borrow::Cow;
 use std::fmt;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -76,28 +77,24 @@ impl ContextAwareParse for AppCommand {
 
 #[async_trait(?Send)]
 impl Autocomplete for AppCommand {
-    async fn autocomplete(
-        input: &str,
-        _app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
         if input.is_empty() {
             return Vec::new();
         }
 
         [
-            ("about", "about initiative.sh"),
-            ("changelog", "show latest updates"),
-            ("help", "how to use initiative.sh"),
+            AutocompleteSuggestion::new("about", "about initiative.sh"),
+            AutocompleteSuggestion::new("changelog", "show latest updates"),
+            AutocompleteSuggestion::new("help", "how to use initiative.sh"),
         ]
         .into_iter()
-        .filter(|(s, _)| s.starts_with_ci(input))
+        .filter(|suggestion| suggestion.term.starts_with_ci(input))
         .chain(
             ["roll"]
                 .into_iter()
                 .filter(|s| s.starts_with_ci(input))
-                .map(|_| ("roll [dice]", "roll eg. 8d6 or d20+3")),
+                .map(|_| AutocompleteSuggestion::new("roll [dice]", "roll eg. 8d6 or d20+3")),
         )
-        .map(|(a, b)| (a.into(), b.into()))
         .collect()
     }
 }
@@ -157,15 +154,15 @@ mod test {
             ("help", "how to use initiative.sh"),
         ]
         .into_iter()
-        .for_each(|(word, summary)| {
+        .for_each(|(term, summary)| {
             assert_eq!(
-                vec![(word.into(), summary.into())],
-                block_on(AppCommand::autocomplete(word, &app_meta)),
+                vec![AutocompleteSuggestion::new(term, summary)],
+                block_on(AppCommand::autocomplete(term, &app_meta)),
             );
 
             assert_eq!(
-                block_on(AppCommand::autocomplete(word, &app_meta)),
-                block_on(AppCommand::autocomplete(&word.to_uppercase(), &app_meta)),
+                block_on(AppCommand::autocomplete(term, &app_meta)),
+                block_on(AppCommand::autocomplete(&term.to_uppercase(), &app_meta)),
             );
         });
 
@@ -186,7 +183,7 @@ mod test {
 
         // Debug should be excluded from the autocomplete results.
         assert_eq!(
-            Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
+            Vec::<AutocompleteSuggestion>::new(),
             block_on(AppCommand::autocomplete("debug", &app_meta)),
         );
     }

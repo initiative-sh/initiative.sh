@@ -1,4 +1,6 @@
-use super::{Autocomplete, Command, CommandMatches, ContextAwareParse, Runnable};
+use super::{
+    Autocomplete, AutocompleteSuggestion, Command, CommandMatches, ContextAwareParse, Runnable,
+};
 use crate::app::AppMeta;
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
@@ -10,8 +12,8 @@ use std::mem;
 #[derive(Clone, Debug)]
 pub enum CommandAlias {
     Literal {
-        term: String,
-        summary: String,
+        term: Cow<'static, str>,
+        summary: Cow<'static, str>,
         command: Box<Command>,
     },
     StrictWildcard {
@@ -20,10 +22,14 @@ pub enum CommandAlias {
 }
 
 impl CommandAlias {
-    pub fn literal(term: String, summary: String, command: Command) -> Self {
+    pub fn literal(
+        term: impl Into<Cow<'static, str>>,
+        summary: impl Into<Cow<'static, str>>,
+        command: Command,
+    ) -> Self {
         Self::Literal {
-            term,
-            summary,
+            term: term.into(),
+            summary: summary.into(),
             command: Box::new(command),
         }
     }
@@ -131,17 +137,17 @@ impl ContextAwareParse for CommandAlias {
 
 #[async_trait(?Send)]
 impl Autocomplete for CommandAlias {
-    async fn autocomplete(
-        input: &str,
-        app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
         app_meta
             .command_aliases
             .iter()
             .filter_map(|command| match command {
                 Self::Literal { term, summary, .. } => {
                     if term.starts_with_ci(input) {
-                        Some((term.clone().into(), summary.clone().into()))
+                        Some(AutocompleteSuggestion::new(
+                            term.to_string(),
+                            summary.to_string(),
+                        ))
                     } else {
                         None
                     }
@@ -322,10 +328,14 @@ mod tests {
         AppMeta::new(NullDataStore::default(), &event_dispatcher)
     }
 
-    fn literal(term: &str, summary: &str, command: Command) -> CommandAlias {
+    fn literal(
+        term: impl Into<Cow<'static, str>>,
+        summary: impl Into<Cow<'static, str>>,
+        command: Command,
+    ) -> CommandAlias {
         CommandAlias::Literal {
-            term: term.to_string(),
-            summary: summary.to_string(),
+            term: term.into(),
+            summary: summary.into(),
             command: Box::new(command),
         }
     }

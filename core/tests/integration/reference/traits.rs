@@ -1,4 +1,5 @@
 use crate::common::sync_app;
+use initiative_core::app::AutocompleteSuggestion;
 
 #[test]
 fn stonecunning() {
@@ -15,7 +16,7 @@ Whenever you make an Intelligence (History) check related to the origin of stone
     );
 
     assert_eq!(
-        vec![("Stonecunning".into(), "SRD trait".into())],
+        vec![AutocompleteSuggestion::new("Stonecunning", "SRD trait")],
         sync_app().autocomplete("stonecunning"),
     );
 }
@@ -47,13 +48,16 @@ You have superior vision in dark and dim conditions. You can see in dim light wi
     assert!(sync_app()
         .autocomplete("darkvision")
         .iter()
-        .any(|item| item == &("Darkvision".into(), "SRD trait".into())));
+        .any(|suggestion| suggestion.term == "Darkvision" && suggestion.summary == "SRD trait"));
 }
 
 #[test]
 fn draconic_ancestry() {
     assert_eq!(
-        vec![("Draconic Ancestry".into(), "SRD trait".into())],
+        vec![AutocompleteSuggestion::new(
+            "Draconic Ancestry",
+            "SRD trait",
+        )],
         sync_app().autocomplete("draconic ancestry"),
     );
 }

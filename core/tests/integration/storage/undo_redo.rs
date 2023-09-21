@@ -1,5 +1,5 @@
 use crate::common::{sync_app, SyncApp};
-use std::borrow::Cow;
+use initiative_core::app::AutocompleteSuggestion;
 
 fn undo_redo_test(
     app: &mut SyncApp,
@@ -16,7 +16,10 @@ fn undo_redo_test(
 
     {
         assert_eq!(
-            Some(&(Cow::from("undo"), Cow::from(expect_undo_autocomplete))),
+            Some(&AutocompleteSuggestion::new(
+                "undo",
+                expect_undo_autocomplete.to_string(),
+            )),
             app.autocomplete("undo").first(),
         );
 
@@ -33,7 +36,10 @@ fn undo_redo_test(
 
     {
         assert_eq!(
-            Some(&(Cow::from("redo"), Cow::from(expect_redo_autocomplete))),
+            Some(&AutocompleteSuggestion::new(
+                "redo",
+                expect_redo_autocomplete.to_string(),
+            )),
             app.autocomplete("redo").first(),
         );
 
@@ -55,13 +61,13 @@ fn undo_redo_test(
 fn nothing() {
     assert_eq!("Nothing to undo.", sync_app().command("undo").unwrap_err());
     assert_eq!(
-        Some(&(Cow::from("undo"), Cow::from("Nothing to undo."))),
+        Some(&AutocompleteSuggestion::new("undo", "Nothing to undo.")),
         sync_app().autocomplete("undo").first(),
     );
 
     assert_eq!("Nothing to redo.", sync_app().command("redo").unwrap_err());
     assert_eq!(
-        Some(&(Cow::from("redo"), Cow::from("Nothing to redo."))),
+        Some(&AutocompleteSuggestion::new("redo", "Nothing to redo.")),
         sync_app().autocomplete("redo").first(),
     );
 }

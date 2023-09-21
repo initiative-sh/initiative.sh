@@ -1,4 +1,5 @@
 use crate::common::sync_app;
+use initiative_core::app::AutocompleteSuggestion;
 
 #[test]
 fn stunned() {
@@ -19,7 +20,7 @@ fn stunned() {
     assert_eq!(output, sync_app().command("srd condition Stunned").unwrap());
 
     assert_eq!(
-        vec![("Stunned".into(), "SRD condition".into())],
+        vec![AutocompleteSuggestion::new("Stunned", "SRD condition")],
         sync_app().autocomplete("stunned"),
     );
 }

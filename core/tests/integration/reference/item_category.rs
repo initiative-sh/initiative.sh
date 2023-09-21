@@ -1,4 +1,5 @@
 use crate::common::sync_app;
+use initiative_core::app::AutocompleteSuggestion;
 
 #[test]
 fn weapons() {
@@ -52,7 +53,10 @@ fn weapons() {
     );
 
     assert_eq!(
-        vec![("melee weapons".into(), "SRD item category".into())],
+        vec![AutocompleteSuggestion::new(
+            "melee weapons",
+            "SRD item category",
+        )],
         sync_app().autocomplete("melee weapons"),
     );
 }
@@ -108,7 +112,10 @@ fn magic_weapons() {
     );
 
     assert_eq!(
-        vec![("magic weapons".into(), "SRD item category".into())],
+        vec![AutocompleteSuggestion::new(
+            "magic weapons",
+            "SRD item category",
+        )],
         sync_app().autocomplete("magic weapons"),
     );
 }
