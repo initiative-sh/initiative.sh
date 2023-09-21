@@ -1,9 +1,10 @@
 use super::Interval;
-use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
+use crate::app::{
+    AppMeta, Autocomplete, AutocompleteSuggestion, CommandMatches, ContextAwareParse, Runnable,
+};
 use crate::storage::{Change, KeyValue};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
-use std::borrow::Cow;
 use std::fmt;
 use std::iter;
 
@@ -63,53 +64,47 @@ impl Runnable for TimeCommand {
 
 #[async_trait(?Send)]
 impl ContextAwareParse for TimeCommand {
-    async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut fuzzy_matches = Vec::new();
-
-        (
-            if input.eq_ci("now") {
-                Some(Self::Now)
-            } else if input.in_ci(&["time", "date"]) {
-                fuzzy_matches.push(Self::Now);
-                None
-            } else {
+    async fn parse_input(input: &str, _app_meta: &AppMeta) -> CommandMatches<Self> {
+        if input.eq_ci("now") {
+            CommandMatches::new_canonical(Self::Now)
+        } else if input.in_ci(&["time", "date"]) {
+            CommandMatches::new_fuzzy(Self::Now)
+        } else if let Some(canonical_match) = input
+            .strip_prefix('+')
+            .and_then(|s| s.parse().ok())
+            .map(|interval| Self::Add { interval })
+            .or_else(|| {
                 input
-                    .strip_prefix('+')
+                    .strip_prefix('-')
                     .and_then(|s| s.parse().ok())
-                    .map(|interval| Self::Add { interval })
-                    .or_else(|| {
-                        input
-                            .strip_prefix('-')
-                            .and_then(|s| s.parse().ok())
-                            .map(|interval| Self::Sub { interval })
-                    })
-            },
-            fuzzy_matches,
-        )
+                    .map(|interval| Self::Sub { interval })
+            })
+        {
+            CommandMatches::new_canonical(canonical_match)
+        } else {
+            CommandMatches::default()
+        }
     }
 }
 
 #[async_trait(?Send)]
 impl Autocomplete for TimeCommand {
-    async fn autocomplete(
-        input: &str,
-        _app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
         if input.starts_with(&['+', '-'][..]) {
-            let suggest = |suffix: &str| -> Result<(Cow<'static, str>, Cow<'static, str>), ()> {
-                let suggestion = format!("{}{}", input, suffix);
-                let description = if input.starts_with('+') {
+            let suggest = |suffix: &str| -> Result<AutocompleteSuggestion, ()> {
+                let term = format!("{}{}", input, suffix);
+                let summary = if input.starts_with('+') {
                     format!(
                         "advance time by {}",
-                        &suggestion[1..].parse::<Interval>()?.display_long(),
+                        &term[1..].parse::<Interval>()?.display_long(),
                     )
                 } else {
                     format!(
                         "rewind time by {}",
-                        &suggestion[1..].parse::<Interval>()?.display_long(),
+                        &term[1..].parse::<Interval>()?.display_long(),
                     )
                 };
-                Ok((suggestion.into(), description.into()))
+                Ok(AutocompleteSuggestion::new(term, summary))
             };
 
             let suggest_all = || {
@@ -119,14 +114,13 @@ impl Autocomplete for TimeCommand {
             };
 
             match input {
-                "+" | "-" => iter::once((
-                    format!("{}[number]", input).into(),
+                "+" | "-" => iter::once(AutocompleteSuggestion::new(
+                    format!("{}[number]", input),
                     if input == "+" {
                         "advance time"
                     } else {
                         "rewind time"
-                    }
-                    .into(),
+                    },
                 ))
                 .chain(suggest_all())
                 .collect(),
@@ -135,8 +129,8 @@ impl Autocomplete for TimeCommand {
         } else if !input.is_empty() {
             ["now", "time", "date"]
                 .into_iter()
-                .filter(|s| s.starts_with_ci(input))
-                .map(|s| (s.into(), "get the current time".into()))
+                .filter(|term| term.starts_with_ci(input))
+                .map(|term| AutocompleteSuggestion::new(term, "get the current time"))
                 .collect()
         } else {
             Vec::new()
@@ -166,37 +160,28 @@ mod test {
         let app_meta = app_meta();
 
         assert_eq!(
-            (
-                Some(TimeCommand::Add {
-                    interval: Interval::new(0, 0, 1, 0, 0),
-                }),
-                Vec::<TimeCommand>::new(),
-            ),
+            CommandMatches::new_canonical(TimeCommand::Add {
+                interval: Interval::new(0, 0, 1, 0, 0),
+            }),
             block_on(TimeCommand::parse_input("+1m", &app_meta)),
         );
 
         assert_eq!(
-            (
-                Some(TimeCommand::Add {
-                    interval: Interval::new(1, 0, 0, 0, 0),
-                }),
-                Vec::<TimeCommand>::new(),
-            ),
+            CommandMatches::new_canonical(TimeCommand::Add {
+                interval: Interval::new(1, 0, 0, 0, 0),
+            }),
             block_on(TimeCommand::parse_input("+d", &app_meta)),
         );
 
         assert_eq!(
-            (
-                Some(TimeCommand::Sub {
-                    interval: Interval::new(0, 10, 0, 0, 0),
-                }),
-                Vec::<TimeCommand>::new(),
-            ),
+            CommandMatches::new_canonical(TimeCommand::Sub {
+                interval: Interval::new(0, 10, 0, 0, 0),
+            }),
             block_on(TimeCommand::parse_input("-10h", &app_meta)),
         );
 
         assert_eq!(
-            (None, Vec::<TimeCommand>::new()),
+            CommandMatches::default(),
             block_on(TimeCommand::parse_input("1d2h", &app_meta)),
         );
     }
@@ -206,7 +191,7 @@ mod test {
         let app_meta = app_meta();
 
         assert_eq!(
-            Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
+            Vec::<AutocompleteSuggestion>::new(),
             block_on(TimeCommand::autocomplete("", &app_meta)),
         );
 
@@ -322,7 +307,7 @@ mod test {
     fn display_test() {
         let app_meta = app_meta();
 
-        vec![
+        [
             TimeCommand::Add {
                 interval: Interval::new(2, 3, 4, 5, 6),
             },
@@ -331,20 +316,20 @@ mod test {
                 interval: Interval::new(2, 3, 4, 5, 6),
             },
         ]
-        .drain(..)
+        .into_iter()
         .for_each(|command| {
             let command_string = command.to_string();
             assert_ne!("", command_string);
 
             assert_eq!(
-                (Some(command.clone()), Vec::new()),
+                CommandMatches::new_canonical(command.clone()),
                 block_on(TimeCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,
             );
 
             assert_eq!(
-                (Some(command), Vec::new()),
+                CommandMatches::new_canonical(command),
                 block_on(TimeCommand::parse_input(
                     &command_string.to_uppercase(),
                     &app_meta

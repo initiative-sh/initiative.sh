@@ -159,14 +159,14 @@ impl From<GroupMapWrapper> for GroupMap {
 }
 
 impl From<GroupMapSerialized> for GroupMapWrapper {
-    fn from(mut value: GroupMapSerialized) -> Self {
-        Self(value.drain(..).map(|(a, b, c)| ((a, b), c)).collect())
+    fn from(value: GroupMapSerialized) -> Self {
+        Self(value.into_iter().map(|(a, b, c)| ((a, b), c)).collect())
     }
 }
 
 impl From<GroupMapWrapper> for GroupMapSerialized {
-    fn from(mut value: GroupMapWrapper) -> Self {
-        value.0.drain().map(|((a, b), c)| (a, b, c)).collect()
+    fn from(value: GroupMapWrapper) -> Self {
+        value.0.into_iter().map(|((a, b), c)| (a, b, c)).collect()
     }
 }
 

@@ -36,8 +36,8 @@ pub fn magic_items() -> Result<Vec<MagicItem>, String> {
     serde_json::from_str(include_str!(
         "../../../data/srd_5e/src/5e-SRD-Magic-Items.json",
     ))
-    .map(|mut v: Vec<MagicItem>| {
-        v.drain(..)
+    .map(|v: Vec<MagicItem>| {
+        v.into_iter()
             .filter(|magic_item| !magic_item.has_variants())
             .collect()
     })

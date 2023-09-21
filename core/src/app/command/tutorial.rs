@@ -1,6 +1,7 @@
 use super::CommandType;
 use crate::app::{
-    AppCommand, AppMeta, Autocomplete, Command, CommandAlias, ContextAwareParse, Runnable,
+    AppCommand, AppMeta, Autocomplete, AutocompleteSuggestion, Command, CommandAlias,
+    CommandMatches, ContextAwareParse, Runnable,
 };
 use crate::reference::{ItemCategory, ReferenceCommand, Spell};
 use crate::storage::{Change, StorageCommand};
@@ -9,7 +10,6 @@ use crate::utils::CaseInsensitiveStr;
 use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
 use crate::world::{ParsedThing, Thing, WorldCommand};
 use async_trait::async_trait;
-use std::borrow::Cow;
 use std::fmt;
 
 /// An enum representing each possible state of the tutorial. The Introduction variant is mapped to
@@ -131,8 +131,8 @@ impl TutorialCommand {
             Self::Introduction | Self::Cancel { .. } | Self::Resume | Self::Restart { .. } => {}
             Self::GeneratingLocations => {
                 app_meta.command_aliases.insert(CommandAlias::literal(
-                    "next".to_string(),
-                    "continue the tutorial".to_string(),
+                    "next",
+                    "continue the tutorial",
                     Self::GeneratingLocations.into(),
                 ));
 
@@ -143,7 +143,7 @@ impl TutorialCommand {
             )),
             Self::GeneratingCharacters { inn_name } => {
                 app_meta.command_aliases.insert(CommandAlias::literal(
-                    "save".to_string(),
+                    "save",
                     format!("save {}", inn_name),
                     StorageCommand::Save {
                         name: inn_name.to_owned(),
@@ -169,7 +169,7 @@ impl TutorialCommand {
                 });
 
                 app_meta.command_aliases.insert(CommandAlias::literal(
-                    "more".to_string(),
+                    "more",
                     format!("create {}", thing.display_description()),
                     WorldCommand::CreateMultiple { thing }.into(),
                 ));
@@ -181,7 +181,7 @@ impl TutorialCommand {
             }
             Self::EditingCharacters { npc_name, .. } => {
                 app_meta.command_aliases.insert(CommandAlias::literal(
-                    "2".to_string(),
+                    "2",
                     format!("load {}", npc_name),
                     StorageCommand::Load {
                         name: npc_name.to_owned(),
@@ -196,7 +196,7 @@ impl TutorialCommand {
             }
             Self::TheJournal { npc_name, .. } => {
                 app_meta.command_aliases.insert(CommandAlias::literal(
-                    "save".to_string(),
+                    "save",
                     format!("save {}", npc_name),
                     StorageCommand::Save {
                         name: npc_name.to_owned(),
@@ -703,14 +703,14 @@ impl Runnable for TutorialCommand {
             };
 
             app_meta.command_aliases.insert(CommandAlias::literal(
-                "resume".to_string(),
-                "return to the tutorial".to_string(),
+                "resume",
+                "return to the tutorial",
                 Self::Resume.into(),
             ));
 
             app_meta.command_aliases.insert(CommandAlias::literal(
-                "restart".to_string(),
-                "restart the tutorial".to_string(),
+                "restart",
+                "restart the tutorial",
                 Self::Restart {
                     inn_name: self.inn_name(),
                     npc_name: self.npc_name(),
@@ -723,8 +723,8 @@ impl Runnable for TutorialCommand {
 
         if let Some(command) = next_command {
             app_meta.command_aliases.insert(CommandAlias::literal(
-                "cancel".to_string(),
-                "cancel the tutorial".to_string(),
+                "cancel",
+                "cancel the tutorial",
                 Self::Cancel {
                     inn_name: command.inn_name(),
                     npc_name: command.npc_name(),
@@ -743,26 +743,23 @@ impl Runnable for TutorialCommand {
 
 #[async_trait(?Send)]
 impl ContextAwareParse for TutorialCommand {
-    async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        (
-            if input.eq_ci("tutorial") {
-                Some(TutorialCommand::Introduction)
-            } else {
-                None
-            },
-            Vec::new(),
-        )
+    async fn parse_input(input: &str, _app_meta: &AppMeta) -> CommandMatches<Self> {
+        if input.eq_ci("tutorial") {
+            CommandMatches::new_canonical(TutorialCommand::Introduction)
+        } else {
+            CommandMatches::default()
+        }
     }
 }
 
 #[async_trait(?Send)]
 impl Autocomplete for TutorialCommand {
-    async fn autocomplete(
-        input: &str,
-        _app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
         if "tutorial".starts_with_ci(input) {
-            vec![("tutorial".into(), "feature walkthrough".into())]
+            vec![AutocompleteSuggestion::new(
+                "tutorial",
+                "feature walkthrough",
+            )]
         } else {
             Vec::new()
         }

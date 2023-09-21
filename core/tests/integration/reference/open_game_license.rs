@@ -1,4 +1,5 @@
 use crate::common::sync_app;
+use initiative_core::app::AutocompleteSuggestion;
 
 #[test]
 fn open_game_license() {
@@ -12,7 +13,10 @@ fn open_game_license() {
     );
 
     assert_eq!(
-        vec![("Open Game License".into(), "SRD license".into())],
+        vec![AutocompleteSuggestion::new(
+            "Open Game License",
+            "SRD license",
+        )],
         sync_app().autocomplete("open game license"),
     );
 }

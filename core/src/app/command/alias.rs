@@ -1,4 +1,6 @@
-use super::{Autocomplete, Command, ContextAwareParse, Runnable};
+use super::{
+    Autocomplete, AutocompleteSuggestion, Command, CommandMatches, ContextAwareParse, Runnable,
+};
 use crate::app::AppMeta;
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
@@ -10,8 +12,8 @@ use std::mem;
 #[derive(Clone, Debug)]
 pub enum CommandAlias {
     Literal {
-        term: String,
-        summary: String,
+        term: Cow<'static, str>,
+        summary: Cow<'static, str>,
         command: Box<Command>,
     },
     StrictWildcard {
@@ -20,10 +22,14 @@ pub enum CommandAlias {
 }
 
 impl CommandAlias {
-    pub fn literal(term: String, summary: String, command: Command) -> Self {
+    pub fn literal(
+        term: impl Into<Cow<'static, str>>,
+        summary: impl Into<Cow<'static, str>>,
+        command: Command,
+    ) -> Self {
         Self::Literal {
-            term,
-            summary,
+            term: term.into(),
+            summary: summary.into(),
             command: Box::new(command),
         }
     }
@@ -109,40 +115,39 @@ impl Runnable for CommandAlias {
 
 #[async_trait(?Send)]
 impl ContextAwareParse for CommandAlias {
-    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        (
-            app_meta
-                .command_aliases
-                .iter()
-                .find(|c| matches!(c, Self::StrictWildcard { .. }))
-                .or_else(|| {
-                    app_meta
-                        .command_aliases
-                        .iter()
-                        .find(|command| match command {
-                            Self::Literal { term, .. } => term.eq_ci(input),
-                            Self::StrictWildcard { .. } => false,
-                        })
-                })
-                .cloned(),
-            Vec::new(),
-        )
+    async fn parse_input(input: &str, app_meta: &AppMeta) -> CommandMatches<Self> {
+        app_meta
+            .command_aliases
+            .iter()
+            .find(|c| matches!(c, Self::StrictWildcard { .. }))
+            .or_else(|| {
+                app_meta
+                    .command_aliases
+                    .iter()
+                    .find(|command| match command {
+                        Self::Literal { term, .. } => term.eq_ci(input),
+                        Self::StrictWildcard { .. } => false,
+                    })
+            })
+            .cloned()
+            .map(CommandMatches::from)
+            .unwrap_or_default()
     }
 }
 
 #[async_trait(?Send)]
 impl Autocomplete for CommandAlias {
-    async fn autocomplete(
-        input: &str,
-        app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
         app_meta
             .command_aliases
             .iter()
             .filter_map(|command| match command {
                 Self::Literal { term, summary, .. } => {
                     if term.starts_with_ci(input) {
-                        Some((term.clone().into(), summary.clone().into()))
+                        Some(AutocompleteSuggestion::new(
+                            term.to_string(),
+                            summary.to_string(),
+                        ))
                     } else {
                         None
                     }
@@ -263,17 +268,14 @@ mod tests {
         );
 
         assert_eq!(
-            (None, Vec::new()),
+            CommandMatches::default(),
             block_on(CommandAlias::parse_input("blah", &app_meta)),
         );
 
-        {
-            let (parsed_exact, parsed_fuzzy) =
-                block_on(CommandAlias::parse_input("about alias", &app_meta));
-
-            assert!(parsed_fuzzy.is_empty(), "{:?}", parsed_fuzzy);
-            assert_eq!(about_alias, parsed_exact.unwrap());
-        }
+        assert_eq!(
+            CommandMatches::new_canonical(about_alias.clone()),
+            block_on(CommandAlias::parse_input("about alias", &app_meta)),
+        );
 
         {
             let (about_result, about_alias_result) = (
@@ -300,14 +302,11 @@ mod tests {
             AppCommand::Help.into(),
         ));
 
-        {
-            // Should be caught by the wildcard, not the literal alias
-            let (parsed_exact, parsed_fuzzy) =
-                block_on(CommandAlias::parse_input("literal alias", &app_meta));
-
-            assert!(parsed_fuzzy.is_empty(), "{:?}", parsed_fuzzy);
-            assert_eq!(about_alias, parsed_exact.unwrap());
-        }
+        // Should be caught by the wildcard, not the literal alias
+        assert_eq!(
+            CommandMatches::new_canonical(about_alias.clone()),
+            block_on(CommandAlias::parse_input("literal alias", &app_meta)),
+        );
 
         {
             assert_eq!(2, app_meta.command_aliases.len());
@@ -329,10 +328,14 @@ mod tests {
         AppMeta::new(NullDataStore::default(), &event_dispatcher)
     }
 
-    fn literal(term: &str, summary: &str, command: Command) -> CommandAlias {
+    fn literal(
+        term: impl Into<Cow<'static, str>>,
+        summary: impl Into<Cow<'static, str>>,
+        command: Command,
+    ) -> CommandAlias {
         CommandAlias::Literal {
-            term: term.to_string(),
-            summary: summary.to_string(),
+            term: term.into(),
+            summary: summary.into(),
             command: Box::new(command),
         }
     }

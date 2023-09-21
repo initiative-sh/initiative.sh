@@ -33,7 +33,7 @@ jobs:
           `changelog` command, and broadcast to Discord upon release.
 
           This reminder can be ignored for changes with no user-facing impact, such as
-          dependency updates and refactors. Or not! It's up to you, really.' >&2
+          dependency updates and refactors. Or not! It'"'"'s up to you, really.' >&2
 
             exit 1
           fi

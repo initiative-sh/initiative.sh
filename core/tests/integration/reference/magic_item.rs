@@ -1,4 +1,5 @@
 use crate::common::sync_app;
+use initiative_core::app::AutocompleteSuggestion;
 
 #[test]
 fn rod_of_rulership() {
@@ -24,7 +25,10 @@ You can use an action to present the rod and command obedience from each creatur
     );
 
     assert_eq!(
-        vec![("Rod of Rulership".into(), "SRD magic item".into())],
+        vec![AutocompleteSuggestion::new(
+            "Rod of Rulership",
+            "SRD magic item",
+        )],
         sync_app().autocomplete("rod of rulership"),
     );
 }

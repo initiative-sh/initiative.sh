@@ -1,9 +1,10 @@
 use super::{Condition, Item, ItemCategory, MagicItem, Spell, Trait};
-use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
+use crate::app::{
+    AppMeta, Autocomplete, AutocompleteSuggestion, CommandMatches, ContextAwareParse, Runnable,
+};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use caith::Roller;
-use std::borrow::Cow;
 use std::fmt;
 use std::iter::repeat;
 
@@ -47,84 +48,74 @@ impl Runnable for ReferenceCommand {
 
 #[async_trait(?Send)]
 impl ContextAwareParse for ReferenceCommand {
-    async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let exact_match = if input.eq_ci("Open Game License") {
-            Some(Self::OpenGameLicense)
+    async fn parse_input(input: &str, _app_meta: &AppMeta) -> CommandMatches<Self> {
+        let mut matches = if input.eq_ci("Open Game License") {
+            CommandMatches::new_canonical(Self::OpenGameLicense)
         } else if input.eq_ci("srd spells") {
-            Some(Self::Spells)
+            CommandMatches::new_canonical(Self::Spells)
+        } else if let Some(condition) = input
+            .strip_prefix_ci("srd condition ")
+            .and_then(|s| s.parse().ok())
+        {
+            CommandMatches::new_canonical(Self::Condition(condition))
+        } else if let Some(item_category) = input
+            .strip_prefix_ci("srd item category ")
+            .and_then(|s| s.parse().ok())
+        {
+            CommandMatches::new_canonical(Self::ItemCategory(item_category))
+        } else if let Some(item) = input
+            .strip_prefix_ci("srd item ")
+            .and_then(|s| s.parse().ok())
+        {
+            CommandMatches::new_canonical(Self::Item(item))
+        } else if let Some(magic_item) = input
+            .strip_prefix_ci("srd magic item ")
+            .and_then(|s| s.parse().ok())
+        {
+            CommandMatches::new_canonical(Self::MagicItem(magic_item))
+        } else if let Some(spell) = input
+            .strip_prefix_ci("srd spell ")
+            .and_then(|s| s.parse().ok())
+        {
+            CommandMatches::new_canonical(Self::Spell(spell))
+        } else if let Some(character_trait) = input
+            .strip_prefix_ci("srd trait ")
+            .and_then(|s| s.parse().ok())
+        {
+            CommandMatches::new_canonical(Self::Trait(character_trait))
         } else {
-            None.or_else(|| {
-                input
-                    .strip_prefix_ci("srd condition ")
-                    .and_then(|s| s.parse().ok())
-                    .map(Self::Condition)
-            })
-            .or_else(|| {
-                input
-                    .strip_prefix_ci("srd item ")
-                    .and_then(|s| s.parse().ok())
-                    .map(Self::Item)
-            })
-            .or_else(|| {
-                input
-                    .strip_prefix_ci("srd item category ")
-                    .and_then(|s| s.parse().ok())
-                    .map(Self::ItemCategory)
-            })
-            .or_else(|| {
-                input
-                    .strip_prefix_ci("srd magic item ")
-                    .and_then(|s| s.parse().ok())
-                    .map(Self::MagicItem)
-            })
-            .or_else(|| {
-                input
-                    .strip_prefix_ci("srd spell ")
-                    .and_then(|s| s.parse().ok())
-                    .map(Self::Spell)
-            })
-            .or_else(|| {
-                input
-                    .strip_prefix_ci("srd trait ")
-                    .and_then(|s| s.parse().ok())
-                    .map(Self::Trait)
-            })
+            CommandMatches::default()
         };
 
-        let mut fuzzy_matches = Vec::new();
-
         if let Ok(condition) = input.parse() {
-            fuzzy_matches.push(Self::Condition(condition));
+            matches.push_fuzzy(Self::Condition(condition));
         }
         if let Ok(item) = input.parse() {
-            fuzzy_matches.push(Self::Item(item));
+            matches.push_fuzzy(Self::Item(item));
         }
         if let Ok(category) = input.parse() {
-            fuzzy_matches.push(Self::ItemCategory(category));
+            matches.push_fuzzy(Self::ItemCategory(category));
         }
         if let Ok(magic_item) = input.parse() {
-            fuzzy_matches.push(Self::MagicItem(magic_item));
+            matches.push_fuzzy(Self::MagicItem(magic_item));
         }
         if let Ok(spell) = input.parse() {
-            fuzzy_matches.push(Self::Spell(spell));
+            matches.push_fuzzy(Self::Spell(spell));
         }
-        if let Ok(t) = input.parse() {
-            fuzzy_matches.push(Self::Trait(t));
+        if let Ok(character_trait) = input.parse() {
+            matches.push_fuzzy(Self::Trait(character_trait));
         }
-        if input == "spells" {
-            fuzzy_matches.push(Self::Spells);
+        if input.eq_ci("spells") {
+            matches.push_fuzzy(Self::Spells);
         }
 
-        (exact_match, fuzzy_matches)
+        matches
     }
 }
 
 #[async_trait(?Send)]
 impl Autocomplete for ReferenceCommand {
-    async fn autocomplete(
-        input: &str,
-        _app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
         [
             ("Open Game License", "SRD license"),
             ("spells", "SRD index"),
@@ -136,9 +127,9 @@ impl Autocomplete for ReferenceCommand {
         .chain(ItemCategory::get_words().zip(repeat("SRD item category")))
         .chain(MagicItem::get_words().zip(repeat("SRD magic item")))
         .chain(Trait::get_words().zip(repeat("SRD trait")))
-        .filter(|(s, _)| s.starts_with_ci(input))
+        .filter(|(term, _)| term.starts_with_ci(input))
         .take(10)
-        .map(|(a, b)| (a.into(), b.into()))
+        .map(|(term, summary)| AutocompleteSuggestion::new(term, summary))
         .collect()
     }
 }
@@ -228,7 +219,7 @@ mod test {
     fn display_test() {
         let app_meta = app_meta();
 
-        vec![
+        [
             ReferenceCommand::Spell(Spell::Shield),
             ReferenceCommand::Spells,
             ReferenceCommand::Item(Item::Shield),
@@ -236,20 +227,20 @@ mod test {
             ReferenceCommand::MagicItem(MagicItem::DeckOfManyThings),
             ReferenceCommand::OpenGameLicense,
         ]
-        .drain(..)
+        .into_iter()
         .for_each(|command| {
             let command_string = command.to_string();
             assert_ne!("", command_string);
 
             assert_eq!(
-                (Some(command.clone()), Vec::new()),
+                CommandMatches::new_canonical(command.clone()),
                 block_on(ReferenceCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,
             );
 
             assert_eq!(
-                (Some(command), Vec::new()),
+                CommandMatches::new_canonical(command),
                 block_on(ReferenceCommand::parse_input(
                     &command_string.to_uppercase(),
                     &app_meta,

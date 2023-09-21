@@ -1,9 +1,10 @@
-use crate::app::{AppMeta, Autocomplete, ContextAwareParse, Runnable};
+use crate::app::{
+    AppMeta, Autocomplete, AutocompleteSuggestion, CommandMatches, ContextAwareParse, Runnable,
+};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use caith::Roller;
 use initiative_macros::changelog;
-use std::borrow::Cow;
 use std::fmt;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -53,57 +54,47 @@ impl Runnable for AppCommand {
 
 #[async_trait(?Send)]
 impl ContextAwareParse for AppCommand {
-    async fn parse_input(input: &str, _app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut fuzzy_matches = Vec::new();
-
-        (
-            if input.eq_ci("about") {
-                Some(Self::About)
-            } else if input.eq_ci("changelog") {
-                Some(Self::Changelog)
-            } else if input.eq_ci("debug") {
-                Some(Self::Debug)
-            } else if input.eq_ci("help") {
-                Some(Self::Help)
-            } else if input.starts_with_ci("roll ") {
-                Some(Self::Roll(input[5..].to_string()))
-            } else if !input.chars().all(|c| c.is_ascii_digit())
-                && Roller::new(input).map_or(false, |r| r.roll().is_ok())
-            {
-                fuzzy_matches.push(Self::Roll(input.to_string()));
-                None
-            } else {
-                None
-            },
-            fuzzy_matches,
-        )
+    async fn parse_input(input: &str, _app_meta: &AppMeta) -> CommandMatches<Self> {
+        if input.eq_ci("about") {
+            CommandMatches::new_canonical(Self::About)
+        } else if input.eq_ci("changelog") {
+            CommandMatches::new_canonical(Self::Changelog)
+        } else if input.eq_ci("debug") {
+            CommandMatches::new_canonical(Self::Debug)
+        } else if input.eq_ci("help") {
+            CommandMatches::new_canonical(Self::Help)
+        } else if input.starts_with_ci("roll ") {
+            CommandMatches::new_canonical(Self::Roll(input[5..].to_string()))
+        } else if !input.chars().all(|c| c.is_ascii_digit())
+            && Roller::new(input).map_or(false, |r| r.roll().is_ok())
+        {
+            CommandMatches::new_fuzzy(Self::Roll(input.to_string()))
+        } else {
+            CommandMatches::default()
+        }
     }
 }
 
 #[async_trait(?Send)]
 impl Autocomplete for AppCommand {
-    async fn autocomplete(
-        input: &str,
-        _app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
         if input.is_empty() {
             return Vec::new();
         }
 
         [
-            ("about", "about initiative.sh"),
-            ("changelog", "show latest updates"),
-            ("help", "how to use initiative.sh"),
+            AutocompleteSuggestion::new("about", "about initiative.sh"),
+            AutocompleteSuggestion::new("changelog", "show latest updates"),
+            AutocompleteSuggestion::new("help", "how to use initiative.sh"),
         ]
         .into_iter()
-        .filter(|(s, _)| s.starts_with_ci(input))
+        .filter(|suggestion| suggestion.term.starts_with_ci(input))
         .chain(
             ["roll"]
                 .into_iter()
                 .filter(|s| s.starts_with_ci(input))
-                .map(|_| ("roll [dice]", "roll eg. 8d6 or d20+3")),
+                .map(|_| AutocompleteSuggestion::new("roll [dice]", "roll eg. 8d6 or d20+3")),
         )
-        .map(|(a, b)| (a.into(), b.into()))
         .collect()
     }
 }
@@ -133,25 +124,22 @@ mod test {
         let app_meta = app_meta();
 
         assert_eq!(
-            (Some(AppCommand::Debug), Vec::<AppCommand>::new()),
+            CommandMatches::new_canonical(AppCommand::Debug),
             block_on(AppCommand::parse_input("debug", &app_meta)),
         );
 
         assert_eq!(
-            (
-                Some(AppCommand::Roll("d20".to_string())),
-                Vec::<AppCommand>::new(),
-            ),
+            CommandMatches::new_canonical(AppCommand::Roll("d20".to_string())),
             block_on(AppCommand::parse_input("roll d20", &app_meta)),
         );
 
         assert_eq!(
-            (None, vec![AppCommand::Roll("d20".to_string())]),
+            CommandMatches::new_fuzzy(AppCommand::Roll("d20".to_string())),
             block_on(AppCommand::parse_input("d20", &app_meta)),
         );
 
         assert_eq!(
-            (None, Vec::<AppCommand>::new()),
+            CommandMatches::default(),
             block_on(AppCommand::parse_input("potato", &app_meta)),
         );
     }
@@ -166,15 +154,15 @@ mod test {
             ("help", "how to use initiative.sh"),
         ]
         .into_iter()
-        .for_each(|(word, summary)| {
+        .for_each(|(term, summary)| {
             assert_eq!(
-                vec![(word.into(), summary.into())],
-                block_on(AppCommand::autocomplete(word, &app_meta)),
+                vec![AutocompleteSuggestion::new(term, summary)],
+                block_on(AppCommand::autocomplete(term, &app_meta)),
             );
 
             assert_eq!(
-                block_on(AppCommand::autocomplete(word, &app_meta)),
-                block_on(AppCommand::autocomplete(&word.to_uppercase(), &app_meta)),
+                block_on(AppCommand::autocomplete(term, &app_meta)),
+                block_on(AppCommand::autocomplete(&term.to_uppercase(), &app_meta)),
             );
         });
 
@@ -195,7 +183,7 @@ mod test {
 
         // Debug should be excluded from the autocomplete results.
         assert_eq!(
-            Vec::<(Cow<'static, str>, Cow<'static, str>)>::new(),
+            Vec::<AutocompleteSuggestion>::new(),
             block_on(AppCommand::autocomplete("debug", &app_meta)),
         );
     }
@@ -204,26 +192,26 @@ mod test {
     fn display_test() {
         let app_meta = app_meta();
 
-        vec![
+        [
             AppCommand::About,
             AppCommand::Changelog,
             AppCommand::Debug,
             AppCommand::Help,
         ]
-        .drain(..)
+        .into_iter()
         .for_each(|command| {
             let command_string = command.to_string();
             assert_ne!("", command_string);
 
             assert_eq!(
-                (Some(command.clone()), Vec::new()),
+                CommandMatches::new_canonical(command.clone()),
                 block_on(AppCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,
             );
 
             assert_eq!(
-                (Some(command), Vec::new()),
+                CommandMatches::new_canonical(command),
                 block_on(AppCommand::parse_input(
                     &command_string.to_uppercase(),
                     &app_meta
@@ -236,12 +224,12 @@ mod test {
         assert_eq!("roll d20", AppCommand::Roll("d20".to_string()).to_string());
 
         assert_eq!(
-            (Some(AppCommand::Roll("d20".to_string())), Vec::new()),
+            CommandMatches::new_canonical(AppCommand::Roll("d20".to_string())),
             block_on(AppCommand::parse_input("roll d20", &app_meta)),
         );
 
         assert_eq!(
-            (Some(AppCommand::Roll("D20".to_string())), Vec::new()),
+            CommandMatches::new_canonical(AppCommand::Roll("D20".to_string())),
             block_on(AppCommand::parse_input("ROLL D20", &app_meta)),
         );
     }

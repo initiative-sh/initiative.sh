@@ -52,7 +52,7 @@ pub async fn import(
 ) -> Result<ImportStats, RepositoryError> {
     let mut stats = ImportStats::default();
 
-    for thing in data.things.drain(..) {
+    for thing in data.things.into_iter() {
         match (
             match thing {
                 Thing::Npc(_) => &mut stats.npc_stats,

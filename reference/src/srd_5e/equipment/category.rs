@@ -170,7 +170,7 @@ impl<'a> fmt::Display for MagicItemListView<'a> {
         magic_items.sort_by_key(|item| &item.name);
 
         magic_items
-            .drain(..)
+            .into_iter()
             .try_for_each(|item| write!(f, "\n* {}", item.display_summary()))?;
 
         Ok(())

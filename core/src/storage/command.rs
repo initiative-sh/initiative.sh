@@ -1,11 +1,13 @@
 use super::backup::export;
 use super::{Change, RepositoryError};
-use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Event, Runnable};
+use crate::app::{
+    AppMeta, Autocomplete, AutocompleteSuggestion, CommandAlias, CommandMatches, ContextAwareParse,
+    Event, Runnable,
+};
 use crate::utils::CaseInsensitiveStr;
 use crate::world::Thing;
 use async_trait::async_trait;
 use futures::join;
-use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 use std::iter::repeat;
@@ -35,7 +37,7 @@ impl Runnable for StorageCommand {
                     .journal()
                     .await
                     .map_err(|_| "Couldn't access the journal.".to_string())?
-                    .drain(..)
+                    .into_iter()
                     .map(|thing| match thing {
                         Thing::Npc(_) => npcs.push(thing),
                         Thing::Place(_) => places.push(thing),
@@ -56,7 +58,7 @@ impl Runnable for StorageCommand {
                             }
                         });
 
-                        things.drain(..).enumerate().for_each(|(i, thing)| {
+                        things.into_iter().enumerate().for_each(|(i, thing)| {
                             if i > 0 {
                                 output.push('\\');
                             }
@@ -141,7 +143,7 @@ impl Runnable for StorageCommand {
                 let output = if let Ok(thing) = thing {
                     if thing.uuid().is_none() {
                         save_command = Some(CommandAlias::literal(
-                            "save".to_string(),
+                            "save",
                             format!("save {}", name),
                             StorageCommand::Save { name }.into(),
                         ));
@@ -222,53 +224,47 @@ impl Runnable for StorageCommand {
 
 #[async_trait(?Send)]
 impl ContextAwareParse for StorageCommand {
-    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut fuzzy_matches = Vec::new();
+    async fn parse_input(input: &str, app_meta: &AppMeta) -> CommandMatches<Self> {
+        let mut matches = CommandMatches::default();
 
         if app_meta.repository.get_by_name(input).await.is_ok() {
-            fuzzy_matches.push(Self::Load {
+            matches.push_fuzzy(Self::Load {
                 name: input.to_string(),
             });
         }
 
-        (
-            if let Some(name) = input.strip_prefix_ci("delete ") {
-                Some(Self::Delete {
-                    name: name.to_string(),
-                })
-            } else if let Some(name) = input.strip_prefix_ci("load ") {
-                Some(Self::Load {
-                    name: name.to_string(),
-                })
-            } else if let Some(name) = input.strip_prefix_ci("save ") {
-                Some(Self::Save {
-                    name: name.to_string(),
-                })
-            } else if input.eq_ci("journal") {
-                Some(Self::Journal)
-            } else if input.eq_ci("undo") {
-                Some(Self::Undo)
-            } else if input.eq_ci("redo") {
-                Some(Self::Redo)
-            } else if input.eq_ci("export") {
-                Some(Self::Export)
-            } else if input.eq_ci("import") {
-                Some(Self::Import)
-            } else {
-                None
-            },
-            fuzzy_matches,
-        )
+        if let Some(name) = input.strip_prefix_ci("delete ") {
+            matches.push_canonical(Self::Delete {
+                name: name.to_string(),
+            });
+        } else if let Some(name) = input.strip_prefix_ci("load ") {
+            matches.push_canonical(Self::Load {
+                name: name.to_string(),
+            });
+        } else if let Some(name) = input.strip_prefix_ci("save ") {
+            matches.push_canonical(Self::Save {
+                name: name.to_string(),
+            });
+        } else if input.eq_ci("journal") {
+            matches.push_canonical(Self::Journal);
+        } else if input.eq_ci("undo") {
+            matches.push_canonical(Self::Undo);
+        } else if input.eq_ci("redo") {
+            matches.push_canonical(Self::Redo);
+        } else if input.eq_ci("export") {
+            matches.push_canonical(Self::Export);
+        } else if input.eq_ci("import") {
+            matches.push_canonical(Self::Import);
+        }
+
+        matches
     }
 }
 
 #[async_trait(?Send)]
 impl Autocomplete for StorageCommand {
-    async fn autocomplete(
-        input: &str,
-        app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-        let mut suggestions: Vec<(Cow<'static, str>, Cow<'static, str>)> = [
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
+        let mut suggestions: Vec<AutocompleteSuggestion> = [
             ("delete", "delete [name]", "remove an entry from journal"),
             ("export", "export", "export the journal contents"),
             ("import", "import", "import a journal backup"),
@@ -278,33 +274,29 @@ impl Autocomplete for StorageCommand {
         ]
         .into_iter()
         .filter(|(s, _, _)| s.starts_with_ci(input))
-        .map(|(_, b, c)| (b.into(), c.into()))
+        .map(|(_, term, summary)| AutocompleteSuggestion::new(term, summary))
         .chain(
             ["undo"]
                 .into_iter()
-                .filter(|s| s.starts_with_ci(input))
-                .map(|s| {
-                    (
-                        s.into(),
-                        app_meta.repository.undo_history().next().map_or_else(
-                            || "Nothing to undo.".into(),
-                            |change| format!("undo {}", change.display_undo()).into(),
-                        ),
-                    )
+                .filter(|term| term.starts_with_ci(input))
+                .map(|term| {
+                    if let Some(change) = app_meta.repository.undo_history().next() {
+                        AutocompleteSuggestion::new(term, format!("undo {}", change.display_undo()))
+                    } else {
+                        AutocompleteSuggestion::new(term, "Nothing to undo.")
+                    }
                 }),
         )
         .chain(
             ["redo"]
                 .into_iter()
-                .filter(|s| s.starts_with_ci(input))
-                .map(|s| {
-                    (
-                        s.into(),
-                        app_meta.repository.get_redo().map_or_else(
-                            || "Nothing to redo.".into(),
-                            |change| format!("redo {}", change.display_redo()).into(),
-                        ),
-                    )
+                .filter(|term| term.starts_with_ci(input))
+                .map(|term| {
+                    if let Some(change) = app_meta.repository.get_redo() {
+                        AutocompleteSuggestion::new(term, format!("redo {}", change.display_redo()))
+                    } else {
+                        AutocompleteSuggestion::new(term, "Nothing to redo.")
+                    }
                 }),
         )
         .collect();
@@ -349,12 +341,12 @@ impl Autocomplete for StorageCommand {
                 continue;
             }
 
-            let suggestion = format!("{}{}", prefix, thing.name());
-            let (exact_match, mut fuzzy_matches) = Self::parse_input(&suggestion, app_meta).await;
+            let suggestion_term = format!("{}{}", prefix, thing.name());
+            let matches = Self::parse_input(&suggestion_term, app_meta).await;
 
-            if let Some(command) = exact_match.or_else(|| fuzzy_matches.drain(..).next()) {
-                suggestions.push((
-                    suggestion.into(),
+            if let Some(command) = matches.take_best_match() {
+                suggestions.push(AutocompleteSuggestion::new(
+                    suggestion_term,
                     match command {
                         Self::Delete { .. } => format!("remove {} from journal", thing.as_str()),
                         Self::Save { .. } => format!("save {} to journal", thing.as_str()),
@@ -366,8 +358,7 @@ impl Autocomplete for StorageCommand {
                             }
                         }
                         _ => unreachable!(),
-                    }
-                    .into(),
+                    },
                 ))
             }
         }
@@ -406,17 +397,14 @@ mod test {
         let app_meta = app_meta();
 
         assert_eq!(
-            (Option::<StorageCommand>::None, Vec::new()),
+            CommandMatches::default(),
             block_on(StorageCommand::parse_input("Gandalf the Grey", &app_meta)),
         );
 
         assert_eq!(
-            (
-                Some(StorageCommand::Delete {
-                    name: "Gandalf the Grey".to_string(),
-                }),
-                Vec::new(),
-            ),
+            CommandMatches::new_canonical(StorageCommand::Delete {
+                name: "Gandalf the Grey".to_string(),
+            }),
             block_on(StorageCommand::parse_input(
                 "delete Gandalf the Grey",
                 &app_meta
@@ -435,12 +423,9 @@ mod test {
         );
 
         assert_eq!(
-            (
-                Some(StorageCommand::Save {
-                    name: "Gandalf the Grey".to_string(),
-                }),
-                Vec::new(),
-            ),
+            CommandMatches::new_canonical(StorageCommand::Save {
+                name: "Gandalf the Grey".to_string(),
+            }),
             block_on(StorageCommand::parse_input(
                 "save Gandalf the Grey",
                 &app_meta
@@ -459,12 +444,9 @@ mod test {
         );
 
         assert_eq!(
-            (
-                Some(StorageCommand::Load {
-                    name: "Gandalf the Grey".to_string()
-                }),
-                Vec::new(),
-            ),
+            CommandMatches::new_canonical(StorageCommand::Load {
+                name: "Gandalf the Grey".to_string()
+            }),
             block_on(StorageCommand::parse_input(
                 "load Gandalf the Grey",
                 &app_meta
@@ -483,17 +465,17 @@ mod test {
         );
 
         assert_eq!(
-            (Some(StorageCommand::Journal), Vec::new()),
+            CommandMatches::new_canonical(StorageCommand::Journal),
             block_on(StorageCommand::parse_input("journal", &app_meta)),
         );
 
         assert_eq!(
-            (Some(StorageCommand::Journal), Vec::new()),
+            CommandMatches::new_canonical(StorageCommand::Journal),
             block_on(StorageCommand::parse_input("JOURNAL", &app_meta)),
         );
 
         assert_eq!(
-            (None, Vec::<StorageCommand>::new()),
+            CommandMatches::default(),
             block_on(StorageCommand::parse_input("potato", &app_meta)),
         );
     }
@@ -683,7 +665,7 @@ mod test {
     fn display_test() {
         let app_meta = app_meta();
 
-        vec![
+        [
             StorageCommand::Delete {
                 name: "Potato Johnson".to_string(),
             },
@@ -697,12 +679,12 @@ mod test {
                 name: "Potato Johnson".to_string(),
             },
         ]
-        .drain(..)
+        .into_iter()
         .for_each(|command| {
             let command_string = command.to_string();
             assert_ne!("", command_string);
             assert_eq!(
-                (Some(command), Vec::new()),
+                CommandMatches::new_canonical(command),
                 block_on(StorageCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,
