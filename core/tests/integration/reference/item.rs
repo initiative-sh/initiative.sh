@@ -1,4 +1,5 @@
 use crate::common::sync_app;
+use initiative_core::app::AutocompleteSuggestion;
 
 #[test]
 fn light_crossbow() {
@@ -25,7 +26,7 @@ fn light_crossbow() {
     );
 
     assert_eq!(
-        vec![("Light Crossbow".into(), "SRD item".into())],
+        vec![AutocompleteSuggestion::new("Light Crossbow", "SRD item")],
         sync_app().autocomplete("light crossbow"),
     );
 }

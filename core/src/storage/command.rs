@@ -1,13 +1,13 @@
 use super::backup::export;
 use super::{Change, RepositoryError};
 use crate::app::{
-    AppMeta, Autocomplete, CommandAlias, CommandMatches, ContextAwareParse, Event, Runnable,
+    AppMeta, Autocomplete, AutocompleteSuggestion, CommandAlias, CommandMatches, ContextAwareParse,
+    Event, Runnable,
 };
 use crate::utils::CaseInsensitiveStr;
 use crate::world::Thing;
 use async_trait::async_trait;
 use futures::join;
-use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 use std::iter::repeat;
@@ -263,11 +263,8 @@ impl ContextAwareParse for StorageCommand {
 
 #[async_trait(?Send)]
 impl Autocomplete for StorageCommand {
-    async fn autocomplete(
-        input: &str,
-        app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-        let mut suggestions: Vec<(Cow<'static, str>, Cow<'static, str>)> = [
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
+        let mut suggestions: Vec<AutocompleteSuggestion> = [
             ("delete", "delete [name]", "remove an entry from journal"),
             ("export", "export", "export the journal contents"),
             ("import", "import", "import a journal backup"),
@@ -277,33 +274,29 @@ impl Autocomplete for StorageCommand {
         ]
         .into_iter()
         .filter(|(s, _, _)| s.starts_with_ci(input))
-        .map(|(_, b, c)| (b.into(), c.into()))
+        .map(|(_, term, summary)| AutocompleteSuggestion::new(term, summary))
         .chain(
             ["undo"]
                 .into_iter()
-                .filter(|s| s.starts_with_ci(input))
-                .map(|s| {
-                    (
-                        s.into(),
-                        app_meta.repository.undo_history().next().map_or_else(
-                            || "Nothing to undo.".into(),
-                            |change| format!("undo {}", change.display_undo()).into(),
-                        ),
-                    )
+                .filter(|term| term.starts_with_ci(input))
+                .map(|term| {
+                    if let Some(change) = app_meta.repository.undo_history().next() {
+                        AutocompleteSuggestion::new(term, format!("undo {}", change.display_undo()))
+                    } else {
+                        AutocompleteSuggestion::new(term, "Nothing to undo.")
+                    }
                 }),
         )
         .chain(
             ["redo"]
                 .into_iter()
-                .filter(|s| s.starts_with_ci(input))
-                .map(|s| {
-                    (
-                        s.into(),
-                        app_meta.repository.get_redo().map_or_else(
-                            || "Nothing to redo.".into(),
-                            |change| format!("redo {}", change.display_redo()).into(),
-                        ),
-                    )
+                .filter(|term| term.starts_with_ci(input))
+                .map(|term| {
+                    if let Some(change) = app_meta.repository.get_redo() {
+                        AutocompleteSuggestion::new(term, format!("redo {}", change.display_redo()))
+                    } else {
+                        AutocompleteSuggestion::new(term, "Nothing to redo.")
+                    }
                 }),
         )
         .collect();
@@ -348,12 +341,12 @@ impl Autocomplete for StorageCommand {
                 continue;
             }
 
-            let suggestion = format!("{}{}", prefix, thing.name());
-            let matches = Self::parse_input(&suggestion, app_meta).await;
+            let suggestion_term = format!("{}{}", prefix, thing.name());
+            let matches = Self::parse_input(&suggestion_term, app_meta).await;
 
             if let Some(command) = matches.take_best_match() {
-                suggestions.push((
-                    suggestion.into(),
+                suggestions.push(AutocompleteSuggestion::new(
+                    suggestion_term,
                     match command {
                         Self::Delete { .. } => format!("remove {} from journal", thing.as_str()),
                         Self::Save { .. } => format!("save {} to journal", thing.as_str()),
@@ -365,8 +358,7 @@ impl Autocomplete for StorageCommand {
                             }
                         }
                         _ => unreachable!(),
-                    }
-                    .into(),
+                    },
                 ))
             }
         }

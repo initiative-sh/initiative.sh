@@ -1,6 +1,8 @@
 pub use alias::CommandAlias;
 pub use app::AppCommand;
-pub use runnable::{Autocomplete, CommandMatches, ContextAwareParse, Runnable};
+pub use runnable::{
+    Autocomplete, AutocompleteSuggestion, CommandMatches, ContextAwareParse, Runnable,
+};
 pub use tutorial::TutorialCommand;
 
 #[cfg(test)]
@@ -18,7 +20,6 @@ use crate::time::TimeCommand;
 use crate::world::WorldCommand;
 use async_trait::async_trait;
 use futures::join;
-use std::borrow::Cow;
 use std::fmt;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -155,10 +156,7 @@ impl ContextAwareParse for Command {
 
 #[async_trait(?Send)]
 impl Autocomplete for Command {
-    async fn autocomplete(
-        input: &str,
-        app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
         let results = join!(
             CommandAlias::autocomplete(input, app_meta),
             AppCommand::autocomplete(input, app_meta),

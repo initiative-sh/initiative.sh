@@ -1,5 +1,6 @@
 pub use command::{
-    AppCommand, Autocomplete, Command, CommandAlias, CommandMatches, ContextAwareParse, Runnable,
+    AppCommand, Autocomplete, AutocompleteSuggestion, Command, CommandAlias, CommandMatches,
+    ContextAwareParse, Runnable,
 };
 pub use meta::AppMeta;
 
@@ -12,7 +13,6 @@ mod meta;
 use crate::storage::backup::{import, BackupData};
 use crate::utils::CaseInsensitiveStr;
 use initiative_macros::motd;
-use std::borrow::Cow;
 
 /// The application wrapper. Its inner [`AppMeta`] object holds metadata associated with the
 /// application, including ephemeral storage of journal entries and the object representing the
@@ -71,9 +71,9 @@ impl App {
     /// case.
     ///
     /// Returns a maximum of 10 results.
-    pub async fn autocomplete(&self, input: &str) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    pub async fn autocomplete(&self, input: &str) -> Vec<AutocompleteSuggestion> {
         let mut suggestions: Vec<_> = Command::autocomplete(input, &self.meta).await;
-        suggestions.sort_by(|(a, _), (b, _)| a.cmp_ci(b));
+        suggestions.sort_by(|a, b| a.term.cmp_ci(&b.term));
         suggestions.truncate(10);
         suggestions
     }

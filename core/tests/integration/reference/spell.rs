@@ -1,4 +1,5 @@
 use crate::common::sync_app;
+use initiative_core::app::AutocompleteSuggestion;
 
 #[test]
 fn speak_with_animals() {
@@ -26,7 +27,10 @@ You gain the ability to comprehend and verbally communicate with beasts for the 
     );
 
     assert_eq!(
-        vec![("Speak with Animals".into(), "SRD spell".into())],
+        vec![AutocompleteSuggestion::new(
+            "Speak with Animals",
+            "SRD spell",
+        )],
         sync_app().autocomplete("speak with animals"),
     );
 }
@@ -62,5 +66,5 @@ You touch a willing creature to grant it the ability to see in the dark. For the
     assert!(sync_app()
         .autocomplete("darkvision")
         .iter()
-        .any(|item| item == &("Darkvision".into(), "SRD spell".into())));
+        .any(|suggestion| suggestion.term == "Darkvision" && suggestion.summary == "SRD spell"));
 }

@@ -1,7 +1,7 @@
 use super::CommandType;
 use crate::app::{
-    AppCommand, AppMeta, Autocomplete, Command, CommandAlias, CommandMatches, ContextAwareParse,
-    Runnable,
+    AppCommand, AppMeta, Autocomplete, AutocompleteSuggestion, Command, CommandAlias,
+    CommandMatches, ContextAwareParse, Runnable,
 };
 use crate::reference::{ItemCategory, ReferenceCommand, Spell};
 use crate::storage::{Change, StorageCommand};
@@ -10,7 +10,6 @@ use crate::utils::CaseInsensitiveStr;
 use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
 use crate::world::{ParsedThing, Thing, WorldCommand};
 use async_trait::async_trait;
-use std::borrow::Cow;
 use std::fmt;
 
 /// An enum representing each possible state of the tutorial. The Introduction variant is mapped to
@@ -755,12 +754,12 @@ impl ContextAwareParse for TutorialCommand {
 
 #[async_trait(?Send)]
 impl Autocomplete for TutorialCommand {
-    async fn autocomplete(
-        input: &str,
-        _app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
         if "tutorial".starts_with_ci(input) {
-            vec![("tutorial".into(), "feature walkthrough".into())]
+            vec![AutocompleteSuggestion::new(
+                "tutorial",
+                "feature walkthrough",
+            )]
         } else {
             Vec::new()
         }

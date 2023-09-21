@@ -1,5 +1,6 @@
 use crate::app::AppMeta;
 use async_trait::async_trait;
+use serde::Serialize;
 use std::borrow::Cow;
 
 #[async_trait(?Send)]
@@ -14,16 +15,13 @@ pub trait ContextAwareParse: Sized {
 
 #[async_trait(?Send)]
 pub trait Autocomplete {
-    async fn autocomplete(
-        input: &str,
-        app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)>;
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<AutocompleteSuggestion>;
 }
 
 #[cfg(test)]
 pub fn assert_autocomplete(
     expected_suggestions: &[(&'static str, &'static str)],
-    actual_suggestions: Vec<(Cow<'static, str>, Cow<'static, str>)>,
+    actual_suggestions: Vec<AutocompleteSuggestion>,
 ) {
     let mut expected: Vec<_> = expected_suggestions
         .into_iter()
@@ -31,10 +29,53 @@ pub fn assert_autocomplete(
         .collect();
     expected.sort();
 
-    let mut actual = actual_suggestions;
+    let mut actual: Vec<(Cow<'static, str>, Cow<'static, str>)> = actual_suggestions
+        .into_iter()
+        .map(|suggestion| suggestion.into())
+        .collect();
     actual.sort();
 
     assert_eq!(expected, actual);
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize)]
+#[serde(into = "(Cow<'static, str>, Cow<'static, str>)")]
+pub struct AutocompleteSuggestion {
+    pub term: Cow<'static, str>,
+    pub summary: Cow<'static, str>,
+}
+
+impl AutocompleteSuggestion {
+    pub fn new(term: impl Into<Cow<'static, str>>, summary: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            term: term.into(),
+            summary: summary.into(),
+        }
+    }
+}
+
+impl From<AutocompleteSuggestion> for (Cow<'static, str>, Cow<'static, str>) {
+    fn from(input: AutocompleteSuggestion) -> Self {
+        (input.term, input.summary)
+    }
+}
+
+impl From<(String, &'static str)> for AutocompleteSuggestion {
+    fn from(input: (String, &'static str)) -> Self {
+        AutocompleteSuggestion::new(input.0, input.1)
+    }
+}
+
+impl From<(&'static str, String)> for AutocompleteSuggestion {
+    fn from(input: (&'static str, String)) -> Self {
+        AutocompleteSuggestion::new(input.0, input.1)
+    }
+}
+
+impl From<(String, String)> for AutocompleteSuggestion {
+    fn from(input: (String, String)) -> Self {
+        AutocompleteSuggestion::new(input.0, input.1)
+    }
 }
 
 /// Represents all possible parse results for a given input.

@@ -1,12 +1,12 @@
 use super::{Field, Npc, Place, Thing};
 use crate::app::{
-    AppMeta, Autocomplete, CommandAlias, CommandMatches, ContextAwareParse, Runnable,
+    AppMeta, Autocomplete, AutocompleteSuggestion, CommandAlias, CommandMatches, ContextAwareParse,
+    Runnable,
 };
 use crate::storage::{Change, RepositoryError, StorageCommand};
 use crate::utils::{quoted_words, CaseInsensitiveStr};
 use async_trait::async_trait;
 use futures::join;
-use std::borrow::Cow;
 use std::fmt;
 use std::ops::Range;
 
@@ -298,10 +298,7 @@ impl ContextAwareParse for WorldCommand {
 
 #[async_trait(?Send)]
 impl Autocomplete for WorldCommand {
-    async fn autocomplete(
-        input: &str,
-        app_meta: &AppMeta,
-    ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
         let mut suggestions = Vec::new();
 
         let (mut place_suggestions, mut npc_suggestions) = join!(
@@ -333,36 +330,30 @@ impl Autocomplete for WorldCommand {
                 }
                 .await;
 
-                suggestions.reserve(edit_suggestions.len());
-
-                edit_suggestions
-                    .into_iter()
-                    .map(|(a, _)| {
-                        (
-                            format!("{}{}", &input[..split_pos], a).into(),
-                            format!("edit {}", thing.as_str()).into(),
-                        )
-                    })
-                    .for_each(|suggestion| suggestions.push(suggestion));
+                suggestions.extend(edit_suggestions.into_iter().map(|suggestion| {
+                    AutocompleteSuggestion::new(
+                        format!("{}{}", &input[..split_pos], suggestion.term),
+                        format!("edit {}", thing.as_str()),
+                    )
+                }));
 
                 if next_word.as_str().in_ci(&["named", "called"]) && input_words.next().is_some() {
-                    suggestions.push((
-                        input.to_string().into(),
-                        format!("rename {}", thing.as_str()).into(),
+                    suggestions.push(AutocompleteSuggestion::new(
+                        input.to_string(),
+                        format!("rename {}", thing.as_str()),
                     ));
                 }
             }
         }
 
         if let Ok(thing) = app_meta.repository.get_by_name(input.trim_end()).await {
-            suggestions.push((
+            suggestions.push(AutocompleteSuggestion::new(
                 if input.ends_with(char::is_whitespace) {
                     format!("{}is [{} description]", input, thing.as_str())
                 } else {
                     format!("{} is [{} description]", input, thing.as_str())
-                }
-                .into(),
-                format!("edit {}", thing.as_str()).into(),
+                },
+                format!("edit {}", thing.as_str()),
             ));
         } else if let Some((last_word_index, last_word)) =
             quoted_words(input).enumerate().skip(1).last()
@@ -373,7 +364,7 @@ impl Autocomplete for WorldCommand {
                     .get_by_name(input[..last_word.range().start].trim())
                     .await
                 {
-                    suggestions.push((
+                    suggestions.push(AutocompleteSuggestion::new(
                         if last_word.range().end == input.len() {
                             format!(
                                 "{}is [{} description]",
@@ -382,9 +373,8 @@ impl Autocomplete for WorldCommand {
                             )
                         } else {
                             format!("{}[{} description]", &input, thing.as_str())
-                        }
-                        .into(),
-                        format!("edit {}", thing.as_str()).into(),
+                        },
+                        format!("edit {}", thing.as_str()),
                     ))
                 }
             } else if let Some(suggestion) = ["named", "called"]
@@ -399,7 +389,7 @@ impl Autocomplete for WorldCommand {
                         .get_by_name(input[..second_last_word.range().start].trim())
                         .await
                     {
-                        suggestions.push((
+                        suggestions.push(AutocompleteSuggestion::new(
                             if last_word.range().end == input.len() {
                                 format!(
                                     "{}{} [name]",
@@ -408,9 +398,8 @@ impl Autocomplete for WorldCommand {
                                 )
                             } else {
                                 format!("{}[name]", input)
-                            }
-                            .into(),
-                            format!("rename {}", thing.as_str()).into(),
+                            },
+                            format!("rename {}", thing.as_str()),
                         ));
                     }
                 }
@@ -610,12 +599,12 @@ mod test {
         .into_iter()
         .for_each(|(word, summary)| {
             assert_eq!(
-                vec![(word.into(), summary.into())],
+                vec![AutocompleteSuggestion::new(word, summary)],
                 block_on(WorldCommand::autocomplete(word, &app_meta)),
             );
 
             assert_eq!(
-                vec![(word.into(), summary.into())],
+                vec![AutocompleteSuggestion::new(word, summary)],
                 block_on(WorldCommand::autocomplete(&word.to_uppercase(), &app_meta)),
             );
         });
