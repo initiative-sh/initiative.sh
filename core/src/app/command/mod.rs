@@ -95,7 +95,7 @@ impl Runnable for Command {
                     .map(|command| format!("\n* `{}`", command))
                     .collect();
                 lines.sort();
-                lines.drain(..).for_each(|line| message.push_str(&line));
+                lines.into_iter().for_each(|line| message.push_str(&line));
                 Some(message)
             } else {
                 None
@@ -159,7 +159,7 @@ impl Autocomplete for Command {
         input: &str,
         app_meta: &AppMeta,
     ) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-        let mut results = join!(
+        let results = join!(
             CommandAlias::autocomplete(input, app_meta),
             AppCommand::autocomplete(input, app_meta),
             ReferenceCommand::autocomplete(input, app_meta),
@@ -170,13 +170,13 @@ impl Autocomplete for Command {
         );
 
         std::iter::empty()
-            .chain(results.0.drain(..))
-            .chain(results.1.drain(..))
-            .chain(results.2.drain(..))
-            .chain(results.3.drain(..))
-            .chain(results.4.drain(..))
-            .chain(results.5.drain(..))
-            .chain(results.6.drain(..))
+            .chain(results.0)
+            .chain(results.1)
+            .chain(results.2)
+            .chain(results.3)
+            .chain(results.4)
+            .chain(results.5)
+            .chain(results.6)
             .collect()
     }
 }

@@ -310,7 +310,7 @@ mod test {
     fn display_test() {
         let app_meta = app_meta();
 
-        vec![
+        [
             TimeCommand::Add {
                 interval: Interval::new(2, 3, 4, 5, 6),
             },
@@ -319,7 +319,7 @@ mod test {
                 interval: Interval::new(2, 3, 4, 5, 6),
             },
         ]
-        .drain(..)
+        .into_iter()
         .for_each(|command| {
             let command_string = command.to_string();
             assert_ne!("", command_string);

@@ -325,7 +325,7 @@ impl Autocomplete for WorldCommand {
             {
                 let split_pos = input.len() - input[is_word.range().end..].trim_start().len();
 
-                let mut edit_suggestions = match thing {
+                let edit_suggestions = match thing {
                     Thing::Npc(_) => Npc::autocomplete(input[split_pos..].trim_start(), app_meta),
                     Thing::Place(_) => {
                         Place::autocomplete(input[split_pos..].trim_start(), app_meta)
@@ -336,7 +336,7 @@ impl Autocomplete for WorldCommand {
                 suggestions.reserve(edit_suggestions.len());
 
                 edit_suggestions
-                    .drain(..)
+                    .into_iter()
                     .map(|(a, _)| {
                         (
                             format!("{}{}", &input[..split_pos], a).into(),
@@ -464,7 +464,7 @@ impl<T: Into<Thing>> From<ParsedThing<T>> for Thing {
 fn append_unknown_words_notice(
     mut output: String,
     input: &str,
-    mut unknown_words: Vec<Range<usize>>,
+    unknown_words: Vec<Range<usize>>,
 ) -> String {
     if !unknown_words.is_empty() {
         output.push_str(
@@ -486,7 +486,7 @@ fn append_unknown_words_notice(
         output.push_str("\\\n\u{a0}\u{a0}");
 
         {
-            let mut words = unknown_words.drain(..);
+            let mut words = unknown_words.into_iter();
             let mut unknown_word = words.next();
             for (i, _) in input.char_indices() {
                 if unknown_word.as_ref().map_or(false, |word| i >= word.end) {
@@ -592,7 +592,7 @@ mod test {
         )
         .unwrap();
 
-        vec![
+        [
             ("npc", "create person"),
             // Species
             ("dragonborn", "create dragonborn"),
@@ -607,7 +607,7 @@ mod test {
             // PlaceType
             ("inn", "create inn"),
         ]
-        .drain(..)
+        .into_iter()
         .for_each(|(word, summary)| {
             assert_eq!(
                 vec![(word.into(), summary.into())],
@@ -679,7 +679,7 @@ mod test {
     fn display_test() {
         let app_meta = app_meta();
 
-        vec![
+        [
             create(Place {
                 subtype: "inn".parse::<PlaceType>().ok().into(),
                 ..Default::default()
@@ -690,7 +690,7 @@ mod test {
                 ..Default::default()
             }),
         ]
-        .drain(..)
+        .into_iter()
         .for_each(|command| {
             let command_string = command.to_string();
             assert_ne!("", command_string);

@@ -37,7 +37,7 @@ impl Runnable for StorageCommand {
                     .journal()
                     .await
                     .map_err(|_| "Couldn't access the journal.".to_string())?
-                    .drain(..)
+                    .into_iter()
                     .map(|thing| match thing {
                         Thing::Npc(_) => npcs.push(thing),
                         Thing::Place(_) => places.push(thing),
@@ -58,7 +58,7 @@ impl Runnable for StorageCommand {
                             }
                         });
 
-                        things.drain(..).enumerate().for_each(|(i, thing)| {
+                        things.into_iter().enumerate().for_each(|(i, thing)| {
                             if i > 0 {
                                 output.push('\\');
                             }
@@ -673,7 +673,7 @@ mod test {
     fn display_test() {
         let app_meta = app_meta();
 
-        vec![
+        [
             StorageCommand::Delete {
                 name: "Potato Johnson".to_string(),
             },
@@ -687,7 +687,7 @@ mod test {
                 name: "Potato Johnson".to_string(),
             },
         ]
-        .drain(..)
+        .into_iter()
         .for_each(|command| {
             let command_string = command.to_string();
             assert_ne!("", command_string);

@@ -195,13 +195,13 @@ mod test {
     fn display_test() {
         let app_meta = app_meta();
 
-        vec![
+        [
             AppCommand::About,
             AppCommand::Changelog,
             AppCommand::Debug,
             AppCommand::Help,
         ]
-        .drain(..)
+        .into_iter()
         .for_each(|command| {
             let command_string = command.to_string();
             assert_ne!("", command_string);

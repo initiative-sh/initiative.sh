@@ -221,7 +221,7 @@ mod test {
     fn display_test() {
         let app_meta = app_meta();
 
-        vec![
+        [
             ReferenceCommand::Spell(Spell::Shield),
             ReferenceCommand::Spells,
             ReferenceCommand::Item(Item::Shield),
@@ -229,7 +229,7 @@ mod test {
             ReferenceCommand::MagicItem(MagicItem::DeckOfManyThings),
             ReferenceCommand::OpenGameLicense,
         ]
-        .drain(..)
+        .into_iter()
         .for_each(|command| {
             let command_string = command.to_string();
             assert_ne!("", command_string);
