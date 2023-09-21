@@ -143,7 +143,7 @@ impl Runnable for StorageCommand {
                 let output = if let Ok(thing) = thing {
                     if thing.uuid().is_none() {
                         save_command = Some(CommandAlias::literal(
-                            "save".to_string(),
+                            "save",
                             format!("save {}", name),
                             StorageCommand::Save { name }.into(),
                         ));

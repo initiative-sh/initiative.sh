@@ -78,7 +78,7 @@ impl Runnable for WorldCommand {
                                 ));
 
                             command_alias = Some(CommandAlias::literal(
-                                "save".to_string(),
+                                "save",
                                 format!("save {}", name),
                                 StorageCommand::Save {
                                     name: name.to_string(),
@@ -87,7 +87,7 @@ impl Runnable for WorldCommand {
                             ));
 
                             app_meta.command_aliases.insert(CommandAlias::literal(
-                                "more".to_string(),
+                                "more",
                                 format!("create {}", diff.display_description()),
                                 WorldCommand::CreateMultiple {
                                     thing: diff.clone(),
@@ -191,7 +191,7 @@ impl Runnable for WorldCommand {
                 }
 
                 app_meta.command_aliases.insert(CommandAlias::literal(
-                    "more".to_string(),
+                    "more",
                     format!("create {}", thing.display_description()),
                     Self::CreateMultiple { thing }.into(),
                 ));

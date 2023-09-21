@@ -4,6 +4,7 @@ use super::{
 use crate::app::AppMeta;
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
+use std::borrow::Cow;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::mem;
@@ -11,8 +12,8 @@ use std::mem;
 #[derive(Clone, Debug)]
 pub enum CommandAlias {
     Literal {
-        term: String,
-        summary: String,
+        term: Cow<'static, str>,
+        summary: Cow<'static, str>,
         command: Box<Command>,
     },
     StrictWildcard {
@@ -21,10 +22,14 @@ pub enum CommandAlias {
 }
 
 impl CommandAlias {
-    pub fn literal(term: String, summary: String, command: Command) -> Self {
+    pub fn literal(
+        term: impl Into<Cow<'static, str>>,
+        summary: impl Into<Cow<'static, str>>,
+        command: Command,
+    ) -> Self {
         Self::Literal {
-            term,
-            summary,
+            term: term.into(),
+            summary: summary.into(),
             command: Box::new(command),
         }
     }
@@ -323,10 +328,14 @@ mod tests {
         AppMeta::new(NullDataStore::default(), &event_dispatcher)
     }
 
-    fn literal(term: &str, summary: &str, command: Command) -> CommandAlias {
+    fn literal(
+        term: impl Into<Cow<'static, str>>,
+        summary: impl Into<Cow<'static, str>>,
+        command: Command,
+    ) -> CommandAlias {
         CommandAlias::Literal {
-            term: term.to_string(),
-            summary: summary.to_string(),
+            term: term.into(),
+            summary: summary.into(),
             command: Box::new(command),
         }
     }
