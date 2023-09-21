@@ -1,4 +1,6 @@
-pub use command::{AppCommand, Autocomplete, Command, CommandAlias, ContextAwareParse, Runnable};
+pub use command::{
+    AppCommand, Autocomplete, Command, CommandAlias, CommandMatches, ContextAwareParse, Runnable,
+};
 pub use meta::AppMeta;
 
 #[cfg(test)]

@@ -80,7 +80,7 @@ fn it_shows_alphabetized_results() {
     assert_eq!(Some(""), output_iter.next());
     assert_eq!(Some("## NPCs"), output_iter.next());
 
-    npcs.drain(..)
+    npcs.into_iter()
         .zip(output_iter.by_ref())
         .enumerate()
         .for_each(|(i, (a, b))| {
@@ -94,7 +94,7 @@ fn it_shows_alphabetized_results() {
     assert_eq!(Some(""), output_iter.next());
     assert_eq!(Some("## Places"), output_iter.next());
 
-    inns.drain(..)
+    inns.into_iter()
         .zip(output_iter.by_ref())
         .enumerate()
         .for_each(|(i, (a, b))| {

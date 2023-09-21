@@ -92,7 +92,7 @@ fn numeric_aliases() {
     let generated_output = app.command("more").unwrap();
 
     // Doing this in two steps due to borrowing issues.
-    let mut outputs = generated_output
+    let outputs = generated_output
         .lines()
         .filter(|line| line.starts_with('~'))
         .map(|s| {
@@ -114,7 +114,7 @@ fn numeric_aliases() {
     assert_eq!(
         10,
         outputs
-            .drain(..)
+            .into_iter()
             .map(|(digit_output, name)| {
                 let name_output = app.command(&format!("load {}", name)).unwrap();
                 assert_eq!(digit_output, name_output);

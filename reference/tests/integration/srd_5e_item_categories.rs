@@ -379,7 +379,7 @@ fn potions() {
 fn list_all_categories() {
     let mut categories: Vec<(String, Vec<String>)> = item_categories()
         .unwrap()
-        .drain(..)
+        .into_iter()
         .map(|category| {
             let mut names = vec![category.name()];
             names.append(&mut category.alt_names());

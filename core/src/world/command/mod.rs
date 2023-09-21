@@ -1,5 +1,7 @@
 use super::{Field, Npc, Place, Thing};
-use crate::app::{AppMeta, Autocomplete, CommandAlias, ContextAwareParse, Runnable};
+use crate::app::{
+    AppMeta, Autocomplete, CommandAlias, CommandMatches, ContextAwareParse, Runnable,
+};
 use crate::storage::{Change, RepositoryError, StorageCommand};
 use crate::utils::{quoted_words, CaseInsensitiveStr};
 use async_trait::async_trait;
@@ -233,21 +235,20 @@ impl Runnable for WorldCommand {
 
 #[async_trait(?Send)]
 impl ContextAwareParse for WorldCommand {
-    async fn parse_input(input: &str, app_meta: &AppMeta) -> (Option<Self>, Vec<Self>) {
-        let mut exact_match = None;
-        let mut fuzzy_matches = Vec::new();
+    async fn parse_input(input: &str, app_meta: &AppMeta) -> CommandMatches<Self> {
+        let mut matches = CommandMatches::default();
 
         if let Some(Ok(thing)) = input
             .strip_prefix_ci("create ")
             .map(|s| s.parse::<ParsedThing<Thing>>())
         {
             if thing.unknown_words.is_empty() {
-                exact_match = Some(Self::Create { thing });
+                matches.push_canonical(Self::Create { thing });
             } else {
-                fuzzy_matches.push(Self::Create { thing });
+                matches.push_fuzzy(Self::Create { thing });
             }
         } else if let Ok(thing) = input.parse::<ParsedThing<Thing>>() {
-            fuzzy_matches.push(Self::Create { thing });
+            matches.push_fuzzy(Self::Create { thing });
         }
 
         if let Some(word) = quoted_words(input)
@@ -287,11 +288,11 @@ impl ContextAwareParse for WorldCommand {
                     *range = range.start + word.range().end + 1..range.end + word.range().end + 1
                 });
 
-                fuzzy_matches.push(Self::Edit { name, diff });
+                matches.push_fuzzy(Self::Edit { name, diff });
             }
         }
 
-        (exact_match, fuzzy_matches)
+        matches
     }
 }
 
@@ -324,7 +325,7 @@ impl Autocomplete for WorldCommand {
             {
                 let split_pos = input.len() - input[is_word.range().end..].trim_start().len();
 
-                let mut edit_suggestions = match thing {
+                let edit_suggestions = match thing {
                     Thing::Npc(_) => Npc::autocomplete(input[split_pos..].trim_start(), app_meta),
                     Thing::Place(_) => {
                         Place::autocomplete(input[split_pos..].trim_start(), app_meta)
@@ -335,7 +336,7 @@ impl Autocomplete for WorldCommand {
                 suggestions.reserve(edit_suggestions.len());
 
                 edit_suggestions
-                    .drain(..)
+                    .into_iter()
                     .map(|(a, _)| {
                         (
                             format!("{}{}", &input[..split_pos], a).into(),
@@ -463,7 +464,7 @@ impl<T: Into<Thing>> From<ParsedThing<T>> for Thing {
 fn append_unknown_words_notice(
     mut output: String,
     input: &str,
-    mut unknown_words: Vec<Range<usize>>,
+    unknown_words: Vec<Range<usize>>,
 ) -> String {
     if !unknown_words.is_empty() {
         output.push_str(
@@ -485,7 +486,7 @@ fn append_unknown_words_notice(
         output.push_str("\\\n\u{a0}\u{a0}");
 
         {
-            let mut words = unknown_words.drain(..);
+            let mut words = unknown_words.into_iter();
             let mut unknown_word = words.next();
             for (i, _) in input.char_indices() {
                 if unknown_word.as_ref().map_or(false, |word| i >= word.end) {
@@ -520,28 +521,25 @@ mod test {
         let mut app_meta = app_meta();
 
         assert_eq!(
-            (None, vec![create(Npc::default())]),
+            CommandMatches::new_fuzzy(create(Npc::default())),
             block_on(WorldCommand::parse_input("npc", &app_meta)),
         );
 
         assert_eq!(
-            (Some(create(Npc::default())), Vec::new()),
+            CommandMatches::new_canonical(create(Npc::default())),
             block_on(WorldCommand::parse_input("create npc", &app_meta)),
         );
 
         assert_eq!(
-            (
-                None,
-                vec![create(Npc {
-                    species: Species::Elf.into(),
-                    ..Default::default()
-                })],
-            ),
+            CommandMatches::new_fuzzy(create(Npc {
+                species: Species::Elf.into(),
+                ..Default::default()
+            })),
             block_on(WorldCommand::parse_input("elf", &app_meta)),
         );
 
         assert_eq!(
-            (None, Vec::<WorldCommand>::new()),
+            CommandMatches::default(),
             block_on(WorldCommand::parse_input("potato", &app_meta)),
         );
 
@@ -558,22 +556,19 @@ mod test {
             .unwrap();
 
             assert_eq!(
-                (
-                    None,
-                    vec![WorldCommand::Edit {
-                        name: "Spot".into(),
-                        diff: ParsedThing {
-                            thing: Npc {
-                                age: Age::Child.into(),
-                                gender: Gender::Masculine.into(),
-                                ..Default::default()
-                            }
-                            .into(),
-                            unknown_words: vec![10..14],
-                            word_count: 2,
-                        },
-                    }],
-                ),
+                CommandMatches::new_fuzzy(WorldCommand::Edit {
+                    name: "Spot".into(),
+                    diff: ParsedThing {
+                        thing: Npc {
+                            age: Age::Child.into(),
+                            gender: Gender::Masculine.into(),
+                            ..Default::default()
+                        }
+                        .into(),
+                        unknown_words: vec![10..14],
+                        word_count: 2,
+                    },
+                }),
                 block_on(WorldCommand::parse_input("Spot is a good boy", &app_meta)),
             );
         }
@@ -597,7 +592,7 @@ mod test {
         )
         .unwrap();
 
-        vec![
+        [
             ("npc", "create person"),
             // Species
             ("dragonborn", "create dragonborn"),
@@ -612,7 +607,7 @@ mod test {
             // PlaceType
             ("inn", "create inn"),
         ]
-        .drain(..)
+        .into_iter()
         .for_each(|(word, summary)| {
             assert_eq!(
                 vec![(word.into(), summary.into())],
@@ -684,7 +679,7 @@ mod test {
     fn display_test() {
         let app_meta = app_meta();
 
-        vec![
+        [
             create(Place {
                 subtype: "inn".parse::<PlaceType>().ok().into(),
                 ..Default::default()
@@ -695,20 +690,20 @@ mod test {
                 ..Default::default()
             }),
         ]
-        .drain(..)
+        .into_iter()
         .for_each(|command| {
             let command_string = command.to_string();
             assert_ne!("", command_string);
 
             assert_eq!(
-                (Some(command.clone()), Vec::new()),
+                CommandMatches::new_canonical(command.clone()),
                 block_on(WorldCommand::parse_input(&command_string, &app_meta)),
                 "{}",
                 command_string,
             );
 
             assert_eq!(
-                (Some(command), Vec::new()),
+                CommandMatches::new_canonical(command),
                 block_on(WorldCommand::parse_input(
                     &command_string.to_uppercase(),
                     &app_meta
