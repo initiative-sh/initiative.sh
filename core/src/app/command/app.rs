@@ -1,11 +1,10 @@
 use crate::app::{
     AppMeta, Autocomplete, AutocompleteSuggestion, CommandMatches, ContextAwareParse, Runnable,
 };
-use crate::parser::{parse, ParsedToken, Token};
+use crate::parser::{ParsedToken, Parser, Token};
 use crate::utils::CaseInsensitiveStr;
 use async_trait::async_trait;
 use caith::Roller;
-use futures::join;
 use initiative_macros::changelog;
 use std::fmt;
 
@@ -57,45 +56,35 @@ impl Runnable for AppCommand {
 #[async_trait(?Send)]
 impl ContextAwareParse for AppCommand {
     async fn parse_input(input: &str, app_meta: &AppMeta) -> CommandMatches<Self> {
-        let results = join!(
-            parse(app_meta, input, &[Token::Literal("about")], |_| {
+        Parser::new(app_meta)
+            .rule(&[Token::Literal("about")], |_| {
                 CommandMatches::new_canonical(Self::About)
-            }),
-            parse(app_meta, input, &[Token::Literal("changelog")], |_| {
+            })
+            .rule(&[Token::Literal("changelog")], |_| {
                 CommandMatches::new_canonical(Self::Changelog)
-            }),
-            parse(app_meta, input, &[Token::Literal("debug")], |_| {
+            })
+            .rule(&[Token::Literal("debug")], |_| {
                 CommandMatches::new_canonical(Self::Debug)
-            }),
-            parse(app_meta, input, &[Token::Literal("help")], |_| {
+            })
+            .rule(&[Token::Literal("help")], |_| {
                 CommandMatches::new_canonical(Self::Help)
-            }),
-            parse(
-                app_meta,
-                input,
-                &[Token::Literal("roll"), Token::AnyNonEmpty],
-                |tokens| if let Some(ParsedToken::Text(s)) = tokens.get(1) {
+            })
+            .rule(&[Token::Literal("roll"), Token::AnyNonEmpty], |tokens| {
+                if let Some(ParsedToken::Text(s)) = tokens.get(1) {
                     CommandMatches::new_canonical(Self::Roll(s.to_string()))
                 } else {
                     CommandMatches::default()
-                },
-            ),
-            parse(app_meta, input, &[Token::DiceFormula], |tokens| {
+                }
+            })
+            .rule(&[Token::DiceFormula], |tokens| {
                 if let Some(ParsedToken::DiceFormula(s)) = tokens.get(0) {
                     CommandMatches::new_fuzzy(Self::Roll(s.to_string()))
                 } else {
                     CommandMatches::default()
                 }
-            }),
-        );
-
-        CommandMatches::default()
-            .union(results.0)
-            .union(results.1)
-            .union(results.2)
-            .union(results.3)
-            .union(results.4)
-            .union(results.5)
+            })
+            .parse(input)
+            .await
     }
 }
 
