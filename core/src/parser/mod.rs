@@ -1,19 +1,23 @@
 use super::app::{AppMeta, CommandMatches};
+use std::sync::Arc;
 use crate::utils::CaseInsensitiveStr;
 use caith::Roller;
 use tokio::task::JoinSet;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Token {
     AnyNonEmpty,
     DiceFormula,
     Literal(&'static str),
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ParsedToken<'a> {
     Text(&'a str),
     DiceFormula(&'a str),
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum TokenMatch<'a> {
     Full {
         token: ParsedToken<'a>,
@@ -27,7 +31,7 @@ pub struct Parser<'a, T>
 where
     T: std::fmt::Debug + Send,
 {
-    app_meta: &'a AppMeta,
+    app_meta: Arc<&'a AppMeta>,
     rules: Vec<ParseRule<'a, T>>,
 }
 
@@ -35,9 +39,9 @@ impl<'a, T> Parser<'a, T>
 where
     T: std::fmt::Debug + Send,
 {
-    pub fn new(app_meta: &'a AppMeta) -> Self {
+    pub fn new(app_meta: &AppMeta) -> Self {
         Self {
-            app_meta,
+            app_meta: app_meta.into(),
             rules: Vec::new(),
         }
     }
@@ -48,7 +52,7 @@ where
         parse_callback: P,
     ) -> Self {
         self.rules.push(ParseRule {
-            tokens,
+            tokens: tokens.into(),
             parse_callback: Box::new(parse_callback),
         });
 
@@ -72,7 +76,7 @@ where
 }
 
 struct ParseRule<'a, T> {
-    tokens: &'a [Token],
+    tokens: Arc<[Token]>,
     parse_callback: Box<dyn Fn(&[ParsedToken<'a>]) -> CommandMatches<T>>,
 }
 
@@ -81,7 +85,7 @@ impl<'a, T> ParseRule<'a, T> {
         let mut input_remainder = input;
         let mut parsed_tokens = Vec::with_capacity(self.tokens.len());
 
-        for token in self.tokens {
+        for token in self.tokens.iter() {
             if let TokenMatch::Full { token, remainder } =
                 token.parse(app_meta, input_remainder).await
             {
