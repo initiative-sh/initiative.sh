@@ -7,20 +7,18 @@ pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demograph
 }
 
 fn name(rng: &mut impl Rng) -> String {
-    match rng.gen_range(0..6) {
-        0 => format!("The {}", thing(rng)),
-        1 => {
-            let (profession, s) = pluralize(word::profession(rng));
-            format!("{}{} Arms", profession, s)
-        }
-        2..=3 => {
+    match rng.gen_range(0..8) {
+        0..=1 => format!("The {} {}", thing(rng), theater_synonym(rng)),
+        2 => {
             let (thing1, thing2) = thing_thing(rng);
-            format!("{} and {}", thing1, thing2)
+            format!("{} and {} {}", thing1, thing2, theater_synonym(rng))
         }
-        4 => format!("The {} {}", word::adjective(rng), thing(rng)),
-        5 => {
+        3..=4 => format!("{} {} {}", word::adjective(rng), thing(rng), theater_synonym(rng)),
+        5 => format!("The {} {}", word::adjective(rng), theater_synonym(rng)),
+        6 => format!("The {}'s {}", word::profession(rng), theater_synonym(rng)),
+        7 => {
             let (thing, s) = pluralize(thing(rng));
-            format!("{} {}{}", word::number(rng), thing, s)
+            format!("{} {}{} {}", word::number(rng), thing, s, theater_synonym(rng))
         }
         _ => unreachable!(),
     }
@@ -29,10 +27,10 @@ fn name(rng: &mut impl Rng) -> String {
 fn thing(rng: &mut impl Rng) -> &'static str {
     match rng.gen_range(0..5) {
         0 => word::animal(rng),
-        1 => word::enemy(rng),
-        2 => word::food(rng),
-        3 => word::profession(rng),
-        4 => word::symbol(rng),
+        1 => word::food(rng),
+        2 => word::symbol(rng),
+        3 => word::gem(rng),
+        4=> word::person(rng),
         _ => unreachable!(),
     }
 }
@@ -40,18 +38,15 @@ fn thing(rng: &mut impl Rng) -> &'static str {
 fn thing_thing(rng: &mut impl Rng) -> (&'static str, &'static str) {
     // We're more likely to have two things in the same category.
     let (thing1, thing2) = if rng.gen_bool(0.5) {
-        match rng.gen_range(0..5) {
+        match rng.gen_range(0..3) {
             0 => (word::animal(rng), word::animal(rng)),
-            1 => (word::enemy(rng), word::enemy(rng)),
-            2 => (word::food(rng), word::food(rng)),
-            3 => (word::profession(rng), word::profession(rng)),
-            4 => (word::symbol(rng), word::symbol(rng)),
+            1 => (word::profession(rng), word::profession(rng)),
+            2 => (word::symbol(rng), word::symbol(rng)),
             _ => unreachable!(),
         }
     } else {
         (thing(rng), thing(rng))
     };
-
     // 50% chance of rolling again if we don't get two words starting with the same letter.
     // (This is distinct from 50% chance of repeated letters, since the next try probably also
     // won't have repetition.)
@@ -69,6 +64,15 @@ fn thing_thing(rng: &mut impl Rng) -> (&'static str, &'static str) {
     }
 }
 
+fn theater_synonym(rng: &mut impl Rng) -> &'static str {
+    #[rustfmt::skip]
+    const THEATER_SYNONYMS: &[&str] = &[
+        "Theater", "Opera House", "Ampitheater", "Concert Hall", "Assembly Hall",
+    ];
+    THEATER_SYNONYMS[rng.gen_range(0..THEATER_SYNONYMS.len())]
+}
+
+//TODO make sure they all match new format
 #[cfg(test)]
 mod test {
     use super::*;
@@ -78,28 +82,11 @@ mod test {
         let mut rng = SmallRng::seed_from_u64(0);
 
         assert_eq!(
-            [
-                "Mutton and Malt",
-                "Wizards Arms",
-                "The Column",
-                "Coopers Arms",
-                "The Orange Unicorn",
-                "Imp and Satyr",
-                "Otter and Rye",
-                "Seven Printers",
-                "Shovel and Crown",
-                "Seven Porters",
-                "The Bread",
-                "Mace and Phalactary",
-                "Three Kegs",
-                "Blacksmiths Arms",
-                "Ten Beggars",
-                "Bandit and Hydra",
-                "The Burgundy Potatoes",
-                "The Green Cooper",
-                "The Giant",
-                "The Lucky Wheel"
-            ]
+            ["Scythe and Steeple Theater","The Venison Theater","The Column Theater","Brown Drum Ampitheater","The Morose Concert Hall",
+            "Purple Crab Opera House","The Adventurer's Ampitheater","The Magician's Opera House","The Mason's Assembly Hall","The Grouchy Theater",
+            "The Opal Opera House","Camel and Empress Theater","The Perch Concert Hall","The Lance Theater","The Hallowed Concert Hall",
+            "The Hidden Ampitheater","Wasted Bee Theater","The Swan Theater","Hungry Locket Concert Hall",
+            "Gold Father Ampitheater"]
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>(),

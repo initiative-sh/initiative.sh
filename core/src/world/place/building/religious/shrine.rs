@@ -17,7 +17,7 @@ fn name(rng: &mut impl Rng) -> String {
         }
         9 => {
             let (animal, s) = pluralize(word::animal(rng));
-            format!("{} of the {} {}{}", place(rng), number(rng), animal, s)
+            format!("{} of the {} {}{}", place(rng), word::number(rng), animal, s)
         }
         _ => unreachable!(),
     }
@@ -81,14 +81,6 @@ fn gerund(verb: String) -> String {
     } else {
         format!("{}ing", verb)
     }
-}
-
-#[rustfmt::skip]
-fn number(rng: &mut impl Rng) -> &'static str {
-    ListGenerator(&[
-        "Two","Three","Four","Five","Six","Seven","Eight","Eight-and-a-Half","Nine",
-        "Twelve","Thirty-Six", "Forty","Seventy-Two","Nine-and-Twenty", "Ninety-Nine","Thousand","Thousand-Thousand"
-    ]).gen(rng)
 }
 
 //DEITY can be PERSON, ANIMAL, or DIVINE CONCEPT
