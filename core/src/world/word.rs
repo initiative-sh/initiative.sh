@@ -76,32 +76,6 @@ const SYMBOLS: &[&str] = &[
     "Tower", "Trumpet", "Wand", "Wheel",
 ];
 
-#[rustfmt::skip]
-const ODD_NUMBERS: &[&str] = &[
-    "Three", "Five", "Seven", "Nine", "Eleven", "Thirteen", "Fifteen", 
-    "Seventeen", "Nineteen", "Twenty One","Twenty Three","Twenty Five","Twenty Seven","Twenty Nine",
-    "Thirty One","Thirty Three","Thirty Five","Thirty Seven","Thirty Nine","Forty One",
-    "Forty Three","Forty Five","Forty Seven","Forty Nine","Fifty One","Fifty Three","Fifty Five",
-    "Fifty Seven","Fifty Nine","Sixty One","Sixty Three","Sixty Five","Sixty Seven","Sixty Nine",
-    "Ninety One","Ninety Three","Ninety Five","Ninety Seven","Ninety Nine","One Hundred and One",
-    "One Hundred and Three","One Hundred and Five","One Hundred and Seven","One Hundred and Nine",
-];
-
-#[rustfmt::skip]
-const EVEN_NUMBERS: &[&str] = &[
-    "Two", "Four", "Six", "Eight", "Ten", "Twelve", "Fourteen", "Sixteen", "Eighteen", 
-    "Twenty","Thirty Two", "Thirty Four","Thirty Six","Thirty Eight","Fifty","Fifty Two",
-    "Fifty Four","Fifty Six","Fifty Eight","Seventy","Seventy Two", 
-    "Seventy Four","Seventy Six","Seventy Eight","One Hundred and Twenty",
-    "One Hundred and Twenty Two", "One Hundred and Twenty Four","One Hundred and Twenty Six",
-    "One Hundred and Twenty Eight",
-];
-
-#[rustfmt::skip]
-const FRACTIONS: &[&str] = &[
-    "One Half", "Eight and a Half", "Three Quarters", "One Sixteeth", 
-];
-
 pub fn adjective(rng: &mut impl Rng) -> &'static str {
     ListGenerator(ADJECTIVES).gen(rng)
 }
@@ -149,28 +123,6 @@ pub fn land_animal(rng: &mut impl Rng) -> &'static str {
 
 pub fn coastal_animal(rng: &mut impl Rng) -> &'static str {
     ListGenerator(COASTAL_ANIMALS).gen(rng)
-}
-
-pub fn number(rng: &mut impl Rng) -> &'static str {
-    let dist = WeightedIndex::new([ODD_NUMBERS.len(), EVEN_NUMBERS.len(), FRACTIONS.len()]).unwrap();
-    match dist.sample(rng) {
-        0..=1 => even_number(rng),
-        2..=3 => odd_number(rng),
-        4 => fraction(rng),
-        _ => unreachable!(),
-    }
-}
-
-pub fn even_number(rng: &mut impl Rng) -> &'static str {
-    ListGenerator(EVEN_NUMBERS).gen(rng)
-}
-
-pub fn odd_number(rng: &mut impl Rng) -> &'static str {
-    ListGenerator(ODD_NUMBERS).gen(rng)
-}
-
-pub fn fraction(rng: &mut impl Rng) -> &'static str {
-    ListGenerator(FRACTIONS).gen(rng)
 }
 
 pub struct ListGenerator(pub &'static [&'static str]);

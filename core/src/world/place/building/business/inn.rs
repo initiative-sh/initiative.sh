@@ -1,5 +1,5 @@
 use crate::utils::pluralize;
-use crate::world::{word, Demographics, Place};
+use crate::world::{word, word::ListGenerator, Demographics, Place};
 use rand::prelude::*;
 
 pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demographics) {
@@ -20,7 +20,7 @@ fn name(rng: &mut impl Rng) -> String {
         4 => format!("The {} {}", word::adjective(rng), thing(rng)),
         5 => {
             let (thing, s) = pluralize(thing(rng));
-            format!("{} {}{}", word::number(rng), thing, s)
+            format!("{} {}{}", number(rng), thing, s)
         }
         _ => unreachable!(),
     }
@@ -67,6 +67,11 @@ fn thing_thing(rng: &mut impl Rng) -> (&'static str, &'static str) {
     } else {
         (thing1, thing2)
     }
+}
+
+#[rustfmt::skip]
+fn number(rng: &mut impl Rng) -> &'static str {
+    ListGenerator(&["Three", "Five", "Seven", "Ten"]).gen(rng)
 }
 
 #[cfg(test)]
