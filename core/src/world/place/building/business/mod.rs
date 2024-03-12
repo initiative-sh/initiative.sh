@@ -1,4 +1,5 @@
 mod inn;
+mod theater;
 
 use super::BuildingType;
 use crate::world::place::{Place, PlaceType};
@@ -112,6 +113,7 @@ pub fn generate(place: &mut Place, rng: &mut impl Rng, demographics: &Demographi
         #[allow(clippy::single_match)]
         match subtype {
             BusinessType::Inn => inn::generate(place, rng, demographics),
+            BusinessType::Theater => theater::generate(place, rng, demographics),
             _ => {}
         }
     }
