@@ -6,10 +6,10 @@ pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demograph
 }
 
 fn name(rng: &mut impl Rng) -> String {
-    match rng.gen_range(0..5) {
-        0..=1 => format!("The {}", thing(rng)),
-        2..=3 => format!("{} {}", thing(rng), theater_synonym(rng)),
-        4 => format!(
+    match rng.gen_range(0..7) {
+        0..=2 => format!("The {}", thing(rng)),
+        3..=5 => format!("{} {}", thing(rng), theater_synonym(rng)),
+        6 => format!(
             "{} {} {}",
             word::adjective(rng),
             thing(rng),
@@ -47,26 +47,26 @@ mod test {
 
         assert_eq!(
             [
-                "Scythe and Steeple Theater",
-                "The Venison Theater",
-                "The Column Theater",
-                "Brown Drum Ampitheater",
-                "The Morose Concert Hall",
-                "Purple Crab Opera House",
-                "The Adventurer's Ampitheater",
-                "The Magician's Opera House",
-                "The Mason's Assembly Hall",
-                "The Grouchy Theater",
-                "The Opal Opera House",
-                "Camel and Empress Theater",
-                "The Perch Concert Hall",
-                "The Lance Theater",
-                "The Hallowed Concert Hall",
-                "The Hidden Ampitheater",
-                "Wasted Bee Theater",
-                "The Swan Theater",
-                "Hungry Locket Concert Hall",
-                "Gold Father Ampitheater"
+                "Lance Playhouse",
+                "Lucky Helmet Playhouse",
+                "The Mermaid",
+                "The Opal",
+                "Sun Playhouse",
+                "Bronze Steeple Theater",
+                "The Sibling",
+                "Anchor Hall",
+                "Book Ampitheater",
+                "Foil Ampitheater",
+                "Deer Ampitheater",
+                "Amber Theater",
+                "The Otter",
+                "Ancestor Hall",
+                "Diamond Opera House",
+                "Green Sapphire Playhouse",
+                "The Rook",
+                "Purple Opal Theater",
+                "Feather Playhouse",
+                "Phalactary Ampitheater"
             ]
             .iter()
             .map(|s| s.to_string())
