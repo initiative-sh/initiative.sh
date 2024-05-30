@@ -4,6 +4,7 @@ use initiative_core::App;
 use std::fmt;
 use std::io;
 use std::io::prelude::*;
+use std::ops::Deref;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -11,6 +12,7 @@ use termion::color;
 use termion::event::{Event, Key};
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
+use initiative_core::app::AutocompleteSuggestion;
 use wrap::wrap;
 
 const CTRL_UP_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 65];
@@ -45,7 +47,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
 
     let mut input = Input::default();
 
-    draw_input(&mut screen, &input)?;
+    draw_input(&mut screen, &input, None)?;
     draw_status(&mut screen, "")?;
     screen.flush()?;
 
@@ -80,8 +82,11 @@ pub async fn run(mut app: App) -> io::Result<()> {
                         _ => {}
                     }
 
+                    let text = input.text();
+                    let completion = app.autocomplete(text).await;
+
                     draw_status(&mut screen, &status)?;
-                    draw_input(&mut screen, &input)?;
+                    draw_input(&mut screen, &input, completion.first())?;
                     screen.flush()?;
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
@@ -116,7 +121,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
             });
 
         draw_status(&mut screen, "")?;
-        draw_input(&mut screen, &input)?;
+        draw_input(&mut screen, &input, None)?;
         screen.flush()?;
     }
 }
@@ -345,16 +350,36 @@ fn draw_status(screen: &mut dyn Write, status: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn draw_input(screen: &mut dyn Write, input: &Input) -> io::Result<()> {
-    let (_, term_height) = termion::terminal_size().unwrap();
+fn draw_input(screen: &mut dyn Write, input: &Input, suggestion: Option<&AutocompleteSuggestion>) -> io::Result<()> {
+    let (term_width, term_height) = termion::terminal_size().unwrap();
     let input_row = term_height - 2;
+
+    let suggestion_text = suggestion
+        .map(|it| {
+            let input_length = input.text().len();
+            let term = it.term.deref();
+
+            &term[input_length..]
+        })
+        .unwrap_or("");
+    let suggestion_summary = suggestion
+        .map(|it| { it.summary.deref() })
+        .unwrap_or("");
+    let suggestion_summary_len: u16 = suggestion_summary.len().try_into().unwrap();
 
     write!(
         screen,
-        "{}{} > {}{}",
+        "{}{} > {}{}{}{}{}{}{}{}{}",
         termion::cursor::Goto(1, input_row),
         termion::clear::CurrentLine,
         input,
+        termion::color::Fg(termion::color::LightBlack),
+        suggestion_text,
+        termion::cursor::Goto(term_width - suggestion_summary_len, input_row),
+        termion::style::Italic,
+        suggestion_summary,
+        termion::color::Reset.fg_str(),
+        termion::style::NoItalic,
         termion::cursor::Goto(4 + input.cursor as u16, input_row)
     )?;
 
