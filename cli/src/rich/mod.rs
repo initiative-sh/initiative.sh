@@ -1,10 +1,10 @@
 mod wrap;
 
+use std::cmp::Ordering;
 use initiative_core::App;
 use std::fmt;
 use std::io;
 use std::io::prelude::*;
-use std::ops::Deref;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -29,6 +29,36 @@ struct Input {
     search_query: Option<String>,
 }
 
+#[derive(Debug)]
+struct Autocomplete {
+    suggestions: Vec<AutocompleteSuggestion>,
+    index: usize,
+    query: String,
+}
+
+impl Autocomplete {
+    fn up(self) -> Autocomplete { self }
+    fn down(self) -> Autocomplete { self }
+
+    fn len(&self) -> u16 {
+        self.suggestions.len().try_into().unwrap()
+    }
+
+    async fn maybe_create(app: &App, input: &Input) -> Option<Autocomplete> {
+        let query = input.text();
+
+        if query.is_empty() {
+            return None
+        }
+        
+        Some(Autocomplete {
+            suggestions: app.autocomplete(query).await,
+            index: 0,
+            query: query.to_string(),
+        })
+    }
+}
+
 pub async fn run(mut app: App) -> io::Result<()> {
     let mut screen = termion::screen::AlternateScreen::from(io::stdout())
         .into_raw_mode()
@@ -46,9 +76,13 @@ pub async fn run(mut app: App) -> io::Result<()> {
     });
 
     let mut input = Input::default();
+    let mut output = String::new();
+    let mut autocomplete: Option<Autocomplete> = None;
 
-    draw_input(&mut screen, &input, None)?;
+    draw_output(&mut screen, &output)?;
+    draw_autocomplete(&mut screen, autocomplete.as_ref())?;
     draw_status(&mut screen, "")?;
+    draw_input(&mut screen, &input)?;
     screen.flush()?;
 
     loop {
@@ -60,7 +94,16 @@ pub async fn run(mut app: App) -> io::Result<()> {
 
                     match event {
                         Ok(Event::Key(key)) => match key {
+                            Key::Up => {
+                                autocomplete = autocomplete.take().map(Autocomplete::up);
+                                input.key(key, false)
+                            }
+                            Key::Down => {
+                                autocomplete = autocomplete.take().map(Autocomplete::down);
+                                input.key(key, false)
+                            }
                             Key::Char('\n') => {
+                                autocomplete = None;
                                 let command = input.text().to_string();
                                 input.key(key, false);
                                 break command;
@@ -68,7 +111,10 @@ pub async fn run(mut app: App) -> io::Result<()> {
                             Key::Ctrl('c') => return Ok(()),
                             Key::Ctrl('h') => input.key(Key::Backspace, true),
                             Key::Ctrl(c) => input.key(Key::Char(c), true),
-                            k => input.key(k, false),
+                            k => {
+                                input.key(k, false);
+                                autocomplete = Autocomplete::maybe_create(&app, &input).await;
+                            },
                         },
                         Ok(Event::Unsupported(bytes)) => match bytes.as_slice() {
                             s if s == &CTRL_LEFT_ARROW[..] => input.key(Key::Left, true),
@@ -82,11 +128,10 @@ pub async fn run(mut app: App) -> io::Result<()> {
                         _ => {}
                     }
 
-                    let text = input.text();
-                    let completion = app.autocomplete(text).await;
-
+                    draw_output(&mut screen, &output)?;
+                    draw_autocomplete(&mut screen, autocomplete.as_ref())?;
                     draw_status(&mut screen, &status)?;
-                    draw_input(&mut screen, &input, completion.first())?;
+                    draw_input(&mut screen, &input)?;
                     screen.flush()?;
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
@@ -94,9 +139,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
             }
         };
 
-        print!("{}", termion::clear::All);
-
-        let output = app.command(&command).await.unwrap_or_else(|e| {
+        output = app.command(&command).await.unwrap_or_else(|e| {
             format!(
                 "{}{}{}{}{}",
                 color::Fg(color::Black),
@@ -107,21 +150,10 @@ pub async fn run(mut app: App) -> io::Result<()> {
             )
         });
 
-        wrap(&output, termion::terminal_size().unwrap().0 as usize - 4)
-            .lines()
-            .enumerate()
-            .for_each(|(num, line)| {
-                write!(
-                    &mut screen,
-                    "{}{}",
-                    termion::cursor::Goto(3, num as u16 + 1),
-                    line
-                )
-                .unwrap();
-            });
-
+        draw_output(&mut screen, &output)?;
+        draw_autocomplete(&mut screen, autocomplete.as_ref())?;
         draw_status(&mut screen, "")?;
-        draw_input(&mut screen, &input, None)?;
+        draw_input(&mut screen, &input)?;
         screen.flush()?;
     }
 }
@@ -322,6 +354,23 @@ impl fmt::Display for &Input {
     }
 }
 
+fn draw_output(screen: &mut dyn Write, output: &str) -> io::Result<()> {
+    let (term_width, _) = termion::terminal_size().unwrap();
+
+    print!("{}", termion::clear::All);
+
+    for (num, line) in wrap(output, term_width as usize - 4).lines().enumerate() {
+        write!(
+            screen,
+            "{}{}",
+            termion::cursor::Goto(3, num as u16 + 1),
+            line
+        )?;
+    }
+
+    Ok(())
+}
+
 fn draw_status(screen: &mut dyn Write, status: &str) -> io::Result<()> {
     let (term_width, term_height) = termion::terminal_size().unwrap();
 
@@ -350,37 +399,69 @@ fn draw_status(screen: &mut dyn Write, status: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn draw_input(screen: &mut dyn Write, input: &Input, suggestion: Option<&AutocompleteSuggestion>) -> io::Result<()> {
-    let (term_width, term_height) = termion::terminal_size().unwrap();
+fn draw_input(screen: &mut dyn Write, input: &Input) -> io::Result<()> {
+    let (_, term_height) = termion::terminal_size().unwrap();
     let input_row = term_height - 2;
-
-    let suggestion_text = suggestion
-        .map(|it| {
-            let input_length = input.text().len();
-            let term = it.term.deref();
-
-            &term[input_length..]
-        })
-        .unwrap_or("");
-    let suggestion_summary = suggestion
-        .map(|it| { it.summary.deref() })
-        .unwrap_or("");
-    let suggestion_summary_len: u16 = suggestion_summary.len().try_into().unwrap();
 
     write!(
         screen,
-        "{}{} > {}{}{}{}{}{}{}{}{}",
+        "{}{} > {}{}",
         termion::cursor::Goto(1, input_row),
         termion::clear::CurrentLine,
         input,
-        termion::color::Fg(termion::color::LightBlack),
-        suggestion_text,
-        termion::cursor::Goto(term_width - suggestion_summary_len, input_row),
-        termion::style::Italic,
-        suggestion_summary,
-        termion::color::Reset.fg_str(),
-        termion::style::NoItalic,
         termion::cursor::Goto(4 + input.cursor as u16, input_row)
+    )?;
+
+    Ok(())
+}
+
+fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>) -> io::Result<()> {
+    let ac = match autocomplete {
+        Some(ac) => ac,
+        None => return Ok(()),
+    };
+
+    let max_term_width = match ac.suggestions.iter().map(|i| i.term.len()).max() {
+        Some(size) => size,
+        None => return Ok(()),
+    };
+    let max_summary_width = match ac.suggestions.iter().map(|i| i.summary.len()).max() {
+        Some(size) => size,
+        None => return Ok(()),
+    };
+    let width = max_term_width + max_summary_width + 2;
+
+    let (_, term_height) = termion::terminal_size().unwrap();
+    let start_row = term_height - 2 - ac.len();
+
+    write!(
+        screen,
+        "{}{}",
+        termion::color::Fg(termion::color::Black),
+        termion::color::Bg(termion::color::LightBlack),
+    )?;
+
+    for (pos, suggestion) in ac.suggestions.iter().enumerate() {
+        let offset: u16 = pos.try_into().unwrap();
+
+        write!(
+            screen,
+            "{}",
+            termion::cursor::Goto(3, start_row + offset),
+        )?;
+
+        write!(screen, "{}", suggestion.term)?;
+        for _ in 0..(width - suggestion.term.len() - suggestion.summary.len()) {
+            write!(screen, "{}", " ")?;
+        }
+        write!(screen, "{}", suggestion.summary)?;
+    }
+
+    write!(
+        screen,
+        "{}{}",
+        termion::color::Reset.fg_str(),
+        termion::color::Reset.bg_str(),
     )?;
 
     Ok(())
