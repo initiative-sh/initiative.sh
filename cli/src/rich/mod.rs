@@ -1,6 +1,5 @@
 mod wrap;
 
-use std::cmp::Ordering;
 use initiative_core::App;
 use std::fmt;
 use std::io;
@@ -32,13 +31,35 @@ struct Input {
 #[derive(Debug)]
 struct Autocomplete {
     suggestions: Vec<AutocompleteSuggestion>,
-    index: usize,
-    query: String,
+    index: Option<usize>,
 }
 
 impl Autocomplete {
-    fn up(self) -> Autocomplete { self }
-    fn down(self) -> Autocomplete { self }
+    fn up(self) -> Autocomplete { 
+        let suggestions = self.suggestions;
+        let suggestions_length = suggestions.len();
+        
+        Autocomplete {
+            suggestions,
+            index: match self.index {
+                Some(i) => Some(if i == 0 { suggestions_length - 1 } else { i - 1 }),
+                None => Some(suggestions_length - 1),
+            },
+        }
+    }
+    
+    fn down(self) -> Autocomplete {
+        let suggestions = self.suggestions;
+        let suggestions_length = suggestions.len();
+
+        Autocomplete {
+            suggestions,
+            index: match self.index {
+                Some(i) => Some(if i == suggestions_length - 1 { 0 } else { i + 1 }),
+                None => Some(0),
+            },
+        }
+    }
 
     fn len(&self) -> u16 {
         self.suggestions.len().try_into().unwrap()
@@ -53,8 +74,7 @@ impl Autocomplete {
         
         Some(Autocomplete {
             suggestions: app.autocomplete(query).await,
-            index: 0,
-            query: query.to_string(),
+            index: None,
         })
     }
 }
@@ -449,12 +469,30 @@ fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>
             "{}",
             termion::cursor::Goto(3, start_row + offset),
         )?;
+        
+        if Some(pos) == ac.index {
+            write!(
+                screen,
+                "{}{}",
+                termion::style::Italic,
+                termion::color::Fg(termion::color::White),
+            )?;
+        }
 
         write!(screen, "{}", suggestion.term)?;
         for _ in 0..(width - suggestion.term.len() - suggestion.summary.len()) {
             write!(screen, "{}", " ")?;
         }
         write!(screen, "{}", suggestion.summary)?;
+        
+        if Some(pos) == ac.index {
+            write!(
+                screen,
+                "{}{}",
+                termion::style::NoItalic,
+                termion::color::Fg(termion::color::Black),
+            )?;
+        }
     }
 
     write!(
