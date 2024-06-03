@@ -35,10 +35,10 @@ struct Autocomplete {
 }
 
 impl Autocomplete {
-    fn up(self) -> Autocomplete { 
+    fn up(self) -> Autocomplete {
         let suggestions = self.suggestions;
         let suggestions_length = suggestions.len();
-        
+
         Autocomplete {
             suggestions,
             index: match self.index {
@@ -47,7 +47,7 @@ impl Autocomplete {
             },
         }
     }
-    
+
     fn down(self) -> Autocomplete {
         let suggestions = self.suggestions;
         let suggestions_length = suggestions.len();
@@ -63,6 +63,13 @@ impl Autocomplete {
 
     fn len(&self) -> u16 {
         self.suggestions.len().try_into().unwrap()
+    }
+
+    fn text(&self) -> Option<String> {
+        self.index.map(|index| {
+            let suggestion = &self.suggestions[index];
+            suggestion.term.to_string()
+        })
     }
 
     async fn maybe_create(app: &App, input: &Input) -> Option<Autocomplete> {
@@ -116,11 +123,19 @@ pub async fn run(mut app: App) -> io::Result<()> {
                         Ok(Event::Key(key)) => match key {
                             Key::Up => {
                                 autocomplete = autocomplete.take().map(Autocomplete::up);
-                                input.key(key, false)
+                                
+                                match autocomplete.as_ref().and_then(Autocomplete::text) {
+                                    Some(text) => input.text_set(&text),
+                                    None => input.key(key, false),
+                                }
                             }
                             Key::Down => {
                                 autocomplete = autocomplete.take().map(Autocomplete::down);
-                                input.key(key, false)
+
+                                match autocomplete.as_ref().and_then(Autocomplete::text) {
+                                    Some(text) => input.text_set(&text),
+                                    None => input.key(key, false),
+                                }
                             }
                             Key::Char('\n') => {
                                 autocomplete = None;
@@ -185,6 +200,12 @@ impl Input {
 
     fn text_mut(&mut self) -> &mut String {
         self.history.get_mut(self.index).unwrap()
+    }
+
+    fn text_set(&mut self, text: &str) {
+        self.text_mut().clear();
+        self.text_mut().push_str(text);
+        self.cursor = text.len();
     }
 
     fn key(&mut self, key: Key, ctrl: bool) {
@@ -469,7 +490,7 @@ fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>
             "{}",
             termion::cursor::Goto(3, start_row + offset),
         )?;
-        
+
         if Some(pos) == ac.index {
             write!(
                 screen,
@@ -484,7 +505,7 @@ fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>
             write!(screen, "{}", " ")?;
         }
         write!(screen, "{}", suggestion.summary)?;
-        
+
         if Some(pos) == ac.index {
             write!(
                 screen,
