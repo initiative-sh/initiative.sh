@@ -62,7 +62,7 @@ impl Autocomplete {
     }
 
     fn len(&self) -> u16 {
-        self.suggestions.len().try_into().unwrap()
+        self.suggestions.len() as u16
     }
 
     fn text(&self) -> Option<String> {
@@ -529,6 +529,64 @@ fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>
 #[cfg(test)]
 mod test {
     use super::*;
+    
+    #[test]
+    fn autocomplete_up_test() {
+        let mut autocomplete = Autocomplete {
+            suggestions: vec![
+                AutocompleteSuggestion {
+                    term: "shield".into(),
+                    summary: "a shield from the SRD".into(),
+                },
+                AutocompleteSuggestion {
+                    term: "shrine".into(),
+                    summary: "create a new shrine".into(),
+                },
+            ],
+            index: None,
+        };
+        
+        assert_eq!(autocomplete.len(), 2);
+        assert_eq!(autocomplete.text(), None);
+        
+        autocomplete = autocomplete.up();
+        assert_eq!(autocomplete.text(), Some("shrine".into()));
+        
+        autocomplete = autocomplete.up();
+        assert_eq!(autocomplete.text(), Some("shield".into()));
+        
+        autocomplete = autocomplete.up();
+        assert_eq!(autocomplete.text(), Some("shrine".into()));
+    }
+    
+    #[test]
+    fn autocomplete_down_test() {
+        let mut autocomplete = Autocomplete {
+            suggestions: vec![
+                AutocompleteSuggestion {
+                    term: "shield".into(),
+                    summary: "a shield from the SRD".into(),
+                },
+                AutocompleteSuggestion {
+                    term: "shrine".into(),
+                    summary: "create a new shrine".into(),
+                },
+            ],
+            index: None,
+        };
+
+        assert_eq!(autocomplete.len(), 2);
+        assert_eq!(autocomplete.text(), None);
+
+        autocomplete = autocomplete.down();
+        assert_eq!(autocomplete.text(), Some("shield".into()));
+
+        autocomplete = autocomplete.down();
+        assert_eq!(autocomplete.text(), Some("shrine".into()));
+
+        autocomplete = autocomplete.down();
+        assert_eq!(autocomplete.text(), Some("shield".into()));
+    }
 
     #[test]
     fn key_left_test() {
