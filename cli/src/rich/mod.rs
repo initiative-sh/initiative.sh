@@ -475,12 +475,13 @@ fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>
     write!(
         screen,
         "{}{}",
-        termion::color::Fg(termion::color::Black),
+        termion::color::Fg(termion::color::White),
         termion::color::Bg(termion::color::LightBlack),
     )?;
 
     for (pos, suggestion) in autocomplete.suggestions.iter().enumerate() {
         let offset: u16 = pos.try_into().unwrap();
+        let indexed = Some(pos) == autocomplete.index;
 
         write!(
             screen,
@@ -488,12 +489,12 @@ fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>
             termion::cursor::Goto(3, start_row + offset),
         )?;
 
-        if Some(pos) == autocomplete.index {
+        if indexed {
             write!(
                 screen,
                 "{}{}",
-                termion::style::Italic,
-                termion::color::Fg(termion::color::White),
+                termion::color::Fg(termion::color::Black),
+                termion::color::Bg(termion::color::White),
             )?;
         }
 
@@ -503,12 +504,12 @@ fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>
         }
         write!(screen, "{} ", suggestion.summary)?;
 
-        if Some(pos) == autocomplete.index {
+        if indexed {
             write!(
                 screen,
                 "{}{}",
-                termion::style::NoItalic,
-                termion::color::Fg(termion::color::Black),
+                termion::color::Fg(termion::color::White),
+                termion::color::Bg(termion::color::LightBlack),
             )?;
         }
     }
