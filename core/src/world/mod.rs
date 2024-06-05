@@ -26,10 +26,6 @@ pub trait Generate: Default {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics);
 }
 
-trait PopulateFields {
-    fn populate_fields(&mut self, rng: &mut impl Rng, demographics: &Demographics);
-}
-
 fn weighted_index_from_tuple<'a, T>(rng: &mut impl Rng, input: &'a [(T, usize)]) -> &'a T {
     let total = input.iter().map(|(_, n)| n).sum();
 

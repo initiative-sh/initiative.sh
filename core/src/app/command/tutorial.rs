@@ -122,7 +122,7 @@ impl TutorialCommand {
 
         let mut output = command_output
             .unwrap_or_else(|| Ok(String::new()))
-            .map_or_else(|e| e, |s| s);
+            .unwrap_or_else(|e| e);
         if !output.is_empty() {
             output.push_str("\n\n#");
         }

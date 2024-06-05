@@ -3,10 +3,6 @@ use std::cmp::Ordering;
 pub trait CaseInsensitiveStr<'a> {
     fn eq_ci<S: AsRef<str>>(&self, other: S) -> bool;
 
-    fn ne_ci<S: AsRef<str>>(&self, other: S) -> bool {
-        !self.eq_ci(other)
-    }
-
     fn cmp_ci<S: AsRef<str>>(&self, other: S) -> Ordering;
 
     fn in_ci<S: AsRef<str>>(&self, haystack: &[S]) -> bool;
