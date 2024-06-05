@@ -61,8 +61,8 @@ impl Autocomplete {
         }
     }
 
-    fn len(&self) -> u16 {
-        self.suggestions.len() as u16
+    fn len(&self) -> usize {
+        self.suggestions.len()
     }
 
     fn text(&self) -> Option<String> {
@@ -72,8 +72,8 @@ impl Autocomplete {
         })
     }
 
-    async fn maybe_create(app: &App, input: &Input) -> Option<Autocomplete> {
-        let query = input.text();
+    async fn try_new(app: &App, input: &Input) -> Option<Autocomplete> {
+        let query = input.get_text();
 
         if query.is_empty() {
             return None
@@ -125,7 +125,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
                                 autocomplete = autocomplete.take().map(Autocomplete::up);
                                 
                                 match autocomplete.as_ref().and_then(Autocomplete::text) {
-                                    Some(text) => input.text_set(&text),
+                                    Some(text) => input.set_text(&text),
                                     None => input.key(key, false),
                                 }
                             }
@@ -133,13 +133,13 @@ pub async fn run(mut app: App) -> io::Result<()> {
                                 autocomplete = autocomplete.take().map(Autocomplete::down);
 
                                 match autocomplete.as_ref().and_then(Autocomplete::text) {
-                                    Some(text) => input.text_set(&text),
+                                    Some(text) => input.set_text(&text),
                                     None => input.key(key, false),
                                 }
                             }
                             Key::Char('\n') => {
                                 autocomplete = None;
-                                let command = input.text().to_string();
+                                let command = input.get_text().to_string();
                                 input.key(key, false);
                                 break command;
                             }
@@ -148,7 +148,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
                             Key::Ctrl(c) => input.key(Key::Char(c), true),
                             k => {
                                 input.key(k, false);
-                                autocomplete = Autocomplete::maybe_create(&app, &input).await;
+                                autocomplete = Autocomplete::try_new(&app, &input).await;
                             },
                         },
                         Ok(Event::Unsupported(bytes)) => match bytes.as_slice() {
@@ -194,17 +194,17 @@ pub async fn run(mut app: App) -> io::Result<()> {
 }
 
 impl Input {
-    fn text(&self) -> &str {
+    fn get_text(&self) -> &str {
         self.history.get(self.index).unwrap()
     }
 
-    fn text_mut(&mut self) -> &mut String {
+    fn get_text_mut(&mut self) -> &mut String {
         self.history.get_mut(self.index).unwrap()
     }
 
-    fn text_set(&mut self, text: &str) {
-        self.text_mut().clear();
-        self.text_mut().push_str(text);
+    fn set_text(&mut self, text: &str) {
+        self.get_text_mut().clear();
+        self.get_text_mut().push_str(text);
         self.cursor = text.len();
     }
 
@@ -216,11 +216,11 @@ impl Input {
             (Key::Right, true) => self.cursor = self.find_boundary_right(),
             (Key::Up, false) if self.index > 0 => {
                 self.index -= 1;
-                self.cursor = self.text().len();
+                self.cursor = self.get_text().len();
             }
             (Key::Down, false) if self.index < self.history.len() - 1 => {
                 self.index += 1;
-                self.cursor = self.text().len();
+                self.cursor = self.get_text().len();
             }
 
             (Key::Char('r'), true) => {
@@ -257,7 +257,7 @@ impl Input {
 
                 self.history.push(String::new());
                 self.index = self.history.len() - 1;
-                self.cursor = self.text().len();
+                self.cursor = self.get_text().len();
                 self.search_query = None;
             }
 
@@ -267,27 +267,27 @@ impl Input {
                 } else {
                     self.cursor -= 1;
                     let cursor = self.cursor;
-                    self.text_mut().remove(cursor);
+                    self.get_text_mut().remove(cursor);
                 }
             }
             (Key::Backspace, true) if !self.is_at_start() => {
                 let boundary = self.find_boundary_left();
                 let cursor = self.cursor;
-                self.text_mut().replace_range(boundary..cursor, "");
+                self.get_text_mut().replace_range(boundary..cursor, "");
                 self.cursor = boundary;
             }
 
             (Key::Home, _) => self.cursor = 0,
-            (Key::End, _) => self.cursor = self.text().len(),
+            (Key::End, _) => self.cursor = self.get_text().len(),
 
             (Key::Delete, false) if !self.is_at_end() => {
                 let cursor = self.cursor;
-                self.text_mut().remove(cursor);
+                self.get_text_mut().remove(cursor);
             }
             (Key::Delete, true) if !self.is_at_end() => {
                 let boundary = self.find_boundary_right();
                 let cursor = self.cursor;
-                self.text_mut().replace_range(cursor..boundary, "");
+                self.get_text_mut().replace_range(cursor..boundary, "");
             }
             (Key::Char(c), false) => {
                 if let Some(query) = self.search_query.as_mut() {
@@ -297,11 +297,11 @@ impl Input {
                         self.cursor = cursor;
                     }
                 } else {
-                    if self.cursor == self.text().len() {
-                        self.text_mut().push(c);
+                    if self.cursor == self.get_text().len() {
+                        self.get_text_mut().push(c);
                     } else {
                         let cursor = self.cursor;
-                        self.text_mut().insert(cursor, c);
+                        self.get_text_mut().insert(cursor, c);
                     }
                     self.cursor += 1;
                 }
@@ -327,17 +327,17 @@ impl Input {
     }
 
     fn is_at_end(&self) -> bool {
-        self.cursor == self.text().len()
+        self.cursor == self.get_text().len()
     }
 
     fn find_boundary_left(&self) -> usize {
         let mut boundary = self.cursor;
 
-        if !self.text().is_empty() && boundary > 0 {
+        if !self.get_text().is_empty() && boundary > 0 {
             boundary -= 1;
 
             while boundary > 0 {
-                let mut chars = self.text().chars().skip(boundary - 1);
+                let mut chars = self.get_text().chars().skip(boundary - 1);
                 let (prev_char, cur_char) = (chars.next().unwrap(), chars.next().unwrap());
                 if !prev_char.is_alphanumeric() && cur_char.is_alphanumeric() {
                     break;
@@ -352,12 +352,12 @@ impl Input {
     fn find_boundary_right(&self) -> usize {
         let mut boundary = self.cursor;
 
-        if boundary < self.text().len() {
+        if boundary < self.get_text().len() {
             boundary += 1;
             let mut alphanumeric_char_encountered = false;
 
-            while boundary < self.text().len() {
-                let mut chars = self.text().chars().skip(boundary - 1);
+            while boundary < self.get_text().len() {
+                let mut chars = self.get_text().chars().skip(boundary - 1);
                 let (prev_char, cur_char) = (chars.next().unwrap(), chars.next().unwrap());
 
                 if prev_char.is_alphanumeric() {
@@ -391,7 +391,7 @@ impl Default for Input {
 
 impl fmt::Display for &Input {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.text())
+        write!(f, "{}", self.get_text())
     }
 }
 
@@ -457,23 +457,20 @@ fn draw_input(screen: &mut dyn Write, input: &Input) -> io::Result<()> {
 }
 
 fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>) -> io::Result<()> {
-    let ac = match autocomplete {
-        Some(ac) => ac,
-        None => return Ok(()),
+    let Some(autocomplete) = autocomplete else {
+        return Ok(());
     };
 
-    let max_term_width = match ac.suggestions.iter().map(|i| i.term.len()).max() {
-        Some(size) => size,
-        None => return Ok(()),
+    let Some(term_width) = autocomplete.suggestions.iter().map(|i| i.term.len()).max() else {
+        return Ok(());
     };
-    let max_summary_width = match ac.suggestions.iter().map(|i| i.summary.len()).max() {
-        Some(size) => size,
-        None => return Ok(()),
+    let Some(summary_width) = autocomplete.suggestions.iter().map(|i| i.summary.len()).max() else {
+        return Ok(());
     };
-    let width = max_term_width + max_summary_width + 2;
+    let width = term_width + summary_width + 2;
 
     let (_, term_height) = termion::terminal_size().unwrap();
-    let start_row = term_height - 2 - ac.len();
+    let start_row = term_height - 2 - autocomplete.len() as u16;
 
     write!(
         screen,
@@ -482,7 +479,7 @@ fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>
         termion::color::Bg(termion::color::LightBlack),
     )?;
 
-    for (pos, suggestion) in ac.suggestions.iter().enumerate() {
+    for (pos, suggestion) in autocomplete.suggestions.iter().enumerate() {
         let offset: u16 = pos.try_into().unwrap();
 
         write!(
@@ -491,7 +488,7 @@ fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>
             termion::cursor::Goto(3, start_row + offset),
         )?;
 
-        if Some(pos) == ac.index {
+        if Some(pos) == autocomplete.index {
             write!(
                 screen,
                 "{}{}",
@@ -500,13 +497,13 @@ fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>
             )?;
         }
 
-        write!(screen, "{}", suggestion.term)?;
+        write!(screen, " {}", suggestion.term)?;
         for _ in 0..(width - suggestion.term.len() - suggestion.summary.len()) {
-            write!(screen, "{}", " ")?;
+            write!(screen, " ")?;
         }
-        write!(screen, "{}", suggestion.summary)?;
+        write!(screen, "{} ", suggestion.summary)?;
 
-        if Some(pos) == ac.index {
+        if Some(pos) == autocomplete.index {
             write!(
                 screen,
                 "{}{}",
@@ -673,15 +670,15 @@ mod test {
             search_query: None,
         };
 
-        assert_eq!("baz", input.text());
+        assert_eq!("baz", input.get_text());
 
         input.key(Key::Up, false);
-        assert_eq!("foo bar", input.text());
+        assert_eq!("foo bar", input.get_text());
         assert_eq!(0, input.index);
         assert_eq!(7, input.cursor);
 
         input.key(Key::Up, false);
-        assert_eq!("foo bar", input.text());
+        assert_eq!("foo bar", input.get_text());
     }
 
     #[test]
@@ -693,15 +690,15 @@ mod test {
             search_query: None,
         };
 
-        assert_eq!("foo", input.text());
+        assert_eq!("foo", input.get_text());
 
         input.key(Key::Down, false);
-        assert_eq!("bar baz", input.text());
+        assert_eq!("bar baz", input.get_text());
         assert_eq!(1, input.index);
         assert_eq!(7, input.cursor);
 
         input.key(Key::Down, false);
-        assert_eq!("bar baz", input.text());
+        assert_eq!("bar baz", input.get_text());
     }
 
     #[test]
@@ -802,15 +799,15 @@ mod test {
         };
 
         input.key(Key::Backspace, false);
-        assert_eq!("br baz", input.text());
+        assert_eq!("br baz", input.get_text());
         assert_eq!(1, input.cursor);
 
         input.key(Key::Backspace, false);
-        assert_eq!("r baz", input.text());
+        assert_eq!("r baz", input.get_text());
         assert_eq!(0, input.cursor);
 
         input.key(Key::Backspace, false);
-        assert_eq!("r baz", input.text());
+        assert_eq!("r baz", input.get_text());
         assert_eq!(0, input.cursor);
     }
 
@@ -824,15 +821,15 @@ mod test {
         };
 
         input.key(Key::Backspace, true);
-        assert_eq!("foo ar", input.text());
+        assert_eq!("foo ar", input.get_text());
         assert_eq!(4, input.cursor);
 
         input.key(Key::Backspace, true);
-        assert_eq!("ar", input.text());
+        assert_eq!("ar", input.get_text());
         assert_eq!(0, input.cursor);
 
         input.key(Key::Backspace, true);
-        assert_eq!("ar", input.text());
+        assert_eq!("ar", input.get_text());
         assert_eq!(0, input.cursor);
     }
 
@@ -862,15 +859,15 @@ mod test {
         };
 
         input.key(Key::Delete, false);
-        assert_eq!("foo br", input.text());
+        assert_eq!("foo br", input.get_text());
         assert_eq!(5, input.cursor);
 
         input.key(Key::Delete, false);
-        assert_eq!("foo b", input.text());
+        assert_eq!("foo b", input.get_text());
         assert_eq!(5, input.cursor);
 
         input.key(Key::Delete, false);
-        assert_eq!("foo b", input.text());
+        assert_eq!("foo b", input.get_text());
         assert_eq!(5, input.cursor);
     }
 
@@ -884,15 +881,15 @@ mod test {
         };
 
         input.key(Key::Delete, true);
-        assert_eq!("ba baz", input.text());
+        assert_eq!("ba baz", input.get_text());
         assert_eq!(2, input.cursor);
 
         input.key(Key::Delete, true);
-        assert_eq!("ba", input.text());
+        assert_eq!("ba", input.get_text());
         assert_eq!(2, input.cursor);
 
         input.key(Key::Delete, true);
-        assert_eq!("ba", input.text());
+        assert_eq!("ba", input.get_text());
         assert_eq!(2, input.cursor);
     }
 
@@ -903,12 +900,12 @@ mod test {
         input.key(Key::Char('A'), false);
         input.key(Key::Char('B'), false);
         input.key(Key::Char('X'), true);
-        assert_eq!("AB", input.text());
+        assert_eq!("AB", input.get_text());
         assert_eq!(2, input.cursor);
 
         input.cursor = 0;
         input.key(Key::Char('C'), false);
-        assert_eq!("CAB", input.text());
+        assert_eq!("CAB", input.get_text());
         assert_eq!(1, input.cursor);
     }
 
@@ -918,7 +915,7 @@ mod test {
         assert!(input.is_at_start());
         assert!(input.is_at_end());
 
-        input.text_mut().push_str("ab");
+        input.get_text_mut().push_str("ab");
         assert!(input.is_at_start());
         assert!(!input.is_at_end());
 
@@ -939,7 +936,7 @@ mod test {
             cursor: 0,
             search_query: None,
         };
-        input.cursor = input.text().len();
+        input.cursor = input.get_text().len();
 
         let mut stops = Vec::new();
 
@@ -971,12 +968,12 @@ mod test {
         //  ^     ^     ^    ^      ^           ^     ^ ^     ^ ^
         //  1     7     1    1      2           3     4 4     5 5
         //              3    8      5           7     3 5     1 3
-        while input.cursor < input.text().len() && stops.len() < 100 {
+        while input.cursor < input.get_text().len() && stops.len() < 100 {
             input.cursor = input.find_boundary_right();
             stops.push(input.cursor);
         }
 
         assert_eq!(vec![1, 7, 13, 18, 25, 37, 43, 45, 51, 53], stops);
-        assert_eq!(input.text().len(), input.find_boundary_right());
+        assert_eq!(input.get_text().len(), input.find_boundary_right());
     }
 }
