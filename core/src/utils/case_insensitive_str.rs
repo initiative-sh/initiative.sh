@@ -122,15 +122,15 @@ mod test {
         assert!("!@#".eq_ci("!@#"));
         assert!("p🥔tat🥔".eq_ci("P🥔TAT🥔"));
 
-        assert!("abcd".ne_ci("abc"));
-        assert!("abc".ne_ci("abcd"));
-        assert!("".ne_ci("🥔"));
-        assert!("🥔".ne_ci(""));
-        assert!("🥔".ne_ci("potato"));
-        assert!("potato".ne_ci("🥔"));
-        assert!("SS".ne_ci("ß"));
-        assert!("ß".ne_ci("S"));
-        assert!("S".ne_ci("ß"));
+        assert!(!"abcd".eq_ci("abc"));
+        assert!(!"abc".eq_ci("abcd"));
+        assert!(!"".eq_ci("🥔"));
+        assert!(!"🥔".eq_ci(""));
+        assert!(!"🥔".eq_ci("potato"));
+        assert!(!"potato".eq_ci("🥔"));
+        assert!(!"SS".eq_ci("ß"));
+        assert!(!"ß".eq_ci("S"));
+        assert!(!"S".eq_ci("ß"));
     }
 
     #[test]
