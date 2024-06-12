@@ -1,5 +1,6 @@
 mod wrap;
 
+use initiative_core::app::AutocompleteSuggestion;
 use initiative_core::App;
 use std::fmt;
 use std::io;
@@ -11,7 +12,6 @@ use termion::color;
 use termion::event::{Event, Key};
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
-use initiative_core::app::AutocompleteSuggestion;
 use wrap::wrap;
 
 const CTRL_UP_ARROW: [u8; 6] = [27, 91, 49, 59, 53, 65];
@@ -42,7 +42,11 @@ impl Autocomplete {
         Autocomplete {
             suggestions,
             index: match self.index {
-                Some(i) => Some(if i == 0 { suggestions_length - 1 } else { i - 1 }),
+                Some(i) => Some(if i == 0 {
+                    suggestions_length - 1
+                } else {
+                    i - 1
+                }),
                 None => Some(suggestions_length - 1),
             },
         }
@@ -55,7 +59,11 @@ impl Autocomplete {
         Autocomplete {
             suggestions,
             index: match self.index {
-                Some(i) => Some(if i == suggestions_length - 1 { 0 } else { i + 1 }),
+                Some(i) => Some(if i == suggestions_length - 1 {
+                    0
+                } else {
+                    i + 1
+                }),
                 None => Some(0),
             },
         }
@@ -76,9 +84,9 @@ impl Autocomplete {
         let query = input.get_text();
 
         if query.is_empty() {
-            return None
+            return None;
         }
-        
+
         Some(Autocomplete {
             suggestions: app.autocomplete(query).await,
             index: None,
@@ -123,7 +131,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
                         Ok(Event::Key(key)) => match key {
                             Key::Up => {
                                 autocomplete = autocomplete.take().map(Autocomplete::up);
-                                
+
                                 match autocomplete.as_ref().and_then(Autocomplete::text) {
                                     Some(text) => input.set_text(&text),
                                     None => input.key(key, false),
@@ -149,7 +157,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
                             k => {
                                 input.key(k, false);
                                 autocomplete = Autocomplete::try_new(&app, &input).await;
-                            },
+                            }
                         },
                         Ok(Event::Unsupported(bytes)) => match bytes.as_slice() {
                             s if s == &CTRL_LEFT_ARROW[..] => input.key(Key::Left, true),
@@ -456,7 +464,10 @@ fn draw_input(screen: &mut dyn Write, input: &Input) -> io::Result<()> {
     Ok(())
 }
 
-fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>) -> io::Result<()> {
+fn draw_autocomplete(
+    screen: &mut dyn Write,
+    autocomplete: Option<&Autocomplete>,
+) -> io::Result<()> {
     let Some(autocomplete) = autocomplete else {
         return Ok(());
     };
@@ -464,7 +475,12 @@ fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>
     let Some(term_width) = autocomplete.suggestions.iter().map(|i| i.term.len()).max() else {
         return Ok(());
     };
-    let Some(summary_width) = autocomplete.suggestions.iter().map(|i| i.summary.len()).max() else {
+    let Some(summary_width) = autocomplete
+        .suggestions
+        .iter()
+        .map(|i| i.summary.len())
+        .max()
+    else {
         return Ok(());
     };
     let width = term_width + summary_width + 2;
@@ -483,11 +499,7 @@ fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>
         let offset: u16 = pos.try_into().unwrap();
         let indexed = Some(pos) == autocomplete.index;
 
-        write!(
-            screen,
-            "{}",
-            termion::cursor::Goto(3, start_row + offset),
-        )?;
+        write!(screen, "{}", termion::cursor::Goto(3, start_row + offset))?;
 
         if indexed {
             write!(
@@ -527,7 +539,7 @@ fn draw_autocomplete(screen: &mut dyn Write, autocomplete: Option<&Autocomplete>
 #[cfg(test)]
 mod test {
     use super::*;
-    
+
     #[test]
     fn autocomplete_up_test() {
         let mut autocomplete = Autocomplete {
@@ -543,20 +555,20 @@ mod test {
             ],
             index: None,
         };
-        
+
         assert_eq!(autocomplete.len(), 2);
         assert_eq!(autocomplete.text(), None);
-        
+
         autocomplete = autocomplete.up();
         assert_eq!(autocomplete.text(), Some("shrine".into()));
-        
+
         autocomplete = autocomplete.up();
         assert_eq!(autocomplete.text(), Some("shield".into()));
-        
+
         autocomplete = autocomplete.up();
         assert_eq!(autocomplete.text(), Some("shrine".into()));
     }
-    
+
     #[test]
     fn autocomplete_down_test() {
         let mut autocomplete = Autocomplete {
