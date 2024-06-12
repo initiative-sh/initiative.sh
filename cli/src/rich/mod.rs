@@ -32,6 +32,7 @@ struct Input {
 struct Autocomplete {
     suggestions: Vec<AutocompleteSuggestion>,
     index: Option<usize>,
+    query: String,
 }
 
 impl Autocomplete {
@@ -49,6 +50,7 @@ impl Autocomplete {
                 }),
                 None => Some(suggestions_length - 1),
             },
+            query: self.query,
         }
     }
 
@@ -66,6 +68,7 @@ impl Autocomplete {
                 }),
                 None => Some(0),
             },
+            query: self.query,
         }
     }
 
@@ -90,6 +93,7 @@ impl Autocomplete {
         Some(Autocomplete {
             suggestions: app.autocomplete(query).await,
             index: None,
+            query: query.to_string(),
         })
     }
 }
@@ -488,38 +492,59 @@ fn draw_autocomplete(
     let (_, term_height) = termion::terminal_size().unwrap();
     let start_row = term_height - 2 - autocomplete.len() as u16;
 
-    write!(
-        screen,
-        "{}{}",
-        termion::color::Fg(termion::color::White),
-        termion::color::Bg(termion::color::LightBlack),
-    )?;
-
     for (pos, suggestion) in autocomplete.suggestions.iter().enumerate() {
-        let offset: u16 = pos.try_into().unwrap();
-        let indexed = Some(pos) == autocomplete.index;
+        let padding =
+            String::from_utf8(vec![
+                b' ';
+                width - suggestion.term.len() - suggestion.summary.len()
+            ])
+            .unwrap();
+        let query_len = autocomplete.query.len();
+        let line = pos as u16 + start_row;
 
-        write!(screen, "{}", termion::cursor::Goto(3, start_row + offset))?;
-
-        if indexed {
+        // This is a little indimidating but goes like so:
+        // - Go to line position and set default color. Draw first part of border.
+        // - Switch to the 'match color' and draw the matching text
+        // - Switch to the text color, draw unmatched text
+        // - Switch to summary color, draw padding and the summary.
+        // - Return to default color and draw the last part of the border
+        if Some(pos) == autocomplete.index {
             write!(
                 screen,
-                "{}{}",
-                termion::color::Fg(termion::color::Black),
-                termion::color::Bg(termion::color::White),
+                "{}{}{} {}{}{}{}{}{}{}{}{}{}{}{} ",
+                termion::cursor::Goto(3, line),
+                termion::color::Fg(termion::color::White),
+                termion::color::Bg(termion::color::LightBlack),
+                termion::color::Fg(termion::color::White),
+                termion::color::Bg(termion::color::Black),
+                &suggestion.term[..query_len],
+                termion::color::Fg(termion::color::White),
+                termion::color::Bg(termion::color::Black),
+                &suggestion.term[query_len..],
+                termion::color::Fg(termion::color::LightBlack),
+                termion::color::Bg(termion::color::Black),
+                padding,
+                suggestion.summary,
+                termion::color::Fg(termion::color::White),
+                termion::color::Bg(termion::color::LightBlack),
             )?;
-        }
-
-        write!(screen, " {}", suggestion.term)?;
-        for _ in 0..(width - suggestion.term.len() - suggestion.summary.len()) {
-            write!(screen, " ")?;
-        }
-        write!(screen, "{} ", suggestion.summary)?;
-
-        if indexed {
+        } else {
             write!(
                 screen,
-                "{}{}",
+                "{}{}{} {}{}{}{}{}{}{}{}{}{}{}{} ",
+                termion::cursor::Goto(3, line),
+                termion::color::Fg(termion::color::White),
+                termion::color::Bg(termion::color::LightBlack),
+                termion::color::Fg(termion::color::Black),
+                termion::color::Bg(termion::color::LightBlack),
+                &suggestion.term[..query_len],
+                termion::color::Fg(termion::color::White),
+                termion::color::Bg(termion::color::LightBlack),
+                &suggestion.term[query_len..],
+                termion::color::Fg(termion::color::White),
+                termion::color::Bg(termion::color::LightBlack),
+                padding,
+                suggestion.summary,
                 termion::color::Fg(termion::color::White),
                 termion::color::Bg(termion::color::LightBlack),
             )?;
@@ -554,6 +579,7 @@ mod test {
                 },
             ],
             index: None,
+            query: "sh".into(),
         };
 
         assert_eq!(autocomplete.len(), 2);
@@ -583,6 +609,7 @@ mod test {
                 },
             ],
             index: None,
+            query: "sh".into(),
         };
 
         assert_eq!(autocomplete.len(), 2);
