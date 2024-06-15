@@ -576,12 +576,9 @@ fn draw_autocomplete(
     let start_row = term_height - 2 - autocomplete.len() as u16;
 
     for (pos, suggestion) in autocomplete.suggestions.iter().enumerate() {
-        let padding =
-            String::from_utf8(vec![
-                b' ';
-                width - suggestion.term.len() - suggestion.summary.len()
-            ])
-            .unwrap();
+        let padding: String = std::iter::repeat(' ')
+            .take(width.saturating_sub(suggestion.term.len() + suggestion.summary.len()))
+            .collect();
         let query_len = autocomplete.query.len();
         let line = pos as u16 + start_row;
 
