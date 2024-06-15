@@ -31,7 +31,7 @@ struct Input {
 #[derive(Debug)]
 struct Autocomplete {
     suggestions: Vec<AutocompleteSuggestion>,
-    index: Option<usize>,
+    selected: Option<usize>,
     query: String,
 }
 
@@ -42,12 +42,9 @@ impl Autocomplete {
 
         Autocomplete {
             suggestions,
-            index: match self.index {
-                Some(i) => Some(if i == 0 {
-                    suggestions_length - 1
-                } else {
-                    i - 1
-                }),
+            selected: match self.selected {
+                Some(0) => Some(suggestions_length - 1),
+                Some(x) => Some(x - 1),
                 None => Some(suggestions_length - 1),
             },
             query: self.query,
@@ -60,12 +57,8 @@ impl Autocomplete {
 
         Autocomplete {
             suggestions,
-            index: match self.index {
-                Some(i) => Some(if i == suggestions_length - 1 {
-                    0
-                } else {
-                    i + 1
-                }),
+            selected: match self.selected {
+                Some(selected) => Some((selected + 1) % suggestions_length),
                 None => Some(0),
             },
             query: self.query,
@@ -76,11 +69,61 @@ impl Autocomplete {
         self.suggestions.len()
     }
 
-    fn text(&self) -> Option<String> {
-        self.index.map(|index| {
-            let suggestion = &self.suggestions[index];
-            suggestion.term.to_string()
-        })
+    fn get_selected_suggestion(&self) -> Option<&AutocompleteSuggestion> {
+        self.selected.map(|selected| &self.suggestions[selected])
+    }
+
+    fn get_only_suggestion(&self) -> Option<&AutocompleteSuggestion> {
+        return match self.suggestions.len() {
+            1 => self.suggestions.first(),
+            _ => None,
+        };
+    }
+
+    fn suggestions_share_prefix(&self, len: usize) -> bool {
+        let prefixes = self
+            .suggestions
+            .iter()
+            .map(|suggestion| {
+                suggestion
+                    .term
+                    .chars()
+                    .take(len)
+                    .flat_map(char::to_lowercase)
+                    .collect::<String>()
+            })
+            .collect::<std::collections::HashSet<_>>();
+
+        prefixes.len() == 1
+    }
+
+    fn expand_match(self) -> Autocomplete {
+        let Some(min_suggestion_len) = self.suggestions.iter().map(|s| s.term.len()).min() else {
+            return self;
+        };
+
+        let mut expanded_end = self.query.len();
+        while expanded_end <= min_suggestion_len && self.suggestions_share_prefix(expanded_end) {
+            expanded_end += 1;
+        }
+
+        let additions = self
+            .suggestions
+            .first()
+            .unwrap()
+            .term
+            .chars()
+            .skip(self.query.len())
+            .take(expanded_end - 1 - self.query.len());
+
+        let mut next_query = self.query.clone();
+        next_query.extend(additions);
+
+        Autocomplete {
+            suggestions: self.suggestions,
+            selected: self.selected,
+            query: next_query,
+        }
     }
 
     async fn try_new(app: &App, input: &Input) -> Option<Autocomplete> {
@@ -92,7 +135,7 @@ impl Autocomplete {
 
         Some(Autocomplete {
             suggestions: app.autocomplete(query).await,
-            index: None,
+            selected: None,
             query: query.to_string(),
         })
     }
@@ -121,7 +164,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
     draw_output(&mut screen, &output)?;
     draw_autocomplete(&mut screen, autocomplete.as_ref())?;
     draw_status(&mut screen, "")?;
-    draw_input(&mut screen, &input)?;
+    draw_input(&mut screen, &input, None)?;
     screen.flush()?;
 
     loop {
@@ -136,16 +179,22 @@ pub async fn run(mut app: App) -> io::Result<()> {
                             Key::Up => {
                                 autocomplete = autocomplete.take().map(Autocomplete::up);
 
-                                match autocomplete.as_ref().and_then(Autocomplete::text) {
-                                    Some(text) => input.set_text(&text),
+                                match autocomplete
+                                    .as_ref()
+                                    .and_then(Autocomplete::get_selected_suggestion)
+                                {
+                                    Some(suggestion) => input.set_text(&suggestion.term),
                                     None => input.key(key, false),
                                 }
                             }
                             Key::Down => {
                                 autocomplete = autocomplete.take().map(Autocomplete::down);
 
-                                match autocomplete.as_ref().and_then(Autocomplete::text) {
-                                    Some(text) => input.set_text(&text),
+                                match autocomplete
+                                    .as_ref()
+                                    .and_then(Autocomplete::get_selected_suggestion)
+                                {
+                                    Some(suggestion) => input.set_text(&suggestion.term),
                                     None => input.key(key, false),
                                 }
                             }
@@ -154,6 +203,13 @@ pub async fn run(mut app: App) -> io::Result<()> {
                                 let command = input.get_text().to_string();
                                 input.key(key, false);
                                 break command;
+                            }
+                            Key::Char('\t') => {
+                                autocomplete = autocomplete.take().map(Autocomplete::expand_match);
+
+                                if let Some(query) = autocomplete.as_ref().map(|it| &it.query) {
+                                    input.set_text(query);
+                                }
                             }
                             Key::Ctrl('c') => return Ok(()),
                             Key::Ctrl('h') => input.key(Key::Backspace, true),
@@ -178,7 +234,13 @@ pub async fn run(mut app: App) -> io::Result<()> {
                     draw_output(&mut screen, &output)?;
                     draw_autocomplete(&mut screen, autocomplete.as_ref())?;
                     draw_status(&mut screen, &status)?;
-                    draw_input(&mut screen, &input)?;
+                    draw_input(
+                        &mut screen,
+                        &input,
+                        autocomplete
+                            .as_ref()
+                            .and_then(Autocomplete::get_only_suggestion),
+                    )?;
                     screen.flush()?;
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
@@ -200,7 +262,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
         draw_output(&mut screen, &output)?;
         draw_autocomplete(&mut screen, autocomplete.as_ref())?;
         draw_status(&mut screen, "")?;
-        draw_input(&mut screen, &input)?;
+        draw_input(&mut screen, &input, None)?;
         screen.flush()?;
     }
 }
@@ -452,7 +514,11 @@ fn draw_status(screen: &mut dyn Write, status: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn draw_input(screen: &mut dyn Write, input: &Input) -> io::Result<()> {
+fn draw_input(
+    screen: &mut dyn Write,
+    input: &Input,
+    suggestion: Option<&AutocompleteSuggestion>,
+) -> io::Result<()> {
     let (_, term_height) = termion::terminal_size().unwrap();
     let input_row = term_height - 2;
 
@@ -464,6 +530,23 @@ fn draw_input(screen: &mut dyn Write, input: &Input) -> io::Result<()> {
         input,
         termion::cursor::Goto(4 + input.cursor as u16, input_row)
     )?;
+
+    if let Some(suggestion) = suggestion.map(|it| it.term.as_ref()) {
+        write!(
+            screen,
+            "{}{}{}{}{}{}{}",
+            termion::cursor::Save,
+            termion::color::Fg(termion::color::LightWhite),
+            termion::color::Bg(termion::color::Blue),
+            suggestion
+                .chars()
+                .skip(input.get_text().len())
+                .collect::<String>(),
+            termion::color::Reset.fg_str(),
+            termion::color::Reset.bg_str(),
+            termion::cursor::Restore,
+        )?;
+    }
 
     Ok(())
 }
@@ -508,7 +591,7 @@ fn draw_autocomplete(
         // - Switch to the text color, draw unmatched text
         // - Switch to summary color, draw padding and the summary.
         // - Return to default color and draw the last part of the border
-        if Some(pos) == autocomplete.index {
+        if Some(pos) == autocomplete.selected {
             write!(
                 screen,
                 "{}{}{} {}{}{}{}{}{}{}{}{}{}{}{} ",
@@ -566,63 +649,113 @@ mod test {
     use super::*;
 
     #[test]
+    fn expand_single_match() {
+        let autocomplete = Autocomplete {
+            suggestions: vec![("shield", "a shield from the SRD").into()],
+            selected: None,
+            query: "s".into(),
+        };
+
+        let expanded = autocomplete.expand_match();
+        assert_eq!(expanded.query, "shield");
+    }
+
+    #[test]
+    fn expand_autocomplete() {
+        let autocomplete = Autocomplete {
+            suggestions: vec![
+                ("shield", "a shield from the SRD").into(),
+                ("shiny bauble", "so shiny!").into(),
+            ],
+            selected: None,
+            query: "s".into(),
+        };
+
+        let expanded = autocomplete.expand_match();
+        assert_eq!(expanded.query, "shi");
+    }
+
+    #[test]
+    fn autocomplete_returns_single_suggestion() {
+        let single = Autocomplete {
+            suggestions: vec![("shield", "a shield from the SRD").into()],
+            selected: None,
+            query: "sh".into(),
+        };
+        assert_eq!(single.get_only_suggestion(), single.suggestions.get(0));
+
+        let multiple = Autocomplete {
+            suggestions: vec![
+                ("shield", "a shield from the SRD").into(),
+                ("shrine", "create a new shrine").into(),
+            ],
+            selected: None,
+            query: "sh".into(),
+        };
+        assert_eq!(multiple.get_only_suggestion(), None);
+    }
+
+    #[test]
     fn autocomplete_up_test() {
         let mut autocomplete = Autocomplete {
-            suggestions: vec![
-                AutocompleteSuggestion {
-                    term: "shield".into(),
-                    summary: "a shield from the SRD".into(),
-                },
-                AutocompleteSuggestion {
-                    term: "shrine".into(),
-                    summary: "create a new shrine".into(),
-                },
-            ],
-            index: None,
+            suggestions: vec![("shield", "a shield").into(), ("shrine", "a shrine").into()],
+            selected: None,
             query: "sh".into(),
         };
 
         assert_eq!(autocomplete.len(), 2);
-        assert_eq!(autocomplete.text(), None);
+        assert_eq!(autocomplete.get_selected_suggestion(), None);
 
         autocomplete = autocomplete.up();
-        assert_eq!(autocomplete.text(), Some("shrine".into()));
+        assert_eq!(
+            autocomplete.get_selected_suggestion(),
+            autocomplete.suggestions.get(1)
+        );
 
         autocomplete = autocomplete.up();
-        assert_eq!(autocomplete.text(), Some("shield".into()));
+        assert_eq!(
+            autocomplete.get_selected_suggestion(),
+            autocomplete.suggestions.get(0)
+        );
 
         autocomplete = autocomplete.up();
-        assert_eq!(autocomplete.text(), Some("shrine".into()));
+        assert_eq!(
+            autocomplete.get_selected_suggestion(),
+            autocomplete.suggestions.get(1)
+        );
     }
 
     #[test]
     fn autocomplete_down_test() {
         let mut autocomplete = Autocomplete {
             suggestions: vec![
-                AutocompleteSuggestion {
-                    term: "shield".into(),
-                    summary: "a shield from the SRD".into(),
-                },
-                AutocompleteSuggestion {
-                    term: "shrine".into(),
-                    summary: "create a new shrine".into(),
-                },
+                ("shield", "a shield from the SRD").into(),
+                ("shrine", "create a new shrine").into(),
             ],
-            index: None,
+            selected: None,
             query: "sh".into(),
         };
 
         assert_eq!(autocomplete.len(), 2);
-        assert_eq!(autocomplete.text(), None);
+        assert_eq!(autocomplete.get_selected_suggestion(), None);
 
         autocomplete = autocomplete.down();
-        assert_eq!(autocomplete.text(), Some("shield".into()));
+        assert_eq!(
+            autocomplete.get_selected_suggestion(),
+            autocomplete.suggestions.get(0)
+        );
 
         autocomplete = autocomplete.down();
-        assert_eq!(autocomplete.text(), Some("shrine".into()));
+        assert_eq!(
+            autocomplete.get_selected_suggestion(),
+            autocomplete.suggestions.get(1)
+        );
 
         autocomplete = autocomplete.down();
-        assert_eq!(autocomplete.text(), Some("shield".into()));
+        assert_eq!(
+            autocomplete.get_selected_suggestion(),
+            autocomplete.suggestions.get(0)
+        );
     }
 
     #[test]
