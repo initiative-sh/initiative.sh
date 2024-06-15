@@ -114,7 +114,7 @@ impl Autocomplete {
             .term
             .chars()
             .skip(self.query.len())
-            .take(expanded_end - 1 - self.query.len());
+            .take(expanded_end - self.query.len() - 1); // -1 because expanded_end ends up going one past before failing
 
         let mut next_query = self.query.clone();
         next_query.extend(additions);
@@ -585,19 +585,23 @@ fn draw_autocomplete(
         let query_len = autocomplete.query.len();
         let line = pos as u16 + start_row;
 
+        // Go to start position, draw opening border.
+        write!(
+            screen,
+            "{}{}{} ",
+            termion::cursor::Goto(3, line),
+            termion::color::Fg(termion::color::White),
+            termion::color::Bg(termion::color::LightBlack),
+        )?;
+
         // This is a little indimidating but goes like so:
-        // - Go to line position and set default color. Draw first part of border.
         // - Switch to the 'match color' and draw the matching text
         // - Switch to the text color, draw unmatched text
         // - Switch to summary color, draw padding and the summary.
-        // - Return to default color and draw the last part of the border
         if Some(pos) == autocomplete.selected {
             write!(
                 screen,
-                "{}{}{} {}{}{}{}{}{}{}{}{}{}{}{} ",
-                termion::cursor::Goto(3, line),
-                termion::color::Fg(termion::color::White),
-                termion::color::Bg(termion::color::LightBlack),
+                "{}{}{}{}{}{}{}{}{}{}",
                 termion::color::Fg(termion::color::White),
                 termion::color::Bg(termion::color::Black),
                 &suggestion.term[..query_len],
@@ -608,16 +612,11 @@ fn draw_autocomplete(
                 termion::color::Bg(termion::color::Black),
                 padding,
                 suggestion.summary,
-                termion::color::Fg(termion::color::White),
-                termion::color::Bg(termion::color::LightBlack),
             )?;
         } else {
             write!(
                 screen,
-                "{}{}{} {}{}{}{}{}{}{}{}{}{}{}{} ",
-                termion::cursor::Goto(3, line),
-                termion::color::Fg(termion::color::White),
-                termion::color::Bg(termion::color::LightBlack),
+                "{}{}{}{}{}{}{}{}{}{}",
                 termion::color::Fg(termion::color::Black),
                 termion::color::Bg(termion::color::LightBlack),
                 &suggestion.term[..query_len],
@@ -628,10 +627,16 @@ fn draw_autocomplete(
                 termion::color::Bg(termion::color::LightBlack),
                 padding,
                 suggestion.summary,
-                termion::color::Fg(termion::color::White),
-                termion::color::Bg(termion::color::LightBlack),
             )?;
         }
+
+        // Closing border
+        write!(
+            screen,
+            "{}{} ",
+            termion::color::Fg(termion::color::White),
+            termion::color::Bg(termion::color::LightBlack),
+        )?;
     }
 
     write!(
