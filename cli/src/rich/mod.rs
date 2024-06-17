@@ -74,47 +74,48 @@ impl Autocomplete {
     }
 
     fn get_only_suggestion(&self) -> Option<&AutocompleteSuggestion> {
-        return match self.suggestions.len() {
-            1 => self.suggestions.first(),
-            _ => None,
-        };
+        if self.suggestions.len() == 1 {
+            self.suggestions.first()
+        } else {
+            None
+        }
     }
 
-    fn suggestions_share_prefix(&self, len: usize) -> bool {
-        let prefixes = self
-            .suggestions
-            .iter()
-            .map(|suggestion| {
-                suggestion
-                    .term
-                    .chars()
-                    .take(len)
-                    .flat_map(char::to_lowercase)
-                    .collect::<String>()
-            })
-            .collect::<std::collections::HashSet<_>>();
+    fn common_suggestion_prefix_len(&self) -> usize {
+        let Some(first) = self.suggestions.first() else {
+            return 0;
+        };
 
-        prefixes.len() == 1
+        if self.suggestions.len() == 1 {
+            return first.term.len();
+        }
+
+        let query_len = self.query.len();
+
+        self.suggestions
+            .iter()
+            .skip(1)
+            .fold(first.term.len(), |term_len, suggestion| {
+                first.term[query_len..term_len]
+                    .char_indices()
+                    .map(|(i, c)| query_len + i + c.len_utf8())
+                    .rev()
+                    .skip_while(|&i| {
+                        suggestion.term.get(query_len..i).map_or(true, |s_term| {
+                            !first.term[query_len..i].eq_ignore_ascii_case(s_term)
+                        })
+                    })
+                    .next()
+                    .unwrap_or(query_len)
+            })
     }
 
     fn expand_match(self) -> Autocomplete {
-        let Some(min_suggestion_len) = self.suggestions.iter().map(|s| s.term.len()).min() else {
-            return self;
-        };
-
-        let mut expanded_end = self.query.len();
-        while expanded_end <= min_suggestion_len && self.suggestions_share_prefix(expanded_end) {
-            expanded_end += 1;
-        }
-
-        let additions = self
-            .suggestions
-            .first()
-            .unwrap()
-            .term
-            .chars()
-            .skip(self.query.len())
-            .take(expanded_end - self.query.len() - 1); // -1 because expanded_end ends up going one past before failing
+        let additions = self.suggestions.first().and_then(|suggestion| {
+            suggestion
+                .term
+                .get(self.query.len()..self.common_suggestion_prefix_len())
+        });
 
         let mut next_query = self.query.clone();
         next_query.extend(additions);
