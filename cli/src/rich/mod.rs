@@ -200,8 +200,13 @@ pub async fn run(mut app: App) -> io::Result<()> {
                                 }
                             }
                             Key::Char('\n') => {
+                                let command = autocomplete
+                                    .as_ref()
+                                    .and_then(Autocomplete::get_only_suggestion)
+                                    .map(|suggestion| suggestion.term.to_string())
+                                    .unwrap_or(input.get_text().to_string());
+
                                 autocomplete = None;
-                                let command = input.get_text().to_string();
                                 input.key(key, false);
                                 break command;
                             }
