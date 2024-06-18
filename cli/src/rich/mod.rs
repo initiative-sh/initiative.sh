@@ -30,6 +30,7 @@ struct Input {
 
 #[derive(Debug)]
 struct Autocomplete {
+    show_single_suggestion: bool,
     suggestions: Vec<AutocompleteSuggestion>,
     selected: Option<usize>,
     query: String,
@@ -41,6 +42,7 @@ impl Autocomplete {
         let suggestions_length = suggestions.len();
 
         Autocomplete {
+            show_single_suggestion: self.show_single_suggestion,
             suggestions,
             selected: match self.selected {
                 Some(0) => Some(suggestions_length - 1),
@@ -56,6 +58,7 @@ impl Autocomplete {
         let suggestions_length = suggestions.len();
 
         Autocomplete {
+            show_single_suggestion: self.show_single_suggestion,
             suggestions,
             selected: match self.selected {
                 Some(selected) => Some((selected + 1) % suggestions_length),
@@ -74,7 +77,7 @@ impl Autocomplete {
     }
 
     fn get_only_suggestion(&self) -> Option<&AutocompleteSuggestion> {
-        if self.suggestions.len() == 1 {
+        if self.show_single_suggestion && self.suggestions.len() == 1 {
             self.suggestions.first()
         } else {
             None
@@ -100,12 +103,11 @@ impl Autocomplete {
                     .char_indices()
                     .map(|(i, c)| query_len + i + c.len_utf8())
                     .rev()
-                    .skip_while(|&i| {
+                    .find(|&i| {
                         suggestion.term.get(query_len..i).map_or(true, |s_term| {
                             !first.term[query_len..i].eq_ignore_ascii_case(s_term)
                         })
                     })
-                    .next()
                     .unwrap_or(query_len)
             })
     }
@@ -121,6 +123,7 @@ impl Autocomplete {
         next_query.extend(additions);
 
         Autocomplete {
+            show_single_suggestion: true,
             suggestions: self.suggestions,
             selected: self.selected,
             query: next_query,
@@ -135,9 +138,25 @@ impl Autocomplete {
         }
 
         Some(Autocomplete {
+            show_single_suggestion: true,
             suggestions: app.autocomplete(query).await,
             selected: None,
             query: query.to_string(),
+        })
+    }
+
+    async fn try_back(self, app: &App) -> Option<Autocomplete> {
+        let mut query = self.query.clone();
+
+        if !self.show_single_suggestion {
+            let _ = query.pop();
+        }
+
+        Some(Autocomplete {
+            show_single_suggestion: false,
+            suggestions: app.autocomplete(&query).await,
+            selected: self.selected,
+            query,
         })
     }
 }
@@ -199,14 +218,30 @@ pub async fn run(mut app: App) -> io::Result<()> {
                                     None => input.key(key, false),
                                 }
                             }
+                            Key::Backspace => {
+                                let has_suggestion = autocomplete
+                                    .as_ref()
+                                    .and_then(Autocomplete::get_only_suggestion)
+                                    .is_some();
+
+                                autocomplete = if let Some(autocomplete) = autocomplete.take() {
+                                    autocomplete.try_back(&app).await
+                                } else {
+                                    None
+                                };
+
+                                if !has_suggestion {
+                                    input.key(Key::Backspace, false);
+                                }
+                            }
                             Key::Char('\n') => {
                                 let command = autocomplete
+                                    .take()
                                     .as_ref()
                                     .and_then(Autocomplete::get_only_suggestion)
                                     .map(|suggestion| suggestion.term.to_string())
                                     .unwrap_or(input.get_text().to_string());
 
-                                autocomplete = None;
                                 input.key(key, false);
                                 break command;
                             }
@@ -658,6 +693,7 @@ mod test {
     #[test]
     fn expand_single_match() {
         let autocomplete = Autocomplete {
+            show_single_suggestion: true,
             suggestions: vec![("shield", "a shield from the SRD").into()],
             selected: None,
             query: "s".into(),
@@ -670,6 +706,7 @@ mod test {
     #[test]
     fn expand_autocomplete() {
         let autocomplete = Autocomplete {
+            show_single_suggestion: true,
             suggestions: vec![
                 ("shield", "a shield from the SRD").into(),
                 ("shiny bauble", "so shiny!").into(),
@@ -685,6 +722,7 @@ mod test {
     #[test]
     fn autocomplete_returns_single_suggestion() {
         let single = Autocomplete {
+            show_single_suggestion: true,
             suggestions: vec![("shield", "a shield from the SRD").into()],
             selected: None,
             query: "sh".into(),
@@ -692,6 +730,7 @@ mod test {
         assert_eq!(single.get_only_suggestion(), single.suggestions.get(0));
 
         let multiple = Autocomplete {
+            show_single_suggestion: true,
             suggestions: vec![
                 ("shield", "a shield from the SRD").into(),
                 ("shrine", "create a new shrine").into(),
@@ -705,6 +744,7 @@ mod test {
     #[test]
     fn autocomplete_up_test() {
         let mut autocomplete = Autocomplete {
+            show_single_suggestion: true,
             suggestions: vec![("shield", "a shield").into(), ("shrine", "a shrine").into()],
             selected: None,
             query: "sh".into(),
@@ -735,6 +775,7 @@ mod test {
     #[test]
     fn autocomplete_down_test() {
         let mut autocomplete = Autocomplete {
+            show_single_suggestion: true,
             suggestions: vec![
                 ("shield", "a shield from the SRD").into(),
                 ("shrine", "create a new shrine").into(),
