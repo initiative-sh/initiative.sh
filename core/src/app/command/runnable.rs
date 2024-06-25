@@ -78,6 +78,12 @@ impl From<(String, String)> for AutocompleteSuggestion {
     }
 }
 
+impl From<(&'static str, &'static str)> for AutocompleteSuggestion {
+    fn from(input: (&'static str, &'static str)) -> Self {
+        AutocompleteSuggestion::new(input.0, input.1)
+    }
+}
+
 /// Represents all possible parse results for a given input.
 ///
 /// One of the key usability features (and major headaches) of initiative.sh is its use of fuzzy
