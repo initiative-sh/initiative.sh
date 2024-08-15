@@ -1,3 +1,4 @@
+mod blacksmith;
 mod inn;
 
 use super::BuildingType;
@@ -112,6 +113,7 @@ pub fn generate(place: &mut Place, rng: &mut impl Rng, demographics: &Demographi
         #[allow(clippy::single_match)]
         match subtype {
             BusinessType::Inn => inn::generate(place, rng, demographics),
+            BusinessType::Blacksmith => blacksmith::generate(place, rng, demographics),
             _ => {}
         }
     }
