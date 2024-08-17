@@ -97,7 +97,13 @@ impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let Self { npc, relations } = self;
 
-        writeln!(f, "<div class=\"thing-box npc\">\n")?;
+        writeln!(
+            f,
+            "<div class=\"thing-box npc\"{}>\n",
+            npc.uuid
+                .clone()
+                .map_or("".to_string(), |v| format!(" data-uuid=\"{}\"", v))
+        )?;
 
         npc.name
             .value()

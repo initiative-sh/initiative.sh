@@ -80,7 +80,14 @@ impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let Self { place, relations } = self;
 
-        writeln!(f, "<div class=\"thing-box place\">\n")?;
+        writeln!(
+            f,
+            "<div class=\"thing-box place\"{}>\n",
+            place
+                .uuid
+                .clone()
+                .map_or("".to_string(), |v| format!(" data-uuid=\"{}\"", v))
+        )?;
 
         place
             .name
