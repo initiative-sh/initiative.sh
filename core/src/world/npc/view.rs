@@ -101,7 +101,7 @@ impl<'a> fmt::Display for DetailsView<'a> {
             f,
             "<div class=\"thing-box npc\"{}>\n",
             npc.uuid
-                .clone()
+                .as_ref()
                 .map_or("".to_string(), |v| format!(" data-uuid=\"{}\"", v))
         )?;
 
