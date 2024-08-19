@@ -12,11 +12,10 @@ mod size;
 mod species;
 mod view;
 
-use super::{Demographics, Field, Generate, Place, PlaceUuid};
+use super::{Demographics, Field, Generate, Place};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-
-initiative_macros::uuid!();
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Npc {
@@ -28,8 +27,8 @@ pub struct Npc {
     pub size: Field<Size>,
     pub species: Field<Species>,
     pub ethnicity: Field<Ethnicity>,
-    pub location_uuid: Field<PlaceUuid>,
-    // pub home: Field<PlaceUuid>,
+    pub location_uuid: Field<Uuid>,
+    // pub home: Field<Uuid>,
     // pub occupation: Field<Role>,
     // pub languages: Field<Vec<String>>,
     // pub parents: Field<Vec<Uuid>>,

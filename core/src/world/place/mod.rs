@@ -10,8 +10,7 @@ use initiative_macros::WordList;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-
-initiative_macros::uuid!();
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Deserialize, Default, Eq, PartialEq, Serialize)]
 pub struct Place {
@@ -23,9 +22,9 @@ pub struct Place {
     pub description: Field<String>,
     // pub architecture: Option<String>,
     // pub floors: Field<u8>,
-    // pub owner: Field<Vec<NpcUuid>>,
-    // pub staff: Field<Vec<NpcUuid>>,
-    // pub occupants: Field<Vec<NpcUuid>>,
+    // pub owner: Field<Vec<Uuid>>,
+    // pub staff: Field<Vec<Uuid>>,
+    // pub occupants: Field<Vec<Uuid>>,
     // pub services: Option<String>,
     // pub worship: Field<String>,
     // pub quality: something

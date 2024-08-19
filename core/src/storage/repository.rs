@@ -145,7 +145,7 @@ impl Repository {
 
             let parent = {
                 let parent_result = if let Some(uuid) = parent_uuid.value() {
-                    self.get_by_uuid(&uuid.to_owned().into())
+                    self.get_by_uuid(uuid)
                         .await
                         .and_then(|thing| thing.into_place().map_err(|_| Error::NotFound))
                 } else {
@@ -162,7 +162,7 @@ impl Repository {
             if let Some(parent) = parent {
                 let grandparent = {
                     let grandparent_result = if let Some(uuid) = parent.location_uuid.value() {
-                        self.get_by_uuid(&uuid.to_owned().into())
+                        self.get_by_uuid(uuid)
                             .await
                             .and_then(|thing| thing.into_place().map_err(|_| Error::NotFound))
                     } else {
@@ -788,11 +788,12 @@ mod test {
     use super::*;
     use crate::storage::data_store::{MemoryDataStore, NullDataStore};
     use crate::world::npc::{Npc, Species};
-    use crate::world::{Place, PlaceUuid};
+    use crate::world::place::Place;
     use async_trait::async_trait;
     use std::cell::RefCell;
     use std::rc::Rc;
     use tokio_test::block_on;
+    use uuid::Uuid;
 
     const OLYMPUS_UUID: Uuid = Uuid::from_u128(1);
     const THESSALY_UUID: Uuid = Uuid::from_u128(2);
@@ -909,8 +910,8 @@ mod test {
             assert_eq!(
                 &Change::CreateAndSave {
                     thing: Place {
-                        uuid: Some(OLYMPUS_UUID.into()),
-                        location_uuid: PlaceUuid::from(THESSALY_UUID).into(),
+                        uuid: Some(OLYMPUS_UUID),
+                        location_uuid: THESSALY_UUID.into(),
                         name: "Olympus".into(),
                         ..Default::default()
                     }
@@ -961,7 +962,7 @@ mod test {
                 &Change::Create {
                     thing: Npc {
                         name: "Odysseus".into(),
-                        location_uuid: PlaceUuid::from(STYX_UUID).into(),
+                        location_uuid: STYX_UUID.into(),
                         ..Default::default()
                     }
                     .into()
@@ -1009,8 +1010,8 @@ mod test {
             assert_eq!(
                 &Change::CreateAndSave {
                     thing: Place {
-                        uuid: Some(OLYMPUS_UUID.into()),
-                        location_uuid: PlaceUuid::from(THESSALY_UUID).into(),
+                        uuid: Some(OLYMPUS_UUID),
+                        location_uuid: THESSALY_UUID.into(),
                         name: "Olympus".into(),
                         ..Default::default()
                     }
@@ -1026,7 +1027,7 @@ mod test {
         {
             match block_on(repo.undo()) {
                 Some(Ok(Some(Thing::Place(place)))) => {
-                    assert_eq!(Some(PlaceUuid::from(OLYMPUS_UUID)), place.uuid);
+                    assert_eq!(Some(OLYMPUS_UUID), place.uuid);
                     assert_eq!("Olympus", place.name.value().unwrap());
                 }
                 v => panic!("{:?}", v),
@@ -2028,7 +2029,7 @@ mod test {
             assert_eq!(
                 Some(Change::CreateAndSave {
                     thing: Npc {
-                        uuid: Some(uuid.into()),
+                        uuid: Some(uuid),
                         name: "Odysseus".into(),
                         ..Default::default()
                     }
@@ -2261,8 +2262,8 @@ mod test {
         block_on(
             repo.data_store.save_thing(
                 &Place {
-                    uuid: Some(OLYMPUS_UUID.into()),
-                    location_uuid: PlaceUuid::from(THESSALY_UUID).into(),
+                    uuid: Some(OLYMPUS_UUID),
+                    location_uuid: THESSALY_UUID.into(),
                     name: "Olympus".into(),
                     ..Default::default()
                 }
@@ -2273,8 +2274,8 @@ mod test {
         block_on(
             repo.data_store.save_thing(
                 &Place {
-                    uuid: Some(THESSALY_UUID.into()),
-                    location_uuid: PlaceUuid::from(GREECE_UUID).into(),
+                    uuid: Some(THESSALY_UUID),
+                    location_uuid: GREECE_UUID.into(),
                     name: "Thessaly".into(),
                     ..Default::default()
                 }
@@ -2285,7 +2286,7 @@ mod test {
         block_on(
             repo.data_store.save_thing(
                 &Place {
-                    uuid: Some(GREECE_UUID.into()),
+                    uuid: Some(GREECE_UUID),
                     name: "Greece".into(),
                     ..Default::default()
                 }
@@ -2296,8 +2297,8 @@ mod test {
         block_on(
             repo.data_store.save_thing(
                 &Place {
-                    uuid: Some(STYX_UUID.into()),
-                    location_uuid: PlaceUuid::from(Uuid::nil()).into(),
+                    uuid: Some(STYX_UUID),
+                    location_uuid: Uuid::nil().into(),
                     name: "River Styx".into(),
                     ..Default::default()
                 }
@@ -2309,7 +2310,7 @@ mod test {
         repo.recent.push_back(
             Npc {
                 name: "Odysseus".into(),
-                location_uuid: PlaceUuid::from(STYX_UUID).into(),
+                location_uuid: STYX_UUID.into(),
                 ..Default::default()
             }
             .into(),

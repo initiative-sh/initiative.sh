@@ -6,7 +6,7 @@ pub use command::{ParsedThing, WorldCommand};
 pub use demographics::Demographics;
 pub use field::Field;
 pub use npc::{Npc, NpcRelations};
-pub use place::{Place, PlaceRelations, Uuid as PlaceUuid};
+pub use place::{Place, PlaceRelations};
 pub use thing::{Thing, ThingRelations};
 
 mod command;

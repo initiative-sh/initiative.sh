@@ -50,18 +50,18 @@ impl Thing {
 
     pub fn uuid(&self) -> Option<&Uuid> {
         match self {
-            Thing::Place(place) => place.uuid.as_ref().map(|u| u.as_ref()),
-            Thing::Npc(npc) => npc.uuid.as_ref().map(|u| u.as_ref()),
+            Thing::Place(place) => place.uuid.as_ref(),
+            Thing::Npc(npc) => npc.uuid.as_ref(),
         }
     }
 
     pub fn set_uuid(&mut self, uuid: Uuid) {
         match self {
             Thing::Place(place) => {
-                place.uuid.get_or_insert(uuid.into());
+                place.uuid.get_or_insert(uuid);
             }
             Thing::Npc(npc) => {
-                npc.uuid.get_or_insert(uuid.into());
+                npc.uuid.get_or_insert(uuid);
             }
         }
     }

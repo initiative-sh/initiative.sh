@@ -10,7 +10,6 @@ use proc_macro::TokenStream;
 mod changelog;
 mod motd;
 mod reference_enum;
-mod uuid;
 mod word_list;
 
 /// A microoptimization to compile only part of the lengthy `changelog.md` file into the
@@ -33,13 +32,6 @@ pub fn motd(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn reference_enum(input: TokenStream) -> TokenStream {
     reference_enum::run(input).unwrap()
-}
-
-/// Generate a newclass representing a UUID subtype. For instance, the UUID for an `Npc` isn't
-/// valid for a `Location`. This could have been a `macro_rules!` macro.
-#[proc_macro]
-pub fn uuid(input: TokenStream) -> TokenStream {
-    uuid::run(input).unwrap()
 }
 
 /// There are a lot of enums containing lists of terms scattered throughout the application. In
