@@ -1,7 +1,9 @@
 use crate::storage::{DataStore, MemoryDataStore};
 use crate::time::Time;
 use crate::utils::CaseInsensitiveStr;
-use crate::world::{Npc, NpcRelations, Place, PlaceRelations, Thing, ThingRelations};
+use crate::world::npc::{NpcData, NpcRelations};
+use crate::world::place::{PlaceData, PlaceRelations};
+use crate::world::thing::{Thing, ThingData, ThingRelations};
 use crate::Uuid;
 use futures::join;
 use std::collections::VecDeque;
@@ -138,9 +140,9 @@ impl Repository {
 
     pub async fn load_relations(&self, thing: &Thing) -> Result<ThingRelations, Error> {
         let locations = {
-            let parent_uuid = match thing {
-                Thing::Npc(Npc { location_uuid, .. }) => location_uuid,
-                Thing::Place(Place { location_uuid, .. }) => location_uuid,
+            let parent_uuid = match &thing.data {
+                ThingData::Npc(NpcData { location_uuid, .. }) => location_uuid,
+                ThingData::Place(PlaceData { location_uuid, .. }) => location_uuid,
             };
 
             let parent = {
@@ -161,7 +163,7 @@ impl Repository {
 
             if let Some(parent) = parent {
                 let grandparent = {
-                    let grandparent_result = if let Some(uuid) = parent.location_uuid.value() {
+                    let grandparent_result = if let Some(uuid) = parent.data.location_uuid.value() {
                         self.get_by_uuid(uuid)
                             .await
                             .and_then(|thing| thing.into_place().map_err(|_| Error::NotFound))
@@ -182,12 +184,12 @@ impl Repository {
             }
         };
 
-        match thing {
-            Thing::Npc(Npc { .. }) => Ok(NpcRelations {
+        match thing.data {
+            ThingData::Npc(..) => Ok(NpcRelations {
                 location: locations,
             }
             .into()),
-            Thing::Place(Place { .. }) => Ok(PlaceRelations {
+            ThingData::Place(..) => Ok(PlaceRelations {
                 location: locations,
             }
             .into()),
@@ -607,7 +609,7 @@ impl Repository {
     ) -> Result<Thing, (Thing, Error)> {
         match self.data_store.get_thing_by_uuid(uuid).await {
             Ok(Some(mut thing)) => {
-                if thing.try_apply_diff(&mut diff).is_err() {
+                if thing.try_apply_diff(&mut diff.data).is_err() {
                     // This fails when the thing types don't match, eg. applying an Npc diff to a
                     // Place.
                     return Err((diff, Error::NotFound));
@@ -630,7 +632,7 @@ impl Repository {
     ) -> Result<Change, (Thing, Error)> {
         let data_store_failed = match self.data_store.get_thing_by_name(name).await {
             Ok(Some(mut thing)) => {
-                if thing.try_apply_diff(&mut diff).is_err() {
+                if thing.try_apply_diff(&mut diff.data).is_err() {
                     return Err((diff, Error::NotFound));
                 }
 
@@ -650,7 +652,7 @@ impl Repository {
         if let Some(mut thing) = self.take_recent(|thing| {
             thing.name().value().map_or(false, |s| s.eq_ci(name)) && thing.as_str() == diff.as_str()
         }) {
-            thing.try_apply_diff(&mut diff).unwrap();
+            thing.try_apply_diff(&mut diff.data).unwrap();
 
             let name = thing.name().to_string();
             let uuid = match self.save_thing(thing).await {
@@ -807,8 +809,11 @@ mod test {
         (0..RECENT_MAX_LEN).for_each(|i| {
             repository.push_recent(
                 Npc {
-                    name: format!("Thing {}", i).into(),
-                    ..Default::default()
+                    uuid: None,
+                    data: NpcData {
+                        name: format!("Thing {}", i).into(),
+                        ..Default::default()
+                    },
                 }
                 .into(),
             );
@@ -825,8 +830,11 @@ mod test {
 
         repository.push_recent(
             Npc {
-                name: "The Cat in the Hat".into(),
-                ..Default::default()
+                uuid: None,
+                data: NpcData {
+                    name: "The Cat in the Hat".into(),
+                    ..Default::default()
+                },
             }
             .into(),
         );
@@ -911,9 +919,11 @@ mod test {
                 &Change::CreateAndSave {
                     thing: Place {
                         uuid: Some(OLYMPUS_UUID),
-                        location_uuid: THESSALY_UUID.into(),
-                        name: "Olympus".into(),
-                        ..Default::default()
+                        data: PlaceData {
+                            location_uuid: THESSALY_UUID.into(),
+                            name: "Olympus".into(),
+                            ..Default::default()
+                        },
                     }
                     .into()
                 },
@@ -961,9 +971,12 @@ mod test {
             assert_eq!(
                 &Change::Create {
                     thing: Npc {
-                        name: "Odysseus".into(),
-                        location_uuid: STYX_UUID.into(),
-                        ..Default::default()
+                        uuid: None,
+                        data: NpcData {
+                            name: "Odysseus".into(),
+                            location_uuid: STYX_UUID.into(),
+                            ..Default::default()
+                        },
                     }
                     .into()
                 },
@@ -975,8 +988,10 @@ mod test {
 
         {
             match block_on(repo.undo()) {
-                Some(Ok(Some(Thing::Npc(npc)))) => {
-                    assert!(npc.uuid.is_none());
+                Some(Ok(Some(Thing {
+                    uuid: None,
+                    data: ThingData::Npc(npc),
+                }))) => {
                     assert_eq!("Odysseus", npc.name.value().unwrap());
                 }
                 v => panic!("{:?}", v),
@@ -1011,9 +1026,11 @@ mod test {
                 &Change::CreateAndSave {
                     thing: Place {
                         uuid: Some(OLYMPUS_UUID),
-                        location_uuid: THESSALY_UUID.into(),
-                        name: "Olympus".into(),
-                        ..Default::default()
+                        data: PlaceData {
+                            location_uuid: THESSALY_UUID.into(),
+                            name: "Olympus".into(),
+                            ..Default::default()
+                        },
                     }
                     .into()
                 },
@@ -1026,8 +1043,11 @@ mod test {
 
         {
             match block_on(repo.undo()) {
-                Some(Ok(Some(Thing::Place(place)))) => {
-                    assert_eq!(Some(OLYMPUS_UUID), place.uuid);
+                Some(Ok(Some(Thing {
+                    uuid: Some(uuid),
+                    data: ThingData::Place(place),
+                }))) => {
+                    assert_eq!(OLYMPUS_UUID, uuid);
                     assert_eq!("Olympus", place.name.value().unwrap());
                 }
                 v => panic!("{:?}", v),
@@ -1077,9 +1097,12 @@ mod test {
             name: "Odysseus".into(),
             uuid: None,
             diff: Npc {
-                name: "Nobody".into(),
-                species: Species::Human.into(),
-                ..Default::default()
+                uuid: None,
+                data: NpcData {
+                    name: "Nobody".into(),
+                    species: Species::Human.into(),
+                    ..Default::default()
+                },
             }
             .into(),
         };
@@ -1095,9 +1118,12 @@ mod test {
                     name: "Nobody".into(),
                     uuid: *uuid,
                     diff: Npc {
-                        name: "Odysseus".into(),
-                        species: None.into(),
-                        ..Default::default()
+                        uuid: None,
+                        data: NpcData {
+                            name: "Odysseus".into(),
+                            species: None.into(),
+                            ..Default::default()
+                        },
                     }
                     .into(),
                 },
@@ -1167,8 +1193,11 @@ mod test {
             name: "Odysseus".into(),
             uuid: None,
             diff: Npc {
-                species: Species::Human.into(),
-                ..Default::default()
+                uuid: None,
+                data: NpcData {
+                    species: Species::Human.into(),
+                    ..Default::default()
+                },
             }
             .into(),
         };
@@ -1190,8 +1219,11 @@ mod test {
                     name: "Odysseus".into(),
                     uuid: None,
                     diff: Npc {
-                        species: None.into(),
-                        ..Default::default()
+                        uuid: None,
+                        data: NpcData {
+                            species: None.into(),
+                            ..Default::default()
+                        },
                     }
                     .into()
                 },
@@ -1202,7 +1234,7 @@ mod test {
                 Some(&Species::Human),
                 repo.recent()
                     .find(|t| t.name().to_string() == "Odysseus")
-                    .and_then(|t| t.npc())
+                    .and_then(|t| t.data.npc_data())
                     .and_then(|n| n.species.value()),
             );
         }
@@ -1222,7 +1254,7 @@ mod test {
                 Some(false),
                 repo.recent()
                     .find(|t| t.name().to_string() == "Odysseus")
-                    .and_then(|t| t.npc())
+                    .and_then(|t| t.data.npc_data())
                     .map(|n| n.species.is_some())
             );
         }
@@ -1242,7 +1274,7 @@ mod test {
                 Some(&Species::Human),
                 repo.recent()
                     .find(|t| t.name().to_string() == "Odysseus")
-                    .and_then(|t| t.npc())
+                    .and_then(|t| t.data.npc_data())
                     .and_then(|n| n.species.value()),
             );
         }
@@ -1256,8 +1288,11 @@ mod test {
             name: "Odysseus".into(),
             uuid: None,
             diff: Npc {
-                name: "Nobody".into(),
-                ..Default::default()
+                uuid: None,
+                data: NpcData {
+                    name: "Nobody".into(),
+                    ..Default::default()
+                },
             }
             .into(),
         };
@@ -1279,8 +1314,11 @@ mod test {
                     name: "Nobody".into(),
                     uuid: None,
                     diff: Npc {
-                        name: "Odysseus".into(),
-                        ..Default::default()
+                        uuid: None,
+                        data: NpcData {
+                            name: "Odysseus".into(),
+                            ..Default::default()
+                        },
                     }
                     .into()
                 },
@@ -1327,9 +1365,12 @@ mod test {
             name: "Olympus".into(),
             uuid: None,
             diff: Place {
-                name: "Hades".into(),
-                description: "This really is hell!".into(),
-                ..Default::default()
+                uuid: None,
+                data: PlaceData {
+                    name: "Hades".into(),
+                    description: "This really is hell!".into(),
+                    ..Default::default()
+                },
             }
             .into(),
         };
@@ -1351,9 +1392,12 @@ mod test {
                     name: "Hades".into(),
                     uuid: Some(OLYMPUS_UUID),
                     diff: Place {
-                        name: "Olympus".into(),
-                        description: None.into(),
-                        ..Default::default()
+                        uuid: None,
+                        data: PlaceData {
+                            name: "Olympus".into(),
+                            description: None.into(),
+                            ..Default::default()
+                        },
                     }
                     .into()
                 },
@@ -1421,8 +1465,11 @@ mod test {
             name: "Olympus".into(),
             uuid: None,
             diff: Place {
-                name: "Hades".into(),
-                ..Default::default()
+                uuid: None,
+                data: PlaceData {
+                    name: "Hades".into(),
+                    ..Default::default()
+                },
             }
             .into(),
         };
@@ -1433,8 +1480,11 @@ mod test {
                     name: "Olympus".into(),
                     uuid: None,
                     diff: Place {
-                        name: "Hades".into(),
-                        ..Default::default()
+                        uuid: None,
+                        data: PlaceData {
+                            name: "Hades".into(),
+                            ..Default::default()
+                        },
                     }
                     .into(),
                 },
@@ -1466,9 +1516,12 @@ mod test {
             name: "Olympus".into(),
             uuid: Some(OLYMPUS_UUID),
             diff: Place {
-                name: "Hades".into(),
-                description: "This really is hell!".into(),
-                ..Default::default()
+                uuid: None,
+                data: PlaceData {
+                    name: "Hades".into(),
+                    description: "This really is hell!".into(),
+                    ..Default::default()
+                },
             }
             .into(),
         };
@@ -1490,9 +1543,12 @@ mod test {
                     name: "Hades".into(),
                     uuid: Some(OLYMPUS_UUID),
                     diff: Place {
-                        name: "Olympus".into(),
-                        description: None.into(),
-                        ..Default::default()
+                        uuid: None,
+                        data: PlaceData {
+                            name: "Olympus".into(),
+                            description: None.into(),
+                            ..Default::default()
+                        },
                     }
                     .into()
                 },
@@ -1576,8 +1632,11 @@ mod test {
             name: "Olympus".into(),
             uuid: Some(OLYMPUS_UUID),
             diff: Place {
-                name: "Hades".into(),
-                ..Default::default()
+                uuid: None,
+                data: PlaceData {
+                    name: "Hades".into(),
+                    ..Default::default()
+                },
             }
             .into(),
         };
@@ -1588,8 +1647,11 @@ mod test {
                     name: "Olympus".into(),
                     uuid: Some(OLYMPUS_UUID),
                     diff: Place {
-                        name: "Hades".into(),
-                        ..Default::default()
+                        uuid: None,
+                        data: PlaceData {
+                            name: "Hades".into(),
+                            ..Default::default()
+                        },
                     }
                     .into(),
                 },
@@ -1606,9 +1668,12 @@ mod test {
             name: "Olympus".into(),
             uuid: OLYMPUS_UUID.into(),
             diff: Place {
-                name: "Hades".into(),
-                description: "This really is hell!".into(),
-                ..Default::default()
+                uuid: None,
+                data: PlaceData {
+                    name: "Hades".into(),
+                    description: "This really is hell!".into(),
+                    ..Default::default()
+                },
             }
             .into(),
         };
@@ -1631,9 +1696,12 @@ mod test {
                     name: "Hades".into(),
                     uuid: None,
                     diff: Place {
-                        name: "Olympus".into(),
-                        description: None.into(),
-                        ..Default::default()
+                        uuid: None,
+                        data: PlaceData {
+                            name: "Olympus".into(),
+                            description: None.into(),
+                            ..Default::default()
+                        },
                     }
                     .into()
                 },
@@ -1699,9 +1767,12 @@ mod test {
             name: "Olympus".into(),
             uuid: OLYMPUS_UUID,
             diff: Place {
-                name: "Hades".into(),
-                description: "This really is hell!".into(),
-                ..Default::default()
+                uuid: None,
+                data: PlaceData {
+                    name: "Hades".into(),
+                    description: "This really is hell!".into(),
+                    ..Default::default()
+                },
             }
             .into(),
         };
@@ -1724,8 +1795,11 @@ mod test {
         let mut repo = empty_repo();
         let change = Change::Create {
             thing: Npc {
-                name: "Odysseus".into(),
-                ..Default::default()
+                uuid: None,
+                data: NpcData {
+                    name: "Odysseus".into(),
+                    ..Default::default()
+                },
             }
             .into(),
         };
@@ -1760,8 +1834,11 @@ mod test {
             assert_eq!(
                 Some(Change::Create {
                     thing: Npc {
-                        name: "Odysseus".into(),
-                        ..Default::default()
+                        uuid: None,
+                        data: NpcData {
+                            name: "Odysseus".into(),
+                            ..Default::default()
+                        },
                     }
                     .into(),
                 }),
@@ -1776,8 +1853,11 @@ mod test {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::Create {
             thing: Npc {
-                name: "Olympus".into(),
-                ..Default::default()
+                uuid: None,
+                data: NpcData {
+                    name: "Olympus".into(),
+                    ..Default::default()
+                },
             }
             .clone()
             .into(),
@@ -1796,8 +1876,11 @@ mod test {
         let mut repo = repo();
         let change = Change::Create {
             thing: Place {
-                name: "Odysseus".into(),
-                ..Default::default()
+                uuid: None,
+                data: PlaceData {
+                    name: "Odysseus".into(),
+                    ..Default::default()
+                },
             }
             .clone()
             .into(),
@@ -1844,8 +1927,10 @@ mod test {
 
         {
             match block_on(repo.undo()) {
-                Some(Ok(Some(Thing::Npc(npc)))) => {
-                    assert!(npc.uuid.is_none());
+                Some(Ok(Some(Thing {
+                    uuid: None,
+                    data: ThingData::Npc(npc),
+                }))) => {
                     assert_eq!("Odysseus", npc.name.value().unwrap());
                 }
                 v => panic!("{:?}", v),
@@ -1870,8 +1955,11 @@ mod test {
         block_on(
             repo.modify(Change::Create {
                 thing: Place {
-                    name: "Odysseus".into(),
-                    ..Default::default()
+                    uuid: None,
+                    data: PlaceData {
+                        name: "Odysseus".into(),
+                        ..Default::default()
+                    },
                 }
                 .into(),
             }),
@@ -1959,8 +2047,10 @@ mod test {
 
         {
             match block_on(repo.undo()) {
-                Some(Ok(Some(Thing::Place(place)))) => {
-                    assert!(place.uuid.is_some());
+                Some(Ok(Some(Thing {
+                    uuid: Some(_),
+                    data: ThingData::Place(place),
+                }))) => {
                     assert_eq!("Olympus", place.name.value().unwrap());
                 }
                 v => panic!("{:?}", v),
@@ -1984,8 +2074,11 @@ mod test {
         let (mut repo, data_store) = empty_repo_data_store();
         let change = Change::CreateAndSave {
             thing: Npc {
-                name: "Odysseus".into(),
-                ..Default::default()
+                uuid: None,
+                data: NpcData {
+                    name: "Odysseus".into(),
+                    ..Default::default()
+                },
             }
             .into(),
         };
@@ -2030,8 +2123,10 @@ mod test {
                 Some(Change::CreateAndSave {
                     thing: Npc {
                         uuid: Some(uuid),
-                        name: "Odysseus".into(),
-                        ..Default::default()
+                        data: NpcData {
+                            name: "Odysseus".into(),
+                            ..Default::default()
+                        },
                     }
                     .into(),
                 }),
@@ -2047,8 +2142,11 @@ mod test {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::CreateAndSave {
             thing: Place {
-                name: "Odysseus".into(),
-                ..Default::default()
+                uuid: None,
+                data: PlaceData {
+                    name: "Odysseus".into(),
+                    ..Default::default()
+                },
             }
             .clone()
             .into(),
@@ -2067,8 +2165,11 @@ mod test {
         let (mut repo, data_store) = repo_data_store();
         let change = Change::CreateAndSave {
             thing: Npc {
-                name: "Olympus".into(),
-                ..Default::default()
+                uuid: None,
+                data: NpcData {
+                    name: "Olympus".into(),
+                    ..Default::default()
+                },
             }
             .clone()
             .into(),
@@ -2088,8 +2189,11 @@ mod test {
 
         let change = Change::CreateAndSave {
             thing: Place {
-                name: "Odysseus".into(),
-                ..Default::default()
+                uuid: None,
+                data: PlaceData {
+                    name: "Odysseus".into(),
+                    ..Default::default()
+                },
             }
             .into(),
         };
@@ -2190,7 +2294,7 @@ mod test {
             Ok(ThingRelations::Npc(NpcRelations {
                 location: Some((parent, None)),
             })) => {
-                assert_eq!("River Styx", parent.name.value().unwrap());
+                assert_eq!("River Styx", parent.data.name.value().unwrap());
             }
             r => panic!("{:?}", r),
         }
@@ -2205,8 +2309,8 @@ mod test {
             Ok(ThingRelations::Place(PlaceRelations {
                 location: Some((parent, Some(grandparent))),
             })) => {
-                assert_eq!("Thessaly", parent.name.value().unwrap());
-                assert_eq!("Greece", grandparent.name.value().unwrap());
+                assert_eq!("Thessaly", parent.data.name.value().unwrap());
+                assert_eq!("Greece", grandparent.data.name.value().unwrap());
             }
             r => panic!("{:?}", r),
         }
@@ -2263,9 +2367,11 @@ mod test {
             repo.data_store.save_thing(
                 &Place {
                     uuid: Some(OLYMPUS_UUID),
-                    location_uuid: THESSALY_UUID.into(),
-                    name: "Olympus".into(),
-                    ..Default::default()
+                    data: PlaceData {
+                        location_uuid: THESSALY_UUID.into(),
+                        name: "Olympus".into(),
+                        ..Default::default()
+                    },
                 }
                 .into(),
             ),
@@ -2275,9 +2381,11 @@ mod test {
             repo.data_store.save_thing(
                 &Place {
                     uuid: Some(THESSALY_UUID),
-                    location_uuid: GREECE_UUID.into(),
-                    name: "Thessaly".into(),
-                    ..Default::default()
+                    data: PlaceData {
+                        location_uuid: GREECE_UUID.into(),
+                        name: "Thessaly".into(),
+                        ..Default::default()
+                    },
                 }
                 .into(),
             ),
@@ -2287,8 +2395,10 @@ mod test {
             repo.data_store.save_thing(
                 &Place {
                     uuid: Some(GREECE_UUID),
-                    name: "Greece".into(),
-                    ..Default::default()
+                    data: PlaceData {
+                        name: "Greece".into(),
+                        ..Default::default()
+                    },
                 }
                 .into(),
             ),
@@ -2298,9 +2408,11 @@ mod test {
             repo.data_store.save_thing(
                 &Place {
                     uuid: Some(STYX_UUID),
-                    location_uuid: Uuid::nil().into(),
-                    name: "River Styx".into(),
-                    ..Default::default()
+                    data: PlaceData {
+                        location_uuid: Uuid::nil().into(),
+                        name: "River Styx".into(),
+                        ..Default::default()
+                    },
                 }
                 .into(),
             ),
@@ -2309,9 +2421,12 @@ mod test {
 
         repo.recent.push_back(
             Npc {
-                name: "Odysseus".into(),
-                location_uuid: STYX_UUID.into(),
-                ..Default::default()
+                uuid: None,
+                data: NpcData {
+                    name: "Odysseus".into(),
+                    location_uuid: STYX_UUID.into(),
+                    ..Default::default()
+                },
             }
             .into(),
         );

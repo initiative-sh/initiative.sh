@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::world::Demographics;
 
-use super::{Place, PlaceType};
+use super::{PlaceData, PlaceType};
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, WordList)]
 #[serde(into = "&'static str", try_from = "&str")]
@@ -32,7 +32,7 @@ impl LocationType {
     }
 }
 
-pub fn generate(place: &mut Place, rng: &mut impl Rng, demographics: &Demographics) {
+pub fn generate(place: &mut PlaceData, rng: &mut impl Rng, demographics: &Demographics) {
     #[allow(clippy::collapsible_match)]
     if let Some(PlaceType::Location(subtype)) = place.subtype.value() {
         #[allow(clippy::single_match)]

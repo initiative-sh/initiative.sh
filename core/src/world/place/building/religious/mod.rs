@@ -3,7 +3,8 @@ use initiative_macros::WordList;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-use crate::world::{place::PlaceType, Demographics, Place};
+use crate::world::place::{PlaceData, PlaceType};
+use crate::world::Demographics;
 
 use super::BuildingType;
 
@@ -36,7 +37,7 @@ impl ReligiousType {
     }
 }
 
-pub fn generate(place: &mut Place, rng: &mut impl Rng, demographics: &Demographics) {
+pub fn generate(place: &mut PlaceData, rng: &mut impl Rng, demographics: &Demographics) {
     #[allow(clippy::collapsible_match)]
     if let Some(PlaceType::Building(BuildingType::Religious(subtype))) = place.subtype.value() {
         #[allow(clippy::single_match)]

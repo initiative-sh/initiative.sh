@@ -1,10 +1,11 @@
-use super::{Field, Npc, Place, Thing};
 use crate::app::{
     AppMeta, Autocomplete, AutocompleteSuggestion, CommandAlias, CommandMatches, ContextAwareParse,
     Runnable,
 };
 use crate::storage::{Change, RepositoryError, StorageCommand};
 use crate::utils::{quoted_words, CaseInsensitiveStr};
+use crate::world::thing::{Thing, ThingData};
+use crate::world::{Field, Npc, Place};
 use async_trait::async_trait;
 use futures::join;
 use std::fmt;
@@ -262,11 +263,11 @@ impl ContextAwareParse for WorldCommand {
 
             let (diff, thing) = if let Ok(thing) = app_meta.repository.get_by_name(name).await {
                 (
-                    match thing {
-                        Thing::Npc(_) => description
+                    match thing.data {
+                        ThingData::Npc(_) => description
                             .parse::<ParsedThing<Npc>>()
                             .map(|npc| npc.into_thing()),
-                        Thing::Place(_) => description
+                        ThingData::Place(_) => description
                             .parse::<ParsedThing<Place>>()
                             .map(|npc| npc.into_thing()),
                     }
@@ -322,9 +323,11 @@ impl Autocomplete for WorldCommand {
             {
                 let split_pos = input.len() - input[is_word.range().end..].trim_start().len();
 
-                let edit_suggestions = match thing {
-                    Thing::Npc(_) => Npc::autocomplete(input[split_pos..].trim_start(), app_meta),
-                    Thing::Place(_) => {
+                let edit_suggestions = match thing.data {
+                    ThingData::Npc(_) => {
+                        Npc::autocomplete(input[split_pos..].trim_start(), app_meta)
+                    }
+                    ThingData::Place(_) => {
                         Place::autocomplete(input[split_pos..].trim_start(), app_meta)
                     }
                 }
@@ -500,8 +503,8 @@ mod test {
     use super::*;
     use crate::app::assert_autocomplete;
     use crate::storage::NullDataStore;
-    use crate::world::npc::{Age, Gender, Species};
-    use crate::world::place::PlaceType;
+    use crate::world::npc::{Age, Gender, NpcData, Species};
+    use crate::world::place::{PlaceData, PlaceType};
     use crate::Event;
     use tokio_test::block_on;
 
@@ -510,17 +513,17 @@ mod test {
         let mut app_meta = app_meta();
 
         assert_eq!(
-            CommandMatches::new_fuzzy(create(Npc::default())),
+            CommandMatches::new_fuzzy(create(NpcData::default())),
             block_on(WorldCommand::parse_input("npc", &app_meta)),
         );
 
         assert_eq!(
-            CommandMatches::new_canonical(create(Npc::default())),
+            CommandMatches::new_canonical(create(NpcData::default())),
             block_on(WorldCommand::parse_input("create npc", &app_meta)),
         );
 
         assert_eq!(
-            CommandMatches::new_fuzzy(create(Npc {
+            CommandMatches::new_fuzzy(create(NpcData {
                 species: Species::Elf.into(),
                 ..Default::default()
             })),
@@ -533,27 +536,23 @@ mod test {
         );
 
         {
-            block_on(
-                app_meta.repository.modify(Change::Create {
-                    thing: Npc {
-                        name: "Spot".into(),
-                        ..Default::default()
-                    }
-                    .into(),
+            block_on(app_meta.repository.modify(Change::Create {
+                thing: into_thing(NpcData {
+                    name: "Spot".into(),
+                    ..Default::default()
                 }),
-            )
+            }))
             .unwrap();
 
             assert_eq!(
                 CommandMatches::new_fuzzy(WorldCommand::Edit {
                     name: "Spot".into(),
                     diff: ParsedThing {
-                        thing: Npc {
+                        thing: into_thing(NpcData {
                             age: Age::Child.into(),
                             gender: Gender::Masculine.into(),
                             ..Default::default()
-                        }
-                        .into(),
+                        }),
                         unknown_words: vec![10..14],
                         word_count: 2,
                     },
@@ -567,18 +566,15 @@ mod test {
     fn autocomplete_test() {
         let mut app_meta = app_meta();
 
-        block_on(
-            app_meta.repository.modify(Change::Create {
-                thing: Npc {
-                    name: "Potato Johnson".into(),
-                    species: Species::Elf.into(),
-                    gender: Gender::NonBinaryThey.into(),
-                    age: Age::Adult.into(),
-                    ..Default::default()
-                }
-                .into(),
+        block_on(app_meta.repository.modify(Change::Create {
+            thing: into_thing(NpcData {
+                name: "Potato Johnson".into(),
+                species: Species::Elf.into(),
+                gender: Gender::NonBinaryThey.into(),
+                age: Age::Adult.into(),
+                ..Default::default()
             }),
-        )
+        }))
         .unwrap();
 
         [
@@ -669,12 +665,12 @@ mod test {
         let app_meta = app_meta();
 
         [
-            create(Place {
+            create(PlaceData {
                 subtype: "inn".parse::<PlaceType>().ok().into(),
                 ..Default::default()
             }),
-            create(Npc::default()),
-            create(Npc {
+            create(NpcData::default()),
+            create(NpcData {
                 species: Some(Species::Elf).into(),
                 ..Default::default()
             }),
@@ -703,10 +699,17 @@ mod test {
         });
     }
 
-    fn create(thing: impl Into<Thing>) -> WorldCommand {
+    fn into_thing(thing_data: impl Into<ThingData>) -> Thing {
+        Thing {
+            uuid: None,
+            data: thing_data.into(),
+        }
+    }
+
+    fn create(thing_data: impl Into<ThingData>) -> WorldCommand {
         WorldCommand::Create {
             thing: ParsedThing {
-                thing: thing.into(),
+                thing: into_thing(thing_data),
                 unknown_words: Vec::new(),
                 word_count: 1,
             },

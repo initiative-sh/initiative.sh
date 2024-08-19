@@ -1,16 +1,17 @@
-use super::{Age, Gender, Npc, NpcRelations};
+use super::{Age, Gender, NpcData, NpcRelations, Uuid};
 use std::fmt;
 
-pub struct SummaryView<'a>(&'a Npc);
+pub struct SummaryView<'a>(&'a NpcData);
 
-pub struct DescriptionView<'a>(&'a Npc);
+pub struct DescriptionView<'a>(&'a NpcData);
 
 pub struct DetailsView<'a> {
-    npc: &'a Npc,
+    npc: &'a NpcData,
+    uuid: Option<Uuid>,
     relations: NpcRelations,
 }
 
-fn write_summary_details(npc: &Npc, f: &mut fmt::Formatter) -> fmt::Result {
+fn write_summary_details(npc: &NpcData, f: &mut fmt::Formatter) -> fmt::Result {
     if let Some(age) = npc.age.value() {
         age.fmt_with_species_ethnicity(npc.species.value(), npc.ethnicity.value(), f)?;
     } else if let Some(species) = npc.species.value() {
@@ -29,20 +30,24 @@ fn write_summary_details(npc: &Npc, f: &mut fmt::Formatter) -> fmt::Result {
 }
 
 impl<'a> SummaryView<'a> {
-    pub fn new(npc: &'a Npc) -> Self {
+    pub fn new(npc: &'a NpcData) -> Self {
         Self(npc)
     }
 }
 
 impl<'a> DescriptionView<'a> {
-    pub fn new(npc: &'a Npc) -> Self {
+    pub fn new(npc: &'a NpcData) -> Self {
         Self(npc)
     }
 }
 
 impl<'a> DetailsView<'a> {
-    pub fn new(npc: &'a Npc, relations: NpcRelations) -> Self {
-        Self { npc, relations }
+    pub fn new(npc: &'a NpcData, uuid: Option<Uuid>, relations: NpcRelations) -> Self {
+        Self {
+            npc,
+            uuid,
+            relations,
+        }
     }
 }
 
@@ -95,7 +100,11 @@ impl<'a> fmt::Display for DescriptionView<'a> {
 
 impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Self { npc, relations } = self;
+        let Self {
+            npc,
+            uuid: _,
+            relations,
+        } = self;
 
         writeln!(f, "<div class=\"thing-box npc\">\n")?;
 
@@ -156,8 +165,8 @@ impl<'a> fmt::Display for DetailsView<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::world::npc::{Age, Ethnicity, Gender, Size, Species};
-    use crate::world::place::{Place, PlaceType};
+    use crate::world::npc::{Age, Ethnicity, Gender, Npc, Size, Species};
+    use crate::world::place::{Place, PlaceData, PlaceType};
     use crate::world::Field;
 
     const NAME: u8 = 0b1;
@@ -217,7 +226,7 @@ mod test {
 
     #[test]
     fn details_view_test_filled() {
-        let mut npc = Npc::default();
+        let mut npc = NpcData::default();
         npc.name.replace("Potato Johnson".to_string());
         npc.species.replace(Species::Human);
         npc.ethnicity.replace(Ethnicity::Elvish);
@@ -241,7 +250,7 @@ mod test {
 **Size:** 5'11", 140 lbs (medium)
 
 </div>"#,
-            format!("{}", npc.display_details(NpcRelations::default()))
+            format!("{}", npc.display_details(None, NpcRelations::default()))
         );
     }
 
@@ -304,14 +313,14 @@ mod test {
 </div>"#,
             format!(
                 "{}",
-                &Npc::default().display_details(NpcRelations::default())
+                &NpcData::default().display_details(None, NpcRelations::default())
             )
         );
     }
 
     #[test]
     fn details_view_test_with_parent_location() {
-        let npc = Npc {
+        let npc = NpcData {
             name: "Frodo Baggins".into(),
             ..Default::default()
         };
@@ -319,9 +328,12 @@ mod test {
         let relations = NpcRelations {
             location: Some((
                 Place {
-                    name: "Mount Doom".into(),
-                    subtype: "mountain".parse::<PlaceType>().unwrap().into(),
-                    ..Default::default()
+                    uuid: None,
+                    data: PlaceData {
+                        name: "Mount Doom".into(),
+                        subtype: "mountain".parse::<PlaceType>().unwrap().into(),
+                        ..Default::default()
+                    },
                 },
                 None,
             )),
@@ -337,13 +349,13 @@ mod test {
 **Location:** ⛰ `Mount Doom` (mountain)
 
 </div>",
-            format!("{}", DetailsView::new(&npc, relations)),
+            format!("{}", DetailsView::new(&npc, None, relations)),
         );
     }
 
     #[test]
     fn details_view_test_with_grandparent_location() {
-        let npc = Npc {
+        let npc = NpcData {
             name: "Frodo Baggins".into(),
             ..Default::default()
         };
@@ -351,14 +363,20 @@ mod test {
         let relations = NpcRelations {
             location: Some((
                 Place {
-                    name: "The Prancing Pony".into(),
-                    subtype: "inn".parse::<PlaceType>().unwrap().into(),
-                    ..Default::default()
+                    uuid: None,
+                    data: PlaceData {
+                        name: "The Prancing Pony".into(),
+                        subtype: "inn".parse::<PlaceType>().unwrap().into(),
+                        ..Default::default()
+                    },
                 },
                 Some(Place {
-                    name: "Bree".into(),
-                    subtype: "town".parse::<PlaceType>().unwrap().into(),
-                    ..Default::default()
+                    uuid: None,
+                    data: PlaceData {
+                        name: "Bree".into(),
+                        subtype: "town".parse::<PlaceType>().unwrap().into(),
+                        ..Default::default()
+                    },
                 }),
             )),
         };
@@ -373,30 +391,33 @@ mod test {
 **Location:** 🏨 `The Prancing Pony`, 🏘 `Bree`
 
 </div>",
-            format!("{}", DetailsView::new(&npc, relations)),
+            format!("{}", DetailsView::new(&npc, None, relations)),
         );
     }
 
     fn gen_npc(bitmask: u8) -> Npc {
-        let mut npc = Npc::default();
+        let mut npc_data = NpcData::default();
 
         if bitmask & NAME > 0 {
-            npc.name = Field::new_generated("Potato Johnson".to_string());
+            npc_data.name = Field::new_generated("Potato Johnson".to_string());
         }
         if bitmask & AGE > 0 {
-            npc.age = Field::new_generated(Age::Elderly);
-            npc.age_years = Field::new_generated(60);
+            npc_data.age = Field::new_generated(Age::Elderly);
+            npc_data.age_years = Field::new_generated(60);
         }
         if bitmask & SPECIES > 0 {
-            npc.species = Field::new_generated(Species::Human);
+            npc_data.species = Field::new_generated(Species::Human);
         }
         if bitmask & GENDER > 0 {
-            npc.gender = Field::new_generated(Gender::Masculine);
+            npc_data.gender = Field::new_generated(Gender::Masculine);
         }
         if bitmask & ETHNICITY > 0 {
-            npc.ethnicity = Field::new_generated(Ethnicity::Elvish);
+            npc_data.ethnicity = Field::new_generated(Ethnicity::Elvish);
         }
 
-        npc
+        Npc {
+            uuid: Some(Uuid::nil()),
+            data: npc_data,
+        }
     }
 }

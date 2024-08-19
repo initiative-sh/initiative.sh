@@ -15,6 +15,12 @@ use uuid::Uuid;
 #[derive(Clone, Debug, Deserialize, Default, Eq, PartialEq, Serialize)]
 pub struct Place {
     pub uuid: Option<Uuid>,
+    #[serde(flatten)]
+    pub data: PlaceData,
+}
+
+#[derive(Clone, Debug, Deserialize, Default, Eq, PartialEq, Serialize)]
+pub struct PlaceData {
     pub location_uuid: Field<Uuid>,
     pub subtype: Field<PlaceType>,
 
@@ -49,6 +55,36 @@ pub enum PlaceType {
 
 impl Place {
     pub fn display_name(&self) -> NameView {
+        self.data.display_name()
+    }
+
+    pub fn display_summary(&self) -> SummaryView {
+        self.data.display_summary()
+    }
+
+    pub fn display_description(&self) -> DescriptionView {
+        self.data.display_description()
+    }
+
+    pub fn display_details(&self, relations: PlaceRelations) -> DetailsView {
+        self.data.display_details(self.uuid, relations)
+    }
+
+    pub fn get_words() -> &'static [&'static str] {
+        &["place"][..]
+    }
+
+    pub fn lock_all(&mut self) {
+        self.data.lock_all()
+    }
+
+    pub fn apply_diff(&mut self, diff: &mut PlaceData) {
+        self.data.apply_diff(diff)
+    }
+}
+
+impl PlaceData {
+    pub fn display_name(&self) -> NameView {
         NameView::new(self)
     }
 
@@ -60,17 +96,12 @@ impl Place {
         DescriptionView::new(self)
     }
 
-    pub fn display_details(&self, relations: PlaceRelations) -> DetailsView {
-        DetailsView::new(self, relations)
-    }
-
-    pub fn get_words() -> &'static [&'static str] {
-        &["place"][..]
+    pub fn display_details(&self, uuid: Option<Uuid>, relations: PlaceRelations) -> DetailsView {
+        DetailsView::new(self, uuid, relations)
     }
 
     pub fn lock_all(&mut self) {
         let Self {
-            uuid: _,
             location_uuid,
             subtype,
             name,
@@ -85,7 +116,6 @@ impl Place {
 
     pub fn apply_diff(&mut self, diff: &mut Self) {
         let Self {
-            uuid: _,
             location_uuid,
             subtype,
             name,
@@ -99,7 +129,7 @@ impl Place {
     }
 }
 
-impl Generate for Place {
+impl Generate for PlaceData {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
         if !self.name.is_locked() || self.subtype.is_none() {
             self.subtype
@@ -165,20 +195,20 @@ mod test {
 
         let mut rng = SmallRng::seed_from_u64(1);
         assert_ne!(
-            Place::generate(&mut rng, &demographics).subtype,
-            Place::generate(&mut rng, &demographics).subtype,
+            PlaceData::generate(&mut rng, &demographics).subtype,
+            PlaceData::generate(&mut rng, &demographics).subtype,
         );
 
         let mut rng1 = SmallRng::seed_from_u64(0);
         let mut rng2 = SmallRng::seed_from_u64(0);
         assert_eq!(
-            Place::generate(&mut rng1, &demographics).subtype,
-            Place::generate(&mut rng2, &demographics).subtype,
+            PlaceData::generate(&mut rng1, &demographics).subtype,
+            PlaceData::generate(&mut rng2, &demographics).subtype,
         );
     }
 
     #[test]
-    fn default_test() {
+    fn place_type_default_test() {
         assert_eq!(PlaceType::Any, PlaceType::default());
     }
 
@@ -235,39 +265,37 @@ mod test {
     #[test]
     fn apply_diff_test_no_change() {
         let mut place = oaken_mermaid_inn();
-        let mut diff = Place::default();
+        let mut diff = PlaceData::default();
 
-        place.apply_diff(&mut diff);
+        place.data.apply_diff(&mut diff);
 
         assert_eq!(oaken_mermaid_inn(), place);
-        assert_eq!(Place::default(), diff);
+        assert_eq!(PlaceData::default(), diff);
     }
 
     #[test]
     fn apply_diff_test_from_empty() {
-        let mut oaken_mermaid_inn = oaken_mermaid_inn();
-        oaken_mermaid_inn.uuid = None;
+        let oaken_mermaid_inn = oaken_mermaid_inn();
 
-        let mut place = Place::default();
-        let mut diff = oaken_mermaid_inn.clone();
+        let mut place = PlaceData::default();
+        let mut diff = oaken_mermaid_inn.data.clone();
 
         place.apply_diff(&mut diff);
 
-        assert_eq!(oaken_mermaid_inn, place);
+        assert_eq!(oaken_mermaid_inn.data, place);
 
-        let mut empty_locked = Place::default();
+        let mut empty_locked = PlaceData::default();
         empty_locked.lock_all();
         assert_eq!(empty_locked, diff);
     }
 
     #[test]
     fn lock_all_test() {
-        let mut place = Place::default();
+        let mut place = PlaceData::default();
         place.lock_all();
 
         assert_eq!(
-            Place {
-                uuid: None,
+            PlaceData {
                 location_uuid: Field::Locked(None),
                 subtype: Field::Locked(None),
                 name: Field::Locked(None),
@@ -489,11 +517,13 @@ mod test {
     fn oaken_mermaid_inn() -> Place {
         Place {
             uuid: Some(uuid::Uuid::nil().into()),
-            location_uuid: Uuid::from(uuid::Uuid::nil()).into(),
-            subtype: "inn".parse::<PlaceType>().ok().into(),
+            data: PlaceData {
+                location_uuid: Uuid::from(uuid::Uuid::nil()).into(),
+                subtype: "inn".parse::<PlaceType>().ok().into(),
 
-            name: "Oaken Mermaid Inn".into(),
-            description: "I am Mordenkainen".into(),
+                name: "Oaken Mermaid Inn".into(),
+                description: "I am Mordenkainen".into(),
+            },
         }
     }
 }

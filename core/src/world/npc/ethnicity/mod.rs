@@ -7,7 +7,7 @@ mod human;
 mod orcish;
 mod tiefling;
 
-use super::{Age, Gender, Npc, Species};
+use super::{Age, Gender, NpcData, Species};
 use crate::world::weighted_index_from_tuple;
 use initiative_macros::WordList;
 use rand::Rng;
@@ -43,7 +43,7 @@ impl Ethnicity {
 }
 
 trait Generate {
-    fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
+    fn regenerate(rng: &mut impl Rng, npc: &mut NpcData) {
         if let (Some(gender), Some(age)) = (npc.gender.value(), npc.age.value()) {
             npc.name.replace_with(|_| Self::gen_name(rng, age, gender));
         }
@@ -112,7 +112,7 @@ trait GenerateSimple {
     fn word_lname_last() -> &'static [(&'static str, usize)];
 }
 
-pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
+pub fn regenerate(rng: &mut impl Rng, npc: &mut NpcData) {
     if let Some(ethnicity) = npc.ethnicity.value() {
         match ethnicity {
             Ethnicity::Dragonborn => dragonborn::Ethnicity::regenerate(rng, npc),

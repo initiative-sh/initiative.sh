@@ -2,7 +2,7 @@ mod inn;
 mod theater;
 
 use super::BuildingType;
-use crate::world::place::{Place, PlaceType};
+use crate::world::place::{PlaceData, PlaceType};
 use crate::world::Demographics;
 use initiative_macros::WordList;
 use rand::prelude::*;
@@ -107,7 +107,7 @@ impl BusinessType {
     }
 }
 
-pub fn generate(place: &mut Place, rng: &mut impl Rng, demographics: &Demographics) {
+pub fn generate(place: &mut PlaceData, rng: &mut impl Rng, demographics: &Demographics) {
     #[allow(clippy::collapsible_match)]
     if let Some(PlaceType::Building(BuildingType::Business(subtype))) = place.subtype.value() {
         #[allow(clippy::single_match)]

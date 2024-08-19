@@ -188,7 +188,8 @@ pub trait DataStore {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::world::{Npc, Place};
+    use crate::world::npc::{Npc, NpcData};
+    use crate::world::place::{Place, PlaceData};
     use tokio_test::block_on;
 
     const TEST_UUID: Uuid = Uuid::from_u128(u128::MAX);
@@ -223,8 +224,10 @@ mod test {
 
         let gandalf_the_grey = Npc {
             uuid: Some(TEST_UUID.into()),
-            name: "Gandalf the Grey".into(),
-            ..Default::default()
+            data: NpcData {
+                name: "Gandalf the Grey".into(),
+                ..Default::default()
+            },
         }
         .into();
 
@@ -245,8 +248,10 @@ mod test {
                 ds.save_thing(
                     &Npc {
                         uuid: Some(Uuid::new_v4().into()),
-                        name: name.into(),
-                        ..Default::default()
+                        data: NpcData {
+                            name: name.into(),
+                            ..Default::default()
+                        },
                     }
                     .into(),
                 ),
@@ -281,14 +286,18 @@ mod test {
 
         let gandalf_the_grey = Npc {
             uuid: Some(TEST_UUID.into()),
-            name: "Gandalf the Grey".into(),
-            ..Default::default()
+            data: NpcData {
+                name: "Gandalf the Grey".into(),
+                ..Default::default()
+            },
         };
 
         let gandalf_the_white = Npc {
             uuid: Some(TEST_UUID.into()),
-            name: "Gandalf the White".into(),
-            ..Default::default()
+            data: NpcData {
+                name: "Gandalf the White".into(),
+                ..Default::default()
+            },
         };
 
         assert_eq!(Ok(()), block_on(ds.edit_thing(&gandalf_the_grey.into())));
@@ -356,7 +365,7 @@ mod test {
     fn person(uuid: Uuid) -> Thing {
         Npc {
             uuid: Some(uuid.into()),
-            ..Default::default()
+            data: NpcData::default(),
         }
         .into()
     }
@@ -364,7 +373,7 @@ mod test {
     fn place(uuid: Uuid) -> Thing {
         Place {
             uuid: Some(uuid.into()),
-            ..Default::default()
+            data: PlaceData::default(),
         }
         .into()
     }

@@ -7,8 +7,9 @@ use crate::reference::{ItemCategory, ReferenceCommand, Spell};
 use crate::storage::{Change, StorageCommand};
 use crate::time::TimeCommand;
 use crate::utils::CaseInsensitiveStr;
-use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
-use crate::world::{ParsedThing, Thing, WorldCommand};
+use crate::world::npc::{Age, Ethnicity, Gender, NpcData, Species};
+use crate::world::thing::{Thing, ThingData};
+use crate::world::{ParsedThing, WorldCommand};
 use async_trait::async_trait;
 use std::fmt;
 
@@ -160,13 +161,16 @@ impl TutorialCommand {
                 "../../../../data/tutorial/03-generating-characters.md"
             )),
             Self::ViewingAlternatives { npc_name, .. } => {
-                let thing = Thing::from(Npc {
-                    species: Species::Human.into(),
-                    ethnicity: Ethnicity::Human.into(),
-                    age: Age::Adult.into(),
-                    gender: Gender::Feminine.into(),
-                    ..Default::default()
-                });
+                let thing = Thing {
+                    uuid: None,
+                    data: ThingData::from(NpcData {
+                        species: Species::Human.into(),
+                        ethnicity: Ethnicity::Human.into(),
+                        age: Age::Adult.into(),
+                        gender: Gender::Feminine.into(),
+                        ..Default::default()
+                    }),
+                };
 
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "more",
@@ -344,8 +348,8 @@ impl TutorialCommand {
                         },
                 })) = command
                 {
-                    thing.npc()
-                        == Some(&Npc {
+                    thing.data.npc_data()
+                        == Some(&NpcData {
                             species: Species::Human.into(),
                             ethnicity: Ethnicity::Human.into(),
                             age: Age::Adult.into(),
@@ -358,8 +362,8 @@ impl TutorialCommand {
             }
             Self::ViewingAlternatives { .. } => {
                 if let Some(CommandType::World(WorldCommand::CreateMultiple { thing })) = command {
-                    thing.npc()
-                        == Some(&Npc {
+                    thing.data.npc_data()
+                        == Some(&NpcData {
                             species: Species::Human.into(),
                             ethnicity: Ethnicity::Human.into(),
                             age: Age::Adult.into(),
@@ -389,8 +393,8 @@ impl TutorialCommand {
                 })) = command
                 {
                     name.eq_ci(npc_name)
-                        && thing.npc()
-                            == Some(&Npc {
+                        && thing.data.npc_data()
+                            == Some(&NpcData {
                                 species: Species::HalfElf.into(),
                                 ..Default::default()
                             })

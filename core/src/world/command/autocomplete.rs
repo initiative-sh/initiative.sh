@@ -275,7 +275,8 @@ impl Autocomplete for Npc {
                     .and_then(|parsed_thing| {
                         parsed_thing
                             .thing
-                            .npc()
+                            .data
+                            .npc_data()
                             .map(|npc| format!("create {}", npc.display_description()))
                     })
             {

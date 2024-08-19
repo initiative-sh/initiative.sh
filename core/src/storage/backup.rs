@@ -1,5 +1,5 @@
 use super::repository::{Change, Error as RepositoryError, KeyValue, Repository};
-use crate::world::Thing;
+use crate::world::thing::{Thing, ThingData};
 use futures::join;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -54,9 +54,9 @@ pub async fn import(
 
     for thing in data.things.into_iter() {
         match (
-            match thing {
-                Thing::Npc(_) => &mut stats.npc_stats,
-                Thing::Place(_) => &mut stats.place_stats,
+            match &thing.data {
+                ThingData::Npc(_) => &mut stats.npc_stats,
+                ThingData::Place(_) => &mut stats.place_stats,
             },
             repo.modify_without_undo(Change::CreateAndSave { thing })
                 .await,

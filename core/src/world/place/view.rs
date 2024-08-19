@@ -1,38 +1,44 @@
-use super::{Place, PlaceRelations, PlaceType};
+use crate::world::place::{PlaceData, PlaceRelations, PlaceType};
 use std::fmt;
+use uuid::Uuid;
 
-pub struct NameView<'a>(&'a Place);
+pub struct NameView<'a>(&'a PlaceData);
 
-pub struct SummaryView<'a>(&'a Place);
+pub struct SummaryView<'a>(&'a PlaceData);
 
-pub struct DescriptionView<'a>(&'a Place);
+pub struct DescriptionView<'a>(&'a PlaceData);
 
 pub struct DetailsView<'a> {
-    place: &'a Place,
+    place: &'a PlaceData,
+    uuid: Option<Uuid>,
     relations: PlaceRelations,
 }
 
 impl<'a> NameView<'a> {
-    pub fn new(place: &'a Place) -> Self {
+    pub fn new(place: &'a PlaceData) -> Self {
         Self(place)
     }
 }
 
 impl<'a> SummaryView<'a> {
-    pub fn new(place: &'a Place) -> Self {
+    pub fn new(place: &'a PlaceData) -> Self {
         Self(place)
     }
 }
 
 impl<'a> DescriptionView<'a> {
-    pub fn new(place: &'a Place) -> Self {
+    pub fn new(place: &'a PlaceData) -> Self {
         Self(place)
     }
 }
 
 impl<'a> DetailsView<'a> {
-    pub fn new(place: &'a Place, relations: PlaceRelations) -> Self {
-        Self { place, relations }
+    pub fn new(place: &'a PlaceData, uuid: Option<Uuid>, relations: PlaceRelations) -> Self {
+        Self {
+            place,
+            uuid,
+            relations,
+        }
     }
 }
 
@@ -78,7 +84,11 @@ impl<'a> fmt::Display for DescriptionView<'a> {
 
 impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Self { place, relations } = self;
+        let Self {
+            place,
+            uuid: _,
+            relations,
+        } = self;
 
         writeln!(f, "<div class=\"thing-box place\">\n")?;
 
@@ -122,11 +132,11 @@ impl<'a> fmt::Display for DetailsView<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::world::place::PlaceType;
+    use crate::world::Place;
 
     #[test]
     fn view_test_empty() {
-        let place = Place::default();
+        let place = PlaceData::default();
         assert_eq!("", format!("{}", place.display_name()));
         assert_eq!("📍 place", format!("{}", place.display_summary()));
         assert_eq!("place", format!("{}", place.display_description()));
@@ -137,13 +147,13 @@ mod test {
 *place*
 
 </div>"#,
-            format!("{}", place.display_details(PlaceRelations::default())),
+            format!("{}", place.display_details(None, PlaceRelations::default())),
         );
     }
 
     #[test]
     fn view_test_name_only() {
-        let place = Place {
+        let place = PlaceData {
             name: "The Invulnerable Vagrant".into(),
             ..Default::default()
         };
@@ -163,13 +173,13 @@ mod test {
 *place*
 
 </div>"#,
-            format!("{}", place.display_details(PlaceRelations::default())),
+            format!("{}", place.display_details(None, PlaceRelations::default())),
         );
     }
 
     #[test]
     fn view_test_subtype_only() {
-        let place = Place {
+        let place = PlaceData {
             subtype: "inn".parse::<PlaceType>().unwrap().into(),
             ..Default::default()
         };
@@ -183,13 +193,13 @@ mod test {
 *inn*
 
 </div>"#,
-            format!("{}", place.display_details(PlaceRelations::default())),
+            format!("{}", place.display_details(None, PlaceRelations::default())),
         );
     }
 
     #[test]
     fn view_test_description_only() {
-        let place = Place {
+        let place = PlaceData {
             description: "A street with no name.".into(),
             ..Default::default()
         };
@@ -205,13 +215,13 @@ mod test {
 A street with no name.
 
 </div>"#,
-            format!("{}", place.display_details(PlaceRelations::default())),
+            format!("{}", place.display_details(None, PlaceRelations::default())),
         );
     }
 
     #[test]
     fn view_test_name_subtype() {
-        let place = Place {
+        let place = PlaceData {
             subtype: "inn".parse::<PlaceType>().unwrap().into(),
             name: "Oaken Mermaid Inn".into(),
             ..Default::default()
@@ -232,13 +242,13 @@ A street with no name.
 *inn*
 
 </div>"#,
-            format!("{}", place.display_details(PlaceRelations::default())),
+            format!("{}", place.display_details(None, PlaceRelations::default())),
         );
     }
 
     #[test]
     fn view_test_name_description() {
-        let place = Place {
+        let place = PlaceData {
             name: "The Invulnerable Vagrant".into(),
             description: "Come in and see me, and me, and me!".into(),
             ..Default::default()
@@ -261,13 +271,13 @@ A street with no name.
 Come in and see me, and me, and me!
 
 </div>"#,
-            format!("{}", place.display_details(PlaceRelations::default())),
+            format!("{}", place.display_details(None, PlaceRelations::default())),
         );
     }
 
     #[test]
     fn view_test_subtype_description() {
-        let place = Place {
+        let place = PlaceData {
             subtype: "inn".parse::<PlaceType>().unwrap().into(),
             description: "You can check out any time you like.".into(),
             ..Default::default()
@@ -284,13 +294,13 @@ Come in and see me, and me, and me!
 You can check out any time you like.
 
 </div>"#,
-            format!("{}", place.display_details(PlaceRelations::default())),
+            format!("{}", place.display_details(None, PlaceRelations::default())),
         );
     }
 
     #[test]
     fn view_test_name_subtype_description() {
-        let place = Place {
+        let place = PlaceData {
             subtype: "inn".parse::<PlaceType>().unwrap().into(),
             name: "Oaken Mermaid Inn".into(),
             description: "I am Mordenkainen.".into(),
@@ -314,13 +324,13 @@ You can check out any time you like.
 I am Mordenkainen.
 
 </div>"#,
-            format!("{}", place.display_details(PlaceRelations::default())),
+            format!("{}", place.display_details(None, PlaceRelations::default())),
         );
     }
 
     #[test]
     fn details_view_test_with_parent_location() {
-        let place = Place {
+        let place = PlaceData {
             name: "The Prancing Pony".into(),
             subtype: "inn".parse::<PlaceType>().unwrap().into(),
             ..Default::default()
@@ -329,9 +339,12 @@ I am Mordenkainen.
         let relations = PlaceRelations {
             location: Some((
                 Place {
-                    name: "Bree".into(),
-                    subtype: "town".parse::<PlaceType>().unwrap().into(),
-                    ..Default::default()
+                    uuid: None,
+                    data: PlaceData {
+                        name: "Bree".into(),
+                        subtype: "town".parse::<PlaceType>().unwrap().into(),
+                        ..Default::default()
+                    },
                 },
                 None,
             )),
@@ -346,13 +359,13 @@ I am Mordenkainen.
 **Location:** 🏘 `Bree` (town)
 
 </div>",
-            format!("{}", DetailsView::new(&place, relations)),
+            format!("{}", DetailsView::new(&place, None, relations)),
         );
     }
 
     #[test]
     fn details_view_test_with_grandparent_location() {
-        let place = Place {
+        let place = PlaceData {
             name: "The Prancing Pony".into(),
             subtype: "inn".parse::<PlaceType>().unwrap().into(),
             ..Default::default()
@@ -361,14 +374,20 @@ I am Mordenkainen.
         let relations = PlaceRelations {
             location: Some((
                 Place {
-                    name: "Bree".into(),
-                    subtype: "town".parse::<PlaceType>().unwrap().into(),
-                    ..Default::default()
+                    uuid: None,
+                    data: PlaceData {
+                        name: "Bree".into(),
+                        subtype: "town".parse::<PlaceType>().unwrap().into(),
+                        ..Default::default()
+                    },
                 },
                 Some(Place {
-                    name: "The Shire".into(),
-                    subtype: "region".parse::<PlaceType>().unwrap().into(),
-                    ..Default::default()
+                    uuid: None,
+                    data: PlaceData {
+                        name: "The Shire".into(),
+                        subtype: "region".parse::<PlaceType>().unwrap().into(),
+                        ..Default::default()
+                    },
                 }),
             )),
         };
@@ -382,7 +401,7 @@ I am Mordenkainen.
 **Location:** 🏘 `Bree`, 👑 `The Shire`
 
 </div>",
-            format!("{}", DetailsView::new(&place, relations)),
+            format!("{}", DetailsView::new(&place, None, relations)),
         );
     }
 }

@@ -5,7 +5,7 @@ mod military;
 mod religious;
 mod travel;
 
-use crate::world::place::{Place, PlaceType};
+use crate::world::place::{PlaceData, PlaceType};
 use crate::world::Demographics;
 use initiative_macros::WordList;
 use rand::prelude::*;
@@ -44,7 +44,7 @@ impl BuildingType {
     }
 }
 
-pub fn generate(place: &mut Place, rng: &mut impl Rng, demographics: &Demographics) {
+pub fn generate(place: &mut PlaceData, rng: &mut impl Rng, demographics: &Demographics) {
     if let Some(PlaceType::Building(subtype)) = place.subtype.value() {
         #[allow(clippy::single_match)]
         match subtype {

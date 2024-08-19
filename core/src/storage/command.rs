@@ -5,7 +5,7 @@ use crate::app::{
     Event, Runnable,
 };
 use crate::utils::CaseInsensitiveStr;
-use crate::world::Thing;
+use crate::world::thing::{Thing, ThingData};
 use async_trait::async_trait;
 use futures::join;
 use std::cmp::Ordering;
@@ -38,9 +38,9 @@ impl Runnable for StorageCommand {
                     .await
                     .map_err(|_| "Couldn't access the journal.".to_string())?
                     .into_iter()
-                    .map(|thing| match thing {
-                        Thing::Npc(_) => npcs.push(thing),
-                        Thing::Place(_) => places.push(thing),
+                    .map(|thing| match &thing.data {
+                        ThingData::Npc(_) => npcs.push(thing),
+                        ThingData::Place(_) => places.push(thing),
                     })
                     .count();
 
@@ -387,8 +387,8 @@ mod test {
     use super::*;
     use crate::app::assert_autocomplete;
     use crate::storage::MemoryDataStore;
-    use crate::world::npc::{Age, Gender, Npc, Species};
-    use crate::world::place::{Place, PlaceType};
+    use crate::world::npc::{Age, Gender, Npc, NpcData, Species};
+    use crate::world::place::{Place, PlaceData, PlaceType};
     use crate::Event;
     use tokio_test::block_on;
 
@@ -487,11 +487,14 @@ mod test {
         block_on(
             app_meta.repository.modify(Change::Create {
                 thing: Npc {
-                    name: "Potato Johnson".into(),
-                    species: Species::Elf.into(),
-                    gender: Gender::NonBinaryThey.into(),
-                    age: Age::Adult.into(),
-                    ..Default::default()
+                    uuid: None,
+                    data: NpcData {
+                        name: "Potato Johnson".into(),
+                        species: Species::Elf.into(),
+                        gender: Gender::NonBinaryThey.into(),
+                        age: Age::Adult.into(),
+                        ..Default::default()
+                    },
                 }
                 .into(),
             }),
@@ -501,8 +504,11 @@ mod test {
         block_on(
             app_meta.repository.modify(Change::Create {
                 thing: Npc {
-                    name: "potato can be lowercase".into(),
-                    ..Default::default()
+                    uuid: None,
+                    data: NpcData {
+                        name: "potato can be lowercase".into(),
+                        ..Default::default()
+                    },
                 }
                 .into(),
             }),
@@ -512,9 +518,12 @@ mod test {
         block_on(
             app_meta.repository.modify(Change::Create {
                 thing: Place {
-                    name: "Potato & Meat".into(),
-                    subtype: "inn".parse::<PlaceType>().ok().into(),
-                    ..Default::default()
+                    uuid: None,
+                    data: PlaceData {
+                        name: "Potato & Meat".into(),
+                        subtype: "inn".parse::<PlaceType>().ok().into(),
+                        ..Default::default()
+                    },
                 }
                 .into(),
             }),
