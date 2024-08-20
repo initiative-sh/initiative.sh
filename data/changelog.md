@@ -1,3 +1,4 @@
+* **Enhancement:** Name generator now works for `theater`. @azylko
 * **Bug:** Fixed a positioning issue with the autocomplete popup. @MikkelPaulson
 * **Enhancement:** Name generator now works for `canyon`. @chrisrenfrow
 * **Bug:** Fixed an edge case where unsaved journal entries might not be
