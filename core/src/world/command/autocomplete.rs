@@ -1,9 +1,9 @@
 use super::ParsedThing;
 use crate::app::{AppMeta, Autocomplete, AutocompleteSuggestion};
 use crate::utils::{quoted_words, CaseInsensitiveStr};
-use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
-use crate::world::place::{Place, PlaceType};
-use crate::world::Thing;
+use crate::world::npc::{Age, Ethnicity, Gender, NpcData, Species};
+use crate::world::place::{PlaceData, PlaceType};
+use crate::world::thing::ThingData;
 use async_trait::async_trait;
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -68,7 +68,7 @@ impl<'a> From<&'a str> for ParsedInput<'a> {
     }
 }
 
-fn autocomplete_trailing_name<T: FromStr + Into<Thing>>(
+fn autocomplete_trailing_name<T: FromStr + Into<ThingData>>(
     input: &str,
 ) -> Option<AutocompleteSuggestion> {
     if !quoted_words(input)
@@ -110,7 +110,7 @@ fn autocomplete_trailing_name<T: FromStr + Into<Thing>>(
     }
 }
 
-fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
+fn autocomplete_terms<T: Default + FromStr + Into<ThingData>>(
     input: &str,
     basic_terms: &[&str],
     vocabulary: &[(&str, &str, &[&str])],
@@ -126,7 +126,7 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
     if parsed.partial.is_empty() || parsed.partial.in_ci(ARTICLES) {
         // Ends with a space or ignored word - suggest new word categories
         if quoted_words(parsed.desc).all(|word| word.as_str().in_ci(ARTICLES)) {
-            let thing: Thing = T::default().into();
+            let thing_data: ThingData = T::default().into();
 
             let suggestion = format!(
                 "{}{}[{} description]",
@@ -136,21 +136,21 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
                 } else {
                     ""
                 },
-                thing.as_str(),
+                thing_data.as_str(),
             );
 
             vec![AutocompleteSuggestion::new(
                 suggestion,
-                format!("create {}", thing.display_description()),
+                format!("create {}", thing_data.display_description()),
             )]
-        } else if let Ok(thing) = parsed.name_desc.parse::<T>().map(|t| t.into()) {
+        } else if let Ok(thing_data) = parsed.name_desc.parse::<T>().map(|t| t.into()) {
             let mut suggestions = Vec::new();
 
             let words: HashSet<&str> = quoted_words(parsed.desc_lower())
                 .map(|word| word.as_own_str(parsed.desc_lower()))
                 .collect();
 
-            if thing.name().is_none() {
+            if thing_data.name().is_none() {
                 suggestions.push(AutocompleteSuggestion::new(
                     parsed.suggestion("named [name]"),
                     "specify a name",
@@ -188,10 +188,10 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
                 .filter(|term| term.starts_with_ci(parsed.partial))
                 .map(|term| parsed.suggestion(term))
                 .filter_map(|term| {
-                    if let Ok(thing) = term.parse::<T>().map(|t| t.into()) {
+                    if let Ok(thing_data) = term.parse::<T>().map(|t| t.into()) {
                         Some(AutocompleteSuggestion::new(
                             term,
-                            format!("create {}", thing.display_description()),
+                            format!("create {}", thing_data.display_description()),
                         ))
                     } else {
                         None
@@ -222,10 +222,10 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
             .filter(|s| s.starts_with_ci(parsed.partial))
             .filter_map(|term| {
                 let suggestion = parsed.suggestion(term);
-                suggestion.parse::<T>().ok().map(|thing| {
+                suggestion.parse::<T>().ok().map(|thing_data| {
                     AutocompleteSuggestion::new(
                         suggestion,
-                        format!("create {}", thing.into().display_description()),
+                        format!("create {}", thing_data.into().display_description()),
                     )
                 })
             })
@@ -236,9 +236,9 @@ fn autocomplete_terms<T: Default + FromStr + Into<Thing>>(
 }
 
 #[async_trait(?Send)]
-impl Autocomplete for Place {
+impl Autocomplete for PlaceData {
     async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
-        autocomplete_terms::<ParsedThing<Place>>(
+        autocomplete_terms::<ParsedThing<PlaceData>>(
             input,
             &["place"],
             &[(
@@ -251,7 +251,7 @@ impl Autocomplete for Place {
 }
 
 #[async_trait(?Send)]
-impl Autocomplete for Npc {
+impl Autocomplete for NpcData {
     async fn autocomplete(input: &str, _app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
         if let Some(word) = quoted_words(input).last().filter(|w| {
             let s = w.as_str();
@@ -270,12 +270,11 @@ impl Autocomplete for Npc {
             };
 
             if let Some(summary) =
-                term.parse::<ParsedThing<Thing>>()
+                term.parse::<ParsedThing<ThingData>>()
                     .ok()
                     .and_then(|parsed_thing| {
                         parsed_thing
-                            .thing
-                            .data
+                            .thing_data
                             .npc_data()
                             .map(|npc| format!("create {}", npc.display_description()))
                     })
@@ -285,7 +284,7 @@ impl Autocomplete for Npc {
                 Vec::new()
             }
         } else {
-            autocomplete_terms::<ParsedThing<Npc>>(
+            autocomplete_terms::<ParsedThing<NpcData>>(
                 input,
                 &["character", "npc", "person"],
                 &[
@@ -418,7 +417,7 @@ mod test {
                 ("imports-shop", "create imports-shop"),
                 ("island", "create island"),
             ][..],
-            block_on(Place::autocomplete("i", &app_meta())),
+            block_on(PlaceData::autocomplete("i", &app_meta())),
         );
 
         assert_autocomplete(
@@ -427,22 +426,25 @@ mod test {
                 ("an imports-shop", "create imports-shop"),
                 ("an island", "create island"),
             ][..],
-            block_on(Place::autocomplete("an i", &app_meta())),
+            block_on(PlaceData::autocomplete("an i", &app_meta())),
         );
 
         assert_autocomplete(
             &[("an inn named [name]", "specify a name")][..],
-            block_on(Place::autocomplete("an inn n", &app_meta())),
+            block_on(PlaceData::autocomplete("an inn n", &app_meta())),
         );
 
         assert_eq!(
             Vec::<AutocompleteSuggestion>::new(),
-            block_on(Place::autocomplete("a streetcar named desire", &app_meta())),
+            block_on(PlaceData::autocomplete(
+                "a streetcar named desire",
+                &app_meta()
+            )),
         );
 
         assert_eq!(
             Vec::<AutocompleteSuggestion>::new(),
-            block_on(Place::autocomplete("Foo, an inn n", &app_meta())),
+            block_on(PlaceData::autocomplete("Foo, an inn n", &app_meta())),
         );
     }
 
@@ -455,7 +457,7 @@ mod test {
             for i in 2..input.len() {
                 assert_ne!(
                     Vec::<AutocompleteSuggestion>::new(),
-                    block_on(Place::autocomplete(&input[..i], &app_meta)),
+                    block_on(PlaceData::autocomplete(&input[..i], &app_meta)),
                     "Input: {}",
                     &input[..i],
                 );
@@ -469,7 +471,7 @@ mod test {
             for i in 4..input.len() {
                 assert_ne!(
                     Vec::<AutocompleteSuggestion>::new(),
-                    block_on(Place::autocomplete(&input[..i], &app_meta)),
+                    block_on(PlaceData::autocomplete(&input[..i], &app_meta)),
                     "Input: {}",
                     &input[..i],
                 );
@@ -486,7 +488,7 @@ mod test {
                 ("elf [gender]", "specify a gender"),
                 ("elf named [name]", "specify a name"),
             ][..],
-            block_on(Npc::autocomplete("elf ", &app_meta())),
+            block_on(NpcData::autocomplete("elf ", &app_meta())),
         );
 
         assert_autocomplete(
@@ -495,7 +497,7 @@ mod test {
                 ("human [gender]", "specify a gender"),
                 ("human named [name]", "specify a name"),
             ][..],
-            block_on(Npc::autocomplete("human ", &app_meta())),
+            block_on(NpcData::autocomplete("human ", &app_meta())),
         );
     }
 
@@ -507,7 +509,7 @@ mod test {
         for i in 3..input.len() {
             assert_ne!(
                 Vec::<AutocompleteSuggestion>::new(),
-                block_on(Npc::autocomplete(&input[..i], &app_meta)),
+                block_on(NpcData::autocomplete(&input[..i], &app_meta)),
                 "Input: {}",
                 &input[..i],
             );

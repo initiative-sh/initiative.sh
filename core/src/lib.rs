@@ -12,7 +12,7 @@ pub use app::{App, Event};
 pub use storage::backup::BackupData;
 pub use storage::{DataStore, MemoryDataStore, NullDataStore};
 pub use uuid::Uuid;
-pub use world::Thing;
+pub use world::thing::Thing;
 
 mod reference;
 mod storage;

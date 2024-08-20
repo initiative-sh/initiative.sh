@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize, Serializer};
 use std::fmt;
 use std::mem;
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, Deserialize)]
 #[serde(from = "Option<T>")]
 pub enum Field<T> {
     Locked(Option<T>),
@@ -44,6 +44,14 @@ impl<T> Field<T> {
         *self = match mem::take(self) {
             Self::Locked(value) => Self::Unlocked(value),
             field => field,
+        }
+    }
+
+    pub fn set_locked(&mut self, locked: bool) {
+        if locked {
+            self.lock();
+        } else {
+            self.unlock();
         }
     }
 
@@ -99,6 +107,12 @@ impl<T> Field<T> {
             mem::swap(self, other);
             other.lock();
         }
+    }
+}
+
+impl<T: PartialEq> PartialEq for Field<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.value() == other.value()
     }
 }
 
@@ -249,6 +263,17 @@ mod test {
 
         let field: Field<u8> = serde_json::from_str("null").unwrap();
         assert_eq!(Field::Locked(None), field);
+    }
+
+    #[test]
+    fn partial_eq_test() {
+        assert_eq!(Field::Locked(Some(true)), Field::Locked(Some(true)));
+        assert_eq!(Field::Unlocked(Some(true)), Field::Locked(Some(true)));
+        assert_eq!(Field::Locked(Some(true)), Field::Unlocked(Some(true)));
+        assert_eq!(Field::Unlocked(Some(true)), Field::Unlocked(Some(true)));
+
+        assert_ne!(Field::Locked(None), Field::Locked(Some(true)));
+        assert_ne!(Field::Locked(Some(false)), Field::Locked(Some(true)));
     }
 
     #[test]

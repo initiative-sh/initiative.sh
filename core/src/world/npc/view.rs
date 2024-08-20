@@ -7,7 +7,7 @@ pub struct DescriptionView<'a>(&'a NpcData);
 
 pub struct DetailsView<'a> {
     npc: &'a NpcData,
-    uuid: Option<Uuid>,
+    uuid: Uuid,
     relations: NpcRelations,
 }
 
@@ -42,7 +42,7 @@ impl<'a> DescriptionView<'a> {
 }
 
 impl<'a> DetailsView<'a> {
-    pub fn new(npc: &'a NpcData, uuid: Option<Uuid>, relations: NpcRelations) -> Self {
+    pub fn new(npc: &'a NpcData, uuid: Uuid, relations: NpcRelations) -> Self {
         Self {
             npc,
             uuid,
@@ -102,11 +102,11 @@ impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let Self {
             npc,
-            uuid: _,
+            uuid,
             relations,
         } = self;
 
-        writeln!(f, "<div class=\"thing-box npc\">\n")?;
+        writeln!(f, "<div class=\"thing-box npc\" data-uuid=\"{}\">\n", uuid)?;
 
         npc.name
             .value()
@@ -216,7 +216,7 @@ mod test {
         .map(|(i, s)| {
             (
                 s.to_string(),
-                format!("{}", gen_npc(i as u8).display_summary()),
+                gen_npc(i as u8).display_summary().to_string(),
             )
         })
         .unzip();
@@ -239,7 +239,7 @@ mod test {
         });
 
         assert_eq!(
-            r#"<div class="thing-box npc">
+            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # Potato Johnson
 *adult human, they/them*
@@ -250,14 +250,15 @@ mod test {
 **Size:** 5'11", 140 lbs (medium)
 
 </div>"#,
-            format!("{}", npc.display_details(None, NpcRelations::default()))
+            npc.display_details(Uuid::nil(), NpcRelations::default())
+                .to_string(),
         );
     }
 
     #[test]
     fn details_view_test_species_ethnicity() {
         assert_eq!(
-            r#"<div class="thing-box npc">
+            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # Unnamed NPC
 *human*
@@ -265,13 +266,12 @@ mod test {
 **Species:** human
 
 </div>"#,
-            format!(
-                "{}",
-                gen_npc(SPECIES).display_details(NpcRelations::default())
-            )
+            gen_npc(SPECIES)
+                .display_details(NpcRelations::default())
+                .to_string(),
         );
         assert_eq!(
-            r#"<div class="thing-box npc">
+            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # Unnamed NPC
 *elvish person*
@@ -279,13 +279,12 @@ mod test {
 **Ethnicity:** elvish
 
 </div>"#,
-            format!(
-                "{}",
-                gen_npc(ETHNICITY).display_details(NpcRelations::default())
-            )
+            gen_npc(ETHNICITY)
+                .display_details(NpcRelations::default())
+                .to_string(),
         );
         assert_eq!(
-            r#"<div class="thing-box npc">
+            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # Unnamed NPC
 *human*
@@ -293,17 +292,16 @@ mod test {
 **Species:** human (elvish)
 
 </div>"#,
-            format!(
-                "{}",
-                gen_npc(ETHNICITY | SPECIES).display_details(NpcRelations::default())
-            )
+            gen_npc(ETHNICITY | SPECIES)
+                .display_details(NpcRelations::default())
+                .to_string(),
         );
     }
 
     #[test]
     fn details_view_test_empty() {
         assert_eq!(
-            r#"<div class="thing-box npc">
+            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # Unnamed NPC
 *person*
@@ -311,10 +309,9 @@ mod test {
 **Species:** N/A
 
 </div>"#,
-            format!(
-                "{}",
-                &NpcData::default().display_details(None, NpcRelations::default())
-            )
+            NpcData::default()
+                .display_details(Uuid::nil(), NpcRelations::default())
+                .to_string(),
         );
     }
 
@@ -328,7 +325,8 @@ mod test {
         let relations = NpcRelations {
             location: Some((
                 Place {
-                    uuid: None,
+                    uuid: Uuid::nil(),
+                    is_saved: true,
                     data: PlaceData {
                         name: "Mount Doom".into(),
                         subtype: "mountain".parse::<PlaceType>().unwrap().into(),
@@ -340,16 +338,16 @@ mod test {
         };
 
         assert_eq!(
-            "<div class=\"thing-box npc\">
+            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # Frodo Baggins
 *person*
 
-**Species:** N/A\\
+**Species:** N/A\
 **Location:** ⛰ `Mount Doom` (mountain)
 
-</div>",
-            format!("{}", DetailsView::new(&npc, None, relations)),
+</div>"#,
+            DetailsView::new(&npc, Uuid::nil(), relations).to_string(),
         );
     }
 
@@ -363,7 +361,8 @@ mod test {
         let relations = NpcRelations {
             location: Some((
                 Place {
-                    uuid: None,
+                    uuid: Uuid::nil(),
+                    is_saved: true,
                     data: PlaceData {
                         name: "The Prancing Pony".into(),
                         subtype: "inn".parse::<PlaceType>().unwrap().into(),
@@ -371,7 +370,8 @@ mod test {
                     },
                 },
                 Some(Place {
-                    uuid: None,
+                    uuid: Uuid::nil(),
+                    is_saved: true,
                     data: PlaceData {
                         name: "Bree".into(),
                         subtype: "town".parse::<PlaceType>().unwrap().into(),
@@ -382,16 +382,16 @@ mod test {
         };
 
         assert_eq!(
-            "<div class=\"thing-box npc\">
+            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # Frodo Baggins
 *person*
 
-**Species:** N/A\\
+**Species:** N/A\
 **Location:** 🏨 `The Prancing Pony`, 🏘 `Bree`
 
-</div>",
-            format!("{}", DetailsView::new(&npc, None, relations)),
+</div>"#,
+            DetailsView::new(&npc, Uuid::nil(), relations).to_string(),
         );
     }
 
@@ -416,7 +416,8 @@ mod test {
         }
 
         Npc {
-            uuid: Some(Uuid::nil()),
+            uuid: Uuid::nil(),
+            is_saved: false,
             data: npc_data,
         }
     }

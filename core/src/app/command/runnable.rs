@@ -18,6 +18,7 @@ pub trait Autocomplete {
     async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<AutocompleteSuggestion>;
 }
 
+#[track_caller]
 #[cfg(test)]
 pub fn assert_autocomplete(
     expected_suggestions: &[(&'static str, &'static str)],

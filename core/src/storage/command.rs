@@ -80,51 +80,33 @@ impl Runnable for StorageCommand {
                 Ok(output)
             }
             Self::Delete { name } => {
-                let name = app_meta
-                        .repository
-                        .get_by_name(&name)
-                        .await
-                        .map(|t| t.name().value().map(|s| s.to_string()))
-                        .unwrap_or(None)
-                        .unwrap_or(name);
+                let result = match app_meta.repository.get_by_name(&name).await {
+                    Ok(thing) => {
+                        app_meta
+                                .repository
+                                .modify(Change::Delete { uuid: thing.uuid, name: thing.name().to_string() })
+                                .await
+                                .map_err(|(_, e)| e)
+                    }
+                    Err(e) => Err(e),
+                };
 
-                app_meta
-                        .repository
-                        .modify(Change::Delete { name: name.clone(), uuid: None })
-                        .await
-                        .map(|_| format!("{} was successfully deleted. Use `undo` to reverse this.", name))
-                        .map_err(|(_, e)| match e {
-                            RepositoryError::NotFound => {
-                                format!("There is no entity named \"{}\".", name)
-                            }
-                            RepositoryError::DataStoreFailed
-                            | RepositoryError::MissingName
-                            | RepositoryError::NameAlreadyExists => {
-                                format!("Couldn't delete `{}`.", name)
-                            }
-                        })
+                match result {
+                    Ok(Some(thing)) => Ok(format!("{} was successfully deleted. Use `undo` to reverse this.", thing.name())),
+                    Ok(None) | Err(RepositoryError::NotFound) => Err(format!("There is no entity named \"{}\".", name)),
+                    Err(_) => Err(format!("Couldn't delete `{}`.", name)),
+                }
             }
             Self::Save { name } => {
-                let name = app_meta
-                    .repository
-                    .get_by_name(&name)
-                    .await
-                    .map(|t| t.name().value().map(|s| s.to_string()))
-                    .unwrap_or(None)
-                    .unwrap_or(name);
-
                  app_meta
                     .repository
-                    .modify(Change::Save { name: name.clone() })
+                    .modify(Change::Save { name: name.clone(), uuid: None })
                     .await
                     .map(|_| format!("{} was successfully saved. Use `undo` to reverse this.", name))
-                    .map_err(|(_, e)| match e {
-                        RepositoryError::NotFound => {
+                    .map_err(|(_, e)| {
+                        if e == RepositoryError::NotFound {
                             format!("There is no entity named \"{}\".", name)
-                        }
-                        RepositoryError::DataStoreFailed
-                        | RepositoryError::MissingName
-                        | RepositoryError::NameAlreadyExists => {
+                        } else {
                             format!("Couldn't save `{}`.", name)
                         }
                     })
@@ -141,7 +123,7 @@ impl Runnable for StorageCommand {
                 let thing = app_meta.repository.get_by_name(&name).await;
                 let mut save_command = None;
                 let output = if let Ok(thing) = thing {
-                    if thing.uuid().is_none() {
+                    if !thing.is_saved {
                         save_command = Some(CommandAlias::literal(
                             "save",
                             format!("save {}", name),
@@ -334,10 +316,7 @@ impl Autocomplete for StorageCommand {
                     .zip(repeat(prefix)),
             )
         {
-            if matches!(
-                (prefix, thing.uuid()),
-                ("save ", Some(_)) | ("delete ", None)
-            ) {
+            if (prefix == "save " && thing.is_saved) || (prefix == "delete " && !thing.is_saved) {
                 continue;
             }
 
@@ -351,7 +330,7 @@ impl Autocomplete for StorageCommand {
                         Self::Delete { .. } => format!("remove {} from journal", thing.as_str()),
                         Self::Save { .. } => format!("save {} to journal", thing.as_str()),
                         Self::Load { .. } => {
-                            if thing.uuid().is_some() {
+                            if thing.is_saved {
                                 format!("{}", thing.display_description())
                             } else {
                                 format!("{} (unsaved)", thing.display_description())
@@ -387,8 +366,8 @@ mod test {
     use super::*;
     use crate::app::assert_autocomplete;
     use crate::storage::MemoryDataStore;
-    use crate::world::npc::{Age, Gender, Npc, NpcData, Species};
-    use crate::world::place::{Place, PlaceData, PlaceType};
+    use crate::world::npc::{Age, Gender, NpcData, Species};
+    use crate::world::place::{PlaceData, PlaceType};
     use crate::Event;
     use tokio_test::block_on;
 
@@ -486,46 +465,40 @@ mod test {
 
         block_on(
             app_meta.repository.modify(Change::Create {
-                thing: Npc {
-                    uuid: None,
-                    data: NpcData {
-                        name: "Potato Johnson".into(),
-                        species: Species::Elf.into(),
-                        gender: Gender::NonBinaryThey.into(),
-                        age: Age::Adult.into(),
-                        ..Default::default()
-                    },
+                thing_data: NpcData {
+                    name: "Potato Johnson".into(),
+                    species: Species::Elf.into(),
+                    gender: Gender::NonBinaryThey.into(),
+                    age: Age::Adult.into(),
+                    ..Default::default()
                 }
                 .into(),
+                uuid: None,
             }),
         )
         .unwrap();
 
         block_on(
             app_meta.repository.modify(Change::Create {
-                thing: Npc {
-                    uuid: None,
-                    data: NpcData {
-                        name: "potato can be lowercase".into(),
-                        ..Default::default()
-                    },
+                thing_data: NpcData {
+                    name: "potato can be lowercase".into(),
+                    ..Default::default()
                 }
                 .into(),
+                uuid: None,
             }),
         )
         .unwrap();
 
         block_on(
             app_meta.repository.modify(Change::Create {
-                thing: Place {
-                    uuid: None,
-                    data: PlaceData {
-                        name: "Potato & Meat".into(),
-                        subtype: "inn".parse::<PlaceType>().ok().into(),
-                        ..Default::default()
-                    },
+                thing_data: PlaceData {
+                    name: "Potato & Meat".into(),
+                    subtype: "inn".parse::<PlaceType>().ok().into(),
+                    ..Default::default()
                 }
                 .into(),
+                uuid: None,
             }),
         )
         .unwrap();
@@ -654,7 +627,7 @@ mod test {
             block_on(StorageCommand::autocomplete("redo", &app_meta)),
         );
 
-        block_on(app_meta.repository.undo());
+        block_on(app_meta.repository.undo()).unwrap().unwrap();
 
         assert_autocomplete(
             &[("redo", "redo creating Potato & Meat")][..],

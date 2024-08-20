@@ -58,17 +58,27 @@ pub async fn import(
                 ThingData::Npc(_) => &mut stats.npc_stats,
                 ThingData::Place(_) => &mut stats.place_stats,
             },
-            repo.modify_without_undo(Change::CreateAndSave { thing })
-                .await,
+            repo.modify_without_undo(Change::CreateAndSave {
+                thing_data: thing.data,
+                uuid: Some(thing.uuid),
+            })
+            .await,
         ) {
             (stat, Ok(_)) => stat.created += 1,
-            (stat, Err((Change::CreateAndSave { thing }, RepositoryError::NameAlreadyExists))) => {
-                let name = thing.name().to_string();
+            (
+                stat,
+                Err((
+                    Change::CreateAndSave { thing_data, .. },
+                    RepositoryError::NameAlreadyExists(existing_thing)
+                    | RepositoryError::UuidAlreadyExists(existing_thing),
+                )),
+            ) => {
+                let name = thing_data.name().to_string();
                 match repo
                     .modify_without_undo(Change::Edit {
                         name,
-                        uuid: None,
-                        diff: thing,
+                        uuid: Some(existing_thing.uuid),
+                        diff: thing_data,
                     })
                     .await
                 {

@@ -12,9 +12,13 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Deserialize, Default, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
 pub struct Place {
-    pub uuid: Option<Uuid>,
+    pub uuid: Uuid,
+
+    #[serde(skip)]
+    pub is_saved: bool,
+
     #[serde(flatten)]
     pub data: PlaceData,
 }
@@ -96,7 +100,7 @@ impl PlaceData {
         DescriptionView::new(self)
     }
 
-    pub fn display_details(&self, uuid: Option<Uuid>, relations: PlaceRelations) -> DetailsView {
+    pub fn display_details(&self, uuid: Uuid, relations: PlaceRelations) -> DetailsView {
         DetailsView::new(self, uuid, relations)
     }
 
@@ -126,6 +130,12 @@ impl PlaceData {
         subtype.apply_diff(&mut diff.subtype);
         name.apply_diff(&mut diff.name);
         description.apply_diff(&mut diff.description);
+    }
+}
+
+impl PartialEq for Place {
+    fn eq(&self, other: &Place) -> bool {
+        self.uuid == other.uuid && self.data == other.data
     }
 }
 
@@ -516,7 +526,8 @@ mod test {
 
     fn oaken_mermaid_inn() -> Place {
         Place {
-            uuid: Some(uuid::Uuid::nil().into()),
+            uuid: uuid::Uuid::nil(),
+            is_saved: true,
             data: PlaceData {
                 location_uuid: Uuid::from(uuid::Uuid::nil()).into(),
                 subtype: "inn".parse::<PlaceType>().ok().into(),

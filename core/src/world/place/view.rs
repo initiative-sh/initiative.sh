@@ -10,7 +10,7 @@ pub struct DescriptionView<'a>(&'a PlaceData);
 
 pub struct DetailsView<'a> {
     place: &'a PlaceData,
-    uuid: Option<Uuid>,
+    uuid: Uuid,
     relations: PlaceRelations,
 }
 
@@ -33,7 +33,7 @@ impl<'a> DescriptionView<'a> {
 }
 
 impl<'a> DetailsView<'a> {
-    pub fn new(place: &'a PlaceData, uuid: Option<Uuid>, relations: PlaceRelations) -> Self {
+    pub fn new(place: &'a PlaceData, uuid: Uuid, relations: PlaceRelations) -> Self {
         Self {
             place,
             uuid,
@@ -86,11 +86,15 @@ impl<'a> fmt::Display for DetailsView<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let Self {
             place,
-            uuid: _,
+            uuid,
             relations,
         } = self;
 
-        writeln!(f, "<div class=\"thing-box place\">\n")?;
+        writeln!(
+            f,
+            "<div class=\"thing-box place\" data-uuid=\"{}\">\n",
+            uuid
+        )?;
 
         place
             .name
@@ -132,7 +136,7 @@ impl<'a> fmt::Display for DetailsView<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::world::Place;
+    use crate::world::place::Place;
 
     #[test]
     fn view_test_empty() {
@@ -141,13 +145,15 @@ mod test {
         assert_eq!("📍 place", format!("{}", place.display_summary()));
         assert_eq!("place", format!("{}", place.display_description()));
         assert_eq!(
-            r#"<div class="thing-box place">
+            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # Unnamed place
 *place*
 
 </div>"#,
-            format!("{}", place.display_details(None, PlaceRelations::default())),
+            place
+                .display_details(Uuid::nil(), PlaceRelations::default())
+                .to_string(),
         );
     }
 
@@ -167,13 +173,15 @@ mod test {
         );
         assert_eq!("place", format!("{}", place.display_description()));
         assert_eq!(
-            r#"<div class="thing-box place">
+            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # The Invulnerable Vagrant
 *place*
 
 </div>"#,
-            format!("{}", place.display_details(None, PlaceRelations::default())),
+            place
+                .display_details(Uuid::nil(), PlaceRelations::default())
+                .to_string(),
         );
     }
 
@@ -187,13 +195,15 @@ mod test {
         assert_eq!("🏨 inn", format!("{}", place.display_summary()));
         assert_eq!("inn", format!("{}", place.display_description()));
         assert_eq!(
-            r#"<div class="thing-box place">
+            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # Unnamed inn
 *inn*
 
 </div>"#,
-            format!("{}", place.display_details(None, PlaceRelations::default())),
+            place
+                .display_details(Uuid::nil(), PlaceRelations::default())
+                .to_string(),
         );
     }
 
@@ -207,7 +217,7 @@ mod test {
         assert_eq!("📍 place", format!("{}", place.display_summary()));
         assert_eq!("place", format!("{}", place.display_description()));
         assert_eq!(
-            r#"<div class="thing-box place">
+            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # Unnamed place
 *place*
@@ -215,7 +225,9 @@ mod test {
 A street with no name.
 
 </div>"#,
-            format!("{}", place.display_details(None, PlaceRelations::default())),
+            place
+                .display_details(Uuid::nil(), PlaceRelations::default())
+                .to_string(),
         );
     }
 
@@ -236,13 +248,15 @@ A street with no name.
         );
         assert_eq!("inn", format!("{}", place.display_description()));
         assert_eq!(
-            r#"<div class="thing-box place">
+            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # Oaken Mermaid Inn
 *inn*
 
 </div>"#,
-            format!("{}", place.display_details(None, PlaceRelations::default())),
+            place
+                .display_details(Uuid::nil(), PlaceRelations::default())
+                .to_string(),
         );
     }
 
@@ -263,7 +277,7 @@ A street with no name.
         );
         assert_eq!("place", format!("{}", place.display_description()));
         assert_eq!(
-            r#"<div class="thing-box place">
+            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # The Invulnerable Vagrant
 *place*
@@ -271,7 +285,9 @@ A street with no name.
 Come in and see me, and me, and me!
 
 </div>"#,
-            format!("{}", place.display_details(None, PlaceRelations::default())),
+            place
+                .display_details(Uuid::nil(), PlaceRelations::default())
+                .to_string(),
         );
     }
 
@@ -286,7 +302,7 @@ Come in and see me, and me, and me!
         assert_eq!("🏨 inn", format!("{}", place.display_summary()));
         assert_eq!("inn", format!("{}", place.display_description()));
         assert_eq!(
-            r#"<div class="thing-box place">
+            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # Unnamed inn
 *inn*
@@ -294,7 +310,9 @@ Come in and see me, and me, and me!
 You can check out any time you like.
 
 </div>"#,
-            format!("{}", place.display_details(None, PlaceRelations::default())),
+            place
+                .display_details(Uuid::nil(), PlaceRelations::default())
+                .to_string(),
         );
     }
 
@@ -316,7 +334,7 @@ You can check out any time you like.
         );
         assert_eq!("inn", format!("{}", place.display_description()));
         assert_eq!(
-            r#"<div class="thing-box place">
+            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # Oaken Mermaid Inn
 *inn*
@@ -324,7 +342,9 @@ You can check out any time you like.
 I am Mordenkainen.
 
 </div>"#,
-            format!("{}", place.display_details(None, PlaceRelations::default())),
+            place
+                .display_details(Uuid::nil(), PlaceRelations::default())
+                .to_string(),
         );
     }
 
@@ -339,7 +359,8 @@ I am Mordenkainen.
         let relations = PlaceRelations {
             location: Some((
                 Place {
-                    uuid: None,
+                    uuid: Uuid::nil(),
+                    is_saved: true,
                     data: PlaceData {
                         name: "Bree".into(),
                         subtype: "town".parse::<PlaceType>().unwrap().into(),
@@ -351,15 +372,15 @@ I am Mordenkainen.
         };
 
         assert_eq!(
-            "<div class=\"thing-box place\">
+            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # The Prancing Pony
 *inn*
 
 **Location:** 🏘 `Bree` (town)
 
-</div>",
-            format!("{}", DetailsView::new(&place, None, relations)),
+</div>"#,
+            DetailsView::new(&place, Uuid::nil(), relations).to_string(),
         );
     }
 
@@ -374,7 +395,8 @@ I am Mordenkainen.
         let relations = PlaceRelations {
             location: Some((
                 Place {
-                    uuid: None,
+                    uuid: Uuid::nil(),
+                    is_saved: true,
                     data: PlaceData {
                         name: "Bree".into(),
                         subtype: "town".parse::<PlaceType>().unwrap().into(),
@@ -382,7 +404,8 @@ I am Mordenkainen.
                     },
                 },
                 Some(Place {
-                    uuid: None,
+                    uuid: Uuid::nil(),
+                    is_saved: true,
                     data: PlaceData {
                         name: "The Shire".into(),
                         subtype: "region".parse::<PlaceType>().unwrap().into(),
@@ -393,15 +416,15 @@ I am Mordenkainen.
         };
 
         assert_eq!(
-            "<div class=\"thing-box place\">
+            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
 
 # The Prancing Pony
 *inn*
 
 **Location:** 🏘 `Bree`, 👑 `The Shire`
 
-</div>",
-            format!("{}", DetailsView::new(&place, None, relations)),
+</div>"#,
+            DetailsView::new(&place, Uuid::nil(), relations).to_string(),
         );
     }
 }

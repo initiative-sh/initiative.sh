@@ -4,8 +4,10 @@ use crate::app::{
 };
 use crate::storage::{Change, RepositoryError, StorageCommand};
 use crate::utils::{quoted_words, CaseInsensitiveStr};
+use crate::world::npc::NpcData;
+use crate::world::place::PlaceData;
 use crate::world::thing::{Thing, ThingData};
-use crate::world::{Field, Npc, Place};
+use crate::world::Field;
 use async_trait::async_trait;
 use futures::join;
 use std::fmt;
@@ -17,20 +19,20 @@ mod parse;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WorldCommand {
     Create {
-        thing: ParsedThing<Thing>,
+        parsed_thing_data: ParsedThing<ThingData>,
     },
     CreateMultiple {
-        thing: Thing,
+        thing_data: ThingData,
     },
     Edit {
         name: String,
-        diff: ParsedThing<Thing>,
+        parsed_diff: ParsedThing<ThingData>,
     },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParsedThing<T> {
-    pub thing: T,
+    pub thing_data: T,
     pub unknown_words: Vec<Range<usize>>,
     pub word_count: usize,
 }
@@ -39,45 +41,28 @@ pub struct ParsedThing<T> {
 impl Runnable for WorldCommand {
     async fn run(self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
-            Self::Create {
-                thing: parsed_thing,
-            } => {
-                let diff = parsed_thing.thing;
-                let unknown_words = parsed_thing.unknown_words.to_owned();
+            Self::Create { parsed_thing_data } => {
+                let thing_data = parsed_thing_data.thing_data;
+                let unknown_words = parsed_thing_data.unknown_words.to_owned();
                 let mut output = None;
 
                 for _ in 0..10 {
-                    let mut thing = diff.clone();
-                    thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
-                    let mut temp_output = format!(
-                        "{}",
-                        thing.display_details(
-                            app_meta
-                                .repository
-                                .load_relations(&thing)
-                                .await
-                                .unwrap_or_default()
-                        )
-                    );
+                    let mut thing_data = thing_data.clone();
+                    thing_data.regenerate(&mut app_meta.rng, &app_meta.demographics);
                     let mut command_alias = None;
 
-                    let change = match thing.name() {
+                    let (message, change) = match thing_data.name() {
                         Field::Locked(Some(name)) => {
-                            temp_output.push_str(&format!(
+                            (
+                                Some(format!(
                                     "\n\n_Because you specified a name, {name} has been automatically added to your `journal`. Use `undo` to remove {them}._",
                                     name = name,
-                                    them = thing.gender().them(),
-                                ));
-
-                            Change::CreateAndSave { thing }
+                                    them = thing_data.gender().them(),
+                                )),
+                                Change::CreateAndSave { thing_data, uuid: None },
+                            )
                         }
                         Field::Unlocked(Some(name)) => {
-                            temp_output.push_str(&format!(
-                                    "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`. For more suggestions, type ~more~._",
-                                    name = name,
-                                    them = thing.gender().them(),
-                                ));
-
                             command_alias = Some(CommandAlias::literal(
                                 "save",
                                 format!("save {}", name),
@@ -89,21 +74,38 @@ impl Runnable for WorldCommand {
 
                             app_meta.command_aliases.insert(CommandAlias::literal(
                                 "more",
-                                format!("create {}", diff.display_description()),
+                                format!("create {}", thing_data.display_description()),
                                 WorldCommand::CreateMultiple {
-                                    thing: diff.clone(),
+                                    thing_data: thing_data.clone(),
                                 }
                                 .into(),
                             ));
 
-                            Change::Create { thing }
+                            (
+                                Some(format!(
+                                    "\n\n_{name} has not yet been saved. Use ~save~ to save {them} to your `journal`. For more suggestions, type ~more~._",
+                                    name = name,
+                                    them = thing_data.gender().them(),
+                                )),
+                                Change::Create { thing_data, uuid: None },
+                            )
                         }
-                        _ => Change::Create { thing },
+                        _ => (None, Change::Create { thing_data, uuid: None }),
                     };
 
                     match app_meta.repository.modify(change).await {
-                        Ok(_) => {
-                            output = Some(temp_output);
+                        Ok(Some(thing)) => {
+                            output = Some(format!(
+                                "{}{}",
+                                thing.display_details(
+                                    app_meta
+                                        .repository
+                                        .load_relations(&thing)
+                                        .await
+                                        .unwrap_or_default(),
+                                ),
+                                message.as_ref().map_or("", String::as_str),
+                            ));
 
                             if let Some(alias) = command_alias {
                                 app_meta.command_aliases.insert(alias);
@@ -111,28 +113,20 @@ impl Runnable for WorldCommand {
 
                             break;
                         }
-                        Err((Change::Create { thing }, RepositoryError::NameAlreadyExists))
-                        | Err((
-                            Change::CreateAndSave { thing },
-                            RepositoryError::NameAlreadyExists,
-                        )) => {
-                            if thing.name().is_locked() {
-                                if let Ok(other_thing) = app_meta
-                                    .repository
-                                    .get_by_name(thing.name().value().unwrap())
-                                    .await
-                                {
-                                    return Err(format!(
-                                        "That name is already in use by {}.",
-                                        other_thing.display_summary(),
-                                    ));
-                                } else {
-                                    return Err("That name is already in use.".to_string());
-                                }
-                            }
-                        }
-                        Err((Change::Create { thing }, RepositoryError::MissingName)) => return Err(format!("There is no name generator implemented for that type. You must specify your own name using `{} named [name]`.", thing.display_description())),
-                        Err(_) => return Err("An error occurred.".to_string()),
+
+                        Err((
+                            Change::Create { thing_data, .. } | Change::CreateAndSave { thing_data, .. },
+                            RepositoryError::NameAlreadyExists(other_thing),
+                        )) => if thing_data.name().is_locked() {
+                            return Err(format!(
+                                "That name is already in use by {}.",
+                                other_thing.display_summary(),
+                            ));
+                        },
+
+                        Err((Change::Create { thing_data, .. }, RepositoryError::MissingName)) => return Err(format!("There is no name generator implemented for that type. You must specify your own name using `{} named [name]`.", thing_data.display_description())),
+
+                        Ok(None) | Err(_) => return Err("An error occurred.".to_string()),
                     }
                 }
 
@@ -141,44 +135,49 @@ impl Runnable for WorldCommand {
                 } else {
                     Err(format!(
                         "Couldn't create a unique {} name.",
-                        diff.display_description(),
+                        thing_data.display_description(),
                     ))
                 }
             }
-            Self::CreateMultiple { thing } => {
+            Self::CreateMultiple { thing_data } => {
                 let mut output = format!(
                     "# Alternative suggestions for \"{}\"",
-                    thing.display_description(),
+                    thing_data.display_description(),
                 );
 
                 for i in 1..=10 {
                     let mut thing_output = None;
 
                     for _ in 0..10 {
-                        let mut thing = thing.clone();
-                        thing.regenerate(&mut app_meta.rng, &app_meta.demographics);
-                        let temp_thing_output = format!(
-                            "{}~{}~ {}",
-                            if i == 1 { "\n\n" } else { "\\\n" },
-                            i % 10,
-                            thing.display_summary(),
-                        );
-                        let command_alias = CommandAlias::literal(
-                            (i % 10).to_string(),
-                            format!("load {}", thing.name()),
-                            StorageCommand::Load {
-                                name: thing.name().to_string(),
-                            }
-                            .into(),
-                        );
+                        let mut thing_data = thing_data.clone();
+                        thing_data.regenerate(&mut app_meta.rng, &app_meta.demographics);
 
-                        match app_meta.repository.modify(Change::Create { thing }).await {
-                            Ok(_) => {
-                                app_meta.command_aliases.insert(command_alias);
-                                thing_output = Some(temp_thing_output);
+                        match app_meta
+                            .repository
+                            .modify(Change::Create {
+                                thing_data,
+                                uuid: None,
+                            })
+                            .await
+                        {
+                            Ok(Some(thing)) => {
+                                app_meta.command_aliases.insert(CommandAlias::literal(
+                                    (i % 10).to_string(),
+                                    format!("load {}", thing.name()),
+                                    StorageCommand::Load {
+                                        name: thing.name().to_string(),
+                                    }
+                                    .into(),
+                                ));
+                                thing_output = Some(format!(
+                                    "{}~{}~ {}",
+                                    if i == 1 { "\n\n" } else { "\\\n" },
+                                    i % 10,
+                                    thing.display_summary(),
+                                ));
                                 break;
                             }
-                            Err((_, RepositoryError::NameAlreadyExists)) => {}
+                            Ok(None) | Err((_, RepositoryError::NameAlreadyExists(_))) => {} // silently retry
                             Err(_) => return Err("An error occurred.".to_string()),
                         }
                     }
@@ -193,27 +192,27 @@ impl Runnable for WorldCommand {
 
                 app_meta.command_aliases.insert(CommandAlias::literal(
                     "more",
-                    format!("create {}", thing.display_description()),
-                    Self::CreateMultiple { thing }.into(),
+                    format!("create {}", thing_data.display_description()),
+                    Self::CreateMultiple { thing_data }.into(),
                 ));
 
                 output.push_str("\n\n_For even more suggestions, type ~more~._");
 
                 Ok(output)
             }
-            Self::Edit { name, diff } => {
+            Self::Edit { name, parsed_diff } => {
                 let ParsedThing {
-                    thing: diff,
+                    thing_data: thing_diff,
                     unknown_words,
                     word_count: _,
-                } = diff;
+                } = parsed_diff;
 
-                let thing_type = diff.as_str();
+                let thing_type = thing_diff.as_str();
 
                 match app_meta.repository.modify(Change::Edit {
                         name: name.clone(),
                         uuid: None,
-                        diff,
+                        diff: thing_diff,
                     }).await {
                     Ok(Some(thing)) if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) => Ok(format!(
                         "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
@@ -239,17 +238,17 @@ impl ContextAwareParse for WorldCommand {
     async fn parse_input(input: &str, app_meta: &AppMeta) -> CommandMatches<Self> {
         let mut matches = CommandMatches::default();
 
-        if let Some(Ok(thing)) = input
+        if let Some(Ok(parsed_thing_data)) = input
             .strip_prefix_ci("create ")
-            .map(|s| s.parse::<ParsedThing<Thing>>())
+            .map(|s| s.parse::<ParsedThing<ThingData>>())
         {
-            if thing.unknown_words.is_empty() {
-                matches.push_canonical(Self::Create { thing });
+            if parsed_thing_data.unknown_words.is_empty() {
+                matches.push_canonical(Self::Create { parsed_thing_data });
             } else {
-                matches.push_fuzzy(Self::Create { thing });
+                matches.push_fuzzy(Self::Create { parsed_thing_data });
             }
-        } else if let Ok(thing) = input.parse::<ParsedThing<Thing>>() {
-            matches.push_fuzzy(Self::Create { thing });
+        } else if let Ok(parsed_thing_data) = input.parse::<ParsedThing<ThingData>>() {
+            matches.push_fuzzy(Self::Create { parsed_thing_data });
         }
 
         if let Some(word) = quoted_words(input)
@@ -261,24 +260,25 @@ impl ContextAwareParse for WorldCommand {
                 input[word.range().end..].trim(),
             );
 
-            let (diff, thing) = if let Ok(thing) = app_meta.repository.get_by_name(name).await {
-                (
-                    match thing.data {
-                        ThingData::Npc(_) => description
-                            .parse::<ParsedThing<Npc>>()
-                            .map(|npc| npc.into_thing()),
-                        ThingData::Place(_) => description
-                            .parse::<ParsedThing<Place>>()
-                            .map(|npc| npc.into_thing()),
-                    }
-                    .or_else(|_| description.parse()),
-                    Some(thing),
-                )
-            } else {
-                // This will be an error when we try to run the command, but for now we'll pretend
-                // it's valid so that we can provide a more coherent message.
-                (description.parse(), None)
-            };
+            let (diff, thing): (Result<ParsedThing<ThingData>, ()>, Option<Thing>) =
+                if let Ok(thing) = app_meta.repository.get_by_name(name).await {
+                    (
+                        match thing.data {
+                            ThingData::Npc(_) => description
+                                .parse::<ParsedThing<NpcData>>()
+                                .map(|t| t.into_thing_data()),
+                            ThingData::Place(_) => description
+                                .parse::<ParsedThing<PlaceData>>()
+                                .map(|t| t.into_thing_data()),
+                        }
+                        .or_else(|_| description.parse()),
+                        Some(thing),
+                    )
+                } else {
+                    // This will be an error when we try to run the command, but for now we'll pretend
+                    // it's valid so that we can provide a more coherent message.
+                    (description.parse(), None)
+                };
 
             if let Ok(mut diff) = diff {
                 let name = thing
@@ -289,7 +289,10 @@ impl ContextAwareParse for WorldCommand {
                     *range = range.start + word.range().end + 1..range.end + word.range().end + 1
                 });
 
-                matches.push_fuzzy(Self::Edit { name, diff });
+                matches.push_fuzzy(Self::Edit {
+                    name,
+                    parsed_diff: diff,
+                });
             }
         }
 
@@ -303,8 +306,8 @@ impl Autocomplete for WorldCommand {
         let mut suggestions = Vec::new();
 
         let (mut place_suggestions, mut npc_suggestions) = join!(
-            Place::autocomplete(input, app_meta),
-            Npc::autocomplete(input, app_meta),
+            PlaceData::autocomplete(input, app_meta),
+            NpcData::autocomplete(input, app_meta),
         );
 
         suggestions.append(&mut place_suggestions);
@@ -325,10 +328,10 @@ impl Autocomplete for WorldCommand {
 
                 let edit_suggestions = match thing.data {
                     ThingData::Npc(_) => {
-                        Npc::autocomplete(input[split_pos..].trim_start(), app_meta)
+                        NpcData::autocomplete(input[split_pos..].trim_start(), app_meta)
                     }
                     ThingData::Place(_) => {
-                        Place::autocomplete(input[split_pos..].trim_start(), app_meta)
+                        PlaceData::autocomplete(input[split_pos..].trim_start(), app_meta)
                     }
                 }
                 .await;
@@ -416,21 +419,30 @@ impl Autocomplete for WorldCommand {
 impl fmt::Display for WorldCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
-            Self::Create { thing } => write!(f, "create {}", thing.thing.display_description()),
-            Self::CreateMultiple { thing } => {
-                write!(f, "create  multiple {}", thing.display_description())
+            Self::Create { parsed_thing_data } => write!(
+                f,
+                "create {}",
+                parsed_thing_data.thing_data.display_description()
+            ),
+            Self::CreateMultiple { thing_data } => {
+                write!(f, "create  multiple {}", thing_data.display_description())
             }
-            Self::Edit { name, diff } => {
-                write!(f, "{} is {}", name, diff.thing.display_description())
+            Self::Edit { name, parsed_diff } => {
+                write!(
+                    f,
+                    "{} is {}",
+                    name,
+                    parsed_diff.thing_data.display_description()
+                )
             }
         }
     }
 }
 
-impl<T: Into<Thing>> ParsedThing<T> {
-    pub fn into_thing(self) -> ParsedThing<Thing> {
+impl<T: Into<ThingData>> ParsedThing<T> {
+    pub fn into_thing_data(self) -> ParsedThing<ThingData> {
         ParsedThing {
-            thing: self.thing.into(),
+            thing_data: self.thing_data.into(),
             unknown_words: self.unknown_words,
             word_count: self.word_count,
         }
@@ -440,16 +452,16 @@ impl<T: Into<Thing>> ParsedThing<T> {
 impl<T: Default> Default for ParsedThing<T> {
     fn default() -> Self {
         Self {
-            thing: T::default(),
+            thing_data: T::default(),
             unknown_words: Vec::default(),
             word_count: 0,
         }
     }
 }
 
-impl<T: Into<Thing>> From<ParsedThing<T>> for Thing {
+impl<T: Into<ThingData>> From<ParsedThing<T>> for ThingData {
     fn from(input: ParsedThing<T>) -> Self {
-        input.thing.into()
+        input.thing_data.into()
     }
 }
 
@@ -536,23 +548,28 @@ mod test {
         );
 
         {
-            block_on(app_meta.repository.modify(Change::Create {
-                thing: into_thing(NpcData {
-                    name: "Spot".into(),
-                    ..Default::default()
+            block_on(
+                app_meta.repository.modify(Change::Create {
+                    thing_data: NpcData {
+                        name: "Spot".into(),
+                        ..Default::default()
+                    }
+                    .into(),
+                    uuid: None,
                 }),
-            }))
+            )
             .unwrap();
 
             assert_eq!(
                 CommandMatches::new_fuzzy(WorldCommand::Edit {
                     name: "Spot".into(),
-                    diff: ParsedThing {
-                        thing: into_thing(NpcData {
+                    parsed_diff: ParsedThing {
+                        thing_data: NpcData {
                             age: Age::Child.into(),
                             gender: Gender::Masculine.into(),
                             ..Default::default()
-                        }),
+                        }
+                        .into(),
                         unknown_words: vec![10..14],
                         word_count: 2,
                     },
@@ -566,15 +583,19 @@ mod test {
     fn autocomplete_test() {
         let mut app_meta = app_meta();
 
-        block_on(app_meta.repository.modify(Change::Create {
-            thing: into_thing(NpcData {
-                name: "Potato Johnson".into(),
-                species: Species::Elf.into(),
-                gender: Gender::NonBinaryThey.into(),
-                age: Age::Adult.into(),
-                ..Default::default()
+        block_on(
+            app_meta.repository.modify(Change::Create {
+                thing_data: NpcData {
+                    name: "Potato Johnson".into(),
+                    species: Species::Elf.into(),
+                    gender: Gender::NonBinaryThey.into(),
+                    age: Age::Adult.into(),
+                    ..Default::default()
+                }
+                .into(),
+                uuid: None,
             }),
-        }))
+        )
         .unwrap();
 
         [
@@ -699,20 +720,17 @@ mod test {
         });
     }
 
-    fn into_thing(thing_data: impl Into<ThingData>) -> Thing {
-        Thing {
-            uuid: None,
-            data: thing_data.into(),
+    fn parsed_thing(thing_data: impl Into<ThingData>) -> ParsedThing<ThingData> {
+        ParsedThing {
+            thing_data: thing_data.into(),
+            unknown_words: Vec::new(),
+            word_count: 1,
         }
     }
 
     fn create(thing_data: impl Into<ThingData>) -> WorldCommand {
         WorldCommand::Create {
-            thing: ParsedThing {
-                thing: into_thing(thing_data),
-                unknown_words: Vec::new(),
-                word_count: 1,
-            },
+            parsed_thing_data: parsed_thing(thing_data),
         }
     }
 

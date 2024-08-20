@@ -9,9 +9,13 @@ use std::fmt;
 use std::str::FromStr;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
 pub struct Thing {
-    pub uuid: Option<Uuid>,
+    pub uuid: Uuid,
+
+    #[serde(skip)]
+    pub is_saved: bool,
+
     #[serde(flatten)]
     pub data: ThingData,
 }
@@ -49,18 +53,6 @@ impl Thing {
         self.data.as_str()
     }
 
-    pub fn uuid(&self) -> Option<&Uuid> {
-        self.uuid.as_ref()
-    }
-
-    pub fn set_uuid(&mut self, uuid: Uuid) {
-        self.uuid = Some(uuid)
-    }
-
-    pub fn clear_uuid(&mut self) {
-        self.uuid = None
-    }
-
     pub fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
         self.data.regenerate(rng, demographics)
     }
@@ -73,6 +65,7 @@ impl Thing {
         if let ThingData::Place(place) = self.data {
             Ok(Place {
                 uuid: self.uuid,
+                is_saved: self.is_saved,
                 data: place,
             })
         } else {
@@ -84,6 +77,7 @@ impl Thing {
         if let ThingData::Npc(npc) = self.data {
             Ok(Npc {
                 uuid: self.uuid,
+                is_saved: self.is_saved,
                 data: npc,
             })
         } else {
@@ -182,7 +176,7 @@ impl ThingData {
         DescriptionView(self)
     }
 
-    pub fn display_details(&self, uuid: Option<Uuid>, relations: ThingRelations) -> DetailsView {
+    pub fn display_details(&self, uuid: Uuid, relations: ThingRelations) -> DetailsView {
         match self {
             Self::Npc(npc) => DetailsView::Npc(npc.display_details(uuid, relations.into())),
             Self::Place(place) => DetailsView::Place(place.display_details(uuid, relations.into())),
@@ -208,10 +202,17 @@ impl ThingData {
     }
 }
 
+impl PartialEq for Thing {
+    fn eq(&self, other: &Thing) -> bool {
+        self.uuid == other.uuid && self.data == other.data
+    }
+}
+
 impl From<Npc> for Thing {
     fn from(npc: Npc) -> Self {
         Thing {
             uuid: npc.uuid,
+            is_saved: npc.is_saved,
             data: npc.data.into(),
         }
     }
@@ -221,6 +222,7 @@ impl From<Place> for Thing {
     fn from(place: Place) -> Self {
         Thing {
             uuid: place.uuid,
+            is_saved: place.is_saved,
             data: place.data.into(),
         }
     }
@@ -270,25 +272,25 @@ impl From<ThingRelations> for PlaceRelations {
     }
 }
 
-impl FromStr for ParsedThing<Thing> {
+impl FromStr for ParsedThing<ThingData> {
     type Err = ();
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
         match (
-            raw.parse::<ParsedThing<Npc>>(),
-            raw.parse::<ParsedThing<Place>>(),
+            raw.parse::<ParsedThing<NpcData>>(),
+            raw.parse::<ParsedThing<PlaceData>>(),
         ) {
             (Ok(parsed_npc), Ok(parsed_place)) => match parsed_npc
                 .unknown_words
                 .len()
                 .cmp(&parsed_place.unknown_words.len())
             {
-                Ordering::Less => Ok(parsed_npc.into_thing()),
+                Ordering::Less => Ok(parsed_npc.into_thing_data()),
                 Ordering::Equal => Err(()),
-                Ordering::Greater => Ok(parsed_place.into_thing()),
+                Ordering::Greater => Ok(parsed_place.into_thing_data()),
             },
-            (Ok(parsed_npc), Err(())) => Ok(parsed_npc.into_thing()),
-            (Err(()), Ok(parsed_place)) => Ok(parsed_place.into_thing()),
+            (Ok(parsed_npc), Err(())) => Ok(parsed_npc.into_thing_data()),
+            (Err(()), Ok(parsed_place)) => Ok(parsed_place.into_thing_data()),
             (Err(()), Err(())) => Err(()),
         }
     }
@@ -356,7 +358,7 @@ mod test {
     fn serialize_deserialize_test_place() {
         let thing = place();
         assert_eq!(
-            r#"{"uuid":null,"type":"Place","location_uuid":null,"subtype":null,"name":null,"description":null}"#,
+            r#"{"uuid":"00000000-0000-0000-0000-000000000000","type":"Place","location_uuid":null,"subtype":null,"name":null,"description":null}"#,
             serde_json::to_string(&thing).unwrap(),
         );
     }
@@ -365,7 +367,7 @@ mod test {
     fn serialize_deserialize_test_npc() {
         let thing = npc();
         assert_eq!(
-            r#"{"uuid":null,"type":"Npc","name":null,"gender":null,"age":null,"age_years":null,"size":null,"species":null,"ethnicity":null,"location_uuid":null}"#,
+            r#"{"uuid":"00000000-0000-0000-0000-000000000000","type":"Npc","name":null,"gender":null,"age":null,"age_years":null,"size":null,"species":null,"ethnicity":null,"location_uuid":null}"#,
             serde_json::to_string(&thing).unwrap(),
         );
     }
@@ -391,19 +393,6 @@ mod test {
             assert!(thing.clone().into_npc().is_ok());
             assert!(thing.into_place().is_err());
         }
-    }
-
-    #[test]
-    fn uuid_test() {
-        let mut thing = place();
-        assert_eq!(None, thing.uuid());
-
-        let uuid = Uuid::new_v4();
-        thing.set_uuid(uuid.clone());
-        assert_eq!(Some(&uuid), thing.uuid());
-
-        thing.clear_uuid();
-        assert_eq!(None, thing.uuid());
     }
 
     #[test]
@@ -439,14 +428,16 @@ mod test {
 
     fn place() -> Thing {
         Thing {
-            uuid: None,
+            uuid: Uuid::nil(),
+            is_saved: false,
             data: ThingData::Place(PlaceData::default()),
         }
     }
 
     fn npc() -> Thing {
         Thing {
-            uuid: None,
+            uuid: Uuid::nil(),
+            is_saved: false,
             data: ThingData::Npc(NpcData::default()),
         }
     }

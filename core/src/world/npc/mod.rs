@@ -12,14 +12,19 @@ mod size;
 mod species;
 mod view;
 
-use super::{Demographics, Field, Generate, Place};
+use crate::world::place::Place;
+use crate::world::{Demographics, Field, Generate};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
 pub struct Npc {
-    pub uuid: Option<Uuid>,
+    pub uuid: Uuid,
+
+    #[serde(skip)]
+    pub is_saved: bool,
+
     #[serde(flatten)]
     pub data: NpcData,
 }
@@ -87,7 +92,7 @@ impl NpcData {
         DescriptionView::new(self)
     }
 
-    pub fn display_details(&self, uuid: Option<Uuid>, relations: NpcRelations) -> DetailsView {
+    pub fn display_details(&self, uuid: Uuid, relations: NpcRelations) -> DetailsView {
         DetailsView::new(self, uuid, relations)
     }
 
@@ -147,6 +152,12 @@ impl NpcData {
     }
 }
 
+impl PartialEq for Npc {
+    fn eq(&self, other: &Npc) -> bool {
+        self.uuid == other.uuid && self.data == other.data
+    }
+}
+
 impl Generate for NpcData {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
         match (self.species.is_locked(), self.ethnicity.is_locked()) {
@@ -197,13 +208,11 @@ mod test {
 
     #[test]
     fn gender_test() {
-        let mut npc = Npc::default();
+        let mut npc = NpcData::default();
         assert_eq!(Gender::NonBinaryThey, npc.gender());
-        assert_eq!(Gender::NonBinaryThey, npc.data.gender());
 
-        npc.data.gender.replace(Gender::Feminine);
+        npc.gender.replace(Gender::Feminine);
         assert_eq!(Gender::Feminine, npc.gender());
-        assert_eq!(Gender::Feminine, npc.data.gender());
     }
 
     #[test]
@@ -249,7 +258,8 @@ mod test {
 
     fn gandalf() -> Npc {
         Npc {
-            uuid: Some(uuid::Uuid::nil().into()),
+            uuid: uuid::Uuid::nil(),
+            is_saved: true,
             data: NpcData {
                 name: "Gandalf the Grey".into(),
                 gender: Gender::Neuter.into(),
