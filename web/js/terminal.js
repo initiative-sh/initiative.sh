@@ -356,8 +356,8 @@ function output(text) {
   const outputInnerHtml = marked(text)
   outputBlock.insertAdjacentHTML("beforeend", outputInnerHtml)
 
-  const docOutputBlocks = document.querySelectorAll('.output-block');
-  const latestOutputBlock = (docOutputBlocks.length > 0) ? docOutputBlocks[docOutputBlocks.length - 1] : null;
+  const docOutputBlocks = document.querySelectorAll('.output-block')
+  const latestOutputBlock = (docOutputBlocks.length > 0) ? docOutputBlocks[docOutputBlocks.length - 1] : null
 
   const latestThingBox = latestOutputBlock ? latestOutputBlock.querySelector(".thing-box") : null
   const outputThingBox = outputBlock.querySelector(".thing-box")
