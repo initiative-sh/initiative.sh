@@ -227,7 +227,6 @@ mod test {
 
         let gandalf_the_grey = Npc {
             uuid: TEST_UUID,
-            is_saved: true,
             data: NpcData {
                 name: "Gandalf the Grey".into(),
                 ..Default::default()
@@ -252,7 +251,6 @@ mod test {
                 ds.save_thing(
                     &Npc {
                         uuid: Uuid::new_v4(),
-                        is_saved: true,
                         data: NpcData {
                             name: name.into(),
                             ..Default::default()
@@ -291,7 +289,6 @@ mod test {
 
         let gandalf_the_grey = Npc {
             uuid: TEST_UUID,
-            is_saved: true,
             data: NpcData {
                 name: "Gandalf the Grey".into(),
                 ..Default::default()
@@ -300,7 +297,6 @@ mod test {
 
         let gandalf_the_white = Npc {
             uuid: TEST_UUID,
-            is_saved: true,
             data: NpcData {
                 name: "Gandalf the White".into(),
                 ..Default::default()
@@ -387,7 +383,6 @@ mod test {
     fn person(uuid: Uuid) -> Thing {
         Npc {
             uuid,
-            is_saved: true,
             data: NpcData::default(),
         }
         .into()
@@ -396,7 +391,6 @@ mod test {
     fn place(uuid: Uuid) -> Thing {
         Place {
             uuid,
-            is_saved: true,
             data: PlaceData::default(),
         }
         .into()

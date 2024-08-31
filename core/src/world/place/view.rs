@@ -360,7 +360,6 @@ I am Mordenkainen.
             location: Some((
                 Place {
                     uuid: Uuid::nil(),
-                    is_saved: true,
                     data: PlaceData {
                         name: "Bree".into(),
                         subtype: "town".parse::<PlaceType>().unwrap().into(),
@@ -396,7 +395,6 @@ I am Mordenkainen.
             location: Some((
                 Place {
                     uuid: Uuid::nil(),
-                    is_saved: true,
                     data: PlaceData {
                         name: "Bree".into(),
                         subtype: "town".parse::<PlaceType>().unwrap().into(),
@@ -405,7 +403,6 @@ I am Mordenkainen.
                 },
                 Some(Place {
                     uuid: Uuid::nil(),
-                    is_saved: true,
                     data: PlaceData {
                         name: "The Shire".into(),
                         subtype: "region".parse::<PlaceType>().unwrap().into(),

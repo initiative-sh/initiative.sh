@@ -9,12 +9,9 @@ use std::fmt;
 use std::str::FromStr;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Thing {
     pub uuid: Uuid,
-
-    #[serde(skip)]
-    pub is_saved: bool,
 
     #[serde(flatten)]
     pub data: ThingData,
@@ -65,7 +62,6 @@ impl Thing {
         if let ThingData::Place(place) = self.data {
             Ok(Place {
                 uuid: self.uuid,
-                is_saved: self.is_saved,
                 data: place,
             })
         } else {
@@ -77,7 +73,6 @@ impl Thing {
         if let ThingData::Npc(npc) = self.data {
             Ok(Npc {
                 uuid: self.uuid,
-                is_saved: self.is_saved,
                 data: npc,
             })
         } else {
@@ -202,17 +197,10 @@ impl ThingData {
     }
 }
 
-impl PartialEq for Thing {
-    fn eq(&self, other: &Thing) -> bool {
-        self.uuid == other.uuid && self.data == other.data
-    }
-}
-
 impl From<Npc> for Thing {
     fn from(npc: Npc) -> Self {
         Thing {
             uuid: npc.uuid,
-            is_saved: npc.is_saved,
             data: npc.data.into(),
         }
     }
@@ -222,7 +210,6 @@ impl From<Place> for Thing {
     fn from(place: Place) -> Self {
         Thing {
             uuid: place.uuid,
-            is_saved: place.is_saved,
             data: place.data.into(),
         }
     }
@@ -429,7 +416,6 @@ mod test {
     fn place() -> Thing {
         Thing {
             uuid: Uuid::nil(),
-            is_saved: false,
             data: ThingData::Place(PlaceData::default()),
         }
     }
@@ -437,7 +423,6 @@ mod test {
     fn npc() -> Thing {
         Thing {
             uuid: Uuid::nil(),
-            is_saved: false,
             data: ThingData::Npc(NpcData::default()),
         }
     }

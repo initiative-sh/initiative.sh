@@ -12,12 +12,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Place {
     pub uuid: Uuid,
-
-    #[serde(skip)]
-    pub is_saved: bool,
 
     #[serde(flatten)]
     pub data: PlaceData,
@@ -130,12 +127,6 @@ impl PlaceData {
         subtype.apply_diff(&mut diff.subtype);
         name.apply_diff(&mut diff.name);
         description.apply_diff(&mut diff.description);
-    }
-}
-
-impl PartialEq for Place {
-    fn eq(&self, other: &Place) -> bool {
-        self.uuid == other.uuid && self.data == other.data
     }
 }
 
@@ -527,7 +518,6 @@ mod test {
     fn oaken_mermaid_inn() -> Place {
         Place {
             uuid: uuid::Uuid::nil(),
-            is_saved: true,
             data: PlaceData {
                 location_uuid: Uuid::from(uuid::Uuid::nil()).into(),
                 subtype: "inn".parse::<PlaceType>().ok().into(),

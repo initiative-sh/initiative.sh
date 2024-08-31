@@ -2,7 +2,7 @@ use crate::app::{
     AppMeta, Autocomplete, AutocompleteSuggestion, CommandAlias, CommandMatches, ContextAwareParse,
     Runnable,
 };
-use crate::storage::{Change, RepositoryError, StorageCommand};
+use crate::storage::{Change, Record, RepositoryError, StorageCommand};
 use crate::utils::{quoted_words, CaseInsensitiveStr};
 use crate::world::npc::NpcData;
 use crate::world::place::PlaceData;
@@ -42,12 +42,12 @@ impl Runnable for WorldCommand {
     async fn run(self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         match self {
             Self::Create { parsed_thing_data } => {
-                let thing_data = parsed_thing_data.thing_data;
+                let original_thing_data = parsed_thing_data.thing_data;
                 let unknown_words = parsed_thing_data.unknown_words.to_owned();
                 let mut output = None;
 
                 for _ in 0..10 {
-                    let mut thing_data = thing_data.clone();
+                    let mut thing_data = original_thing_data.clone();
                     thing_data.regenerate(&mut app_meta.rng, &app_meta.demographics);
                     let mut command_alias = None;
 
@@ -74,9 +74,9 @@ impl Runnable for WorldCommand {
 
                             app_meta.command_aliases.insert(CommandAlias::literal(
                                 "more",
-                                format!("create {}", thing_data.display_description()),
+                                format!("create {}", original_thing_data.display_description()),
                                 WorldCommand::CreateMultiple {
-                                    thing_data: thing_data.clone(),
+                                    thing_data: original_thing_data.clone(),
                                 }
                                 .into(),
                             ));
@@ -94,7 +94,7 @@ impl Runnable for WorldCommand {
                     };
 
                     match app_meta.repository.modify(change).await {
-                        Ok(Some(thing)) => {
+                        Ok(Some(Record { thing, .. })) => {
                             output = Some(format!(
                                 "{}{}",
                                 thing.display_details(
@@ -135,7 +135,7 @@ impl Runnable for WorldCommand {
                 } else {
                     Err(format!(
                         "Couldn't create a unique {} name.",
-                        thing_data.display_description(),
+                        original_thing_data.display_description(),
                     ))
                 }
             }
@@ -160,7 +160,7 @@ impl Runnable for WorldCommand {
                             })
                             .await
                         {
-                            Ok(Some(thing)) => {
+                            Ok(Some(Record { thing, .. })) => {
                                 app_meta.command_aliases.insert(CommandAlias::literal(
                                     (i % 10).to_string(),
                                     format!("load {}", thing.name()),
@@ -214,16 +214,21 @@ impl Runnable for WorldCommand {
                         uuid: None,
                         diff: thing_diff,
                     }).await {
-                    Ok(Some(thing)) if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) => Ok(format!(
-                        "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
-                        thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
-                        name,
-                    )),
-                    Ok(Some(thing)) => Ok(format!(
-                        "{}\n\n_{} was successfully edited. Use `undo` to reverse this._",
-                        thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
-                        name,
-                    )),
+                    Ok(Some(Record { thing, .. })) => Ok(
+                        if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) {
+                            format!(
+                                "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
+                                thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
+                                name,
+                            )
+                        } else {
+                            format!(
+                                "{}\n\n_{} was successfully edited. Use `undo` to reverse this._",
+                                thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
+                                name,
+                            )
+                        }
+                    ),
                     Err((_, RepositoryError::NotFound)) => Err(format!(r#"There is no {} named "{}"."#, thing_type, name)),
                     _ => Err(format!("Couldn't edit `{}`.", name)),
                 }
@@ -261,7 +266,7 @@ impl ContextAwareParse for WorldCommand {
             );
 
             let (diff, thing): (Result<ParsedThing<ThingData>, ()>, Option<Thing>) =
-                if let Ok(thing) = app_meta.repository.get_by_name(name).await {
+                if let Ok(Record { thing, .. }) = app_meta.repository.get_by_name(name).await {
                     (
                         match thing.data {
                             ThingData::Npc(_) => description
@@ -319,7 +324,7 @@ impl Autocomplete for WorldCommand {
             .find(|word| word.as_str().eq_ci("is"))
             .and_then(|word| input_words.next().map(|next_word| (word, next_word)))
         {
-            if let Ok(thing) = app_meta
+            if let Ok(Record { thing, .. }) = app_meta
                 .repository
                 .get_by_name(input[..is_word.range().start].trim())
                 .await
@@ -352,7 +357,7 @@ impl Autocomplete for WorldCommand {
             }
         }
 
-        if let Ok(thing) = app_meta.repository.get_by_name(input.trim_end()).await {
+        if let Ok(Record { thing, .. }) = app_meta.repository.get_by_name(input.trim_end()).await {
             suggestions.push(AutocompleteSuggestion::new(
                 if input.ends_with(char::is_whitespace) {
                     format!("{}is [{} description]", input, thing.as_str())
@@ -365,7 +370,7 @@ impl Autocomplete for WorldCommand {
             quoted_words(input).enumerate().skip(1).last()
         {
             if "is".starts_with_ci(last_word.as_str()) {
-                if let Ok(thing) = app_meta
+                if let Ok(Record { thing, .. }) = app_meta
                     .repository
                     .get_by_name(input[..last_word.range().start].trim())
                     .await
@@ -390,7 +395,7 @@ impl Autocomplete for WorldCommand {
                 let second_last_word = quoted_words(input).nth(last_word_index - 1).unwrap();
 
                 if second_last_word.as_str().eq_ci("is") {
-                    if let Ok(thing) = app_meta
+                    if let Ok(Record { thing, .. }) = app_meta
                         .repository
                         .get_by_name(input[..second_last_word.range().start].trim())
                         .await

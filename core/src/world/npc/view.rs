@@ -326,7 +326,6 @@ mod test {
             location: Some((
                 Place {
                     uuid: Uuid::nil(),
-                    is_saved: true,
                     data: PlaceData {
                         name: "Mount Doom".into(),
                         subtype: "mountain".parse::<PlaceType>().unwrap().into(),
@@ -362,7 +361,6 @@ mod test {
             location: Some((
                 Place {
                     uuid: Uuid::nil(),
-                    is_saved: true,
                     data: PlaceData {
                         name: "The Prancing Pony".into(),
                         subtype: "inn".parse::<PlaceType>().unwrap().into(),
@@ -371,7 +369,6 @@ mod test {
                 },
                 Some(Place {
                     uuid: Uuid::nil(),
-                    is_saved: true,
                     data: PlaceData {
                         name: "Bree".into(),
                         subtype: "town".parse::<PlaceType>().unwrap().into(),
@@ -417,7 +414,6 @@ mod test {
 
         Npc {
             uuid: Uuid::nil(),
-            is_saved: false,
             data: npc_data,
         }
     }

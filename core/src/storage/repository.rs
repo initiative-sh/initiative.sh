@@ -22,6 +22,11 @@ pub struct Repository {
     undo_history: VecDeque<Change>,
 }
 
+/// Represents a modification to be applied to the Repository. This is passed to
+/// Repository::modify() to be applied. An object is used to represent the change because every
+/// operation has an opposite; for instance, Unsave is the opposite of Save, and Edit is the
+/// opposite of Edit. This opposite is inserted into the undo history and can be applied using
+/// Repository::undo().
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Change {
     /// Create a new thing and store it in recent entries.
@@ -97,6 +102,19 @@ pub enum KeyValue {
     Time(Option<Time>),
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Record {
+    pub status: RecordStatus,
+    pub thing: Thing,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RecordStatus {
+    Unsaved,
+    Saved,
+    Deleted,
+}
+
 impl Repository {
     pub fn new(data_store: impl DataStore + 'static) -> Self {
         Self {
@@ -108,6 +126,8 @@ impl Repository {
         }
     }
 
+    /// The data store will not necessarily be available at construct, so we need to check if it's
+    /// healthy or discard it and fall back on a memory data store instead.
     pub async fn init(&mut self) {
         if self.data_store.health_check().await.is_ok() {
             self.data_store_enabled = true;
@@ -116,7 +136,8 @@ impl Repository {
         }
     }
 
-    pub async fn get_by_change(&self, change: &Change) -> Result<Thing, Error> {
+    /// Get the record associated with a given change, if available.
+    pub async fn get_by_change(&self, change: &Change) -> Result<Record, Error> {
         let (name, uuid) = match change {
             Change::Create {
                 uuid: Some(uuid), ..
@@ -149,6 +170,7 @@ impl Repository {
         }
     }
 
+    /// Load child and grandchild relations associated with a Thing (eg. location).
     pub async fn load_relations(&self, thing: &Thing) -> Result<ThingRelations, Error> {
         let locations = {
             let parent_uuid = match &thing.data {
@@ -160,7 +182,7 @@ impl Repository {
                 let parent_result = if let Some(uuid) = parent_uuid.value() {
                     self.get_by_uuid(uuid)
                         .await
-                        .and_then(|thing| thing.into_place().map_err(|_| Error::NotFound))
+                        .and_then(|record| record.thing.into_place().map_err(|_| Error::NotFound))
                 } else {
                     Err(Error::NotFound)
                 };
@@ -175,9 +197,9 @@ impl Repository {
             if let Some(parent) = parent {
                 let grandparent = {
                     let grandparent_result = if let Some(uuid) = parent.data.location_uuid.value() {
-                        self.get_by_uuid(uuid)
-                            .await
-                            .and_then(|thing| thing.into_place().map_err(|_| Error::NotFound))
+                        self.get_by_uuid(uuid).await.and_then(|record| {
+                            record.thing.into_place().map_err(|_| Error::NotFound)
+                        })
                     } else {
                         Err(Error::NotFound)
                     };
@@ -207,35 +229,43 @@ impl Repository {
         }
     }
 
+    /// Get all saved and recent Things beginning with a given (case-insensitive) string, up to an
+    /// optional limit.
     pub async fn get_by_name_start(
         &self,
         name: &str,
         limit: Option<usize>,
-    ) -> Result<Vec<Thing>, Error> {
-        let mut things = self
+    ) -> Result<Vec<Record>, Error> {
+        Ok(self
             .data_store
             .get_things_by_name_start(name, limit)
             .await
-            .map_err(|_| Error::DataStoreFailed)?;
-
-        self.recent()
-            .filter(|t| t.name().value().map_or(false, |s| s.starts_with_ci(name)))
-            .take(
-                limit
-                    .unwrap_or(usize::MAX)
-                    .checked_sub(things.len())
-                    .unwrap_or_default(),
+            .map_err(|_| Error::DataStoreFailed)?
+            .into_iter()
+            .map(|thing| Record {
+                status: RecordStatus::Saved,
+                thing,
+            })
+            .chain(
+                self.recent()
+                    .filter(|t| t.name().value().map_or(false, |s| s.starts_with_ci(name)))
+                    .map(|thing| Record {
+                        status: RecordStatus::Unsaved,
+                        thing: thing.clone(),
+                    }),
             )
-            .for_each(|t| things.push(t.clone()));
-
-        Ok(things)
+            .take(limit.unwrap_or(usize::MAX))
+            .collect())
     }
 
+    /// Get an iterator over all recent Things.
     pub fn recent(&self) -> impl Iterator<Item = &Thing> {
         let (a, b) = self.recent.as_slices();
         a.iter().chain(b.iter())
     }
 
+    /// Get all Things contained in the journal. This could get heavy, so should not be used
+    /// lightly.
     pub async fn journal(&self) -> Result<Vec<Thing>, Error> {
         self.data_store
             .get_all_the_things()
@@ -243,55 +273,88 @@ impl Repository {
             .map_err(|_| Error::DataStoreFailed)
     }
 
-    pub async fn get_by_name(&self, name: &str) -> Result<Thing, Error> {
-        let (saved_thing, recent_thing) = join!(self.data_store.get_thing_by_name(name), async {
-            self.recent()
-                .find(|t| t.name().value().map_or(false, |s| s.eq_ci(name)))
-        });
+    /// Get the Thing from saved or recent with a given name. (There should be only one.)
+    pub async fn get_by_name(&self, name: &str) -> Result<Record, Error> {
+        let (recent_thing, saved_thing) = join!(
+            async {
+                self.recent()
+                    .find(|t| t.name().value().map_or(false, |s| s.eq_ci(name)))
+            },
+            self.data_store.get_thing_by_name(name)
+        );
 
-        if let Some(thing) = recent_thing {
-            Ok(thing.clone())
+        match (recent_thing, saved_thing) {
+            (Some(thing), _) => Ok(Record {
+                status: RecordStatus::Unsaved,
+                thing: thing.clone(),
+            }),
+            (None, Ok(Some(thing))) => Ok(Record {
+                status: RecordStatus::Saved,
+                thing,
+            }),
+            (None, Ok(None)) => Err(Error::NotFound),
+            (None, Err(())) => Err(Error::DataStoreFailed),
+        }
+    }
+
+    /// Get the Thing from saved or recent with a given UUID. (There should be only one.)
+    pub async fn get_by_uuid(&self, uuid: &Uuid) -> Result<Record, Error> {
+        let (recent_thing, saved_thing) = join!(
+            async { self.recent().find(|t| &t.uuid == uuid) },
+            self.data_store.get_thing_by_uuid(uuid)
+        );
+
+        match (recent_thing, saved_thing) {
+            (Some(thing), _) => Ok(Record {
+                status: RecordStatus::Unsaved,
+                thing: thing.clone(),
+            }),
+            (None, Ok(Some(thing))) => Ok(Record {
+                status: RecordStatus::Saved,
+                thing,
+            }),
+            (None, Ok(None)) => Err(Error::NotFound),
+            (None, Err(())) => Err(Error::DataStoreFailed),
+        }
+    }
+
+    /// Apply a given Change, returning the affected Thing (with modifications applied) on success,
+    /// or a tuple of the Change and Error message on failure.
+    pub async fn modify(&mut self, change: Change) -> Result<Option<Record>, (Change, Error)> {
+        // If we're going to delete, we should load the record being deleted first because
+        // otherwise it'll be gone!
+        let mut option_record = if matches!(change, Change::Delete { .. }) {
+            self.get_by_change(&change).await.ok().map(|mut record| {
+                record.status = RecordStatus::Deleted;
+                record
+            })
         } else {
-            match saved_thing {
-                Ok(Some(thing)) => Ok(thing),
-                Ok(None) => Err(Error::NotFound),
-                Err(()) => Err(Error::DataStoreFailed),
-            }
-        }
-    }
+            None
+        };
 
-    pub async fn get_by_uuid(&self, uuid: &Uuid) -> Result<Thing, Error> {
-        let (saved_thing, recent_thing) = join!(self.data_store.get_thing_by_uuid(uuid), async {
-            self.recent().find(|t| &t.uuid == uuid).cloned()
-        });
-
-        match (saved_thing, recent_thing) {
-            (_, Some(thing)) => Ok(thing),
-            (Ok(Some(thing)), None) => Ok(thing),
-            (Ok(None), None) => Err(Error::NotFound),
-            (Err(()), None) => Err(Error::DataStoreFailed),
-        }
-    }
-
-    pub async fn modify(&mut self, change: Change) -> Result<Option<Thing>, (Change, Error)> {
         let undo_change = self.modify_without_undo(change).await?;
-        let option_thing = self.get_by_change(&undo_change).await.ok();
+
+        if option_record.is_none() {
+            option_record = self.get_by_change(&undo_change).await.ok();
+        }
 
         while self.undo_history.len() >= UNDO_HISTORY_LEN {
             self.undo_history.pop_front();
         }
         self.undo_history.push_back(undo_change);
 
-        Ok(option_thing)
+        Ok(option_record)
     }
 
-    pub async fn undo(&mut self) -> Option<Result<Option<Thing>, Error>> {
+    /// Undo the most recent Change. Returns None if the undo history is empty; otherwise returns
+    /// the Result of the modify() operation.
+    pub async fn undo(&mut self) -> Option<Result<Option<Record>, Error>> {
         if let Some(change) = self.undo_history.pop_back() {
             match self.modify_without_undo(change).await {
                 Ok(redo_change) => {
-                    let thing = self.get_by_change(&redo_change).await.ok();
+                    let record = self.get_by_change(&redo_change).await.ok();
                     self.redo_change = Some(redo_change);
-                    Some(Ok(thing))
+                    Some(Ok(record))
                 }
                 Err((undo_change, e)) => {
                     self.undo_history.push_back(undo_change);
@@ -303,14 +366,19 @@ impl Repository {
         }
     }
 
+    /// Get an iterator over the Changes currently queued up in the undo history, from newest to
+    /// oldest.
     pub fn undo_history(&self) -> impl Iterator<Item = &Change> {
         self.undo_history.iter().rev()
     }
 
-    pub async fn redo(&mut self) -> Option<Result<Option<Thing>, Error>> {
+    /// Redo the most recently undid Change. Returns None if no such change exists; otherwise
+    /// returns the result of the modify() operation. This differs from undo() in that only one
+    /// Change is stored in history at a time.
+    pub async fn redo(&mut self) -> Option<Result<Option<Record>, Error>> {
         if let Some(change) = self.redo_change.take() {
             match self.modify(change).await {
-                Ok(option_thing) => Some(Ok(option_thing)),
+                Ok(option_record) => Some(Ok(option_record)),
                 Err((redo_change, e)) => {
                     self.redo_change = Some(redo_change);
                     Some(Err(e))
@@ -321,10 +389,14 @@ impl Repository {
         }
     }
 
+    /// Get the Change currently queued up for redo(), if any.
     pub fn get_redo(&self) -> Option<&Change> {
         self.redo_change.as_ref()
     }
 
+    /// Apply a Change to the Repository without adding the Change to the undo history. Returns
+    /// the reverse operation on success (what would be otherwise inserted into the undo history),
+    /// or a tuple of the failed Change and error message on failure.
     pub async fn modify_without_undo(&mut self, change: Change) -> Result<Change, (Change, Error)> {
         match change {
             Change::Create { thing_data, uuid } => {
@@ -338,22 +410,25 @@ impl Repository {
                 let name = thing_data.name().to_string();
                 self.create_and_save_thing(thing_data, uuid)
                     .await
-                    .map(|uuid| Change::Delete { uuid, name })
+                    .map(|thing| Change::Delete {
+                        uuid: thing.uuid,
+                        name,
+                    })
                     .map_err(|(thing_data, e)| (Change::CreateAndSave { thing_data, uuid }, e))
             }
             Change::Delete { uuid, name } => self
                 .delete_thing_by_uuid(&uuid)
                 .await
-                .map(|(was_saved, thing_data)| {
-                    if was_saved {
+                .map(|Record { thing, status }| {
+                    if status == RecordStatus::Saved {
                         Change::CreateAndSave {
-                            thing_data,
-                            uuid: Some(uuid),
+                            thing_data: thing.data,
+                            uuid: Some(thing.uuid),
                         }
                     } else {
                         Change::Create {
-                            thing_data,
-                            uuid: Some(uuid),
+                            thing_data: thing.data,
+                            uuid: Some(thing.uuid),
                         }
                     }
                 })
@@ -363,27 +438,25 @@ impl Repository {
                 uuid: None,
                 diff,
             } => match self.edit_thing_by_name(&name, diff).await {
-                Ok((was_saved, uuid, diff)) => {
-                    let name = self
-                        .get_by_uuid(&uuid)
-                        .await
-                        .map(|thing| thing.name().value().map(String::from))
-                        .unwrap_or(None)
-                        .unwrap_or(name);
-
-                    if was_saved {
-                        let uuid = Some(uuid);
-                        Ok(Change::Edit { uuid, name, diff })
+                Ok((Record { thing, status }, name)) => {
+                    if status == RecordStatus::Saved {
+                        Ok(Change::Edit {
+                            uuid: Some(thing.uuid),
+                            name,
+                            diff: thing.data,
+                        })
                     } else {
-                        Ok(Change::EditAndUnsave { uuid, name, diff })
+                        Ok(Change::EditAndUnsave {
+                            uuid: thing.uuid,
+                            name,
+                            diff: thing.data,
+                        })
                     }
                 }
-                Err((diff, e)) => Err((
+                Err((option_record, diff, e)) => Err((
                     Change::Edit {
-                        name: self
-                            .get_by_name(&name)
-                            .await
-                            .map(|thing| thing.name().value().map(String::from))
+                        name: option_record
+                            .map(|record| record.thing.name().value().map(String::from))
                             .unwrap_or(None)
                             .unwrap_or(name),
                         uuid: None,
@@ -397,27 +470,20 @@ impl Repository {
                 uuid: Some(uuid),
                 diff,
             } => match self.edit_thing_by_uuid(&uuid, diff).await {
-                Ok((was_saved, diff)) => {
-                    let name = self
-                        .get_by_uuid(&uuid)
-                        .await
-                        .map(|thing| thing.name().value().map(String::from))
-                        .unwrap_or(None)
-                        .unwrap_or(name);
+                Ok((Record { thing, status }, name)) => {
+                    let diff = thing.data;
 
-                    if was_saved {
+                    if status == RecordStatus::Saved {
                         let uuid = Some(uuid);
                         Ok(Change::Edit { uuid, name, diff })
                     } else {
                         Ok(Change::EditAndUnsave { uuid, name, diff })
                     }
                 }
-                Err((diff, e)) => Err((
+                Err((option_record, diff, e)) => Err((
                     Change::Edit {
-                        name: self
-                            .get_by_uuid(&uuid)
-                            .await
-                            .map(|thing| thing.name().value().map(String::from))
+                        name: option_record
+                            .map(|record| record.thing.name().value().map(String::from))
                             .unwrap_or(None)
                             .unwrap_or(name),
                         uuid: Some(uuid),
@@ -428,13 +494,13 @@ impl Repository {
             },
             Change::EditAndUnsave { uuid, name, diff } => {
                 match self.edit_thing_by_uuid(&uuid, diff).await {
-                    Ok((_, diff)) => self
+                    Ok((Record { thing, .. }, name)) => self
                         .unsave_thing_by_uuid(&uuid)
                         .await
                         .map(|name| Change::Edit {
                             name,
                             uuid: Some(uuid),
-                            diff,
+                            diff: thing.data,
                         })
                         .map_err(|(s, e)| {
                             (
@@ -445,21 +511,16 @@ impl Repository {
                                 e,
                             )
                         }),
-                    Err((diff, e)) => Err((Change::EditAndUnsave { uuid, name, diff }, e)),
+                    Err((_, diff, e)) => Err((Change::EditAndUnsave { uuid, name, diff }, e)),
                 }
             }
             Change::Save {
                 name,
                 uuid: Some(uuid),
             } => match self.save_thing_by_uuid(&uuid).await {
-                Ok(()) => Ok(Change::Unsave {
+                Ok(thing) => Ok(Change::Unsave {
                     uuid,
-                    name: self
-                        .get_by_uuid(&uuid)
-                        .await
-                        .map(|t| t.name().value().map(String::from))
-                        .unwrap_or(None)
-                        .unwrap_or(name),
+                    name: thing.name().value().map(String::from).unwrap_or(name),
                 }),
                 Err(e) => Err((
                     Change::Save {
@@ -470,14 +531,9 @@ impl Repository {
                 )),
             },
             Change::Save { name, uuid: None } => match self.save_thing_by_name(&name).await {
-                Ok(uuid) => Ok(Change::Unsave {
-                    uuid,
-                    name: self
-                        .get_by_uuid(&uuid)
-                        .await
-                        .map(|t| t.name().value().map(String::from))
-                        .unwrap_or(None)
-                        .unwrap_or(name),
+                Ok(thing) => Ok(Change::Unsave {
+                    uuid: thing.uuid,
+                    name: thing.name().value().map(String::from).unwrap_or(name),
                 }),
                 Err(e) => Err((Change::Save { name, uuid: None }, e)),
             },
@@ -497,6 +553,7 @@ impl Repository {
         }
     }
 
+    /// Get a value from the key-value store.
     pub async fn get_key_value(&self, key: &KeyValue) -> Result<KeyValue, Error> {
         let value_str = self.data_store.get_value(key.key_raw()).await;
 
@@ -508,10 +565,14 @@ impl Repository {
         .map_err(|_| Error::DataStoreFailed)
     }
 
+    /// Is the data store currently enabled? Returns false if init() has not yet been called.
     pub fn data_store_enabled(&self) -> bool {
         self.data_store_enabled
     }
 
+    /// Set a value in the key-value store.
+    ///
+    /// Publicly this is done using modify() with Change::SetKeyValue.
     async fn set_key_value(&mut self, key_value: &KeyValue) -> Result<KeyValue, Error> {
         let old_key_value = self.get_key_value(key_value).await?;
 
@@ -523,6 +584,7 @@ impl Repository {
         .map_err(|_| Error::DataStoreFailed)
     }
 
+    /// Add a Thing to the recent list.
     fn push_recent(&mut self, thing: Thing) {
         while self.recent.len() >= RECENT_MAX_LEN {
             self.recent.pop_front();
@@ -531,6 +593,7 @@ impl Repository {
         self.recent.push_back(thing);
     }
 
+    /// Remove the latest Thing in the recent list, returning it if one is present.
     fn take_recent<F>(&mut self, f: F) -> Option<Thing>
     where
         F: Fn(&Thing) -> bool,
@@ -547,6 +610,9 @@ impl Repository {
         }
     }
 
+    /// Create a Thing, pushing it onto the recent list.
+    ///
+    /// Publicly this is invoked using modify() with Change::Create.
     async fn create_thing(
         &mut self,
         thing_data: ThingData,
@@ -558,43 +624,55 @@ impl Repository {
         Ok(uuid)
     }
 
+    /// Create a Thing and save it directly to the journal.
+    ///
+    /// Publicly this is invoked using modify() with Change::CreateAndSave.
     async fn create_and_save_thing(
         &mut self,
         thing_data: ThingData,
         uuid: Option<Uuid>,
-    ) -> Result<Uuid, (ThingData, Error)> {
+    ) -> Result<Thing, (ThingData, Error)> {
         let thing = self.thing_data_into_thing(thing_data, uuid).await?;
-        let uuid = thing.uuid;
-        self.save_thing(thing)
-            .await
-            .map(|_| uuid)
-            .map_err(|(thing, e)| (thing.data, e))
+
+        match self.save_thing(&thing).await {
+            Ok(()) => Ok(thing),
+            Err(e) => Err((thing.data, e)),
+        }
     }
 
+    /// Delete a Thing from recent or journal by its UUID.
+    ///
+    /// Publicly this is invoked using modify() with Change::Delete.
     async fn delete_thing_by_uuid(
         &mut self,
         uuid: &Uuid,
-    ) -> Result<(bool, ThingData), (Option<Thing>, Error)> {
+    ) -> Result<Record, (Option<Record>, Error)> {
         if let Some(thing) = self.take_recent(|t| &t.uuid == uuid) {
-            Ok((false, thing.data))
+            Ok(Record {
+                status: RecordStatus::Unsaved,
+                thing,
+            })
         } else {
-            let thing = self.get_by_uuid(uuid).await.map_err(|e| (None, e))?;
+            let record = self.get_by_uuid(uuid).await.map_err(|e| (None, e))?;
 
             if self.data_store.delete_thing_by_uuid(uuid).await.is_ok() {
-                Ok((true, thing.data))
+                Ok(record)
             } else {
-                Err((Some(thing), Error::DataStoreFailed))
+                Err((Some(record), Error::DataStoreFailed))
             }
         }
     }
 
-    async fn save_thing_by_name(&mut self, name: &Name) -> Result<Uuid, Error> {
+    /// Transfer a Thing from recent to the journal, referenced by its name. Returns the Thing
+    /// transferred, or an error on failure.
+    ///
+    /// Publicly this is invoked using modify() with Change::Save { uuid: None, .. }
+    async fn save_thing_by_name(&mut self, name: &Name) -> Result<Thing, Error> {
         if let Some(thing) = self.take_recent(|t| t.name().value().map_or(false, |s| s.eq_ci(name)))
         {
-            let uuid = thing.uuid;
-            match self.save_thing(thing).await {
-                Ok(()) => Ok(uuid),
-                Err((thing, e)) => {
+            match self.save_thing(&thing).await {
+                Ok(()) => Ok(thing),
+                Err(e) => {
                     self.push_recent(thing);
                     Err(e)
                 }
@@ -604,11 +682,15 @@ impl Repository {
         }
     }
 
-    async fn save_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<(), Error> {
+    /// Transfer a Thing from recent to the journal, referenced by its UUID. Returns the Thing
+    /// transferred, or an error on failure.
+    ///
+    /// Publicly this is invoked using modify() with Change::Save { uuid: Some(_), .. }
+    async fn save_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<Thing, Error> {
         if let Some(thing) = self.take_recent(|t| &t.uuid == uuid) {
-            match self.save_thing(thing).await {
-                Ok(()) => Ok(()),
-                Err((thing, e)) => {
+            match self.save_thing(&thing).await {
+                Ok(()) => Ok(thing),
+                Err(e) => {
                     self.push_recent(thing);
                     Err(e)
                 }
@@ -618,19 +700,24 @@ impl Repository {
         }
     }
 
-    async fn save_thing(&mut self, mut thing: Thing) -> Result<(), (Thing, Error)> {
-        thing.is_saved = true;
-        match self.data_store.save_thing(&thing).await {
-            Ok(uuid) => Ok(uuid),
-            Err(()) => {
-                thing.is_saved = false;
-                Err((thing, Error::DataStoreFailed))
-            }
+    /// Write a Thing to the data store.
+    async fn save_thing(&mut self, thing: &Thing) -> Result<(), Error> {
+        match self.data_store.save_thing(thing).await {
+            Ok(()) => Ok(()),
+            Err(()) => Err(Error::DataStoreFailed),
         }
     }
 
+    /// Remove a Thing from the data store and add it to the recent list instead. Returns the name
+    /// of the Thing transferred on success, or a tuple of the optional name and an error on
+    /// failure. This is asymmetric with save_thing_by_* because writing to the recent list takes
+    /// ownership while writing to the data store accepts a reference, so returning a Thing here
+    /// would require an unnecessary clone() call when all we really want is the name of the Thing
+    /// we just unsaved.
+    ///
+    /// Publicly this is invoked using modify() with Change::Unsave.
     async fn unsave_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<Name, (Option<Name>, Error)> {
-        let mut thing = match self.data_store.get_thing_by_uuid(uuid).await {
+        let thing = match self.data_store.get_thing_by_uuid(uuid).await {
             Ok(Some(thing)) => Ok(thing),
             Ok(None) => Err((None, Error::NotFound)),
             Err(()) => Err((None, Error::DataStoreFailed)),
@@ -638,70 +725,113 @@ impl Repository {
 
         let name = thing.name().to_string();
 
-        if let Err(()) = self.data_store.delete_thing_by_uuid(uuid).await {
-            return Err((Some(name), Error::DataStoreFailed));
+        match self.data_store.delete_thing_by_uuid(uuid).await {
+            Ok(()) => {
+                self.push_recent(thing);
+                Ok(name)
+            }
+            Err(()) => Err((Some(name), Error::DataStoreFailed)),
         }
-
-        thing.is_saved = false;
-        self.push_recent(thing);
-
-        Ok(name)
     }
 
+    /// Apply a diff to a Thing matched by name. See edit_thing() for details.
+    ///
+    /// Publicly this is invoked using modify() with Change::Edit { uuid: None, .. }.
     async fn edit_thing_by_name(
         &mut self,
         name: &Name,
         diff: ThingData,
-    ) -> Result<(bool, Uuid, ThingData), (ThingData, Error)> {
+    ) -> Result<(Record, Name), (Option<Record>, ThingData, Error)> {
         match self.get_by_name(name).await {
-            Ok(thing) => self.edit_thing(thing, diff).await,
-            Err(e) => Err((diff, e)),
+            Ok(record) => self
+                .edit_thing(record, diff)
+                .await
+                .map_err(|(record, data, e)| (Some(record), data, e)),
+            Err(e) => Err((None, diff, e)),
         }
     }
 
+    /// Apply a diff to a Thing matched by UUID. See edit_thing() for details.
+    ///
+    /// Publicly this is invoked using modify() with Change::Edit { uuid: Some(_), .. }.
     async fn edit_thing_by_uuid(
         &mut self,
         uuid: &Uuid,
         diff: ThingData,
-    ) -> Result<(bool, ThingData), (ThingData, Error)> {
+    ) -> Result<(Record, Name), (Option<Record>, ThingData, Error)> {
         match self.get_by_uuid(uuid).await {
-            Ok(thing) => self
-                .edit_thing(thing, diff)
+            Ok(record) => self
+                .edit_thing(record, diff)
                 .await
-                .map(|(was_saved, _, data)| (was_saved, data)),
-            Err(e) => Err((diff, e)),
+                .map_err(|(record, data, e)| (Some(record), data, e)),
+            Err(e) => Err((None, diff, e)),
         }
     }
 
+    /// Apply a diff to a given Record. Returns a tuple consisting of a Record containing *the
+    /// modified fields* and the matched Thing's actual name on success, or a tuple consisting of
+    /// an optional Record of the matched Thing, the attempted diff, and an error message on
+    /// failure. Note that the successful response includes only the old values of any modified
+    /// fields, so re-applying the diff will revert the Thing back to its original state.
+    ///
+    /// Supports the edit_thing_by_* functions.
     async fn edit_thing(
         &mut self,
-        mut thing: Thing,
+        mut record: Record,
         mut diff: ThingData,
-    ) -> Result<(bool, Uuid, ThingData), (ThingData, Error)> {
-        if thing.try_apply_diff(&mut diff).is_err() {
+    ) -> Result<(Record, Name), (Record, ThingData, Error)> {
+        if record.thing.try_apply_diff(&mut diff).is_err() {
             // This fails when the thing types don't match, eg. applying an Npc diff to a
             // Place.
-            return Err((diff, Error::NotFound));
+            return Err((record, diff, Error::NotFound));
         }
 
-        if thing.is_saved {
-            match self.data_store.edit_thing(&thing).await {
-                Ok(()) => Ok((true, thing.uuid, diff)),
-                Err(()) => Err((diff, Error::DataStoreFailed)),
+        let name = record.thing.name().to_string();
+        let diff_thing = Thing {
+            uuid: record.thing.uuid,
+            data: diff,
+        };
+
+        if record.is_saved() {
+            match self.data_store.edit_thing(&record.thing).await {
+                Ok(()) => Ok((
+                    Record {
+                        status: RecordStatus::Saved,
+                        thing: diff_thing,
+                    },
+                    name,
+                )),
+                Err(()) => Err((record, diff_thing.data, Error::DataStoreFailed)),
             }
         } else {
-            let uuid = thing.uuid;
+            let uuid = record.thing.uuid;
             self.take_recent(|t| t.uuid == uuid);
 
-            if let Err((thing, _)) = self.save_thing(thing).await {
-                self.push_recent(thing);
-                Ok((true, uuid, diff))
+            if let Ok(()) = self.save_thing(&record.thing).await {
+                Ok((
+                    Record {
+                        status: RecordStatus::Unsaved,
+                        thing: diff_thing,
+                    },
+                    name,
+                ))
             } else {
-                Ok((false, uuid, diff))
+                // Fail forward when implicit save was unsuccessful so that we can at least edit
+                // records in memory when the data store is unavailable.
+                self.push_recent(record.thing);
+                Ok((
+                    Record {
+                        status: RecordStatus::Saved,
+                        thing: diff_thing,
+                    },
+                    name,
+                ))
             }
         }
     }
 
+    /// Creates a new Thing from its data, generating a UUID if necessary and checking for
+    /// name/UUID conflicts.
     async fn thing_data_into_thing(
         &self,
         thing_data: ThingData,
@@ -709,15 +839,14 @@ impl Repository {
     ) -> Result<Thing, (ThingData, Error)> {
         let uuid = uuid.unwrap_or_else(Uuid::new_v4);
 
-        if let Ok(other_thing) = self.get_by_uuid(&uuid).await {
-            Err((thing_data, Error::UuidAlreadyExists(other_thing)))
+        if let Ok(record) = self.get_by_uuid(&uuid).await {
+            Err((thing_data, Error::UuidAlreadyExists(record.thing)))
         } else if let Some(name) = thing_data.name().value() {
-            if let Ok(other_thing) = self.get_by_name(name).await {
-                Err((thing_data, Error::NameAlreadyExists(other_thing)))
+            if let Ok(record) = self.get_by_name(name).await {
+                Err((thing_data, Error::NameAlreadyExists(record.thing)))
             } else {
                 Ok(Thing {
                     uuid,
-                    is_saved: false,
                     data: thing_data,
                 })
             }
@@ -754,12 +883,30 @@ impl KeyValue {
 }
 
 impl Change {
+    /// Describe how applying this change from the undo queue will affect the application state
+    /// ("undo change xyz").
     pub fn display_undo(&self) -> DisplayUndo {
         DisplayUndo(self)
     }
 
+    /// Describe how applyifrom the redo queue will affect the application state ("redo change
+    /// xyz").
     pub fn display_redo(&self) -> DisplayRedo {
         DisplayRedo(self)
+    }
+}
+
+impl Record {
+    pub fn is_saved(&self) -> bool {
+        self.status == RecordStatus::Saved
+    }
+
+    pub fn is_unsaved(&self) -> bool {
+        self.status == RecordStatus::Unsaved
+    }
+
+    pub fn is_deleted(&self) -> bool {
+        self.status == RecordStatus::Deleted
     }
 }
 
@@ -820,7 +967,7 @@ impl fmt::Debug for Repository {
 mod test {
     use super::*;
     use crate::storage::data_store::{MemoryDataStore, NullDataStore};
-    use crate::world::npc::{Npc, Species};
+    use crate::world::npc::Npc;
     use crate::world::place::Place;
     use async_trait::async_trait;
     use std::cell::RefCell;
@@ -1031,24 +1178,18 @@ data_store.snapshot() = {:?}",
 
     #[test]
     fn get_by_name_test_from_recent() {
-        assert_eq!(
-            "Odysseus",
-            block_on(repo().get_by_name("ODYSSEUS"))
-                .unwrap()
-                .name()
-                .to_string(),
-        );
+        let result = block_on(repo().get_by_name("ODYSSEUS")).unwrap();
+
+        assert_eq!(RecordStatus::Unsaved, result.status);
+        assert_eq!("Odysseus", result.thing.name().to_string());
     }
 
     #[test]
     fn get_by_name_test_from_journal() {
-        assert_eq!(
-            "Olympus",
-            block_on(repo().get_by_name("OLYMPUS"))
-                .unwrap()
-                .name()
-                .to_string(),
-        );
+        let result = block_on(repo().get_by_name("OLYMPUS")).unwrap();
+
+        assert_eq!(RecordStatus::Saved, result.status);
+        assert_eq!("Olympus", result.thing.name().to_string());
     }
 
     #[test]
@@ -1058,24 +1199,18 @@ data_store.snapshot() = {:?}",
 
     #[test]
     fn get_by_uuid_test_from_recent() {
-        assert_eq!(
-            "Odysseus",
-            block_on(repo().get_by_uuid(&ODYSSEUS_UUID))
-                .unwrap()
-                .name()
-                .to_string(),
-        );
+        let result = block_on(repo().get_by_uuid(&ODYSSEUS_UUID)).unwrap();
+
+        assert_eq!(RecordStatus::Unsaved, result.status);
+        assert_eq!("Odysseus", result.thing.name().to_string());
     }
 
     #[test]
     fn get_by_uuid_test_from_journal() {
-        assert_eq!(
-            "Olympus",
-            block_on(repo().get_by_uuid(&OLYMPUS_UUID))
-                .unwrap()
-                .name()
-                .to_string(),
-        );
+        let result = block_on(repo().get_by_uuid(&OLYMPUS_UUID)).unwrap();
+
+        assert_eq!(RecordStatus::Saved, result.status);
+        assert_eq!("Olympus", result.thing.name().to_string());
     }
 
     #[test]
@@ -1178,7 +1313,7 @@ data_store.snapshot() = {:?}",
 
             assert_eq!(
                 Ok(Some("Nobody".to_string())),
-                result.map(|opt_t| opt_t.map(|t| t.name().to_string())),
+                result.map(|opt_r| opt_r.map(|r| r.thing.name().to_string())),
             );
             assert!(repo.recent().any(|t| t.name().to_string() == "Nobody"));
         }
@@ -1191,7 +1326,7 @@ data_store.snapshot() = {:?}",
                 Ok(Some("Odysseus".to_string())),
                 undo_result
                     .unwrap()
-                    .map(|opt_t| opt_t.map(|t| t.name().to_string())),
+                    .map(|opt_r| opt_r.map(|r| r.thing.name().to_string())),
                 "{:?}",
                 undo_change,
             );
@@ -1205,7 +1340,7 @@ data_store.snapshot() = {:?}",
                 Ok(Some("Nobody".to_string())),
                 redo_result
                     .unwrap()
-                    .map(|opt_t| opt_t.map(|t| t.name().to_string())),
+                    .map(|opt_r| opt_r.map(|r| r.thing.name().to_string())),
             );
             assert!(repo.recent().any(|t| t.name().to_string() == "Nobody"));
         }
@@ -1227,7 +1362,7 @@ data_store.snapshot() = {:?}",
             |_, ds| {
                 block_on(ds.get_thing_by_uuid(&OLYMPUS_UUID))
                     .map(|opt_t| opt_t.map(|t| t.name().to_string()))
-                        == Ok(Some("Hades".to_string()))
+                    == Ok(Some("Hades".to_string()))
             },
             "editing OLYMPUS",
             "editing Hades"
@@ -1739,7 +1874,7 @@ data_store.snapshot() = {:?}",
     #[test]
     fn load_relations_test_with_parent_success() {
         let repo = repo();
-        let odysseus = block_on(repo.get_by_name("Odysseus")).unwrap();
+        let odysseus = block_on(repo.get_by_name("Odysseus")).unwrap().thing;
 
         match block_on(repo.load_relations(&odysseus)) {
             Ok(ThingRelations::Npc(NpcRelations {
@@ -1754,7 +1889,7 @@ data_store.snapshot() = {:?}",
     #[test]
     fn load_relations_test_with_grandparent_success() {
         let repo = repo();
-        let olympus = block_on(repo.get_by_uuid(&OLYMPUS_UUID)).unwrap();
+        let olympus = block_on(repo.get_by_uuid(&OLYMPUS_UUID)).unwrap().thing;
 
         match block_on(repo.load_relations(&olympus)) {
             Ok(ThingRelations::Place(PlaceRelations {
@@ -1792,20 +1927,8 @@ data_store.snapshot() = {:?}",
     fn thing(uuid: Uuid, data: impl Into<ThingData>) -> Thing {
         Thing {
             uuid,
-            is_saved: false,
             data: data.into(),
         }
-    }
-
-    fn undo_message(repo: &Repository) -> Option<String> {
-        repo.undo_history()
-            .next()
-            .map(|result| result.display_undo().to_string())
-    }
-
-    fn redo_message(repo: &Repository) -> Option<String> {
-        repo.get_redo()
-            .map(|result| result.display_undo().to_string())
     }
 
     fn repo() -> Repository {
@@ -1823,11 +1946,6 @@ data_store.snapshot() = {:?}",
         Repository::new(MemoryDataStore::default())
     }
 
-    fn empty_repo_data_store() -> (Repository, MemoryDataStore) {
-        let data_store = MemoryDataStore::default();
-        (Repository::new(data_store.clone()), data_store)
-    }
-
     fn null_repo() -> Repository {
         Repository::new(NullDataStore::default())
     }
@@ -1837,7 +1955,6 @@ data_store.snapshot() = {:?}",
             repo.data_store.save_thing(
                 &Place {
                     uuid: OLYMPUS_UUID,
-                    is_saved: true,
                     data: PlaceData {
                         location_uuid: THESSALY_UUID.into(),
                         name: "Olympus".into(),
@@ -1852,7 +1969,6 @@ data_store.snapshot() = {:?}",
             repo.data_store.save_thing(
                 &Place {
                     uuid: THESSALY_UUID,
-                    is_saved: true,
                     data: PlaceData {
                         location_uuid: GREECE_UUID.into(),
                         name: "Thessaly".into(),
@@ -1867,7 +1983,6 @@ data_store.snapshot() = {:?}",
             repo.data_store.save_thing(
                 &Place {
                     uuid: GREECE_UUID,
-                    is_saved: true,
                     data: PlaceData {
                         name: "Greece".into(),
                         ..Default::default()
@@ -1881,7 +1996,6 @@ data_store.snapshot() = {:?}",
             repo.data_store.save_thing(
                 &Place {
                     uuid: STYX_UUID,
-                    is_saved: true,
                     data: PlaceData {
                         location_uuid: Uuid::nil().into(),
                         name: "River Styx".into(),
@@ -1896,7 +2010,6 @@ data_store.snapshot() = {:?}",
         repo.recent.push_back(
             Npc {
                 uuid: ODYSSEUS_UUID,
-                is_saved: false,
                 data: NpcData {
                     name: "Odysseus".into(),
                     location_uuid: STYX_UUID.into(),

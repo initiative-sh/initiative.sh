@@ -4,7 +4,7 @@ use crate::app::{
     CommandMatches, ContextAwareParse, Runnable,
 };
 use crate::reference::{ItemCategory, ReferenceCommand, Spell};
-use crate::storage::{Change, StorageCommand};
+use crate::storage::{Change, Record, StorageCommand};
 use crate::time::TimeCommand;
 use crate::utils::CaseInsensitiveStr;
 use crate::world::npc::{Age, Ethnicity, Gender, NpcData, Species};
@@ -42,7 +42,7 @@ pub enum TutorialCommand {
     },
     ViewingAlternatives {
         inn: ThingRef,
-        npc: ThingRef,
+        npc_name: String,
     },
     EditingCharacters {
         inn: ThingRef,
@@ -167,7 +167,7 @@ impl TutorialCommand {
             Self::GeneratingAlternatives { .. } => output.push_str(include_str!(
                 "../../../../data/tutorial/03-generating-characters.md"
             )),
-            Self::ViewingAlternatives { npc, .. } => {
+            Self::ViewingAlternatives { npc_name, .. } => {
                 let thing_data: ThingData = NpcData {
                     species: Species::Human.into(),
                     ethnicity: Ethnicity::Human.into(),
@@ -185,7 +185,7 @@ impl TutorialCommand {
 
                 output.push_str(&format!(
                     include_str!("../../../../data/tutorial/04-generating-alternatives.md"),
-                    npc_name = npc,
+                    npc_name = npc_name,
                 ));
             }
             Self::EditingCharacters { npc, .. } => {
@@ -507,7 +507,8 @@ impl Runnable for TutorialCommand {
                                 .unwrap()
                                 .trim_start_matches(&[' ', '#'][..]);
 
-                            let inn = app_meta.repository.get_by_name(inn_name).await.unwrap();
+                            let Record { thing: inn, .. } =
+                                app_meta.repository.get_by_name(inn_name).await.unwrap();
 
                             Ok((
                                 ThingRef {
@@ -543,51 +544,56 @@ impl Runnable for TutorialCommand {
                                 .lines()
                                 .find(|s| s.starts_with('#'))
                                 .unwrap()
-                                .trim_start_matches(&[' ', '#'][..]);
+                                .trim_start_matches(&[' ', '#'][..])
+                                .to_string();
 
-                            let npc = app_meta.repository.get_by_name(npc_name).await.unwrap();
-
-                            Ok((
-                                ThingRef {
-                                    name: npc.name().to_string(),
-                                    uuid: npc.uuid,
-                                },
-                                output,
-                            ))
+                            Ok((npc_name, output))
                         }
                         Err(e) => Err(e),
                     };
 
                     match command_output {
-                        Ok((npc, output)) => {
-                            let next = Self::ViewingAlternatives { inn, npc };
+                        Ok((npc_name, output)) => {
+                            let next = Self::ViewingAlternatives { inn, npc_name };
                             (next.output(Some(Ok(output)), app_meta), Some(next))
                         }
                         Err(e) => (Err(e), Some(Self::GeneratingAlternatives { inn })),
                     }
                 }
-                Self::ViewingAlternatives { inn, npc } => {
+                Self::ViewingAlternatives { inn, npc_name } => {
                     let command_output = input_command.run(input, app_meta).await;
 
                     if let Ok(output) = command_output {
-                        if let Some(npc_name) = output
+                        if let Some(new_npc_name) = output
                             .lines()
                             .find(|s| s.starts_with("~2~"))
                             .and_then(|s| s.find('(').map(|i| (i, s)))
                             .map(|(i, s)| s[10..i - 2].to_string())
                         {
+                            let Record { thing: new_npc, .. } = app_meta
+                                .repository
+                                .get_by_name(&new_npc_name)
+                                .await
+                                .unwrap();
+
                             let new_npc = ThingRef {
-                                name: npc_name,
-                                uuid: npc.uuid,
+                                name: new_npc_name,
+                                uuid: new_npc.uuid,
                             };
                             let next = Self::EditingCharacters { npc: new_npc, inn };
 
                             (next.output(Some(Ok(output)), app_meta), Some(next))
                         } else {
-                            (Ok(output), Some(Self::ViewingAlternatives { inn, npc }))
+                            (
+                                Ok(output),
+                                Some(Self::ViewingAlternatives { inn, npc_name }),
+                            )
                         }
                     } else {
-                        (command_output, Some(Self::ViewingAlternatives { inn, npc }))
+                        (
+                            command_output,
+                            Some(Self::ViewingAlternatives { inn, npc_name }),
+                        )
                     }
                 }
                 Self::EditingCharacters { inn, npc } => {

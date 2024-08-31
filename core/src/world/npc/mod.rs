@@ -18,12 +18,9 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Npc {
     pub uuid: Uuid,
-
-    #[serde(skip)]
-    pub is_saved: bool,
 
     #[serde(flatten)]
     pub data: NpcData,
@@ -152,12 +149,6 @@ impl NpcData {
     }
 }
 
-impl PartialEq for Npc {
-    fn eq(&self, other: &Npc) -> bool {
-        self.uuid == other.uuid && self.data == other.data
-    }
-}
-
 impl Generate for NpcData {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
         match (self.species.is_locked(), self.ethnicity.is_locked()) {
@@ -259,7 +250,6 @@ mod test {
     fn gandalf() -> Npc {
         Npc {
             uuid: uuid::Uuid::nil(),
-            is_saved: true,
             data: NpcData {
                 name: "Gandalf the Grey".into(),
                 gender: Gender::Neuter.into(),

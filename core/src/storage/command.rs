@@ -1,5 +1,5 @@
 use super::backup::export;
-use super::{Change, RepositoryError};
+use super::{Change, Record, RecordStatus, RepositoryError};
 use crate::app::{
     AppMeta, Autocomplete, AutocompleteSuggestion, CommandAlias, CommandMatches, ContextAwareParse,
     Event, Runnable,
@@ -81,7 +81,7 @@ impl Runnable for StorageCommand {
             }
             Self::Delete { name } => {
                 let result = match app_meta.repository.get_by_name(&name).await {
-                    Ok(thing) => {
+                    Ok(Record { thing, .. }) => {
                         app_meta
                                 .repository
                                 .modify(Change::Delete { uuid: thing.uuid, name: thing.name().to_string() })
@@ -92,7 +92,7 @@ impl Runnable for StorageCommand {
                 };
 
                 match result {
-                    Ok(Some(thing)) => Ok(format!("{} was successfully deleted. Use `undo` to reverse this.", thing.name())),
+                    Ok(Some(Record { thing, .. })) => Ok(format!("{} was successfully deleted. Use `undo` to reverse this.", thing.name())),
                     Ok(None) | Err(RepositoryError::NotFound) => Err(format!("There is no entity named \"{}\".", name)),
                     Err(_) => Err(format!("Couldn't delete `{}`.", name)),
                 }
@@ -120,10 +120,10 @@ impl Runnable for StorageCommand {
                 Ok("The file upload popup should appear momentarily. Please select a compatible JSON file, such as that produced by the `export` command.".to_string())
             }
             Self::Load { name } => {
-                let thing = app_meta.repository.get_by_name(&name).await;
+                let record = app_meta.repository.get_by_name(&name).await;
                 let mut save_command = None;
-                let output = if let Ok(thing) = thing {
-                    if !thing.is_saved {
+                let output = if let Ok(Record { thing, status }) = record {
+                    if status == RecordStatus::Unsaved {
                         save_command = Some(CommandAlias::literal(
                             "save",
                             format!("save {}", name),
@@ -150,7 +150,7 @@ impl Runnable for StorageCommand {
                 output
             }
             Self::Redo => match app_meta.repository.redo().await {
-                Some(Ok(thing)) => {
+                Some(Ok(option_record)) => {
                     let action = app_meta
                         .repository
                         .undo_history()
@@ -158,27 +158,26 @@ impl Runnable for StorageCommand {
                         .unwrap()
                         .display_undo();
 
-                    if let Some(thing) = thing {
-                        Ok(format!(
+                    match option_record {
+                        Some(Record { thing, status }) if status != RecordStatus::Deleted => Ok(format!(
                             "{}\n\n_Successfully redid {}. Use `undo` to reverse this._",
                             thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
                             action,
-                        ))
-                    } else {
-                        Ok(format!(
+                        )),
+                        _ => Ok(format!(
                             "Successfully redid {}. Use `undo` to reverse this.",
                             action,
-                        ))
+                        )),
                     }
                 }
                 Some(Err(_)) => Err("Failed to redo.".to_string()),
                 None => Err("Nothing to redo.".to_string()),
             },
             Self::Undo => match app_meta.repository.undo().await {
-                Some(Ok(thing)) => {
+                Some(Ok(option_record)) => {
                     let action = app_meta.repository.get_redo().unwrap().display_redo();
 
-                    if let Some(thing) = thing {
+                    if let Some(Record { thing, .. }) = option_record {
                         Ok(format!(
                             "{}\n\n_Successfully undid {}. Use `redo` to reverse this._",
                             thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
@@ -305,7 +304,7 @@ impl Autocomplete for StorageCommand {
             )
         };
 
-        for (thing, prefix) in full_matches
+        for (record, prefix) in full_matches
             .unwrap_or_default()
             .iter()
             .zip(repeat(""))
@@ -316,9 +315,13 @@ impl Autocomplete for StorageCommand {
                     .zip(repeat(prefix)),
             )
         {
-            if (prefix == "save " && thing.is_saved) || (prefix == "delete " && !thing.is_saved) {
+            if (prefix == "save " && record.is_saved())
+                || (prefix == "delete " && record.is_unsaved())
+            {
                 continue;
             }
+
+            let thing = &record.thing;
 
             let suggestion_term = format!("{}{}", prefix, thing.name());
             let matches = Self::parse_input(&suggestion_term, app_meta).await;
@@ -330,7 +333,7 @@ impl Autocomplete for StorageCommand {
                         Self::Delete { .. } => format!("remove {} from journal", thing.as_str()),
                         Self::Save { .. } => format!("save {} to journal", thing.as_str()),
                         Self::Load { .. } => {
-                            if thing.is_saved {
+                            if record.is_saved() {
                                 format!("{}", thing.display_description())
                             } else {
                                 format!("{} (unsaved)", thing.display_description())
