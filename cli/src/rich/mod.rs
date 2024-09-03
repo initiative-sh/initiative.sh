@@ -1,5 +1,6 @@
 mod wrap;
 
+use initiative_core::app::AutocompleteSuggestion;
 use initiative_core::App;
 use std::fmt;
 use std::io;
@@ -27,6 +28,154 @@ struct Input {
     search_query: Option<String>,
 }
 
+#[derive(Debug)]
+struct Autocomplete {
+    show_single_suggestion: bool,
+    suggestions: Vec<AutocompleteSuggestion>,
+    selected: Option<usize>,
+    query: String,
+}
+
+impl Autocomplete {
+    fn up(self) -> Autocomplete {
+        let suggestions = self.suggestions;
+        let suggestions_length = suggestions.len();
+
+        Autocomplete {
+            show_single_suggestion: self.show_single_suggestion,
+            suggestions,
+            selected: match self.selected {
+                Some(0) => Some(suggestions_length - 1),
+                Some(x) => Some(x - 1),
+                None => Some(suggestions_length - 1),
+            },
+            query: self.query,
+        }
+    }
+
+    fn down(self) -> Autocomplete {
+        let suggestions = self.suggestions;
+        let suggestions_length = suggestions.len();
+
+        Autocomplete {
+            show_single_suggestion: self.show_single_suggestion,
+            suggestions,
+            selected: match self.selected {
+                Some(selected) => Some((selected + 1) % suggestions_length),
+                None => Some(0),
+            },
+            query: self.query,
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.suggestions.len()
+    }
+
+    fn get_selected_suggestion(&self) -> Option<&AutocompleteSuggestion> {
+        self.selected.map(|selected| &self.suggestions[selected])
+    }
+
+    fn get_only_suggestion(&self) -> Option<&AutocompleteSuggestion> {
+        if self.show_single_suggestion && self.suggestions.len() == 1 {
+            self.suggestions.first()
+        } else {
+            None
+        }
+    }
+
+    fn common_suggestion_prefix_len(&self) -> usize {
+        let Some(first) = self.suggestions.first() else {
+            return 0;
+        };
+
+        if self.suggestions.len() == 1 {
+            return first.term.len();
+        }
+
+        let mut terms = self
+            .suggestions
+            .iter()
+            .map(|suggestion| suggestion.term.chars())
+            .collect::<Vec<_>>();
+
+        let mut common_suggestion_prefix_len: usize = 0;
+        loop {
+            let first = terms
+                .first_mut()
+                .unwrap()
+                .next()
+                .map(|t| t.to_ascii_lowercase());
+
+            if first.is_none() {
+                break;
+            }
+
+            let mismatch = terms
+                .iter_mut()
+                .skip(1)
+                .map(|it| it.next().map(|t| t.to_ascii_lowercase()))
+                .find(|candidate| candidate != &first);
+
+            if mismatch.is_some() {
+                break;
+            }
+
+            common_suggestion_prefix_len += 1
+        }
+
+        common_suggestion_prefix_len
+    }
+
+    fn expand_match(self) -> Autocomplete {
+        let additions = self.suggestions.first().and_then(|suggestion| {
+            suggestion
+                .term
+                .get(self.query.len()..self.common_suggestion_prefix_len())
+        });
+
+        let mut next_query = self.query.clone();
+        next_query.extend(additions);
+
+        Autocomplete {
+            show_single_suggestion: true,
+            suggestions: self.suggestions,
+            selected: self.selected,
+            query: next_query,
+        }
+    }
+
+    async fn try_new(app: &App, input: &Input) -> Option<Autocomplete> {
+        let query = input.get_text();
+
+        if query.is_empty() {
+            return None;
+        }
+
+        Some(Autocomplete {
+            show_single_suggestion: true,
+            suggestions: app.autocomplete(query).await,
+            selected: None,
+            query: query.to_string(),
+        })
+    }
+
+    async fn try_back(self, app: &App) -> Option<Autocomplete> {
+        let mut query = self.query.clone();
+
+        if !self.show_single_suggestion {
+            let _ = query.pop();
+        }
+
+        Some(Autocomplete {
+            show_single_suggestion: false,
+            suggestions: app.autocomplete(&query).await,
+            selected: self.selected,
+            query,
+        })
+    }
+}
+
 pub async fn run(mut app: App) -> io::Result<()> {
     let mut screen = termion::screen::AlternateScreen::from(io::stdout())
         .into_raw_mode()
@@ -44,9 +193,13 @@ pub async fn run(mut app: App) -> io::Result<()> {
     });
 
     let mut input = Input::default();
+    let mut output = String::new();
+    let mut autocomplete: Option<Autocomplete> = None;
 
-    draw_input(&mut screen, &input)?;
+    draw_output(&mut screen, &output)?;
+    draw_autocomplete(&mut screen, autocomplete.as_ref())?;
     draw_status(&mut screen, "")?;
+    draw_input(&mut screen, &input, None)?;
     screen.flush()?;
 
     loop {
@@ -58,15 +211,69 @@ pub async fn run(mut app: App) -> io::Result<()> {
 
                     match event {
                         Ok(Event::Key(key)) => match key {
+                            Key::Up => {
+                                autocomplete = autocomplete.take().map(Autocomplete::up);
+
+                                match autocomplete
+                                    .as_ref()
+                                    .and_then(Autocomplete::get_selected_suggestion)
+                                {
+                                    Some(suggestion) => input.set_text(&suggestion.term),
+                                    None => input.key(key, false),
+                                }
+                            }
+                            Key::Down => {
+                                autocomplete = autocomplete.take().map(Autocomplete::down);
+
+                                match autocomplete
+                                    .as_ref()
+                                    .and_then(Autocomplete::get_selected_suggestion)
+                                {
+                                    Some(suggestion) => input.set_text(&suggestion.term),
+                                    None => input.key(key, false),
+                                }
+                            }
+                            Key::Backspace => {
+                                let has_suggestion = autocomplete
+                                    .as_ref()
+                                    .and_then(Autocomplete::get_only_suggestion)
+                                    .is_some();
+
+                                autocomplete = if let Some(autocomplete) = autocomplete.take() {
+                                    autocomplete.try_back(&app).await
+                                } else {
+                                    None
+                                };
+
+                                if !has_suggestion {
+                                    input.key(Key::Backspace, false);
+                                }
+                            }
                             Key::Char('\n') => {
-                                let command = input.text().to_string();
+                                let command = autocomplete
+                                    .take()
+                                    .as_ref()
+                                    .and_then(Autocomplete::get_only_suggestion)
+                                    .map(|suggestion| suggestion.term.to_string())
+                                    .unwrap_or(input.get_text().to_string());
+
                                 input.key(key, false);
                                 break command;
+                            }
+                            Key::Char('\t') => {
+                                autocomplete = autocomplete.take().map(Autocomplete::expand_match);
+
+                                if let Some(query) = autocomplete.as_ref().map(|it| &it.query) {
+                                    input.set_text(query);
+                                }
                             }
                             Key::Ctrl('c') => return Ok(()),
                             Key::Ctrl('h') => input.key(Key::Backspace, true),
                             Key::Ctrl(c) => input.key(Key::Char(c), true),
-                            k => input.key(k, false),
+                            k => {
+                                input.key(k, false);
+                                autocomplete = Autocomplete::try_new(&app, &input).await;
+                            }
                         },
                         Ok(Event::Unsupported(bytes)) => match bytes.as_slice() {
                             s if s == &CTRL_LEFT_ARROW[..] => input.key(Key::Left, true),
@@ -80,8 +287,16 @@ pub async fn run(mut app: App) -> io::Result<()> {
                         _ => {}
                     }
 
+                    draw_output(&mut screen, &output)?;
+                    draw_autocomplete(&mut screen, autocomplete.as_ref())?;
                     draw_status(&mut screen, &status)?;
-                    draw_input(&mut screen, &input)?;
+                    draw_input(
+                        &mut screen,
+                        &input,
+                        autocomplete
+                            .as_ref()
+                            .and_then(Autocomplete::get_only_suggestion),
+                    )?;
                     screen.flush()?;
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
@@ -89,9 +304,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
             }
         };
 
-        print!("{}", termion::clear::All);
-
-        let output = app.command(&command).await.unwrap_or_else(|e| {
+        output = app.command(&command).await.unwrap_or_else(|e| {
             format!(
                 "{}{}{}{}{}",
                 color::Fg(color::Black),
@@ -102,32 +315,27 @@ pub async fn run(mut app: App) -> io::Result<()> {
             )
         });
 
-        wrap(&output, termion::terminal_size().unwrap().0 as usize - 4)
-            .lines()
-            .enumerate()
-            .for_each(|(num, line)| {
-                write!(
-                    &mut screen,
-                    "{}{}",
-                    termion::cursor::Goto(3, num as u16 + 1),
-                    line
-                )
-                .unwrap();
-            });
-
+        draw_output(&mut screen, &output)?;
+        draw_autocomplete(&mut screen, autocomplete.as_ref())?;
         draw_status(&mut screen, "")?;
-        draw_input(&mut screen, &input)?;
+        draw_input(&mut screen, &input, None)?;
         screen.flush()?;
     }
 }
 
 impl Input {
-    fn text(&self) -> &str {
+    fn get_text(&self) -> &str {
         self.history.get(self.index).unwrap()
     }
 
-    fn text_mut(&mut self) -> &mut String {
+    fn get_text_mut(&mut self) -> &mut String {
         self.history.get_mut(self.index).unwrap()
+    }
+
+    fn set_text(&mut self, text: &str) {
+        self.get_text_mut().clear();
+        self.get_text_mut().push_str(text);
+        self.cursor = text.len();
     }
 
     fn key(&mut self, key: Key, ctrl: bool) {
@@ -138,11 +346,11 @@ impl Input {
             (Key::Right, true) => self.cursor = self.find_boundary_right(),
             (Key::Up, false) if self.index > 0 => {
                 self.index -= 1;
-                self.cursor = self.text().len();
+                self.cursor = self.get_text().len();
             }
             (Key::Down, false) if self.index < self.history.len() - 1 => {
                 self.index += 1;
-                self.cursor = self.text().len();
+                self.cursor = self.get_text().len();
             }
 
             (Key::Char('r'), true) => {
@@ -179,7 +387,7 @@ impl Input {
 
                 self.history.push(String::new());
                 self.index = self.history.len() - 1;
-                self.cursor = self.text().len();
+                self.cursor = self.get_text().len();
                 self.search_query = None;
             }
 
@@ -189,27 +397,27 @@ impl Input {
                 } else {
                     self.cursor -= 1;
                     let cursor = self.cursor;
-                    self.text_mut().remove(cursor);
+                    self.get_text_mut().remove(cursor);
                 }
             }
             (Key::Backspace, true) if !self.is_at_start() => {
                 let boundary = self.find_boundary_left();
                 let cursor = self.cursor;
-                self.text_mut().replace_range(boundary..cursor, "");
+                self.get_text_mut().replace_range(boundary..cursor, "");
                 self.cursor = boundary;
             }
 
             (Key::Home, _) => self.cursor = 0,
-            (Key::End, _) => self.cursor = self.text().len(),
+            (Key::End, _) => self.cursor = self.get_text().len(),
 
             (Key::Delete, false) if !self.is_at_end() => {
                 let cursor = self.cursor;
-                self.text_mut().remove(cursor);
+                self.get_text_mut().remove(cursor);
             }
             (Key::Delete, true) if !self.is_at_end() => {
                 let boundary = self.find_boundary_right();
                 let cursor = self.cursor;
-                self.text_mut().replace_range(cursor..boundary, "");
+                self.get_text_mut().replace_range(cursor..boundary, "");
             }
             (Key::Char(c), false) => {
                 if let Some(query) = self.search_query.as_mut() {
@@ -219,11 +427,11 @@ impl Input {
                         self.cursor = cursor;
                     }
                 } else {
-                    if self.cursor == self.text().len() {
-                        self.text_mut().push(c);
+                    if self.cursor == self.get_text().len() {
+                        self.get_text_mut().push(c);
                     } else {
                         let cursor = self.cursor;
-                        self.text_mut().insert(cursor, c);
+                        self.get_text_mut().insert(cursor, c);
                     }
                     self.cursor += 1;
                 }
@@ -249,17 +457,17 @@ impl Input {
     }
 
     fn is_at_end(&self) -> bool {
-        self.cursor == self.text().len()
+        self.cursor == self.get_text().len()
     }
 
     fn find_boundary_left(&self) -> usize {
         let mut boundary = self.cursor;
 
-        if !self.text().is_empty() && boundary > 0 {
+        if !self.get_text().is_empty() && boundary > 0 {
             boundary -= 1;
 
             while boundary > 0 {
-                let mut chars = self.text().chars().skip(boundary - 1);
+                let mut chars = self.get_text().chars().skip(boundary - 1);
                 let (prev_char, cur_char) = (chars.next().unwrap(), chars.next().unwrap());
                 if !prev_char.is_alphanumeric() && cur_char.is_alphanumeric() {
                     break;
@@ -274,12 +482,12 @@ impl Input {
     fn find_boundary_right(&self) -> usize {
         let mut boundary = self.cursor;
 
-        if boundary < self.text().len() {
+        if boundary < self.get_text().len() {
             boundary += 1;
             let mut alphanumeric_char_encountered = false;
 
-            while boundary < self.text().len() {
-                let mut chars = self.text().chars().skip(boundary - 1);
+            while boundary < self.get_text().len() {
+                let mut chars = self.get_text().chars().skip(boundary - 1);
                 let (prev_char, cur_char) = (chars.next().unwrap(), chars.next().unwrap());
 
                 if prev_char.is_alphanumeric() {
@@ -313,8 +521,25 @@ impl Default for Input {
 
 impl fmt::Display for &Input {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.text())
+        write!(f, "{}", self.get_text())
     }
+}
+
+fn draw_output(screen: &mut dyn Write, output: &str) -> io::Result<()> {
+    let (term_width, _) = termion::terminal_size().unwrap();
+
+    print!("{}", termion::clear::All);
+
+    for (num, line) in wrap(output, term_width as usize - 4).lines().enumerate() {
+        write!(
+            screen,
+            "{}{}",
+            termion::cursor::Goto(3, num as u16 + 1),
+            line
+        )?;
+    }
+
+    Ok(())
 }
 
 fn draw_status(screen: &mut dyn Write, status: &str) -> io::Result<()> {
@@ -345,7 +570,11 @@ fn draw_status(screen: &mut dyn Write, status: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn draw_input(screen: &mut dyn Write, input: &Input) -> io::Result<()> {
+fn draw_input(
+    screen: &mut dyn Write,
+    input: &Input,
+    suggestion: Option<&AutocompleteSuggestion>,
+) -> io::Result<()> {
     let (_, term_height) = termion::terminal_size().unwrap();
     let input_row = term_height - 2;
 
@@ -358,12 +587,239 @@ fn draw_input(screen: &mut dyn Write, input: &Input) -> io::Result<()> {
         termion::cursor::Goto(4 + input.cursor as u16, input_row)
     )?;
 
+    if let Some(suggestion) = suggestion.map(|it| it.term.as_ref()) {
+        write!(
+            screen,
+            "{}{}{}{}{}{}{}",
+            termion::cursor::Save,
+            termion::color::Fg(termion::color::LightWhite),
+            termion::color::Bg(termion::color::Blue),
+            suggestion
+                .chars()
+                .skip(input.get_text().len())
+                .collect::<String>(),
+            termion::color::Reset.fg_str(),
+            termion::color::Reset.bg_str(),
+            termion::cursor::Restore,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn draw_autocomplete(
+    screen: &mut dyn Write,
+    autocomplete: Option<&Autocomplete>,
+) -> io::Result<()> {
+    let Some(autocomplete) = autocomplete else {
+        return Ok(());
+    };
+
+    let Some(term_width) = autocomplete.suggestions.iter().map(|i| i.term.len()).max() else {
+        return Ok(());
+    };
+    let Some(summary_width) = autocomplete
+        .suggestions
+        .iter()
+        .map(|i| i.summary.len())
+        .max()
+    else {
+        return Ok(());
+    };
+    let width = term_width + summary_width + 2;
+
+    let (_, term_height) = termion::terminal_size().unwrap();
+    let start_row = term_height - 2 - autocomplete.len() as u16;
+
+    for (pos, suggestion) in autocomplete.suggestions.iter().enumerate() {
+        let padding: String =
+            " ".repeat(width.saturating_sub(suggestion.term.len() + suggestion.summary.len()));
+        let query_len = autocomplete.query.len();
+        let line = pos as u16 + start_row;
+
+        // Go to start position, draw opening border.
+        write!(
+            screen,
+            "{}{}{} ",
+            termion::cursor::Goto(3, line),
+            termion::color::Fg(termion::color::White),
+            termion::color::Bg(termion::color::LightBlack),
+        )?;
+
+        // This is a little indimidating but goes like so:
+        // - Switch to the 'match color' and draw the matching text
+        // - Switch to the text color, draw unmatched text
+        // - Switch to summary color, draw padding and the summary.
+        if Some(pos) == autocomplete.selected {
+            write!(
+                screen,
+                "{}{}{}{}{}{}{}{}{}{}",
+                termion::color::Fg(termion::color::LightWhite),
+                termion::color::Bg(termion::color::Black),
+                &suggestion.term[..query_len],
+                termion::color::Fg(termion::color::White),
+                termion::color::Bg(termion::color::Black),
+                &suggestion.term[query_len..],
+                termion::color::Fg(termion::color::White),
+                termion::color::Bg(termion::color::Black),
+                padding,
+                suggestion.summary,
+            )?;
+        } else {
+            write!(
+                screen,
+                "{}{}{}{}{}{}{}{}{}{}",
+                termion::color::Fg(termion::color::LightWhite),
+                termion::color::Bg(termion::color::LightBlack),
+                &suggestion.term[..query_len],
+                termion::color::Fg(termion::color::White),
+                termion::color::Bg(termion::color::LightBlack),
+                &suggestion.term[query_len..],
+                termion::color::Fg(termion::color::White),
+                termion::color::Bg(termion::color::LightBlack),
+                padding,
+                suggestion.summary,
+            )?;
+        }
+
+        // Closing border
+        write!(
+            screen,
+            "{}{} ",
+            termion::color::Fg(termion::color::White),
+            termion::color::Bg(termion::color::LightBlack),
+        )?;
+    }
+
+    write!(
+        screen,
+        "{}{}",
+        termion::color::Reset.fg_str(),
+        termion::color::Reset.bg_str(),
+    )?;
+
     Ok(())
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn expand_single_match() {
+        let autocomplete = Autocomplete {
+            show_single_suggestion: true,
+            suggestions: vec![("shield", "a shield from the SRD").into()],
+            selected: None,
+            query: "s".into(),
+        };
+
+        let expanded = autocomplete.expand_match();
+        assert_eq!(expanded.query, "shield");
+    }
+
+    #[test]
+    fn expand_autocomplete() {
+        let autocomplete = Autocomplete {
+            show_single_suggestion: true,
+            suggestions: vec![
+                ("Shield", "a shield from the SRD").into(),
+                ("shiny bauble", "so shiny!").into(),
+            ],
+            selected: None,
+            query: "s".into(),
+        };
+
+        let expanded = autocomplete.expand_match();
+        assert_eq!(expanded.query, "shi");
+    }
+
+    #[test]
+    fn autocomplete_returns_single_suggestion() {
+        let single = Autocomplete {
+            show_single_suggestion: true,
+            suggestions: vec![("shield", "a shield from the SRD").into()],
+            selected: None,
+            query: "sh".into(),
+        };
+        assert_eq!(single.get_only_suggestion(), single.suggestions.get(0));
+
+        let multiple = Autocomplete {
+            show_single_suggestion: true,
+            suggestions: vec![
+                ("shield", "a shield from the SRD").into(),
+                ("shrine", "create a new shrine").into(),
+            ],
+            selected: None,
+            query: "sh".into(),
+        };
+        assert_eq!(multiple.get_only_suggestion(), None);
+    }
+
+    #[test]
+    fn autocomplete_up_test() {
+        let mut autocomplete = Autocomplete {
+            show_single_suggestion: true,
+            suggestions: vec![("shield", "a shield").into(), ("shrine", "a shrine").into()],
+            selected: None,
+            query: "sh".into(),
+        };
+
+        assert_eq!(autocomplete.len(), 2);
+        assert_eq!(autocomplete.get_selected_suggestion(), None);
+
+        autocomplete = autocomplete.up();
+        assert_eq!(
+            autocomplete.get_selected_suggestion(),
+            autocomplete.suggestions.get(1)
+        );
+
+        autocomplete = autocomplete.up();
+        assert_eq!(
+            autocomplete.get_selected_suggestion(),
+            autocomplete.suggestions.get(0)
+        );
+
+        autocomplete = autocomplete.up();
+        assert_eq!(
+            autocomplete.get_selected_suggestion(),
+            autocomplete.suggestions.get(1)
+        );
+    }
+
+    #[test]
+    fn autocomplete_down_test() {
+        let mut autocomplete = Autocomplete {
+            show_single_suggestion: true,
+            suggestions: vec![
+                ("shield", "a shield from the SRD").into(),
+                ("shrine", "create a new shrine").into(),
+            ],
+            selected: None,
+            query: "sh".into(),
+        };
+
+        assert_eq!(autocomplete.len(), 2);
+        assert_eq!(autocomplete.get_selected_suggestion(), None);
+
+        autocomplete = autocomplete.down();
+        assert_eq!(
+            autocomplete.get_selected_suggestion(),
+            autocomplete.suggestions.get(0)
+        );
+
+        autocomplete = autocomplete.down();
+        assert_eq!(
+            autocomplete.get_selected_suggestion(),
+            autocomplete.suggestions.get(1)
+        );
+
+        autocomplete = autocomplete.down();
+        assert_eq!(
+            autocomplete.get_selected_suggestion(),
+            autocomplete.suggestions.get(0)
+        );
+    }
 
     #[test]
     fn key_left_test() {
@@ -450,15 +906,15 @@ mod test {
             search_query: None,
         };
 
-        assert_eq!("baz", input.text());
+        assert_eq!("baz", input.get_text());
 
         input.key(Key::Up, false);
-        assert_eq!("foo bar", input.text());
+        assert_eq!("foo bar", input.get_text());
         assert_eq!(0, input.index);
         assert_eq!(7, input.cursor);
 
         input.key(Key::Up, false);
-        assert_eq!("foo bar", input.text());
+        assert_eq!("foo bar", input.get_text());
     }
 
     #[test]
@@ -470,15 +926,15 @@ mod test {
             search_query: None,
         };
 
-        assert_eq!("foo", input.text());
+        assert_eq!("foo", input.get_text());
 
         input.key(Key::Down, false);
-        assert_eq!("bar baz", input.text());
+        assert_eq!("bar baz", input.get_text());
         assert_eq!(1, input.index);
         assert_eq!(7, input.cursor);
 
         input.key(Key::Down, false);
-        assert_eq!("bar baz", input.text());
+        assert_eq!("bar baz", input.get_text());
     }
 
     #[test]
@@ -579,15 +1035,15 @@ mod test {
         };
 
         input.key(Key::Backspace, false);
-        assert_eq!("br baz", input.text());
+        assert_eq!("br baz", input.get_text());
         assert_eq!(1, input.cursor);
 
         input.key(Key::Backspace, false);
-        assert_eq!("r baz", input.text());
+        assert_eq!("r baz", input.get_text());
         assert_eq!(0, input.cursor);
 
         input.key(Key::Backspace, false);
-        assert_eq!("r baz", input.text());
+        assert_eq!("r baz", input.get_text());
         assert_eq!(0, input.cursor);
     }
 
@@ -601,15 +1057,15 @@ mod test {
         };
 
         input.key(Key::Backspace, true);
-        assert_eq!("foo ar", input.text());
+        assert_eq!("foo ar", input.get_text());
         assert_eq!(4, input.cursor);
 
         input.key(Key::Backspace, true);
-        assert_eq!("ar", input.text());
+        assert_eq!("ar", input.get_text());
         assert_eq!(0, input.cursor);
 
         input.key(Key::Backspace, true);
-        assert_eq!("ar", input.text());
+        assert_eq!("ar", input.get_text());
         assert_eq!(0, input.cursor);
     }
 
@@ -639,15 +1095,15 @@ mod test {
         };
 
         input.key(Key::Delete, false);
-        assert_eq!("foo br", input.text());
+        assert_eq!("foo br", input.get_text());
         assert_eq!(5, input.cursor);
 
         input.key(Key::Delete, false);
-        assert_eq!("foo b", input.text());
+        assert_eq!("foo b", input.get_text());
         assert_eq!(5, input.cursor);
 
         input.key(Key::Delete, false);
-        assert_eq!("foo b", input.text());
+        assert_eq!("foo b", input.get_text());
         assert_eq!(5, input.cursor);
     }
 
@@ -661,15 +1117,15 @@ mod test {
         };
 
         input.key(Key::Delete, true);
-        assert_eq!("ba baz", input.text());
+        assert_eq!("ba baz", input.get_text());
         assert_eq!(2, input.cursor);
 
         input.key(Key::Delete, true);
-        assert_eq!("ba", input.text());
+        assert_eq!("ba", input.get_text());
         assert_eq!(2, input.cursor);
 
         input.key(Key::Delete, true);
-        assert_eq!("ba", input.text());
+        assert_eq!("ba", input.get_text());
         assert_eq!(2, input.cursor);
     }
 
@@ -680,12 +1136,12 @@ mod test {
         input.key(Key::Char('A'), false);
         input.key(Key::Char('B'), false);
         input.key(Key::Char('X'), true);
-        assert_eq!("AB", input.text());
+        assert_eq!("AB", input.get_text());
         assert_eq!(2, input.cursor);
 
         input.cursor = 0;
         input.key(Key::Char('C'), false);
-        assert_eq!("CAB", input.text());
+        assert_eq!("CAB", input.get_text());
         assert_eq!(1, input.cursor);
     }
 
@@ -695,7 +1151,7 @@ mod test {
         assert!(input.is_at_start());
         assert!(input.is_at_end());
 
-        input.text_mut().push_str("ab");
+        input.get_text_mut().push_str("ab");
         assert!(input.is_at_start());
         assert!(!input.is_at_end());
 
@@ -716,7 +1172,7 @@ mod test {
             cursor: 0,
             search_query: None,
         };
-        input.cursor = input.text().len();
+        input.cursor = input.get_text().len();
 
         let mut stops = Vec::new();
 
@@ -748,12 +1204,12 @@ mod test {
         //  ^     ^     ^    ^      ^           ^     ^ ^     ^ ^
         //  1     7     1    1      2           3     4 4     5 5
         //              3    8      5           7     3 5     1 3
-        while input.cursor < input.text().len() && stops.len() < 100 {
+        while input.cursor < input.get_text().len() && stops.len() < 100 {
             input.cursor = input.find_boundary_right();
             stops.push(input.cursor);
         }
 
         assert_eq!(vec![1, 7, 13, 18, 25, 37, 43, 45, 51, 53], stops);
-        assert_eq!(input.text().len(), input.find_boundary_right());
+        assert_eq!(input.get_text().len(), input.find_boundary_right());
     }
 }

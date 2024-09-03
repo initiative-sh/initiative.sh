@@ -1,3 +1,4 @@
+* **Enhancement:** Feature parity for CLI autocompletion. @mplauman
 * **Enhancement:** Name generator now works for `theater`. @azylko
 * **Bug:** Fixed a positioning issue with the autocomplete popup. @MikkelPaulson
 * **Enhancement:** Name generator now works for `canyon`. @chrisrenfrow
