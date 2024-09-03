@@ -93,23 +93,38 @@ impl Autocomplete {
             return first.term.len();
         }
 
-        let query_len = self.query.len();
-
-        self.suggestions
+        let mut terms = self
+            .suggestions
             .iter()
-            .skip(1)
-            .fold(first.term.len(), |term_len, suggestion| {
-                first.term[query_len..term_len]
-                    .char_indices()
-                    .map(|(i, c)| query_len + i + c.len_utf8())
-                    .rev()
-                    .find(|&i| {
-                        suggestion.term.get(query_len..i).map_or(true, |s_term| {
-                            !first.term[query_len..i].eq_ignore_ascii_case(s_term)
-                        })
-                    })
-                    .unwrap_or(query_len)
-            })
+            .map(|suggestion| suggestion.term.chars())
+            .collect::<Vec<_>>();
+
+        let mut common_suggestion_prefix_len: usize = 0;
+        loop {
+            let first = terms
+                .first_mut()
+                .unwrap()
+                .next()
+                .map(|t| t.to_ascii_lowercase());
+
+            if first.is_none() {
+                break;
+            }
+
+            let mismatch = terms
+                .iter_mut()
+                .skip(1)
+                .map(|it| it.next().map(|t| t.to_ascii_lowercase()))
+                .find(|candidate| candidate != &first);
+
+            if mismatch.is_some() {
+                break;
+            }
+
+            common_suggestion_prefix_len += 1
+        }
+
+        common_suggestion_prefix_len
     }
 
     fn expand_match(self) -> Autocomplete {
@@ -708,7 +723,7 @@ mod test {
         let autocomplete = Autocomplete {
             show_single_suggestion: true,
             suggestions: vec![
-                ("shield", "a shield from the SRD").into(),
+                ("Shield", "a shield from the SRD").into(),
                 ("shiny bauble", "so shiny!").into(),
             ],
             selected: None,
