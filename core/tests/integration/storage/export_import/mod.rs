@@ -1,5 +1,6 @@
 use crate::common::{sync_app, sync_app_with_dispatcher, SyncApp};
 use initiative_core::Event;
+use std::ptr::addr_of;
 
 static mut LAST_EVENT: Option<Event> = None;
 
@@ -42,8 +43,8 @@ fn export() {
     app.command("export").unwrap();
 
     let data = unsafe {
-        if let Some(Event::Export(data)) = &LAST_EVENT {
-            Some(data)
+        if let Some(Event::Export(data)) = &*addr_of!(LAST_EVENT) {
+            Some(data.clone())
         } else {
             None
         }
@@ -80,8 +81,10 @@ fn import_event() {
         app.command("import").unwrap(),
     );
 
-    let event = unsafe { &LAST_EVENT };
-    assert!(matches!(event, Some(Event::Import)));
+    assert!(matches!(
+        unsafe { &*addr_of!(LAST_EVENT) },
+        Some(Event::Import),
+    ));
 }
 
 #[test]

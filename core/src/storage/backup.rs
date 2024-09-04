@@ -4,7 +4,7 @@ use futures::join;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BackupData {
     #[serde(rename(serialize = "_"), skip_deserializing)]
     pub comment: &'static str,
@@ -15,7 +15,7 @@ pub struct BackupData {
     pub key_value: KeyValueBackup,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct KeyValueBackup {
     pub time: Option<String>,
 }
