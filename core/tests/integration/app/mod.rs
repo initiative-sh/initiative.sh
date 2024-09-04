@@ -1,4 +1,8 @@
-mod app;
+mod about;
+mod changelog;
+mod debug;
+mod help;
+mod roll;
 mod tutorial;
 
 use crate::common::{get_name, sync_app};

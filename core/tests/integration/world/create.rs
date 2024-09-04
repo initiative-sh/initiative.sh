@@ -31,7 +31,7 @@ fn save_alias() {
 
 #[test]
 fn save_alias_exists_with_invalid_data_store() {
-    let mut app = sync_app_with_data_store(NullDataStore::default());
+    let mut app = sync_app_with_data_store(NullDataStore);
 
     let name = get_name(&app.command("npc").unwrap());
 

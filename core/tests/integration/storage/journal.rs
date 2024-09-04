@@ -32,16 +32,15 @@ fn it_shows_alphabetized_results() {
         .lines()
         .filter(|s| s.starts_with('~'))
         .map(|s| s[4..].trim_end_matches('\\'))
-        .map(|line| {
+        .inspect(|line| {
             println!(
                 "{}",
                 app.command(&format!(
                     "save {}",
-                    line.find('(').map(|pos| &line[6..(pos - 2)]).unwrap()
+                    line.find('(').map(|pos| &line[6..(pos - 2)]).unwrap(),
                 ))
                 .unwrap(),
-            );
-            line
+            )
         })
         .collect();
 
@@ -56,16 +55,15 @@ fn it_shows_alphabetized_results() {
         .lines()
         .filter(|s| s.starts_with('~'))
         .map(|s| s[4..].trim_end_matches('\\'))
-        .map(|line| {
+        .inspect(|line| {
             println!(
                 "{}",
                 app.command(&format!(
                     "save {}",
-                    line.find('(').map(|pos| &line[6..(pos - 2)]).unwrap()
+                    line.find('(').map(|pos| &line[6..(pos - 2)]).unwrap(),
                 ))
                 .unwrap(),
-            );
-            line
+            )
         })
         .collect();
 
@@ -107,7 +105,7 @@ fn it_shows_alphabetized_results() {
 
     assert_eq!(
         Some("*To export the contents of your journal, use `export`.*"),
-        output_iter.by_ref().skip(1).next(),
+        output_iter.by_ref().nth(1),
     );
 
     assert!(output_iter.next().is_none());

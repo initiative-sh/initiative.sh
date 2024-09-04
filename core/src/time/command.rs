@@ -262,39 +262,39 @@ mod test {
         );
 
         assert_autocomplete(
-            &[("+1d".into(), "advance time by 1 day".into())][..],
+            &[("+1d", "advance time by 1 day")][..],
             block_on(TimeCommand::autocomplete("+1d", &app_meta)),
         );
         assert_autocomplete(
-            &[("+1D".into(), "advance time by 1 day".into())][..],
+            &[("+1D", "advance time by 1 day")][..],
             block_on(TimeCommand::autocomplete("+1D", &app_meta)),
         );
         assert_autocomplete(
-            &[("+1h".into(), "advance time by 1 hour".into())][..],
+            &[("+1h", "advance time by 1 hour")][..],
             block_on(TimeCommand::autocomplete("+1h", &app_meta)),
         );
         assert_autocomplete(
-            &[("+1H".into(), "advance time by 1 hour".into())][..],
+            &[("+1H", "advance time by 1 hour")][..],
             block_on(TimeCommand::autocomplete("+1H", &app_meta)),
         );
         assert_autocomplete(
-            &[("+1m".into(), "advance time by 1 minute".into())][..],
+            &[("+1m", "advance time by 1 minute")][..],
             block_on(TimeCommand::autocomplete("+1m", &app_meta)),
         );
         assert_autocomplete(
-            &[("+1M".into(), "advance time by 1 minute".into())][..],
+            &[("+1M", "advance time by 1 minute")][..],
             block_on(TimeCommand::autocomplete("+1M", &app_meta)),
         );
         assert_autocomplete(
-            &[("+1s".into(), "advance time by 1 second".into())][..],
+            &[("+1s", "advance time by 1 second")][..],
             block_on(TimeCommand::autocomplete("+1s", &app_meta)),
         );
         assert_autocomplete(
-            &[("+1S".into(), "advance time by 1 second".into())][..],
+            &[("+1S", "advance time by 1 second")][..],
             block_on(TimeCommand::autocomplete("+1S", &app_meta)),
         );
         assert_autocomplete(
-            &[("+1r".into(), "advance time by 1 round".into())][..],
+            &[("+1r", "advance time by 1 round")][..],
             block_on(TimeCommand::autocomplete("+1r", &app_meta)),
         );
         assert_autocomplete(
@@ -343,6 +343,6 @@ mod test {
     fn event_dispatcher(_event: Event) {}
 
     fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore::default(), &event_dispatcher)
+        AppMeta::new(NullDataStore, &event_dispatcher)
     }
 }

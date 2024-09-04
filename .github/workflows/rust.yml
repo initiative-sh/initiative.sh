@@ -24,7 +24,7 @@ jobs:
       - name: Verify no mangled parens
         run: if git grep ',)' '*.rs'; then exit 1; fi
       - name: Run Clippy
-        run: cargo clippy --workspace -- --deny warnings
+        run: cargo clippy --workspace --tests -- --deny warnings
 
   unit-tests:
     name: Unit tests

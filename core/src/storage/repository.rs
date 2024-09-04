@@ -1297,7 +1297,7 @@ data_store.snapshot() = {:?}",
     #[test]
     fn change_test_edit_by_name_from_recent_data_store_failed() {
         let mut repo = repo();
-        repo.data_store = Box::new(NullDataStore::default());
+        repo.data_store = Box::new(NullDataStore);
         let change = Change::Edit {
             name: "Odysseus".into(),
             uuid: None,
@@ -1914,14 +1914,14 @@ data_store.snapshot() = {:?}",
     fn data_store_enabled_test_success() {
         let mut repo = repo();
         block_on(repo.init());
-        assert_eq!(true, repo.data_store_enabled());
+        assert!(repo.data_store_enabled());
     }
 
     #[test]
     fn data_store_enabled_test_failure() {
         let mut repo = null_repo();
         block_on(repo.init());
-        assert_eq!(false, repo.data_store_enabled());
+        assert!(!repo.data_store_enabled());
     }
 
     fn thing(uuid: Uuid, data: impl Into<ThingData>) -> Thing {
@@ -1947,7 +1947,7 @@ data_store.snapshot() = {:?}",
     }
 
     fn null_repo() -> Repository {
-        Repository::new(NullDataStore::default())
+        Repository::new(NullDataStore)
     }
 
     fn populate_repo(repo: &mut Repository) {

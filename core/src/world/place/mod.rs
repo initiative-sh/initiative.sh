@@ -519,7 +519,7 @@ mod test {
         Place {
             uuid: uuid::Uuid::nil(),
             data: PlaceData {
-                location_uuid: Uuid::from(uuid::Uuid::nil()).into(),
+                location_uuid: uuid::Uuid::nil().into(),
                 subtype: "inn".parse::<PlaceType>().ok().into(),
 
                 name: "Oaken Mermaid Inn".into(),

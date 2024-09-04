@@ -213,10 +213,10 @@ mod test {
             (0..20)
                 .map(|_| gen_name(
                     &mut rng,
-                    &syllable_count_dist,
-                    &start_dist,
-                    &mid_dist,
-                    &end_dist
+                    syllable_count_dist,
+                    start_dist,
+                    mid_dist,
+                    end_dist
                 ))
                 .collect::<Vec<_>>(),
         );

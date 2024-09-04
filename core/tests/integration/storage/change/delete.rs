@@ -90,7 +90,7 @@ fn npc_can_be_deleted_from_data_store() {
 
 #[test]
 fn delete_works_with_unusable_data_store() {
-    let mut app = sync_app_with_data_store(NullDataStore::default());
+    let mut app = sync_app_with_data_store(NullDataStore);
 
     app.command("npc named Potato Johnson").unwrap();
 

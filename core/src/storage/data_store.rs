@@ -311,8 +311,7 @@ mod test {
             Some("Gandalf the White"),
             block_on(ds.get_all_the_things())
                 .unwrap()
-                .iter()
-                .next()
+                .first()
                 .unwrap()
                 .name()
                 .value()

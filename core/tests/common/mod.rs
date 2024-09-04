@@ -18,7 +18,7 @@ pub fn sync_app() -> SyncApp {
 
 #[allow(dead_code)]
 pub fn sync_app_with_invalid_data_store() -> SyncApp {
-    sync_app_with_data_store(NullDataStore::default())
+    sync_app_with_data_store(NullDataStore)
 }
 
 #[allow(dead_code)]

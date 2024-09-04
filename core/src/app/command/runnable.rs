@@ -25,7 +25,7 @@ pub fn assert_autocomplete(
     actual_suggestions: Vec<AutocompleteSuggestion>,
 ) {
     let mut expected: Vec<_> = expected_suggestions
-        .into_iter()
+        .iter()
         .map(|(a, b)| ((*a).into(), (*b).into()))
         .collect();
     expected.sort();

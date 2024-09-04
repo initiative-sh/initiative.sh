@@ -120,7 +120,7 @@ fn edit_implicitly_saves() {
 
     {
         let output = app.command("journal").unwrap();
-        assert!(output.contains(&name), "{}", output);
+        assert!(output.contains(name), "{}", output);
     }
 }
 

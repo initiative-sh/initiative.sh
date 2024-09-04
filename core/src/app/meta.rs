@@ -48,7 +48,7 @@ mod test {
     #[test]
     fn debug_test() {
         let mut app_meta = app_meta();
-        app_meta.demographics = Demographics::new(HashMap::new().into());
+        app_meta.demographics = Demographics::new(HashMap::new());
 
         assert_eq!(
             "AppMeta { command_aliases: {}, demographics: Demographics { groups: GroupMapWrapper({}) }, repository: Repository { data_store_enabled: false, recent: [] } }",
@@ -59,6 +59,6 @@ mod test {
     fn event_dispatcher(_event: Event) {}
 
     fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore::default(), &event_dispatcher)
+        AppMeta::new(NullDataStore, &event_dispatcher)
     }
 }

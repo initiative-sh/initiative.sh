@@ -12,7 +12,7 @@ fn event_dispatcher(_event: Event) {}
 #[test]
 fn startup_error_with_unusable_data_store() {
     {
-        let mut app = SyncApp::new(NullDataStore::default(), &event_dispatcher);
+        let mut app = SyncApp::new(NullDataStore, &event_dispatcher);
         let output = app.init();
         assert!(
             output.contains("Local storage is not available in your browser."),

@@ -742,7 +742,7 @@ mod test {
             selected: None,
             query: "sh".into(),
         };
-        assert_eq!(single.get_only_suggestion(), single.suggestions.get(0));
+        assert_eq!(single.get_only_suggestion(), single.suggestions.first());
 
         let multiple = Autocomplete {
             show_single_suggestion: true,
@@ -777,7 +777,7 @@ mod test {
         autocomplete = autocomplete.up();
         assert_eq!(
             autocomplete.get_selected_suggestion(),
-            autocomplete.suggestions.get(0)
+            autocomplete.suggestions.first(),
         );
 
         autocomplete = autocomplete.up();
@@ -805,19 +805,19 @@ mod test {
         autocomplete = autocomplete.down();
         assert_eq!(
             autocomplete.get_selected_suggestion(),
-            autocomplete.suggestions.get(0)
+            autocomplete.suggestions.first(),
         );
 
         autocomplete = autocomplete.down();
         assert_eq!(
             autocomplete.get_selected_suggestion(),
-            autocomplete.suggestions.get(1)
+            autocomplete.suggestions.get(1),
         );
 
         autocomplete = autocomplete.down();
         assert_eq!(
             autocomplete.get_selected_suggestion(),
-            autocomplete.suggestions.get(0)
+            autocomplete.suggestions.first(),
         );
     }
 
@@ -971,7 +971,9 @@ mod test {
         assert_eq!(3, input.index);
         assert_eq!(0, input.cursor);
 
-        input.history.last_mut().map(|s| s.push_str("foo"));
+        if let Some(s) = input.history.last_mut() {
+            s.push_str("foo");
+        }
         input.cursor = 3;
         assert_eq!(vec!["foo", "bar", "foo", "foo"], input.history);
 
@@ -1015,8 +1017,10 @@ mod test {
 
     #[test]
     fn key_esc_test() {
-        let mut input = Input::default();
-        input.search_query = Some(String::new());
+        let mut input = Input {
+            search_query: Some(String::new()),
+            ..Default::default()
+        };
 
         input.key(Key::Esc, false);
         assert_eq!(None, input.search_query);
