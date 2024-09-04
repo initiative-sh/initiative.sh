@@ -58,28 +58,6 @@ impl Thing {
         self.data.gender()
     }
 
-    pub fn into_place(self) -> Result<Place, Thing> {
-        if let ThingData::Place(place) = self.data {
-            Ok(Place {
-                uuid: self.uuid,
-                data: place,
-            })
-        } else {
-            Err(self)
-        }
-    }
-
-    pub fn into_npc(self) -> Result<Npc, Thing> {
-        if let ThingData::Npc(npc) = self.data {
-            Ok(Npc {
-                uuid: self.uuid,
-                data: npc,
-            })
-        } else {
-            Err(self)
-        }
-    }
-
     pub fn display_summary(&self) -> SummaryView {
         self.data.display_summary()
     }
@@ -139,27 +117,11 @@ impl ThingData {
         }
     }
 
-    pub fn into_place_data(self) -> Result<PlaceData, ThingData> {
-        if let Self::Place(place) = self {
-            Ok(place)
-        } else {
-            Err(self)
-        }
-    }
-
     pub fn npc_data(&self) -> Option<&NpcData> {
         if let Self::Npc(npc) = self {
             Some(npc)
         } else {
             None
-        }
-    }
-
-    pub fn into_npc_data(self) -> Result<NpcData, ThingData> {
-        if let Self::Npc(npc) = self {
-            Ok(npc)
-        } else {
-            Err(self)
         }
     }
 
@@ -215,6 +177,36 @@ impl From<Place> for Thing {
     }
 }
 
+impl TryFrom<Thing> for Npc {
+    type Error = Thing;
+
+    fn try_from(thing: Thing) -> Result<Self, Self::Error> {
+        if let ThingData::Npc(npc) = thing.data {
+            Ok(Npc {
+                uuid: thing.uuid,
+                data: npc,
+            })
+        } else {
+            Err(thing)
+        }
+    }
+}
+
+impl TryFrom<Thing> for Place {
+    type Error = Thing;
+
+    fn try_from(thing: Thing) -> Result<Self, Self::Error> {
+        if let ThingData::Place(place) = thing.data {
+            Ok(Place {
+                uuid: thing.uuid,
+                data: place,
+            })
+        } else {
+            Err(thing)
+        }
+    }
+}
+
 impl From<NpcData> for ThingData {
     fn from(npc: NpcData) -> Self {
         ThingData::Npc(npc)
@@ -224,6 +216,30 @@ impl From<NpcData> for ThingData {
 impl From<PlaceData> for ThingData {
     fn from(place: PlaceData) -> Self {
         ThingData::Place(place)
+    }
+}
+
+impl TryFrom<ThingData> for NpcData {
+    type Error = ThingData;
+
+    fn try_from(thing_data: ThingData) -> Result<Self, Self::Error> {
+        if let ThingData::Npc(npc) = thing_data {
+            Ok(npc)
+        } else {
+            Err(thing_data)
+        }
+    }
+}
+
+impl TryFrom<ThingData> for PlaceData {
+    type Error = ThingData;
+
+    fn try_from(thing_data: ThingData) -> Result<Self, Self::Error> {
+        if let ThingData::Place(place) = thing_data {
+            Ok(place)
+        } else {
+            Err(thing_data)
+        }
     }
 }
 
@@ -365,20 +381,20 @@ mod test {
             let thing = place();
             assert!(thing.data.place_data().is_some());
             assert!(thing.data.npc_data().is_none());
-            assert!(thing.data.clone().into_place_data().is_ok());
-            assert!(thing.data.clone().into_npc_data().is_err());
-            assert!(thing.clone().into_place().is_ok());
-            assert!(thing.into_npc().is_err());
+            assert!(PlaceData::try_from(thing.data.clone()).is_ok());
+            assert!(NpcData::try_from(thing.data.clone()).is_err());
+            assert!(Place::try_from(thing.clone()).is_ok());
+            assert!(Npc::try_from(thing).is_err());
         }
 
         {
             let thing = npc();
             assert!(thing.data.npc_data().is_some());
             assert!(thing.data.place_data().is_none());
-            assert!(thing.data.clone().into_npc_data().is_ok());
-            assert!(thing.data.clone().into_place_data().is_err());
-            assert!(thing.clone().into_npc().is_ok());
-            assert!(thing.into_place().is_err());
+            assert!(NpcData::try_from(thing.data.clone()).is_ok());
+            assert!(PlaceData::try_from(thing.data.clone()).is_err());
+            assert!(Npc::try_from(thing.clone()).is_ok());
+            assert!(Place::try_from(thing).is_err());
         }
     }
 

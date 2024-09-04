@@ -2,7 +2,7 @@ use crate::storage::{DataStore, MemoryDataStore};
 use crate::time::Time;
 use crate::utils::CaseInsensitiveStr;
 use crate::world::npc::{NpcData, NpcRelations};
-use crate::world::place::{PlaceData, PlaceRelations};
+use crate::world::place::{Place, PlaceData, PlaceRelations};
 use crate::world::thing::{Thing, ThingData, ThingRelations};
 use crate::Uuid;
 use futures::join;
@@ -180,9 +180,9 @@ impl Repository {
 
             let parent = {
                 let parent_result = if let Some(uuid) = parent_uuid.value() {
-                    self.get_by_uuid(uuid)
-                        .await
-                        .and_then(|record| record.thing.into_place().map_err(|_| Error::NotFound))
+                    self.get_by_uuid(uuid).await.and_then(|record| {
+                        Place::try_from(record.thing).map_err(|_| Error::NotFound)
+                    })
                 } else {
                     Err(Error::NotFound)
                 };
@@ -198,7 +198,7 @@ impl Repository {
                 let grandparent = {
                     let grandparent_result = if let Some(uuid) = parent.data.location_uuid.value() {
                         self.get_by_uuid(uuid).await.and_then(|record| {
-                            record.thing.into_place().map_err(|_| Error::NotFound)
+                            Place::try_from(record.thing).map_err(|_| Error::NotFound)
                         })
                     } else {
                         Err(Error::NotFound)
