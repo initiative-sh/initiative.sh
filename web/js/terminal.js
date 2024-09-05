@@ -331,11 +331,58 @@ function reducedMotion() {
   return mediaQuery && mediaQuery.matches
 }
 
+function getThingType(element) {
+  if (element && element.classList.contains('npc')) {
+    return 'npc'
+  } else if (element && element.classList.contains('place')) {
+    return 'place'
+  } else {
+    return null
+  }
+}
+
+function getDataUuid(element) {
+  return element ? element.getAttribute('data-uuid') : null
+}
+
+function diffThingBoxes(thingA, thingB) {
+  const spansA = Array.from(thingA.querySelectorAll('p span'));
+  const spansB = Array.from(thingB.querySelectorAll('p span'));
+
+  spansB.forEach((spanB, index) => {
+    const spanA = spansA[index];
+    if (!spanA || spanA.textContent.trim() !== spanB.textContent.trim()) {
+      spanB.classList.add('changed');
+    }
+  });
+}
+
 function output(text) {
-  let outputBlock = document.createElement("div")
+  const outputBlock = document.createElement("div")
   outputBlock.className = "output-block"
-  outputBlock.insertAdjacentHTML("beforeend", marked(text))
-  document.getElementById("output").insertAdjacentElement("beforeend", outputBlock)
+  const outputInnerHtml = marked(text)
+  outputBlock.insertAdjacentHTML("beforeend", outputInnerHtml)
+
+  const docOutputBlocks = document.querySelectorAll('.output-block')
+  const latestOutputBlock = (docOutputBlocks.length > 0) ? docOutputBlocks[docOutputBlocks.length - 1] : null
+
+  const latestThingBox = latestOutputBlock ? latestOutputBlock.querySelector(".thing-box") : null
+  const outputThingBox = outputBlock.querySelector(".thing-box")
+
+  console.log(latestThingBox, outputThingBox,
+              getThingType(latestThingBox), getThingType(outputThingBox),
+              getDataUuid(latestThingBox), getDataUuid(outputThingBox))
+
+  if (latestThingBox && outputThingBox &&
+      getThingType(latestThingBox) === getThingType(outputThingBox) &&
+      getDataUuid(latestThingBox) && getDataUuid(outputThingBox) &&
+      getDataUuid(latestThingBox) === getDataUuid(outputThingBox)
+     ) {
+    diffThingBoxes(latestThingBox, outputThingBox)
+    latestThingBox.replaceWith(outputThingBox)
+  } else {
+    document.getElementById("output").insertAdjacentElement("beforeend", outputBlock)
+  }
 
   window.scroll({
     left: 0,
