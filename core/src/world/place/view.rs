@@ -92,10 +92,10 @@ impl<'a> fmt::Display for DetailsView<'a> {
         place
             .name
             .value()
-            .map(|name| write!(f, "# {}", name))
-            .unwrap_or_else(|| write!(f, "# Unnamed {}", place.display_description()))?;
+            .map(|name| write!(f, "<span># {}</span>", name))
+            .unwrap_or_else(|| write!(f, "<span># Unnamed {}</span>", place.display_description()))?;
 
-        write!(f, "\n*{}*", place.display_description())?;
+        write!(f, "\n<span>*{}*</span>", place.display_description())?;
 
         relations
             .location
@@ -104,12 +104,12 @@ impl<'a> fmt::Display for DetailsView<'a> {
                 if let Some(grandparent) = grandparent {
                     write!(
                         f,
-                        "\n\n**Location:** {}, {}",
+                        "\n\n<span>**Location:** {}, {}</span>",
                         parent.display_name(),
                         grandparent.display_name(),
                     )
                 } else {
-                    write!(f, "\n\n**Location:** {}", parent.display_summary())
+                    write!(f, "\n\n<span>**Location:** {}</span>", parent.display_summary())
                 }
             })
             .transpose()?;

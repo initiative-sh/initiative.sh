@@ -110,30 +110,30 @@ impl<'a> fmt::Display for DetailsView<'a> {
             .map(|name| write!(f, "# {}", name))
             .unwrap_or_else(|| write!(f, "# Unnamed NPC"))?;
 
-        write!(f, "\n*")?;
+        write!(f, "\n<span>*")?;
         write_summary_details(npc, f)?;
-        write!(f, "*")?;
+        write!(f, "*</span>")?;
 
         match (npc.species.value(), npc.ethnicity.value()) {
             (Some(species), Some(ethnicity)) if ethnicity != &species.default_ethnicity() => {
-                write!(f, "\n\n**Species:** {} ({})", species, ethnicity)?
+                write!(f, "\n\n<span>**Species:** {} ({})</span>", species, ethnicity)?
             }
-            (Some(species), _) => write!(f, "\n\n**Species:** {}", species)?,
-            (None, Some(ethnicity)) => write!(f, "\n\n**Ethnicity:** {}", ethnicity)?,
-            (None, None) => write!(f, "\n\n**Species:** N/A")?,
+            (Some(species), _) => write!(f, "\n\n<span>**Species:** {}</span>", species)?,
+            (None, Some(ethnicity)) => write!(f, "\n\n<span>**Ethnicity:** {}</span>", ethnicity)?,
+            (None, None) => write!(f, "\n\n<span>**Species:** N/A</span>")?,
         }
 
         npc.gender
             .value()
-            .map(|gender| write!(f, "\\\n**Gender:** {}", gender.name()))
+            .map(|gender| write!(f, "\\\n<span>**Gender:** {}</span>", gender.name()))
             .transpose()?;
         npc.age_years
             .value()
-            .map(|age_years| write!(f, "\\\n**Age:** {} years", age_years))
+            .map(|age_years| write!(f, "\\\n<span>**Age:** {} years</span>", age_years))
             .transpose()?;
         npc.size
             .value()
-            .map(|size| write!(f, "\\\n**Size:** {}", size))
+            .map(|size| write!(f, "\\\n<span>**Size:** {}</span>", size))
             .transpose()?;
 
         relations
@@ -143,12 +143,12 @@ impl<'a> fmt::Display for DetailsView<'a> {
                 if let Some(grandparent) = grandparent {
                     write!(
                         f,
-                        "\\\n**Location:** {}, {}",
+                        "\\\n<span>**Location:** {}, {}</span>",
                         parent.display_name(),
                         grandparent.display_name(),
                     )
                 } else {
-                    write!(f, "\\\n**Location:** {}", parent.display_summary())
+                    write!(f, "\\\n<span>**Location:** {}</span>", parent.display_summary())
                 }
             })
             .transpose()?;
