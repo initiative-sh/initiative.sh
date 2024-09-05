@@ -346,8 +346,15 @@ function getDataUuid(element) {
 }
 
 function diffThingBoxes(thingA, thingB) {
-  // TODO Iterate through the child elements of thingA and thingB, applying a class (tbd)
-  //      to any of thingB's elements that are different.
+  const spansA = Array.from(thingA.querySelectorAll('p span'));
+  const spansB = Array.from(thingB.querySelectorAll('p span'));
+
+  spansB.forEach((spanB, index) => {
+    const spanA = spansA[index];
+    if (!spanA || spanA.textContent.trim() !== spanB.textContent.trim()) {
+      spanB.classList.add('changed');
+    }
+  });
 }
 
 function output(text) {
@@ -371,7 +378,7 @@ function output(text) {
       getDataUuid(latestThingBox) && getDataUuid(outputThingBox) &&
       getDataUuid(latestThingBox) === getDataUuid(outputThingBox)
      ) {
-    // TODO diffThingBoxes(latestThingBox, outputThingBox);
+    diffThingBoxes(latestThingBox, outputThingBox)
     latestThingBox.replaceWith(outputThingBox)
   } else {
     document.getElementById("output").insertAdjacentElement("beforeend", outputBlock)
