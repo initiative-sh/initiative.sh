@@ -38,9 +38,9 @@ impl ReligiousType {
 }
 
 pub fn generate(place: &mut PlaceData, rng: &mut impl Rng, demographics: &Demographics) {
-    #[allow(clippy::collapsible_match)]
+    #[expect(clippy::collapsible_match)]
     if let Some(PlaceType::Building(BuildingType::Religious(subtype))) = place.subtype.value() {
-        #[allow(clippy::single_match)]
+        #[expect(clippy::single_match)]
         match subtype {
             ReligiousType::Shrine => shrine::generate(place, rng, demographics),
             _ => {}

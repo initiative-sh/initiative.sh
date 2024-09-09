@@ -575,7 +575,7 @@ mod test {
                             ..Default::default()
                         }
                         .into(),
-                        #[allow(clippy::single_range_in_vec_init)]
+                        #[expect(clippy::single_range_in_vec_init)]
                         unknown_words: vec![10..14],
                         word_count: 2,
                     },

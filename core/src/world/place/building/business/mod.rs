@@ -108,9 +108,7 @@ impl BusinessType {
 }
 
 pub fn generate(place: &mut PlaceData, rng: &mut impl Rng, demographics: &Demographics) {
-    #[allow(clippy::collapsible_match)]
     if let Some(PlaceType::Building(BuildingType::Business(subtype))) = place.subtype.value() {
-        #[allow(clippy::single_match)]
         match subtype {
             BusinessType::Inn => inn::generate(place, rng, demographics),
             BusinessType::Theater => theater::generate(place, rng, demographics),

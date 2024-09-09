@@ -137,9 +137,7 @@ impl Generate for PlaceData {
                 .replace_with(|_| PlaceType::generate(rng, demographics));
         }
 
-        #[allow(clippy::collapsible_match)]
         if let Some(value) = self.subtype.value() {
-            #[allow(clippy::single_match)]
             match value {
                 PlaceType::Building(_) => building::generate(self, rng, demographics),
                 PlaceType::Location(_) => location::generate(self, rng, demographics),

@@ -74,7 +74,7 @@ impl Thing {
         self.data.lock_all()
     }
 
-    #[allow(clippy::result_unit_err)]
+    #[expect(clippy::result_unit_err)]
     pub fn try_apply_diff(&mut self, diff: &mut ThingData) -> Result<(), ()> {
         self.data.try_apply_diff(diff)
     }
@@ -147,7 +147,6 @@ impl ThingData {
         }
     }
 
-    #[allow(clippy::result_unit_err)]
     pub fn try_apply_diff(&mut self, diff: &mut Self) -> Result<(), ()> {
         match (self, diff) {
             (Self::Npc(npc), Self::Npc(diff_npc)) => npc.apply_diff(diff_npc),

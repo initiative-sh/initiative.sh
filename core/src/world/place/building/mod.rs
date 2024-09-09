@@ -46,7 +46,6 @@ impl BuildingType {
 
 pub fn generate(place: &mut PlaceData, rng: &mut impl Rng, demographics: &Demographics) {
     if let Some(PlaceType::Building(subtype)) = place.subtype.value() {
-        #[allow(clippy::single_match)]
         match subtype {
             BuildingType::Business(_) => business::generate(place, rng, demographics),
             BuildingType::Religious(_) => religious::generate(place, rng, demographics),

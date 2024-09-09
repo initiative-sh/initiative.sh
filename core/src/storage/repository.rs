@@ -873,7 +873,7 @@ impl KeyValue {
     }
 
     pub const fn time(self) -> Option<Time> {
-        #[allow(irrefutable_let_patterns)]
+        #[expect(irrefutable_let_patterns)]
         if let Self::Time(time) = self {
             time
         } else {
