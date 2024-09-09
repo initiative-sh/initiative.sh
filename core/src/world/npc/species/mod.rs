@@ -8,7 +8,7 @@ mod halfling;
 mod human;
 mod tiefling;
 
-use super::{Age, Ethnicity, Gender, Npc, Size};
+use super::{Age, Ethnicity, Gender, NpcData, Size};
 use initiative_macros::WordList;
 use rand::prelude::*;
 use rand_distr::{Distribution, Normal};
@@ -35,7 +35,7 @@ pub enum Species {
 }
 
 trait Generate {
-    fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
+    fn regenerate(rng: &mut impl Rng, npc: &mut NpcData) {
         npc.gender.replace_with(|_| Self::gen_gender(rng));
 
         match (npc.age.is_locked(), npc.age_years.is_locked()) {
@@ -78,7 +78,7 @@ trait Generate {
     fn gen_size(rng: &mut impl Rng, age_years: u16, gender: &Gender) -> Size;
 }
 
-pub fn regenerate(rng: &mut impl Rng, npc: &mut Npc) {
+pub fn regenerate(rng: &mut impl Rng, npc: &mut NpcData) {
     if let Some(species) = npc.species.value() {
         match species {
             Species::Dragonborn => dragonborn::Species::regenerate(rng, npc),
@@ -155,8 +155,10 @@ mod test {
 
     #[test]
     fn regenerate_test_default() {
-        let mut npc = Npc::default();
-        npc.species = Field::new_generated(Species::Human);
+        let mut npc = NpcData {
+            species: Field::new_generated(Species::Human),
+            ..Default::default()
+        };
         let mut rng = SmallRng::seed_from_u64(0);
 
         regenerate(&mut rng, &mut npc);
@@ -169,16 +171,18 @@ mod test {
 
     #[test]
     fn regenerate_test_locked() {
-        let mut npc = Npc::default();
-        npc.species = Species::Human.into();
-        npc.age = Age::Adult.into();
-        npc.age_years = u16::MAX.into();
-        npc.gender = Gender::Neuter.into();
-        npc.size = Size::Tiny {
-            height: u16::MAX,
-            weight: u16::MAX,
-        }
-        .into();
+        let mut npc = NpcData {
+            species: Species::Human.into(),
+            age: Age::Adult.into(),
+            age_years: u16::MAX.into(),
+            gender: Gender::Neuter.into(),
+            size: Size::Tiny {
+                height: u16::MAX,
+                weight: u16::MAX,
+            }
+            .into(),
+            ..Default::default()
+        };
 
         let mut rng = SmallRng::seed_from_u64(0);
 
@@ -198,9 +202,11 @@ mod test {
 
     #[test]
     fn regenerate_test_age_years_provided() {
-        let mut npc = Npc::default();
-        npc.species = Species::Human.into();
-        npc.age_years = u16::MAX.into();
+        let mut npc = NpcData {
+            species: Species::Human.into(),
+            age_years: u16::MAX.into(),
+            ..Default::default()
+        };
 
         let mut rng = SmallRng::seed_from_u64(0);
 

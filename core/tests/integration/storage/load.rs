@@ -57,18 +57,18 @@ fn npc_can_be_loaded_from_storage_with_location() {
     app.bulk_import(backup_data).unwrap();
 
     assert_eq!(
-        "<div class=\"thing-box npc\">
+        r#"<div class="thing-box npc" data-uuid="55a46566-1dc2-40a5-8138-ac7aa2a1ae9d">
 
 # Faman Halin
 *middle-aged human, he/him*
 
-**Species:** human\\
-**Gender:** masculine\\
-**Age:** 49 years\\
-**Size:** 5'9\", 189 lbs (medium)\\
+**Species:** human\
+**Gender:** masculine\
+**Age:** 49 years\
+**Size:** 5'9", 189 lbs (medium)\
 **Location:** 🏨 `The Moody Conjurer` (inn)
 
-</div>",
+</div>"#,
         app.command("Faman Halin").unwrap(),
     );
 }

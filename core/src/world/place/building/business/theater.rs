@@ -1,7 +1,8 @@
-use crate::world::{word, Demographics, Place};
+use crate::world::place::PlaceData;
+use crate::world::{word, Demographics};
 use rand::prelude::*;
 
-pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demographics) {
+pub fn generate(place: &mut PlaceData, rng: &mut impl Rng, _demographics: &Demographics) {
     place.name.replace_with(|_| name(rng));
 }
 

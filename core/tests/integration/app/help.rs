@@ -19,7 +19,7 @@ fn all_commands_are_valid() {
             .filter(|s| !s.contains('['))
         {
             // Basically, we just want to make sure all commands run successfully.
-            app.command(command).expect(&format!("{}", command));
+            app.command(command).expect(command);
         }
     }
 }

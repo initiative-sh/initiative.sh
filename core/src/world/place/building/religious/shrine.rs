@@ -1,9 +1,9 @@
 use crate::utils::pluralize;
-use crate::world::{word, word::ListGenerator};
-use crate::world::{Demographics, Place};
+use crate::world::place::PlaceData;
+use crate::world::{word, word::ListGenerator, Demographics};
 use rand::prelude::*;
 
-pub fn generate(place: &mut Place, rng: &mut impl Rng, _demographics: &Demographics) {
+pub fn generate(place: &mut PlaceData, rng: &mut impl Rng, _demographics: &Demographics) {
     place.name.replace_with(|_| name(rng));
 }
 

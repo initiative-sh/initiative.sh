@@ -277,7 +277,8 @@ mod test {
     use super::*;
     use crate::app::assert_autocomplete;
     use crate::storage::NullDataStore;
-    use crate::world::{Npc, ParsedThing};
+    use crate::world::npc::NpcData;
+    use crate::world::ParsedThing;
     use crate::Event;
     use tokio_test::block_on;
 
@@ -313,8 +314,8 @@ mod test {
         assert_eq!(
             Command::from(CommandMatches::new_canonical(CommandType::World(
                 WorldCommand::Create {
-                    thing: ParsedThing {
-                        thing: Npc::default().into(),
+                    parsed_thing_data: ParsedThing {
+                        thing_data: NpcData::default().into(),
                         unknown_words: Vec::new(),
                         word_count: 1,
                     },
@@ -375,15 +376,15 @@ mod test {
 
         assert_eq!(
             CommandType::World(WorldCommand::Create {
-                thing: ParsedThing {
-                    thing: Npc::default().into(),
+                parsed_thing_data: ParsedThing {
+                    thing_data: NpcData::default().into(),
                     unknown_words: Vec::new(),
                     word_count: 1,
                 },
             }),
             WorldCommand::Create {
-                thing: ParsedThing {
-                    thing: Npc::default().into(),
+                parsed_thing_data: ParsedThing {
+                    thing_data: NpcData::default().into(),
                     unknown_words: Vec::new(),
                     word_count: 1,
                 },
@@ -395,6 +396,6 @@ mod test {
     fn event_dispatcher(_event: Event) {}
 
     fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore::default(), &event_dispatcher)
+        AppMeta::new(NullDataStore, &event_dispatcher)
     }
 }

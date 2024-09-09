@@ -1,6 +1,8 @@
 use crate::utils::{capitalize, quoted_words, CaseInsensitiveStr};
 use crate::world::command::ParsedThing;
-use crate::world::{Field, Npc, Place};
+use crate::world::npc::NpcData;
+use crate::world::place::PlaceData;
+use crate::world::Field;
 use std::str::FromStr;
 
 fn split_name(input: &str) -> Option<(&str, &str)> {
@@ -46,11 +48,11 @@ fn split_name(input: &str) -> Option<(&str, &str)> {
     }
 }
 
-impl FromStr for ParsedThing<Place> {
+impl FromStr for ParsedThing<PlaceData> {
     type Err = ();
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        let mut place = Place::default();
+        let mut place = PlaceData::default();
         let mut unknown_words = Vec::new();
         let mut word_count = 0;
 
@@ -76,7 +78,7 @@ impl FromStr for ParsedThing<Place> {
 
         if unknown_words.is_empty() || unknown_words.len() <= word_count / 2 {
             Ok(ParsedThing {
-                thing: place,
+                thing_data: place,
                 unknown_words,
                 word_count,
             })
@@ -86,11 +88,11 @@ impl FromStr for ParsedThing<Place> {
     }
 }
 
-impl FromStr for ParsedThing<Npc> {
+impl FromStr for ParsedThing<NpcData> {
     type Err = ();
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        let mut npc = Npc::default();
+        let mut npc = NpcData::default();
         let mut unknown_words = Vec::new();
         let mut word_count = 0;
 
@@ -141,7 +143,7 @@ impl FromStr for ParsedThing<Npc> {
 
         if unknown_words.is_empty() || unknown_words.len() <= word_count / 2 {
             Ok(ParsedThing {
-                thing: npc,
+                thing_data: npc,
                 unknown_words,
                 word_count,
             })
@@ -160,10 +162,10 @@ mod test {
     #[test]
     fn place_from_str_test() {
         {
-            let place: ParsedThing<Place> = "inn".parse().unwrap();
+            let place: ParsedThing<PlaceData> = "inn".parse().unwrap();
             assert_eq!(
                 Field::Locked("inn".parse::<PlaceType>().ok()),
-                place.thing.subtype,
+                place.thing_data.subtype,
             );
             assert_eq!(0, place.unknown_words.len());
             assert_eq!(1, place.word_count);
@@ -171,48 +173,51 @@ mod test {
 
         {
             let place = "building named foo bar"
-                .parse::<ParsedThing<Place>>()
+                .parse::<ParsedThing<PlaceData>>()
                 .unwrap();
             assert_eq!(
                 Some("Foo bar"),
-                place.thing.name.value().map(|s| s.as_str()),
+                place.thing_data.name.value().map(|s| s.as_str()),
             );
             assert_eq!(0, place.unknown_words.len());
             assert_eq!(1, place.word_count);
         }
 
         {
-            let place: ParsedThing<Place> = "The Prancing Pony, an inn".parse().unwrap();
+            let place: ParsedThing<PlaceData> = "The Prancing Pony, an inn".parse().unwrap();
             assert_eq!(
                 Field::Locked(Some("The Prancing Pony".to_string())),
-                place.thing.name,
+                place.thing_data.name,
             );
             assert_eq!(
                 Field::Locked("inn".parse::<PlaceType>().ok()),
-                place.thing.subtype,
+                place.thing_data.subtype,
             );
             assert_eq!(0, place.unknown_words.len());
             assert_eq!(1, place.word_count);
         }
 
         {
-            let place: ParsedThing<Place> = "\"The Prancing Pony\", an inn".parse().unwrap();
+            let place: ParsedThing<PlaceData> = "\"The Prancing Pony\", an inn".parse().unwrap();
             assert_eq!(
                 Field::Locked(Some("The Prancing Pony".to_string())),
-                place.thing.name,
+                place.thing_data.name,
             );
             assert_eq!(
                 Field::Locked("inn".parse::<PlaceType>().ok()),
-                place.thing.subtype,
+                place.thing_data.subtype,
             );
             assert_eq!(0, place.unknown_words.len());
             assert_eq!(1, place.word_count);
         }
 
         {
-            let place: ParsedThing<Place> = "a place called home".parse().unwrap();
-            assert_eq!(Field::Locked(Some("Home".to_string())), place.thing.name);
-            assert_eq!(Some(&PlaceType::Any), place.thing.subtype.value());
+            let place: ParsedThing<PlaceData> = "a place called home".parse().unwrap();
+            assert_eq!(
+                Field::Locked(Some("Home".to_string())),
+                place.thing_data.name
+            );
+            assert_eq!(Some(&PlaceType::Any), place.thing_data.subtype.value());
             assert_eq!(0, place.unknown_words.len());
             assert_eq!(1, place.word_count);
         }
@@ -221,67 +226,73 @@ mod test {
     #[test]
     fn npc_from_str_test() {
         {
-            let npc: ParsedThing<Npc> = "npc".parse().unwrap();
-            assert_eq!(Npc::default(), npc.thing);
+            let npc: ParsedThing<NpcData> = "npc".parse().unwrap();
+            assert_eq!(NpcData::default(), npc.thing_data);
             assert_eq!(0, npc.unknown_words.len());
             assert_eq!(1, npc.word_count);
         }
         assert_eq!(
-            "npc".parse::<ParsedThing<Npc>>().unwrap(),
-            "NPC".parse::<ParsedThing<Npc>>().unwrap(),
+            "npc".parse::<ParsedThing<NpcData>>().unwrap(),
+            "NPC".parse::<ParsedThing<NpcData>>().unwrap(),
         );
 
         {
-            let npc: ParsedThing<Npc> = "elf".parse().unwrap();
-            assert_eq!(Field::Locked(Some(Species::Elf)), npc.thing.species);
+            let npc: ParsedThing<NpcData> = "elf".parse().unwrap();
+            assert_eq!(Field::Locked(Some(Species::Elf)), npc.thing_data.species);
             assert_eq!(0, npc.unknown_words.len());
             assert_eq!(1, npc.word_count);
         }
         assert_eq!(
-            "elf".parse::<ParsedThing<Npc>>().unwrap(),
-            "ELF".parse::<ParsedThing<Npc>>().unwrap(),
+            "elf".parse::<ParsedThing<NpcData>>().unwrap(),
+            "ELF".parse::<ParsedThing<NpcData>>().unwrap(),
         );
 
         {
-            let npc: ParsedThing<Npc> = "Potato Johnson, a non-binary elf".parse().unwrap();
+            let npc: ParsedThing<NpcData> = "Potato Johnson, a non-binary elf".parse().unwrap();
             assert_eq!(
                 Field::Locked(Some("Potato Johnson".to_string())),
-                npc.thing.name,
+                npc.thing_data.name,
             );
-            assert_eq!(Field::Locked(Some(Species::Elf)), npc.thing.species);
-            assert_eq!(Field::Locked(Some(Gender::NonBinaryThey)), npc.thing.gender);
+            assert_eq!(Field::Locked(Some(Species::Elf)), npc.thing_data.species);
+            assert_eq!(
+                Field::Locked(Some(Gender::NonBinaryThey)),
+                npc.thing_data.gender
+            );
             assert_eq!(0, npc.unknown_words.len());
             assert_eq!(2, npc.word_count);
         }
         assert_eq!(
             "Potato Johnson, a non-binary elf"
-                .parse::<ParsedThing<Npc>>()
+                .parse::<ParsedThing<NpcData>>()
                 .unwrap(),
             "Potato Johnson, A NON-BINARY ELF"
-                .parse::<ParsedThing<Npc>>()
+                .parse::<ParsedThing<NpcData>>()
                 .unwrap(),
         );
 
         {
-            let npc: ParsedThing<Npc> = "37-year-old boy named sue".parse().unwrap();
-            assert_eq!(Field::Locked(Some("Sue".to_string())), npc.thing.name);
-            assert_eq!(Field::Locked(Some(Gender::Masculine)), npc.thing.gender);
-            assert_eq!(Field::Locked(Some(Age::Child)), npc.thing.age);
-            assert_eq!(Field::Locked(Some(37)), npc.thing.age_years);
+            let npc: ParsedThing<NpcData> = "37-year-old boy named sue".parse().unwrap();
+            assert_eq!(Field::Locked(Some("Sue".to_string())), npc.thing_data.name);
+            assert_eq!(
+                Field::Locked(Some(Gender::Masculine)),
+                npc.thing_data.gender
+            );
+            assert_eq!(Field::Locked(Some(Age::Child)), npc.thing_data.age);
+            assert_eq!(Field::Locked(Some(37)), npc.thing_data.age_years);
             assert_eq!(0, npc.unknown_words.len());
             assert_eq!(2, npc.word_count);
         }
         assert_eq!(
             "37-year-old boy named sue"
-                .parse::<ParsedThing<Npc>>()
+                .parse::<ParsedThing<NpcData>>()
                 .unwrap(),
             "37-YEAR-OLD BOY NAMED sue"
-                .parse::<ParsedThing<Npc>>()
+                .parse::<ParsedThing<NpcData>>()
                 .unwrap(),
         );
 
         {
-            assert!("potato".parse::<ParsedThing<Npc>>().is_err());
+            assert!("potato".parse::<ParsedThing<NpcData>>().is_err());
         }
     }
 }

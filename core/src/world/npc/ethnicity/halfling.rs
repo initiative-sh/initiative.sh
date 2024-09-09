@@ -203,7 +203,7 @@ impl Generate for Ethnicity {
 mod test_generate_for_ethnicity {
     use super::*;
     use crate::world::npc::ethnicity::{regenerate, Ethnicity};
-    use crate::world::Npc;
+    use crate::world::npc::NpcData;
 
     #[test]
     fn gen_name_test() {
@@ -234,7 +234,7 @@ mod test_generate_for_ethnicity {
     }
 
     fn gen_name(rng: &mut impl Rng, age: &Age, gender: &Gender) -> String {
-        let mut npc = Npc::default();
+        let mut npc = NpcData::default();
         npc.gender.replace(*gender);
         npc.age.replace(*age);
         npc.ethnicity.replace(Ethnicity::Halfling);

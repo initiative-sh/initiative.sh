@@ -11,17 +11,14 @@ pub fn get_name(output: &str) -> String {
         .to_string()
 }
 
-#[allow(dead_code)]
 pub fn sync_app() -> SyncApp {
     sync_app_with_data_store(MemoryDataStore::default())
 }
 
-#[allow(dead_code)]
 pub fn sync_app_with_invalid_data_store() -> SyncApp {
-    sync_app_with_data_store(NullDataStore::default())
+    sync_app_with_data_store(NullDataStore)
 }
 
-#[allow(dead_code)]
 pub fn sync_app_with_data_store(data_store: impl DataStore + 'static) -> SyncApp {
     let mut app = SyncApp::new(data_store, &event_dispatcher);
     app.init();
@@ -38,7 +35,6 @@ pub struct SyncApp(App);
 
 fn event_dispatcher(_event: Event) {}
 
-#[allow(dead_code)]
 impl SyncApp {
     pub fn new<F: Fn(Event)>(
         data_store: impl DataStore + 'static,

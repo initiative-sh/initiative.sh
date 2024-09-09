@@ -237,6 +237,6 @@ mod test {
     fn event_dispatcher(_event: Event) {}
 
     fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore::default(), &event_dispatcher)
+        AppMeta::new(NullDataStore, &event_dispatcher)
     }
 }

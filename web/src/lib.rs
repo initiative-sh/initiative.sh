@@ -88,7 +88,7 @@ fn set_root_element_id(element_id: String) {
 }
 
 fn get_root_element() -> Option<Element> {
-    #[allow(static_mut_refs)]
+    #[expect(static_mut_refs)]
     if let Some(element_id) = unsafe { &ROOT_ELEMENT_ID } {
         window()
             .and_then(|w| w.document())

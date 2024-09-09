@@ -1,17 +1,14 @@
 pub mod demographics;
 pub mod npc;
 pub mod place;
+pub mod thing;
 
 pub use command::{ParsedThing, WorldCommand};
 pub use demographics::Demographics;
 pub use field::Field;
-pub use npc::{Npc, NpcRelations};
-pub use place::{Place, PlaceRelations, Uuid as PlaceUuid};
-pub use thing::{Thing, ThingRelations};
 
 mod command;
 mod field;
-mod thing;
 mod word;
 
 use rand::Rng;

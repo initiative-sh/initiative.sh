@@ -1,11 +1,13 @@
 use crate::utils::CaseInsensitiveStr;
 use crate::{Thing, Uuid};
 use async_trait::async_trait;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 #[derive(Default)]
 pub struct NullDataStore;
 
+#[cfg_attr(test, derive(Debug, PartialEq))]
 #[derive(Clone, Default)]
 pub struct MemoryDataStore {
     pub things: std::rc::Rc<std::cell::RefCell<HashMap<Uuid, Thing>>>,
@@ -63,6 +65,15 @@ impl DataStore for NullDataStore {
     }
 }
 
+impl MemoryDataStore {
+    pub fn snapshot(&self) -> (HashMap<Uuid, Thing>, HashMap<String, String>) {
+        (
+            self.things.borrow().clone(),
+            self.key_values.borrow().clone(),
+        )
+    }
+}
+
 #[async_trait(?Send)]
 impl DataStore for MemoryDataStore {
     async fn health_check(&self) -> Result<(), ()> {
@@ -74,16 +85,12 @@ impl DataStore for MemoryDataStore {
     }
 
     async fn edit_thing(&mut self, thing: &Thing) -> Result<(), ()> {
-        if let Some(uuid) = thing.uuid() {
-            self.things
-                .borrow_mut()
-                .entry(*uuid)
-                .and_modify(|t| *t = thing.clone())
-                .or_insert_with(|| thing.clone());
-            Ok(())
-        } else {
-            Err(())
-        }
+        self.things
+            .borrow_mut()
+            .entry(thing.uuid)
+            .and_modify(|t| *t = thing.clone())
+            .or_insert_with(|| thing.clone());
+        Ok(())
     }
 
     async fn get_all_the_things(&self) -> Result<Vec<Thing>, ()> {
@@ -124,15 +131,11 @@ impl DataStore for MemoryDataStore {
     }
 
     async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()> {
-        if let Some(uuid) = thing.uuid() {
-            let mut things = self.things.borrow_mut();
+        let mut things = self.things.borrow_mut();
 
-            if things.contains_key(uuid) {
-                Err(())
-            } else {
-                things.insert(*uuid, thing.clone());
-                Ok(())
-            }
+        if let Entry::Vacant(e) = things.entry(thing.uuid) {
+            e.insert(thing.clone());
+            Ok(())
         } else {
             Err(())
         }
@@ -188,7 +191,8 @@ pub trait DataStore {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::world::{Npc, Place};
+    use crate::world::npc::{Npc, NpcData};
+    use crate::world::place::{Place, PlaceData};
     use tokio_test::block_on;
 
     const TEST_UUID: Uuid = Uuid::from_u128(u128::MAX);
@@ -222,9 +226,11 @@ mod test {
         let mut ds = MemoryDataStore::default();
 
         let gandalf_the_grey = Npc {
-            uuid: Some(TEST_UUID.into()),
-            name: "Gandalf the Grey".into(),
-            ..Default::default()
+            uuid: TEST_UUID,
+            data: NpcData {
+                name: "Gandalf the Grey".into(),
+                ..Default::default()
+            },
         }
         .into();
 
@@ -244,9 +250,11 @@ mod test {
             block_on(
                 ds.save_thing(
                     &Npc {
-                        uuid: Some(Uuid::new_v4().into()),
-                        name: name.into(),
-                        ..Default::default()
+                        uuid: Uuid::new_v4(),
+                        data: NpcData {
+                            name: name.into(),
+                            ..Default::default()
+                        },
                     }
                     .into(),
                 ),
@@ -280,15 +288,19 @@ mod test {
         let mut ds = MemoryDataStore::default();
 
         let gandalf_the_grey = Npc {
-            uuid: Some(TEST_UUID.into()),
-            name: "Gandalf the Grey".into(),
-            ..Default::default()
+            uuid: TEST_UUID,
+            data: NpcData {
+                name: "Gandalf the Grey".into(),
+                ..Default::default()
+            },
         };
 
         let gandalf_the_white = Npc {
-            uuid: Some(TEST_UUID.into()),
-            name: "Gandalf the White".into(),
-            ..Default::default()
+            uuid: TEST_UUID,
+            data: NpcData {
+                name: "Gandalf the White".into(),
+                ..Default::default()
+            },
         };
 
         assert_eq!(Ok(()), block_on(ds.edit_thing(&gandalf_the_grey.into())));
@@ -299,15 +311,12 @@ mod test {
             Some("Gandalf the White"),
             block_on(ds.get_all_the_things())
                 .unwrap()
-                .iter()
-                .next()
+                .first()
                 .unwrap()
                 .name()
                 .value()
                 .map(|s| s.as_str()),
         );
-
-        assert_eq!(Err(()), block_on(ds.edit_thing(&Npc::default().into())));
     }
 
     #[test]
@@ -319,12 +328,12 @@ mod test {
         assert_eq!(Ok(()), block_on(ds.save_thing(&person(Uuid::from_u128(3)))));
 
         let mut all_the_things = block_on(ds.get_all_the_things()).unwrap();
-        all_the_things.sort_by(|a, b| a.uuid().cmp(&b.uuid()));
+        all_the_things.sort_by(|a, b| a.uuid.cmp(&b.uuid));
         assert_eq!(3, all_the_things.len());
         all_the_things
             .iter()
             .zip(1u128..)
-            .for_each(|(t, i)| assert_eq!(Some(&Uuid::from_u128(i)), t.uuid()));
+            .for_each(|(t, i)| assert_eq!(Uuid::from_u128(i), t.uuid));
     }
 
     #[test]
@@ -353,18 +362,35 @@ mod test {
         assert_eq!(Ok(None), block_on(ds.get_value("somekey")));
     }
 
+    #[test]
+    fn memory_clone_test() {
+        let mut ds1 = MemoryDataStore::default();
+        let ds2 = ds1.clone();
+
+        assert_eq!(Ok(()), block_on(ds1.set_value("somekey", "abc")));
+        assert_eq!(
+            Ok(Some("abc".to_string())),
+            block_on(ds2.get_value("somekey"))
+        );
+
+        let uuid = Uuid::new_v4();
+        let person = person(uuid);
+        assert_eq!(Ok(()), block_on(ds1.save_thing(&person)));
+        assert_eq!(Ok(Some(person)), block_on(ds2.get_thing_by_uuid(&uuid)));
+    }
+
     fn person(uuid: Uuid) -> Thing {
         Npc {
-            uuid: Some(uuid.into()),
-            ..Default::default()
+            uuid,
+            data: NpcData::default(),
         }
         .into()
     }
 
     fn place(uuid: Uuid) -> Thing {
         Place {
-            uuid: Some(uuid.into()),
-            ..Default::default()
+            uuid,
+            data: PlaceData::default(),
         }
         .into()
     }

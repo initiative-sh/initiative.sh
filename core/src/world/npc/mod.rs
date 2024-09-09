@@ -12,15 +12,22 @@ mod size;
 mod species;
 mod view;
 
-use super::{Demographics, Field, Generate, Place, PlaceUuid};
+use crate::world::place::Place;
+use crate::world::{Demographics, Field, Generate};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-initiative_macros::uuid!();
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct Npc {
+    pub uuid: Uuid,
+
+    #[serde(flatten)]
+    pub data: NpcData,
+}
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-pub struct Npc {
-    pub uuid: Option<Uuid>,
+pub struct NpcData {
     pub name: Field<String>,
     pub gender: Field<Gender>,
     pub age: Field<Age>,
@@ -28,8 +35,8 @@ pub struct Npc {
     pub size: Field<Size>,
     pub species: Field<Species>,
     pub ethnicity: Field<Ethnicity>,
-    pub location_uuid: Field<PlaceUuid>,
-    // pub home: Field<PlaceUuid>,
+    pub location_uuid: Field<Uuid>,
+    // pub home: Field<Uuid>,
     // pub occupation: Field<Role>,
     // pub languages: Field<Vec<String>>,
     // pub parents: Field<Vec<Uuid>>,
@@ -45,6 +52,36 @@ pub struct NpcRelations {
 
 impl Npc {
     pub fn display_summary(&self) -> SummaryView {
+        self.data.display_summary()
+    }
+
+    pub fn display_description(&self) -> DescriptionView {
+        self.data.display_description()
+    }
+
+    pub fn display_details(&self, relations: NpcRelations) -> DetailsView {
+        self.data.display_details(self.uuid, relations)
+    }
+
+    pub fn gender(&self) -> Gender {
+        self.data.gender()
+    }
+
+    pub fn get_words() -> &'static [&'static str] {
+        NpcData::get_words()
+    }
+
+    pub fn lock_all(&mut self) {
+        self.data.lock_all()
+    }
+
+    pub fn apply_diff(&mut self, diff: &mut NpcData) {
+        self.data.apply_diff(diff)
+    }
+}
+
+impl NpcData {
+    pub fn display_summary(&self) -> SummaryView {
         SummaryView::new(self)
     }
 
@@ -52,8 +89,8 @@ impl Npc {
         DescriptionView::new(self)
     }
 
-    pub fn display_details(&self, relations: NpcRelations) -> DetailsView {
-        DetailsView::new(self, relations)
+    pub fn display_details(&self, uuid: Uuid, relations: NpcRelations) -> DetailsView {
+        DetailsView::new(self, uuid, relations)
     }
 
     pub fn gender(&self) -> Gender {
@@ -68,8 +105,7 @@ impl Npc {
     }
 
     pub fn lock_all(&mut self) {
-        let Self {
-            uuid: _,
+        let NpcData {
             name,
             gender,
             age,
@@ -91,8 +127,7 @@ impl Npc {
     }
 
     pub fn apply_diff(&mut self, diff: &mut Self) {
-        let Self {
-            uuid: _,
+        let NpcData {
             name,
             gender,
             age,
@@ -114,7 +149,7 @@ impl Npc {
     }
 }
 
-impl Generate for Npc {
+impl Generate for NpcData {
     fn regenerate(&mut self, rng: &mut impl Rng, demographics: &Demographics) {
         match (self.species.is_locked(), self.ethnicity.is_locked()) {
             (false, false) => {
@@ -156,7 +191,7 @@ mod test {
         let mut rng = SmallRng::seed_from_u64(0);
         let demographics = Demographics::default();
 
-        let npc = Npc::generate(&mut rng, &demographics);
+        let npc = NpcData::generate(&mut rng, &demographics);
 
         assert!(npc.species.is_some());
         assert!(npc.name.is_some());
@@ -164,7 +199,7 @@ mod test {
 
     #[test]
     fn gender_test() {
-        let mut npc = Npc::default();
+        let mut npc = NpcData::default();
         assert_eq!(Gender::NonBinaryThey, npc.gender());
 
         npc.gender.replace(Gender::Feminine);
@@ -188,57 +223,57 @@ mod test {
     #[test]
     fn apply_diff_test_no_change() {
         let mut npc = gandalf();
-        let mut diff = Npc::default();
+        let mut diff = NpcData::default();
 
-        npc.apply_diff(&mut diff);
+        npc.data.apply_diff(&mut diff);
 
         assert_eq!(gandalf(), npc);
-        assert_eq!(Npc::default(), diff);
+        assert_eq!(NpcData::default(), diff);
     }
 
     #[test]
     fn apply_diff_test_from_empty() {
-        let mut gandalf = gandalf();
-        gandalf.uuid = None;
+        let gandalf = gandalf();
 
-        let mut npc = Npc::default();
-        let mut diff = gandalf.clone();
+        let mut npc = NpcData::default();
+        let mut diff = gandalf.data.clone();
 
         npc.apply_diff(&mut diff);
 
-        assert_eq!(gandalf, npc);
+        assert_eq!(gandalf.data, npc);
 
-        let mut empty_locked = Npc::default();
+        let mut empty_locked = NpcData::default();
         empty_locked.lock_all();
         assert_eq!(empty_locked, diff);
     }
 
     fn gandalf() -> Npc {
         Npc {
-            uuid: Some(uuid::Uuid::nil().into()),
-            name: "Gandalf the Grey".into(),
-            gender: Gender::Neuter.into(),
-            age: Age::Geriatric.into(),
-            age_years: u16::MAX.into(),
-            size: Size::Medium {
-                height: 72,
-                weight: 200,
-            }
-            .into(),
-            species: Species::Human.into(),
-            ethnicity: Ethnicity::Human.into(),
-            location_uuid: None.into(),
+            uuid: uuid::Uuid::nil(),
+            data: NpcData {
+                name: "Gandalf the Grey".into(),
+                gender: Gender::Neuter.into(),
+                age: Age::Geriatric.into(),
+                age_years: u16::MAX.into(),
+                size: Size::Medium {
+                    height: 72,
+                    weight: 200,
+                }
+                .into(),
+                species: Species::Human.into(),
+                ethnicity: Ethnicity::Human.into(),
+                location_uuid: None.into(),
+            },
         }
     }
 
     #[test]
     fn lock_all_test() {
-        let mut npc = Npc::default();
+        let mut npc = NpcData::default();
         npc.lock_all();
 
         assert_eq!(
-            Npc {
-                uuid: None,
+            NpcData {
                 name: Field::Locked(None),
                 gender: Field::Locked(None),
                 age: Field::Locked(None),

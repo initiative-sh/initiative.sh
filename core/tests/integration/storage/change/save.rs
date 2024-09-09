@@ -59,7 +59,7 @@ fn npc_is_saved_to_storage_by_alias() {
 
 #[test]
 fn npc_can_be_saved_with_invalid_data_store() {
-    let mut app = sync_app_with_data_store(NullDataStore::default());
+    let mut app = sync_app_with_data_store(NullDataStore);
 
     let generated_output = app.command("npc").unwrap();
     let npc_name = generated_output
@@ -88,7 +88,7 @@ fn npc_can_be_saved_with_invalid_data_store() {
 
 #[test]
 fn npc_can_be_saved_by_alias_with_invalid_data_store() {
-    let mut app = sync_app_with_data_store(NullDataStore::default());
+    let mut app = sync_app_with_data_store(NullDataStore);
 
     let generated_output = app.command("npc").unwrap();
     let npc_name = generated_output

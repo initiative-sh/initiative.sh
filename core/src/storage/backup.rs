@@ -1,10 +1,10 @@
 use super::repository::{Change, Error as RepositoryError, KeyValue, Repository};
-use crate::world::Thing;
+use crate::world::thing::{Thing, ThingData};
 use futures::join;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BackupData {
     #[serde(rename(serialize = "_"), skip_deserializing)]
     pub comment: &'static str,
@@ -15,7 +15,7 @@ pub struct BackupData {
     pub key_value: KeyValueBackup,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct KeyValueBackup {
     pub time: Option<String>,
 }
@@ -54,21 +54,31 @@ pub async fn import(
 
     for thing in data.things.into_iter() {
         match (
-            match thing {
-                Thing::Npc(_) => &mut stats.npc_stats,
-                Thing::Place(_) => &mut stats.place_stats,
+            match &thing.data {
+                ThingData::Npc(_) => &mut stats.npc_stats,
+                ThingData::Place(_) => &mut stats.place_stats,
             },
-            repo.modify_without_undo(Change::CreateAndSave { thing })
-                .await,
+            repo.modify_without_undo(Change::CreateAndSave {
+                thing_data: thing.data,
+                uuid: Some(thing.uuid),
+            })
+            .await,
         ) {
             (stat, Ok(_)) => stat.created += 1,
-            (stat, Err((Change::CreateAndSave { thing }, RepositoryError::NameAlreadyExists))) => {
-                let name = thing.name().to_string();
+            (
+                stat,
+                Err((
+                    Change::CreateAndSave { thing_data, .. },
+                    RepositoryError::NameAlreadyExists(existing_thing)
+                    | RepositoryError::UuidAlreadyExists(existing_thing),
+                )),
+            ) => {
+                let name = thing_data.name().to_string();
                 match repo
                     .modify_without_undo(Change::Edit {
                         name,
-                        uuid: None,
-                        diff: thing,
+                        uuid: Some(existing_thing.uuid),
+                        diff: thing_data,
                     })
                     .await
                 {

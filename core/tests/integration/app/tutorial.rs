@@ -122,15 +122,16 @@ fn cancel_after_steps(steps: usize) {
             .to_string();
     }
 
-    assert_eq!(
-        "The tutorial has been cancelled.",
-        app.command("cancel").unwrap().trim(),
-    );
+    println!("> cancel\n");
+    let cancel_result = app.command("cancel").unwrap();
+    println!("{}", cancel_result);
+
+    assert_eq!("The tutorial has been cancelled.", cancel_result.trim());
 
     let journal_output = app.command("journal").unwrap();
     assert!(
         journal_output.contains("Your journal is currently empty."),
-        "{}",
+        "The journal should be empty.\n\n{}",
         journal_output,
     );
 }
