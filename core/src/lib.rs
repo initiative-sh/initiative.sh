@@ -14,6 +14,7 @@ pub use storage::{DataStore, MemoryDataStore, NullDataStore};
 pub use uuid::Uuid;
 pub use world::thing::Thing;
 
+mod command;
 mod reference;
 mod storage;
 mod time;
