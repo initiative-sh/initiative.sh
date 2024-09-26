@@ -1,17 +1,27 @@
 use super::Word;
+use std::iter::Peekable;
 use std::str::CharIndices;
 
-pub fn quoted_words(phrase: &str) -> QuotedWordIterator<'_> {
-    QuotedWordIterator::new(phrase)
+pub fn quoted_words(phrase: &str) -> QuotedWordIter<'_> {
+    QuotedWordIter::new(phrase)
 }
 
-pub struct QuotedWordIterator<'a> {
+pub fn quoted_phrases(phrase: &str) -> QuotedPhrasesIter<'_> {
+    QuotedPhrasesIter::new(phrase)
+}
+
+pub struct QuotedWordIter<'a> {
     phrase: &'a str,
     char_iter: CharIndices<'a>,
     quote_len: Option<usize>,
 }
 
-impl<'a> QuotedWordIterator<'a> {
+pub struct QuotedPhrasesIter<'a> {
+    first: Option<Word<'a>>,
+    inner: Peekable<QuotedWordIter<'a>>,
+}
+
+impl<'a> QuotedWordIter<'a> {
     fn new(phrase: &'a str) -> Self {
         Self {
             phrase,
@@ -21,7 +31,16 @@ impl<'a> QuotedWordIterator<'a> {
     }
 }
 
-impl<'a> Iterator for QuotedWordIterator<'a> {
+impl<'a> QuotedPhrasesIter<'a> {
+    fn new(phrase: &'a str) -> Self {
+        let mut inner = QuotedWordIter::new(phrase).peekable();
+        let first = inner.peek().cloned();
+
+        QuotedPhrasesIter { first, inner }
+    }
+}
+
+impl<'a> Iterator for QuotedWordIter<'a> {
     type Item = Word<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -115,6 +134,29 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
     }
 }
 
+impl<'a> Iterator for QuotedPhrasesIter<'a> {
+    type Item = Word<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let Some(first_word) = &self.first else {
+            return None;
+        };
+        let Some(word) = self.inner.next() else {
+            return None;
+        };
+
+        if &word == first_word {
+            Some(word)
+        } else {
+            Some(Word::new(
+                first_word.phrase,
+                first_word.range().start..word.range().end,
+                first_word.range().start..word.range().end,
+            ))
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -139,6 +181,22 @@ mod test {
         let word = input_iter.next().unwrap();
         assert_eq!("Johnny Cash", word.as_str());
         assert_eq!(14..27, *word.range());
+
+        assert!(input_iter.next().is_none());
+    }
+
+    #[test]
+    fn quoted_phrase_iter_test() {
+        let input = "  \"Medium\" Dave  ";
+        let mut input_iter = quoted_phrases(input);
+
+        let word = input_iter.next().unwrap();
+        assert_eq!("Medium", word.as_str());
+        assert_eq!(2..10, *word.range());
+
+        let word = input_iter.next().unwrap();
+        assert_eq!("\"Medium\" Dave", word.as_str());
+        assert_eq!(2..15, *word.range());
 
         assert!(input_iter.next().is_none());
     }

@@ -13,6 +13,7 @@ mod species;
 mod view;
 
 use crate::world::place::Place;
+use crate::world::thing::Thing;
 use crate::world::{Demographics, Field, Generate};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -146,6 +147,13 @@ impl NpcData {
         species.apply_diff(&mut diff.species);
         ethnicity.apply_diff(&mut diff.ethnicity);
         location_uuid.apply_diff(&mut diff.location_uuid);
+    }
+
+    pub fn into_thing(self, uuid: Uuid) -> Thing {
+        Thing {
+            uuid: uuid,
+            data: self.into(),
+        }
     }
 }
 

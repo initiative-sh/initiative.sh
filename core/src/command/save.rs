@@ -2,21 +2,37 @@ use super::token::{MatchType, Token, TokenType};
 use super::Command;
 
 use crate::app::{AppMeta, AutocompleteSuggestion};
+use crate::storage::{RecordSource, ThingType};
 
-pub struct About;
+use std::iter;
 
-impl Command for About {
+pub struct Save;
+
+impl Command for Save {
     type Marker = ();
 
     fn token<'a>(&self) -> Token<'a, Self::Marker> {
         Token {
-            token_type: TokenType::Word("about"),
+            token_type: TokenType::Phrase(&[
+                Token {
+                    token_type: TokenType::Word("save"),
+                    marker: (),
+                },
+                Token {
+                    token_type: TokenType::Name(RecordSource::Recent, ThingType::Any),
+                    marker: (),
+                },
+            ]),
             marker: (),
         }
     }
 
-    fn autocomplete(&self, _match_type: MatchType<Self::Marker>) -> Option<AutocompleteSuggestion> {
-        Some(("about", "about initiative.sh").into())
+    fn autocomplete(&self, match_type: MatchType<Self::Marker>) -> Option<AutocompleteSuggestion> {
+        match match_type {
+            MatchType::Partial(..) => todo!(),
+            MatchType::Exact(..) => todo!(),
+            MatchType::Overflow(..) => todo!(),
+        }
     }
 
     async fn run<'a>(
@@ -24,19 +40,18 @@ impl Command for About {
         _token_match: MatchType<'a, Self::Marker>,
         _app_meta: &mut AppMeta,
     ) -> Result<String, String> {
-        Ok(include_str!("../../../data/about.md")
-            .trim_end()
-            .to_string())
+        todo!()
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::super::autocomplete;
+    use super::super::test::{assert_stream_empty, assert_stream_eq};
     use super::*;
 
     use crate::app::{AppMeta, Event};
-    use crate::storage::NullDataStore;
+    use crate::storage::MemoryDataStore;
 
     #[tokio::test]
     async fn autocomplete_test() {

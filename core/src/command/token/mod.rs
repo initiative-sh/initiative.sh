@@ -1,42 +1,44 @@
+mod any_phrase;
+mod any_word;
+mod name;
+mod or;
+mod word;
+
 use crate::app::AppMeta;
 use crate::storage::{RecordSource, ThingType};
-use crate::utils::CaseInsensitiveStr;
 use crate::world::thing::Thing;
 
-use futures::pin_mut;
+use futures::prelude::*;
 
-//use futures::task::{Context, Poll};
-use async_stream::stream;
-use futures::stream::{self, Stream, StreamExt};
-
-use std::marker::PhantomData;
+use std::pin::Pin;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Token<M> {
-    token_type: TokenType<M>,
-    marker: M,
+pub struct Token<'a, M> {
+    pub token_type: TokenType<'a, M>,
+    pub marker: M,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Match<'a, M> {
-    token: &'a Token<M>,
+    token: &'a Token<'a, M>,
     phrase: &'a str,
     meta: Meta<'a, M>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MatchType<'a, M> {
-    Full(Match<'a, M>),
+    Overflow(Match<'a, M>, &'a str),
+    Exact(Match<'a, M>),
     Partial(Match<'a, M>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum TokenType<M> {
+pub enum TokenType<'a, M> {
     /// One or more tokens, in any order but without repetition
-    AnyOf(Vec<Token<M>>),
+    AnyOf(&'a [Token<'a, M>]),
 
     /// One or more tokens, in any order with repetition
-    AnyOfRepeated(Vec<Token<M>>),
+    AnyOfRepeated(&'a [Token<'a, M>]),
 
     /// Any sequence of words
     AnyPhrase,
@@ -48,13 +50,13 @@ pub enum TokenType<M> {
     Name(RecordSource, ThingType),
 
     /// Any one of the tokens
-    Or(Vec<Token<M>>),
+    Or(&'a [Token<'a, M>]),
 
     /// The exact sequence of tokens
-    Phrase(Vec<Token<M>>),
+    Phrase(&'a [Token<'a, M>]),
 
     /// A literal word
-    Word(&'static str),
+    Word(&'a str),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -62,88 +64,75 @@ pub enum Meta<'a, M> {
     None,
     Thing(Thing),
     Sequence(Vec<Match<'a, M>>),
+    Single(Box<Match<'a, M>>),
 }
 
-impl<M> Token<M> {
-    pub fn match_partial<'a>(
+impl<'a, M> Token<'a, M> {
+    pub fn match_input(
         &'a self,
         input: &'a str,
         app_meta: &'a AppMeta,
-    ) -> impl Stream<Item = MatchType<'a, M>> {
-        todo!();
-        /*
-        stream! {
-            match &self.token_type {
-                TokenType::AnyOf(tokens) => {
-                    let streams = tokens.into_iter().map(|token| token.match_partial(input, app_meta));
-                    for await token_match in stream::select_all::select_all(streams) {
-                        yield token_match;
-                    }
-                }
-                TokenType::Name(record_source, thing_type) => {
-                    for result in app_meta.repository.get_by_name_start((input, *record_source, *thing_type)).await.into_iter().flatten() {
-                        let is_full_match = result.thing.name().value().map_or(false, |s| s.eq_ci(input));
-
-                        let match_result = Match {
-                            token: self,
-                            phrase: input,
-                            meta: Meta::Thing(result.thing),
-                        };
-
-                        yield if is_full_match {
-                            MatchType::Full(match_result)
-                        } else {
-                            MatchType::Partial(match_result)
-                        };
-                    }
-                }
-                _ => todo!(),
-            }
+    ) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>> {
+        match &self.token_type {
+            TokenType::AnyOf(..) => todo!(),
+            TokenType::AnyOfRepeated(..) => todo!(),
+            TokenType::AnyPhrase => any_phrase::match_input(self, input),
+            TokenType::AnyWord => any_word::match_input(self, input),
+            TokenType::Name(..) => name::match_input(self, input, app_meta),
+            TokenType::Or(..) => or::match_input(self, input, app_meta),
+            TokenType::Phrase(..) => todo!(),
+            TokenType::Word(..) => word::match_input(self, input),
         }
-        */
     }
 }
 
-struct Full;
-
-struct Partial;
-
-enum TokenMatchStream<'a, T, M> {
-    Name(NameMatchStream<'a, T, M>),
-}
-
-struct NameMatchStream<'a, T, M> {
-    stream: Box<dyn Stream<Item = MatchType<'a, M>>>,
-    _phantom: PhantomData<T>,
-}
-
-impl<'a, T, M> NameMatchStream<'a, T, M> {
-    pub fn new(
-        input: &'a str,
-        app_meta: &'a AppMeta,
-        token: &'a Token<M>,
-        record_source: RecordSource,
-        thing_type: ThingType,
-    ) -> Self {
-        Self {
-            stream: Box::new(stream! {
-                for result in app_meta.repository.get_by_name_start((input, record_source, thing_type)).await.into_iter().flatten() {
-                    let is_full_match = result.thing.name().value().map_or(false, |s| s.eq_ci(input));
-
-                    let match_result = Match {
-                        token,
-                        phrase: input,
-                        meta: Meta::Thing(result.thing),
-                    };
-
-                    yield if is_full_match {
-                        MatchType::Full(match_result)
-                    } else {
-                        MatchType::Partial(match_result)
-                    };
-                }
-            }),
-            _phantom: PhantomData,
+impl<'a, M> MatchType<'a, M> {
+    pub fn map<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce(Match<'a, M>) -> Match<'a, M>,
+    {
+        match self {
+            MatchType::Overflow(token_match, overflow) => {
+                MatchType::Overflow(f(token_match), overflow)
+            }
+            MatchType::Exact(token_match) => MatchType::Exact(f(token_match)),
+            MatchType::Partial(token_match) => MatchType::Partial(f(token_match)),
         }
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+
+    pub async fn assert_stream_eq<'a, M>(
+        mut expect_results: Vec<MatchType<'a, M>>,
+        stream: Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>,
+    ) where
+        M: std::fmt::Debug + std::cmp::PartialEq,
+    {
+        for match_type in stream.collect::<Vec<_>>().await {
+            let Some(index) = expect_results
+                .iter()
+                .position(|expect_result| expect_result == &match_type)
+            else {
+                panic!("Not found in expected results: {:?}", match_type);
+            };
+            expect_results.swap_remove(index);
+        }
+
+        assert_eq!(
+            Vec::<MatchType<M>>::new(),
+            expect_results,
+            "Expected all results to be exhausted",
+        );
+    }
+
+    pub async fn assert_stream_empty<'a, M>(
+        stream: Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>,
+    ) where
+        M: std::fmt::Debug + std::cmp::PartialEq,
+    {
+        assert_stream_eq(Vec::<MatchType<'a, M>>::new(), stream).await;
     }
 }

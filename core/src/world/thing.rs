@@ -170,6 +170,13 @@ impl ThingData {
 
         Ok(())
     }
+
+    pub fn into_thing(self, uuid: Uuid) -> Thing {
+        Thing {
+            uuid: uuid,
+            data: self,
+        }
+    }
 }
 
 impl From<Npc> for Thing {

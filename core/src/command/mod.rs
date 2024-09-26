@@ -1,24 +1,34 @@
 mod about;
+mod save;
 
 mod token;
 
-/*
 use std::iter;
 use std::pin::{pin, Pin};
 
 use crate::app::{AppMeta, AutocompleteSuggestion};
 
-use token::Token;
+use token::{Match, MatchType, Token};
 
-use futures::future::FutureExt;
-use futures::stream::{SelectAll, Stream, StreamExt};
+use async_stream::stream;
+use futures::pin_mut;
+use futures::prelude::*;
 
 trait Command {
-    async fn autocomplete(
-        self,
-        input: &str,
-        app_meta: &AppMeta,
-    ) -> impl Stream<Item = AutocompleteSuggestion> + Unpin;
+    type Marker;
+
+    fn token<'a>(&self) -> Token<'a, Self::Marker>;
+
+    fn autocomplete<'a>(
+        &self,
+        token_match: MatchType<'a, Self::Marker>,
+    ) -> Option<AutocompleteSuggestion>;
+
+    async fn run<'a>(
+        &self,
+        token_match: MatchType<'a, Self::Marker>,
+        app_meta: &mut AppMeta,
+    ) -> Result<String, String>;
 }
 
 fn commands() -> impl Iterator<Item = impl Command> {
@@ -26,15 +36,21 @@ fn commands() -> impl Iterator<Item = impl Command> {
 }
 
 pub async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
-    let mut select = SelectAll::new();
-    let mut command_streams = Vec::new();
+    let stream = stream::iter(commands()).flat_map(|command| {
+        stream! {
+            let token = command.token();
+            for await token_match in token.match_input(input, app_meta) {
+                if !matches!(token_match, MatchType::Overflow(..)) {
+                    if let Some(suggestion) = command.autocomplete(token_match) {
+                        yield suggestion;
+                    }
+                }
+            }
+        }
+    });
 
-    for command in commands() {
-        let stream = command.autocomplete(input, app_meta).into_stream();
-        pin!(stream);
-        select.push(stream);
-    }
-
-    Vec::new()
+    let mut suggestions: Vec<_> = stream.collect().await;
+    suggestions.sort();
+    suggestions.truncate(10);
+    suggestions
 }
-*/

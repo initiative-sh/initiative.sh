@@ -1,5 +1,5 @@
 pub use case_insensitive_str::CaseInsensitiveStr;
-pub use quoted_word_iter::quoted_words;
+pub use quoted_word_iter::{quoted_phrases, quoted_words};
 
 mod case_insensitive_str;
 mod quoted_word_iter;
@@ -34,6 +34,7 @@ pub fn pluralize(word: &str) -> (&str, &str) {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Word<'a> {
     phrase: &'a str,
     inner_range: Range<usize>,
@@ -53,11 +54,56 @@ impl<'a> Word<'a> {
         &self.phrase[self.inner_range.clone()]
     }
 
+    pub fn as_original_str(&'a self) -> &'a str {
+        &self.phrase[self.outer_range.clone()]
+    }
+
     pub fn as_own_str<'b>(&'a self, phrase: &'b str) -> &'b str {
         &phrase[self.inner_range.clone()]
     }
 
+    pub fn as_original_own_str<'b>(&'a self, phrase: &'b str) -> &'b str {
+        &phrase[self.outer_range.clone()]
+    }
+
     pub fn range(&'a self) -> &'a Range<usize> {
         &self.outer_range
+    }
+
+    pub fn is_quoted(&self) -> bool {
+        self.inner_range != self.outer_range
+    }
+
+    pub fn is_at_end(&self) -> bool {
+        self.inner_range.end == self.phrase.len()
+    }
+
+    pub fn completes_to_ci<'b, W>(&self, other: W) -> bool
+    where
+        W: Into<Word<'b>>,
+    {
+        let other: Word = other.into();
+
+        other.as_str().starts_with_ci(self.as_str()) && self.is_at_end()
+    }
+}
+
+impl<'a> From<&'a str> for Word<'a> {
+    fn from(input: &'a str) -> Word<'a> {
+        Word {
+            phrase: input,
+            inner_range: 0..input.len(),
+            outer_range: 0..input.len(),
+        }
+    }
+}
+
+impl<'a> From<&'a String> for Word<'a> {
+    fn from(input: &'a String) -> Word<'a> {
+        Word {
+            phrase: input,
+            inner_range: 0..input.len(),
+            outer_range: 0..input.len(),
+        }
     }
 }

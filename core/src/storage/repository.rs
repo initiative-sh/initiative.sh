@@ -313,7 +313,16 @@ impl Repository {
     }
 
     /// Get the Thing from saved or recent with a given name. (There should be only one.)
-    pub async fn get_by_name(&self, name: &str) -> Result<Record, Error> {
+    pub async fn get_by_name<'a>(
+        &self,
+        args: impl Into<GetByNameArgs<'a>>,
+    ) -> Result<Record, Error> {
+        let GetByNameArgs {
+            name,
+            record_source,
+            thing_type,
+        } = args.into();
+
         let (recent_thing, saved_thing) = join!(
             async {
                 self.recent()
@@ -334,6 +343,13 @@ impl Repository {
             (None, Ok(None)) => Err(Error::NotFound),
             (None, Err(())) => Err(Error::DataStoreFailed),
         }
+        .and_then(|record| {
+            if record.thing.is_type(thing_type) && record.is_from_source(record_source) {
+                Ok(record)
+            } else {
+                Err(Error::NotFound)
+            }
+        })
     }
 
     /// Get the Thing from saved or recent with a given UUID. (There should be only one.)
@@ -952,6 +968,44 @@ impl<'a> From<(&'a str, Option<usize>)> for GetByNameStartArgs<'a> {
     }
 }
 
+pub struct GetByNameArgs<'a> {
+    name: &'a str,
+    record_source: RecordSource,
+    thing_type: ThingType,
+}
+
+impl<'a> From<&'a str> for GetByNameArgs<'a> {
+    fn from(name: &'a str) -> Self {
+        GetByNameArgs {
+            name,
+            record_source: RecordSource::Any,
+            thing_type: ThingType::Any,
+        }
+    }
+}
+
+impl<'a> From<&'a String> for GetByNameArgs<'a> {
+    fn from(name: &'a String) -> Self {
+        GetByNameArgs {
+            name,
+            record_source: RecordSource::Any,
+            thing_type: ThingType::Any,
+        }
+    }
+}
+
+impl<'a> From<(&'a str, RecordSource, ThingType)> for GetByNameArgs<'a> {
+    fn from(name_source_type: (&'a str, RecordSource, ThingType)) -> Self {
+        let (name, record_source, thing_type) = name_source_type;
+
+        GetByNameArgs {
+            name,
+            record_source,
+            thing_type,
+        }
+    }
+}
+
 impl KeyValue {
     pub const fn key_raw(&self) -> &'static str {
         match self {
@@ -1003,6 +1057,19 @@ impl Record {
 
     pub fn is_deleted(&self) -> bool {
         self.status == RecordStatus::Deleted
+    }
+
+    pub fn is_from_source(&self, source: RecordSource) -> bool {
+        matches!(
+            (self.status, source),
+            (
+                RecordStatus::Saved,
+                RecordSource::Journal | RecordSource::Any
+            ) | (
+                RecordStatus::Unsaved,
+                RecordSource::Recent | RecordSource::Any
+            ),
+        )
     }
 }
 
