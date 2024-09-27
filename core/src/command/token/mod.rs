@@ -1,11 +1,13 @@
 mod any_phrase;
 mod any_word;
+mod keyword;
 mod name;
 mod or;
-mod word;
+mod phrase;
 
 use crate::app::AppMeta;
 use crate::storage::{RecordSource, ThingType};
+use crate::utils::Word;
 use crate::world::thing::Thing;
 
 use futures::prelude::*;
@@ -13,27 +15,31 @@ use futures::prelude::*;
 use std::pin::Pin;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Token<'a, M> {
+pub struct Token<'a, M>
+where M: Clone {
     pub token_type: TokenType<'a, M>,
     pub marker: M,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Match<'a, M> {
+pub struct Match<'a, M>
+where M: Clone {
     token: &'a Token<'a, M>,
-    phrase: &'a str,
+    phrase: Word<'a>,
     meta: Meta<'a, M>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MatchType<'a, M> {
+pub enum MatchType<'a, M>
+where M: Clone {
     Overflow(Match<'a, M>, &'a str),
     Exact(Match<'a, M>),
     Partial(Match<'a, M>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum TokenType<'a, M> {
+pub enum TokenType<'a, M>
+where M: Clone {
     /// One or more tokens, in any order but without repetition
     AnyOf(&'a [Token<'a, M>]),
 
@@ -56,18 +62,20 @@ pub enum TokenType<'a, M> {
     Phrase(&'a [Token<'a, M>]),
 
     /// A literal word
-    Word(&'a str),
+    Keyword(&'a str),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Meta<'a, M> {
+pub enum Meta<'a, M>
+where M: Clone {
     None,
     Thing(Thing),
     Sequence(Vec<Match<'a, M>>),
     Single(Box<Match<'a, M>>),
 }
 
-impl<'a, M> Token<'a, M> {
+impl<'a, M> Token<'a, M>
+where M: Clone {
     pub fn match_input(
         &'a self,
         input: &'a str,
@@ -80,14 +88,15 @@ impl<'a, M> Token<'a, M> {
             TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Name(..) => name::match_input(self, input, app_meta),
             TokenType::Or(..) => or::match_input(self, input, app_meta),
-            TokenType::Phrase(..) => todo!(),
-            TokenType::Word(..) => word::match_input(self, input),
+            TokenType::Phrase(..) => phrase::match_input(self, input, app_meta),
+            TokenType::Keyword(..) => keyword::match_input(self, input),
         }
     }
 }
 
-impl<'a, M> MatchType<'a, M> {
-    pub fn map<F>(mut self, f: F) -> Self
+impl<'a, M> MatchType<'a, M>
+where M: Clone {
+    pub fn map<F>(self, f: F) -> Self
     where
         F: FnOnce(Match<'a, M>) -> Match<'a, M>,
     {

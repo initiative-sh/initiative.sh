@@ -11,7 +11,10 @@ pub fn match_input<'a, M>(
     token: &'a Token<M>,
     input: &'a str,
     app_meta: &'a AppMeta,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>> {
+) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
+where
+    M: Clone,
+{
     let TokenType::Or(tokens) = token.token_type else {
         unreachable!();
     };
@@ -21,7 +24,7 @@ pub fn match_input<'a, M>(
         for await match_type in stream::select_all(streams) {
             yield match_type.map(|token_match| Match {
                 token,
-                phrase: token_match.phrase,
+                phrase: token_match.phrase.clone(),
                 meta: Meta::Single(Box::new(token_match)),
             });
         }

@@ -4,8 +4,6 @@ use super::Command;
 use crate::app::{AppMeta, AutocompleteSuggestion};
 use crate::storage::{RecordSource, ThingType};
 
-use std::iter;
-
 pub struct Save;
 
 impl Command for Save {
@@ -15,7 +13,7 @@ impl Command for Save {
         Token {
             token_type: TokenType::Phrase(&[
                 Token {
-                    token_type: TokenType::Word("save"),
+                    token_type: TokenType::Keyword("save"),
                     marker: (),
                 },
                 Token {
@@ -47,19 +45,44 @@ impl Command for Save {
 #[cfg(test)]
 mod test {
     use super::super::autocomplete;
-    use super::super::test::{assert_stream_empty, assert_stream_eq};
     use super::*;
 
     use crate::app::{AppMeta, Event};
-    use crate::storage::MemoryDataStore;
+    use crate::storage::{Change, MemoryDataStore};
+    use crate::world::npc::NpcData;
+
+    use uuid::Uuid;
 
     #[tokio::test]
     async fn autocomplete_test() {
-        let app_meta = AppMeta::new(NullDataStore, &event_dispatcher);
+        let things = &[
+            NpcData {
+                name: "Cut-Me-Own-Throat Dibbler".into(),
+                ..Default::default()
+            }
+            .into_thing(Uuid::new_v4()),
+            NpcData {
+                name: "Cohen the Barbarian".into(),
+                ..Default::default()
+            }
+            .into_thing(Uuid::new_v4()),
+        ];
+
+        let mut app_meta = AppMeta::new(MemoryDataStore::default(), &event_dispatcher);
+        for thing in things {
+            app_meta
+                .repository
+                .modify_without_undo(Change::Create {
+                    thing_data: thing.data.clone(),
+                    uuid: Some(thing.uuid),
+                })
+                .await
+                .ok();
+        }
 
         assert_eq!(
             vec![AutocompleteSuggestion::new("about", "about initiative.sh")],
-            autocomplete("a", &app_meta).await,
+            autocomplete("save c", &app_meta).await,
         );
 
         assert_eq!(

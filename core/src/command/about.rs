@@ -10,7 +10,7 @@ impl Command for About {
 
     fn token<'a>(&self) -> Token<'a, Self::Marker> {
         Token {
-            token_type: TokenType::Word("about"),
+            token_type: TokenType::Keyword("about"),
             marker: (),
         }
     }

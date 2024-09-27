@@ -10,7 +10,8 @@ use futures::prelude::*;
 pub fn match_input<'a, M>(
     token: &'a Token<M>,
     input: &'a str,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>> {
+) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
+where M: Clone {
     assert!(matches!(token.token_type, TokenType::AnyPhrase));
 
     Box::pin(stream! {
@@ -19,7 +20,7 @@ pub fn match_input<'a, M>(
         while let Some(phrase) = phrases.next() {
             let token_match = Match {
                 token,
-                phrase: phrase.as_own_str(input),
+                phrase: phrase.clone(),
                 meta: Meta::None,
             };
 

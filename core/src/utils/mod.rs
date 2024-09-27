@@ -86,6 +86,21 @@ impl<'a> Word<'a> {
 
         other.as_str().starts_with_ci(self.as_str()) && self.is_at_end()
     }
+
+    pub fn combine_with(&self, other: Word<'a>) -> Option<Word<'a>> {
+        if self.phrase == other.phrase {
+            let range = (self.outer_range.start.min(other.outer_range.start))
+                ..(self.outer_range.end.max(other.outer_range.end));
+
+            Some(Word {
+                phrase: self.phrase,
+                inner_range: range.clone(),
+                outer_range: range,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 impl<'a> From<&'a str> for Word<'a> {

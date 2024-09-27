@@ -13,7 +13,8 @@ pub fn match_input<'a, M>(
     token: &'a Token<M>,
     input: &'a str,
     app_meta: &'a AppMeta,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>> {
+) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
+where M: Clone {
     let TokenType::Name(record_source, thing_type) = token.token_type else {
         unreachable!();
     };
@@ -58,7 +59,7 @@ pub fn match_input<'a, M>(
                     yield MatchType::Exact(
                         Match {
                             token,
-                            phrase: input,
+                            phrase: last_phrase.clone(),
                             meta: Meta::Thing(result.thing),
                         }
                     );
@@ -66,7 +67,7 @@ pub fn match_input<'a, M>(
                     yield MatchType::Partial(
                         Match {
                             token,
-                            phrase: input,
+                            phrase: last_phrase.clone(),
                             meta: Meta::Thing(result.thing),
                         }
                     );
@@ -76,7 +77,7 @@ pub fn match_input<'a, M>(
                             yield MatchType::Overflow(
                                 Match {
                                     token,
-                                    phrase: phrase.as_original_own_str(input),
+                                    phrase: phrase.clone(),
                                     meta: Meta::Thing(result.thing),
                                 },
                                 &input[phrase.range().end..],
