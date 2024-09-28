@@ -11,7 +11,9 @@ pub fn match_input<'a, M>(
     token: &'a Token<M>,
     input: &'a str,
 ) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
-where M: Clone {
+where
+    M: Clone,
+{
     assert!(matches!(token.token_type, TokenType::AnyPhrase));
 
     Box::pin(stream! {

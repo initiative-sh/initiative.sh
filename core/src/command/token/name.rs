@@ -14,7 +14,9 @@ pub fn match_input<'a, M>(
     input: &'a str,
     app_meta: &'a AppMeta,
 ) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
-where M: Clone {
+where
+    M: Clone,
+{
     let TokenType::Name(record_source, thing_type) = token.token_type else {
         unreachable!();
     };

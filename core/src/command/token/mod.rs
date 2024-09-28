@@ -16,14 +16,18 @@ use std::pin::Pin;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Token<'a, M>
-where M: Clone {
+where
+    M: Clone,
+{
     pub token_type: TokenType<'a, M>,
     pub marker: M,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Match<'a, M>
-where M: Clone {
+where
+    M: Clone,
+{
     token: &'a Token<'a, M>,
     phrase: Word<'a>,
     meta: Meta<'a, M>,
@@ -31,7 +35,9 @@ where M: Clone {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MatchType<'a, M>
-where M: Clone {
+where
+    M: Clone,
+{
     Overflow(Match<'a, M>, &'a str),
     Exact(Match<'a, M>),
     Partial(Match<'a, M>),
@@ -39,7 +45,9 @@ where M: Clone {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TokenType<'a, M>
-where M: Clone {
+where
+    M: Clone,
+{
     /// One or more tokens, in any order but without repetition
     AnyOf(&'a [Token<'a, M>]),
 
@@ -67,7 +75,9 @@ where M: Clone {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Meta<'a, M>
-where M: Clone {
+where
+    M: Clone,
+{
     None,
     Thing(Thing),
     Sequence(Vec<Match<'a, M>>),
@@ -75,7 +85,9 @@ where M: Clone {
 }
 
 impl<'a, M> Token<'a, M>
-where M: Clone {
+where
+    M: Clone,
+{
     pub fn match_input(
         &'a self,
         input: &'a str,
@@ -95,7 +107,9 @@ where M: Clone {
 }
 
 impl<'a, M> MatchType<'a, M>
-where M: Clone {
+where
+    M: Clone,
+{
     pub fn map<F>(self, f: F) -> Self
     where
         F: FnOnce(Match<'a, M>) -> Match<'a, M>,
