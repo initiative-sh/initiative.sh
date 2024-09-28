@@ -28,7 +28,7 @@ pub struct Match<'a, M>
 where
     M: Clone,
 {
-    token: &'a Token<'a, M>,
+    token: Token<'a, M>,
     phrase: Word<'a>,
     meta: Meta<'a, M>,
 }
@@ -89,7 +89,7 @@ where
     M: Clone,
 {
     pub fn match_input(
-        &'a self,
+        self,
         input: &'a str,
         app_meta: &'a AppMeta,
     ) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>> {

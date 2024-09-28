@@ -8,7 +8,7 @@ use async_stream::stream;
 use futures::prelude::*;
 
 pub fn match_input<'a, M>(
-    token: &'a Token<M>,
+    token: Token<'a, M>,
     input: &'a str,
 ) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
 where
@@ -21,7 +21,7 @@ where
 
         while let Some(phrase) = phrases.next() {
             let token_match = Match {
-                token,
+                token: token.clone(),
                 phrase: phrase.clone(),
                 meta: Meta::None,
             };
@@ -62,7 +62,7 @@ mod test {
                     meta: Meta::None,
                 }),
             ][..],
-            match_input(&token, " Nott \"The Brave\" ")
+            match_input(token, " Nott \"The Brave\" ")
                 .collect::<Vec<_>>()
                 .await,
         );

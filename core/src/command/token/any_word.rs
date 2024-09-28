@@ -8,7 +8,7 @@ use async_stream::stream;
 use futures::prelude::*;
 
 pub fn match_input<'a, M>(
-    token: &'a Token<M>,
+    token: Token<'a, M>,
     input: &'a str,
 ) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
 where
@@ -51,7 +51,7 @@ mod test {
                 phrase: "Jesta",
                 meta: Meta::None,
             })][..],
-            match_input(&token, "Jesta").collect::<Vec<_>>().await,
+            match_input(token, "Jesta").collect::<Vec<_>>().await,
         );
 
         assert_eq!(
@@ -63,7 +63,7 @@ mod test {
                 },
                 " \"The Brave\" ",
             )][..],
-            match_input(&token, " Nott \"The Brave\" ")
+            match_input(token, " Nott \"The Brave\" ")
                 .collect::<Vec<_>>()
                 .await,
         );

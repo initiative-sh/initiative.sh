@@ -10,7 +10,7 @@ use futures::join;
 use futures::prelude::*;
 
 pub fn match_input<'a, M>(
-    token: &'a Token<M>,
+    token: Token<'a, M>,
     input: &'a str,
     app_meta: &'a AppMeta,
 ) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
@@ -60,7 +60,7 @@ where
                 if thing_name.eq_ci(last_phrase.as_str()) {
                     yield MatchType::Exact(
                         Match {
-                            token,
+                            token: token.clone(),
                             phrase: last_phrase.clone(),
                             meta: Meta::Thing(result.thing),
                         }
@@ -68,7 +68,7 @@ where
                 } else if last_phrase.completes_to_ci(thing_name) {
                     yield MatchType::Partial(
                         Match {
-                            token,
+                            token: token.clone(),
                             phrase: last_phrase.clone(),
                             meta: Meta::Thing(result.thing),
                         }
@@ -78,7 +78,7 @@ where
                         if thing_name.eq_ci(phrase.as_str()) {
                             yield MatchType::Overflow(
                                 Match {
-                                    token,
+                                    token: token.clone(),
                                     phrase: phrase.clone(),
                                     meta: Meta::Thing(result.thing),
                                 },

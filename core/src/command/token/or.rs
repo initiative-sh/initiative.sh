@@ -8,7 +8,7 @@ use async_stream::stream;
 use futures::prelude::*;
 
 pub fn match_input<'a, M>(
-    token: &'a Token<M>,
+    token: Token<'a, M>,
     input: &'a str,
     app_meta: &'a AppMeta,
 ) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
@@ -20,10 +20,10 @@ where
     };
 
     Box::pin(stream! {
-        let streams = tokens.into_iter().map(|token| token.match_input(input, app_meta));
+        let streams = tokens.into_iter().map(|token| token.clone().match_input(input, app_meta));
         for await match_type in stream::select_all(streams) {
             yield match_type.map(|token_match| Match {
-                token,
+                token: token.clone(),
                 phrase: token_match.phrase.clone(),
                 meta: Meta::Single(Box::new(token_match)),
             });

@@ -9,7 +9,7 @@ use async_stream::stream;
 use futures::prelude::*;
 
 pub fn match_input<'a, M>(
-    token: &'a Token<M>,
+    token: Token<'a, M>,
     input: &'a str,
 ) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
 where
@@ -58,7 +58,7 @@ mod test {
                 phrase: "nott",
                 meta: Meta::None,
             })][..],
-            match_input(&token, "nott").collect::<Vec<_>>().await,
+            match_input(token.clone(), "nott").collect::<Vec<_>>().await,
         );
     }
 
@@ -78,7 +78,7 @@ mod test {
                 },
                 " \"the brave\"",
             )][..],
-            match_input(&token, "nott \"the brave\"")
+            match_input(token.clone(), "nott \"the brave\"")
                 .collect::<Vec<_>>()
                 .await,
         );
@@ -97,17 +97,19 @@ mod test {
                 phrase: "no",
                 meta: Meta::None,
             },)][..],
-            match_input(&token, " no").collect::<Vec<_>>().await,
+            match_input(token.clone(), " no").collect::<Vec<_>>().await,
         );
 
         assert_eq!(
             Vec::<MatchType<()>>::new(),
-            match_input(&token, " no ").collect::<Vec<_>>().await,
+            match_input(token.clone(), " no ").collect::<Vec<_>>().await,
         );
 
         assert_eq!(
             Vec::<MatchType<()>>::new(),
-            match_input(&token, "\"no\"").collect::<Vec<_>>().await,
+            match_input(token.clone(), "\"no\"")
+                .collect::<Vec<_>>()
+                .await,
         );
     }
 }
