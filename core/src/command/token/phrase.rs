@@ -8,6 +8,7 @@ use std::pin::Pin;
 use async_stream::stream;
 use futures::prelude::*;
 use futures::task::{Context, Poll};
+use pin_project::pin_project;
 
 pub fn match_input<'a, M>(
     token: &'a Token<M>,
@@ -82,6 +83,7 @@ where
     Box::pin(PhraseMatchStream::new(token, input, app_meta))
 }
 
+#[pin_project]
 struct PhraseMatchStream<'a, M>
 where
     M: Clone,
@@ -90,7 +92,11 @@ where
     input: &'a str,
     app_meta: &'a AppMeta,
     first_token_stream: Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>,
-    remaining_token_stream: Option<Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>>,
+    next_match_remaining_stream: Option<(
+        Match<'a, M>,
+        Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>,
+        Token<'a, M>,
+    )>,
 }
 
 impl<'a, M> PhraseMatchStream<'a, M>
@@ -113,7 +119,7 @@ where
             input,
             app_meta,
             first_token_stream,
-            remaining_token_stream: None,
+            next_match_remaining_stream: None,
         }
     }
 }
@@ -125,24 +131,53 @@ where
     type Item = MatchType<'a, M>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        let self_ref = Pin::get_mut(self);
-        let TokenType::Phrase(tokens) = self.token.token_type else {
+        let mut this = self.project();
+
+        let TokenType::Phrase(tokens) = this.token.token_type else {
             unreachable!();
         };
 
-        let inner_match_type = loop {
-            match Stream::poll_next(self_ref.first_token_stream.as_mut(), cx) {
+        loop {
+            if let Some((next_match, remaining_stream, _)) =
+                this.next_match_remaining_stream.as_mut()
+            {
+                match Stream::poll_next(remaining_stream.as_mut(), cx) {
+                    Poll::Ready(Some(match_type)) => {
+                        return Poll::Ready(Some(match_type.map(|token_match| {
+                            let Meta::Sequence(remaining_matches) = token_match.meta else {
+                                unreachable!();
+                            };
+
+                            Match {
+                                token: this.token,
+                                phrase: token_match.phrase,
+                                meta: Meta::Sequence(
+                                    iter::once(next_match.clone())
+                                        .chain(remaining_matches)
+                                        .collect(),
+                                ),
+                            }
+                        })))
+                    }
+                    Poll::Ready(None) => {
+                        this.next_match_remaining_stream.take();
+                    }
+                    Poll::Pending => return Poll::Pending,
+                }
+            }
+
+            match Stream::poll_next(this.first_token_stream.as_mut(), cx) {
                 Poll::Ready(Some(MatchType::Partial(first_token_match))) => {
                     return Poll::Ready(Some(MatchType::Partial(Match {
-                        token: self.token,
-                        phrase: first_token_match.phrase,
+                        token: this.token,
+                        phrase: first_token_match.phrase.clone(),
                         meta: Meta::Sequence(vec![first_token_match]),
                     })));
                 }
                 Poll::Ready(Some(MatchType::Exact(first_token_match))) => {
                     let token_match = Match {
-                        token: self.token,
-                        phrase: first_token_match.phrase,
+                        token: this.token,
+                        phrase: first_token_match.phrase.clone(),
                         meta: Meta::Sequence(vec![first_token_match]),
                     };
 
@@ -156,8 +191,8 @@ where
                     if tokens.len() == 1 {
                         return Poll::Ready(Some(MatchType::Overflow(
                             Match {
-                                token: self.token,
-                                phrase: first_token_match.phrase,
+                                token: this.token,
+                                phrase: first_token_match.phrase.clone(),
                                 meta: Meta::Sequence(vec![first_token_match]),
                             },
                             remainder,
@@ -166,33 +201,19 @@ where
                         // More to parse, now the recursion starts.
                         let remaining_phrase_token = Token {
                             token_type: TokenType::Phrase(&tokens[1..]),
-                            marker: &self_ref.token.marker,
+                            marker: this.token.marker.clone(),
                         };
 
-                        let mut remaining_token_stream =
-                            remaining_phrase_token.match_input(remainder, self.app_meta);
-
-                        match Stream::poll_next(remaining_token_stream.as_mut(), cx) {
-                            Poll::Ready(Some(match_type)) => {
-                                // got a token right back, break out of the loop to handle it
-                                break match_type;
-                            }
-                            Poll::Ready(None) => {
-                                // nope, keep looping to the next token
-                            }
-                            Poll::Pending => {
-                                // We'll revisit this on a future poll.
-                                self.remaining_token_stream = Some(remaining_token_stream);
-                                return Poll::Pending;
-                            }
-                        }
+                        this.next_match_remaining_stream.insert((
+                            first_token_match,
+                            remaining_phrase_token.match_input(remainder, this.app_meta),
+                            remaining_phrase_token,
+                        ));
                     }
                 }
                 v => return v,
             }
-        };
-
-        Poll::Pending
+        }
     }
 }
 
