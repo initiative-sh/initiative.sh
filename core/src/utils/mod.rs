@@ -79,6 +79,14 @@ impl<'a> Word<'a> {
     pub fn can_complete(&self) -> bool {
         self.is_at_end() && !self.is_quoted()
     }
+
+    pub fn after(&self) -> Word {
+        Word {
+            phrase: self.phrase,
+            inner_range: self.outer_range.end..self.phrase.len(),
+            outer_range: self.outer_range.end..self.phrase.len(),
+        }
+    }
 }
 
 impl<'a> PartialEq for Word<'a> {

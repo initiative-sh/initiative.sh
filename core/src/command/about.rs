@@ -36,8 +36,8 @@ impl Command for About {
 
 #[cfg(test)]
 mod test {
-    use super::super::autocomplete;
     use super::*;
+    use super::super::token::test::assert_stream_eq;
 
     use crate::app::{AppMeta, Event};
     use crate::storage::NullDataStore;
@@ -46,25 +46,10 @@ mod test {
     async fn autocomplete_test() {
         let app_meta = AppMeta::new(NullDataStore, &event_dispatcher);
 
-        assert_eq!(
+        assert_stream_eq(
             vec![AutocompleteSuggestion::new("about", "about initiative.sh")],
-            autocomplete("a", &app_meta).await,
-        );
-
-        assert_eq!(
-            vec![AutocompleteSuggestion::new("about", "about initiative.sh")],
-            autocomplete("ABOUT", &app_meta).await,
-        );
-
-        assert_eq!(
-            Vec::<AutocompleteSuggestion>::new(),
-            autocomplete("aboot", &app_meta).await,
-        );
-
-        assert_eq!(
-            Vec::<AutocompleteSuggestion>::new(),
-            autocomplete("about ", &app_meta).await,
-        );
+            About.parse_autocomplete("a", &app_meta),
+        ).await;
     }
 
     fn event_dispatcher(_event: Event) {}

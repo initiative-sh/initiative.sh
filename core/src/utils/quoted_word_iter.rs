@@ -2,16 +2,22 @@ use super::Word;
 use std::iter::Peekable;
 use std::str::CharIndices;
 
-pub fn quoted_words(phrase: &str) -> QuotedWordIter<'_> {
-    QuotedWordIter::new(phrase)
+pub fn quoted_words<'a, W>(phrase: W) -> QuotedWordIter<'a>
+where
+    W: Into<Word<'a>>,
+{
+    QuotedWordIter::new(phrase.into())
 }
 
-pub fn quoted_phrases(phrase: &str) -> QuotedPhrasesIter<'_> {
-    QuotedPhrasesIter::new(phrase)
+pub fn quoted_phrases<'a, W>(phrase: W) -> QuotedPhrasesIter<'a>
+where
+    W: Into<Word<'a>>,
+{
+    QuotedPhrasesIter::new(phrase.into())
 }
 
 pub struct QuotedWordIter<'a> {
-    phrase: &'a str,
+    phrase: Word<'a>,
     char_iter: CharIndices<'a>,
     quote_len: Option<usize>,
 }
@@ -22,17 +28,17 @@ pub struct QuotedPhrasesIter<'a> {
 }
 
 impl<'a> QuotedWordIter<'a> {
-    fn new(phrase: &'a str) -> Self {
+    fn new(phrase: Word<'a>) -> Self {
         Self {
+            char_iter: phrase.phrase.char_indices(),
             phrase,
-            char_iter: phrase.char_indices(),
             quote_len: None,
         }
     }
 }
 
 impl<'a> QuotedPhrasesIter<'a> {
-    fn new(phrase: &'a str) -> Self {
+    fn new(phrase: Word<'a>) -> Self {
         let mut inner = QuotedWordIter::new(phrase).peekable();
         let first = inner.peek().cloned();
 
@@ -50,18 +56,18 @@ impl<'a> Iterator for QuotedWordIter<'a> {
             if let Some((i, c)) = self.char_iter.next() {
                 if c == '"' {
                     return Some(Word::new(
-                        self.phrase,
+                        self.phrase.phrase,
                         i..i,
                         i - quote_len..i + c.len_utf8(),
                     ));
                 } else {
-                    (self.phrase[i - quote_len..i].chars().next(), i)
+                    (self.phrase.phrase[i - quote_len..i].chars().next(), i)
                 }
             } else {
                 return Some(Word::new(
-                    self.phrase,
-                    self.phrase.len()..self.phrase.len(),
-                    self.phrase.len() - quote_len..self.phrase.len(),
+                    self.phrase.phrase,
+                    self.phrase.phrase.len()..self.phrase.phrase.len(),
+                    self.phrase.phrase.len() - quote_len..self.phrase.phrase.len(),
                 ));
             }
         } else {
@@ -80,7 +86,7 @@ impl<'a> Iterator for QuotedWordIter<'a> {
                     if c == '"' {
                         // Empty quotes = yield empty string
                         return Some(Word::new(
-                            self.phrase,
+                            self.phrase.phrase,
                             i..i,
                             i - first_char.len_utf8()..i + c.len_utf8(),
                         ));
@@ -89,9 +95,9 @@ impl<'a> Iterator for QuotedWordIter<'a> {
                     }
                 } else {
                     return Some(Word::new(
-                        self.phrase,
-                        self.phrase.len()..self.phrase.len(),
-                        first_index..self.phrase.len(),
+                        self.phrase.phrase,
+                        self.phrase.phrase.len()..self.phrase.phrase.len(),
+                        first_index..self.phrase.phrase.len(),
                     ));
                 }
             } else {
@@ -104,7 +110,7 @@ impl<'a> Iterator for QuotedWordIter<'a> {
                 if let Some(quote_char) = quote_char {
                     if c == '"' {
                         return Some(Word::new(
-                            self.phrase,
+                            self.phrase.phrase,
                             first_index..i,
                             first_index - quote_char.len_utf8()..i + c.len_utf8(),
                         ));
@@ -117,17 +123,17 @@ impl<'a> Iterator for QuotedWordIter<'a> {
                 }
             } else if let Some(quote_char) = quote_char {
                 return Some(Word::new(
-                    self.phrase,
-                    first_index..self.phrase.len(),
-                    first_index - quote_char.len_utf8()..self.phrase.len(),
+                    self.phrase.phrase,
+                    first_index..self.phrase.phrase.len(),
+                    first_index - quote_char.len_utf8()..self.phrase.phrase.len(),
                 ));
             } else {
-                break self.phrase.len();
+                break self.phrase.phrase.len();
             }
         };
 
         Some(Word::new(
-            self.phrase,
+            self.phrase.phrase,
             first_index..last_index,
             first_index..last_index,
         ))

@@ -2,26 +2,92 @@ use super::token::{MatchType, Meta, Token, TokenType};
 use super::Command;
 
 use crate::app::{AppMeta, AutocompleteSuggestion};
+use initiative_macros::token;
 
-pub struct Save;
+pub struct Create;
 
-impl Command for Save {
-    type Marker = ();
-
+impl Command for Create {
     fn token<'a>(&self) -> Token<'a, Self::Marker> {
-        Token {
+        token!(Keyword("about"));
+
+        return Token {
+            token_type: TokenType::Keyword("about"),
+            marker: None,
+        };
+
+        token!(Phrase([Keyword("save"), Name]));
+
+        return Token {
             token_type: TokenType::Phrase(&[
                 Token {
                     token_type: TokenType::Keyword("save"),
-                    marker: (),
+                    marker: None,
                 },
                 Token {
                     token_type: TokenType::Name,
-                    marker: (),
+                    marker: None,
                 },
+            ]),
+            marker: None,
+        };
+
+        /*
+
+        token!(Or([
+            PhraseUnordered(
+                [
+                    KeywordList(["a", "an"]),
+                    Phrase([Or([Keyword("named"), Keyword("called")]), AnyPhrase], Marker::Name),
+                    KeywordList(PlaceType::get_words(), Marker::PlaceType),
+                ],
+                Marker::Place,
+            ),
+            PhraseUnordered(
+                [
+                    KeywordList(["a", "an"]),
+                    KeywordList(["character", "npc", "person"]),
+                    Phrase([Or([Keyword("named"), Keyword("called")]), AnyPhrase], Marker::Name),
+                    KeywordList(Gender::get_words(), Marker::Gender),
+                    KeywordList(Age::get_words(), Marker::Age),
+                    KeywordList(Species::get_words(), Marker::Species),
+                    KeywordList(Ethnicity::get_words(), Marker::Ethnicity),
+                ],
+                Marker::Npc,
+            ),
+        ]));
+        */
+
+        /*
+        Token {
+            token_type: TokenType::PhraseUnordered(&[
+                TokenType::Phrase(&[
+                    Token {
+                        token_type: TokenType::Phrase(&[
+                            Token {
+                                token_type: TokenType::Or(&[
+                                    Token {
+                                        token_type: TokenType::Keyword("named"),
+                                        marker: (),
+                                    },
+                                    Token {
+                                        token_type: TokenType::Keyword("called"),
+                                        marker: (),
+                                    },
+                                ])
+                                marker: (),
+                            },
+                            Token {
+                                token_type: TokenType::AnyPhrase,
+                                marker: (),
+                            },
+                        ]),
+                    },
+                ]),
             ]),
             marker: (),
         }
+        */
+        todo!();
     }
 
     fn autocomplete(
@@ -65,6 +131,7 @@ impl Command for Save {
     }
 }
 
+/*
 #[cfg(test)]
 mod test {
     use super::super::autocomplete;
@@ -136,3 +203,4 @@ mod test {
 
     fn event_dispatcher(_event: Event) {}
 }
+*/

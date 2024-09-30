@@ -6,8 +6,7 @@ mod or;
 mod phrase;
 
 use crate::app::AppMeta;
-use crate::storage::{RecordSource, ThingType};
-use crate::world::thing::Thing;
+use crate::storage::Record;
 
 use futures::prelude::*;
 
@@ -59,7 +58,7 @@ where
     AnyWord,
 
     /// The name of an existing thing
-    Name(RecordSource, ThingType),
+    Name,
 
     /// Any one of the tokens
     Or(&'a [Token<'a, M>]),
@@ -78,7 +77,7 @@ where
 {
     None,
     Phrase(&'a str),
-    Thing(Thing),
+    Record(Record),
     Sequence(Vec<Match<'a, M>>),
     Single(Box<Match<'a, M>>),
 }
@@ -101,7 +100,7 @@ where
             TokenType::AnyOfRepeated(..) => todo!(),
             TokenType::AnyPhrase => any_phrase::match_input(self, input),
             TokenType::AnyWord => any_word::match_input(self, input),
-            TokenType::Name(..) => name::match_input(self, input, app_meta),
+            TokenType::Name => name::match_input(self, input, app_meta),
             TokenType::Or(..) => or::match_input(self, input, app_meta),
             TokenType::Phrase(..) => phrase::match_input(self, input, app_meta),
             TokenType::Keyword(..) => keyword::match_input(self, input),
@@ -125,6 +124,14 @@ where
             MatchType::Partial(token_match, completion) => {
                 MatchType::Partial(f(token_match), completion)
             }
+        }
+    }
+
+    pub fn token_match(&self) -> &Match<'a, M> {
+        match self {
+            MatchType::Overflow(token_match, _)
+            | MatchType::Exact(token_match)
+            | MatchType::Partial(token_match, _) => token_match,
         }
     }
 }
@@ -180,12 +187,12 @@ where
     }
 }
 
-impl<'a, M> From<Thing> for Meta<'a, M>
+impl<'a, M> From<Record> for Meta<'a, M>
 where
     M: Clone,
 {
-    fn from(input: Thing) -> Self {
-        Meta::Thing(input)
+    fn from(input: Record) -> Self {
+        Meta::Record(input)
     }
 }
 
@@ -193,12 +200,10 @@ where
 pub mod test {
     use super::*;
 
-    pub async fn assert_stream_eq<'a, M>(
-        mut expect_results: Vec<MatchType<'a, M>>,
-        stream: Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>,
-    ) where
-        M: std::fmt::Debug + std::cmp::PartialEq + Clone + Copy,
-    {
+    pub async fn assert_stream_eq<'a, T>(
+        mut expect_results: Vec<T>,
+        stream: Pin<Box<dyn Stream<Item = T> + 'a>>,
+    ) where T: std::fmt::Debug + PartialEq {
         for match_type in stream.collect::<Vec<_>>().await {
             let Some(index) = expect_results
                 .iter()
@@ -213,7 +218,7 @@ pub mod test {
         }
 
         assert_eq!(
-            Vec::<MatchType<M>>::new(),
+            Vec::<T>::new(),
             expect_results,
             "Expected all results to be exhausted",
         );
