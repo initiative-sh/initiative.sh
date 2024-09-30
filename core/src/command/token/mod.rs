@@ -88,6 +88,10 @@ impl<'a, M> Token<'a, M>
 where
     M: Clone,
 {
+    pub fn new(token_type: TokenType<'a, M>, marker: M) -> Self {
+        Token { token_type, marker }
+    }
+
     pub fn match_input(
         self,
         input: &'a str,
@@ -139,7 +143,10 @@ pub mod test {
                 .iter()
                 .position(|expect_result| expect_result == &match_type)
             else {
-                panic!("Not found in expected results: {:?}", match_type);
+                panic!(
+                    "Not found in expected results: {:?}\n\nRemaining expected results: {:?}",
+                    match_type, expect_results
+                );
             };
             expect_results.swap_remove(index);
         }

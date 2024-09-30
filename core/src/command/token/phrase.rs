@@ -1,6 +1,7 @@
 use super::{Match, MatchType, Meta, Token, TokenType};
 
 use crate::app::AppMeta;
+use crate::utils::Word;
 
 use std::iter;
 use std::pin::Pin;
@@ -9,13 +10,14 @@ use futures::prelude::*;
 use futures::task::{Context, Poll};
 use pin_project::pin_project;
 
-pub fn match_input<'a, M>(
+pub fn match_input<'a, M, W>(
     token: Token<'a, M>,
-    input: &'a str,
+    input: &'a W,
     app_meta: &'a AppMeta,
 ) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
 where
     M: Clone,
+    W: Into<Word<'a>>,
 {
     Box::pin(PhraseMatchStream::new(token, input, app_meta))
 }
@@ -26,7 +28,7 @@ where
     M: Clone,
 {
     token: Token<'a, M>,
-    input: &'a str,
+    input: &'a Word<'a>,
     app_meta: &'a AppMeta,
     first_token_stream: Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>,
     next_match_remaining_stream: Option<(
@@ -39,7 +41,9 @@ impl<'a, M> PhraseMatchStream<'a, M>
 where
     M: Clone,
 {
-    pub fn new(token: Token<'a, M>, input: &'a str, app_meta: &'a AppMeta) -> Self {
+    pub fn new<W>(token: Token<'a, M>, input: &'a W, app_meta: &'a AppMeta) -> Self
+    where
+    W: Into<Word<'a>> {
         let TokenType::Phrase(tokens) = token.token_type else {
             unreachable!();
         };
@@ -173,6 +177,7 @@ where
 
 #[cfg(test)]
 mod test {
+    use super::super::test::{assert_stream_empty, assert_stream_eq};
     use super::*;
 
     use crate::app::Event;
@@ -182,6 +187,77 @@ mod test {
     #[tokio::test]
     async fn match_input_test() {
         let app_meta = AppMeta::new(NullDataStore, &event_dispatcher);
+
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        enum Marker {
+            Phrase,
+            Keyword,
+            AnyPhrase,
+            AnyWord,
+        };
+
+        let phrase = [
+            Token::new(TokenType::Keyword("Legolas"), Marker::Keyword),
+            Token::new(TokenType::AnyPhrase, Marker::AnyPhrase),
+            Token::new(TokenType::AnyWord, Marker::AnyWord),
+        ];
+        let [keyword_token, any_phrase_token, any_word_token] = &phrase;
+
+        let phrase_token = Token::new(TokenType::Phrase(&phrase), Marker::Phrase);
+
+        assert_stream_eq(
+            vec![
+                MatchType::Overflow(
+                    Match {
+                        token: phrase_token.clone(),
+                        phrase: "Legolas is an".into(),
+                        meta: Meta::Sequence(vec![
+                            Match {
+                                token: keyword_token.clone(),
+                                phrase: "Legolas".into(),
+                                meta: Meta::None,
+                            },
+                            Match {
+                                token: any_phrase_token.clone(),
+                                phrase: "is".into(),
+                                meta: Meta::None,
+                            },
+                            Match {
+                                token: any_word_token.clone(),
+                                phrase: "an".into(),
+                                meta: Meta::None,
+                            },
+                        ]),
+                    },
+                    " elf",
+                ),
+                MatchType::Exact(Match {
+                    token: phrase_token.clone(),
+                    phrase: "Legolas is an elf".into(),
+                    meta: Meta::Sequence(vec![
+                        Match {
+                            token: keyword_token.clone(),
+                            phrase: "Legolas".into(),
+                            meta: Meta::None,
+                        },
+                        Match {
+                            token: any_phrase_token.clone(),
+                            phrase: "is an".into(),
+                            meta: Meta::None,
+                        },
+                        Match {
+                            token: any_word_token.clone(),
+                            phrase: "elf".into(),
+                            meta: Meta::None,
+                        },
+                    ]),
+                }),
+            ],
+            phrase_token
+                .clone()
+                .match_input("Legolas is an elf", &app_meta),
+        )
+        .await;
     }
 
     fn event_dispatcher(_event: Event) {}

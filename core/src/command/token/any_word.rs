@@ -51,7 +51,9 @@ mod test {
                 phrase: "Jesta".into(),
                 meta: Meta::None,
             })][..],
-            match_input(token.clone(), "Jesta").collect::<Vec<_>>().await,
+            match_input(token.clone(), "Jesta")
+                .collect::<Vec<_>>()
+                .await,
         );
 
         assert_eq!(
