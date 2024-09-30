@@ -28,6 +28,7 @@ pub fn app<F: Fn(Event)>(
     data_store: impl DataStore + 'static,
     event_dispatcher: &'static F,
 ) -> app::App {
+    /*
     Overflow(
         Match {
             token: Token {
@@ -93,6 +94,7 @@ pub fn app<F: Fn(Event)>(
         },
         " elf",
     );
+    */
 
     let app_meta = app::AppMeta::new(data_store, event_dispatcher);
     app::App::new(app_meta)

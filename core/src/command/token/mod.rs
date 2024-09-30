@@ -7,7 +7,6 @@ mod phrase;
 
 use crate::app::AppMeta;
 use crate::storage::{RecordSource, ThingType};
-use crate::utils::Word;
 use crate::world::thing::Thing;
 
 use futures::prelude::*;
@@ -29,7 +28,6 @@ where
     M: Clone,
 {
     token: Token<'a, M>,
-    phrase: Word<'a>,
     meta: Meta<'a, M>,
 }
 
@@ -40,7 +38,7 @@ where
 {
     Overflow(Match<'a, M>, &'a str),
     Exact(Match<'a, M>),
-    Partial(Match<'a, M>),
+    Partial(Match<'a, M>, Option<String>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -79,6 +77,7 @@ where
     M: Clone,
 {
     None,
+    Phrase(&'a str),
     Thing(Thing),
     Sequence(Vec<Match<'a, M>>),
     Single(Box<Match<'a, M>>),
@@ -123,8 +122,70 @@ where
                 MatchType::Overflow(f(token_match), overflow)
             }
             MatchType::Exact(token_match) => MatchType::Exact(f(token_match)),
-            MatchType::Partial(token_match) => MatchType::Partial(f(token_match)),
+            MatchType::Partial(token_match, completion) => {
+                MatchType::Partial(f(token_match), completion)
+            }
         }
+    }
+}
+
+impl<'a, M> Match<'a, M>
+where
+    M: Clone,
+{
+    pub fn new(token: Token<'a, M>, meta: impl Into<Meta<'a, M>>) -> Self {
+        Match {
+            token,
+            meta: meta.into(),
+        }
+    }
+}
+
+impl<'a, M> From<Token<'a, M>> for Match<'a, M>
+where
+    M: Clone,
+{
+    fn from(input: Token<'a, M>) -> Self {
+        Match {
+            token: input,
+            meta: Meta::None,
+        }
+    }
+}
+
+impl<'a, M> From<&'a str> for Meta<'a, M>
+where
+    M: Clone,
+{
+    fn from(input: &'a str) -> Self {
+        Meta::Phrase(input)
+    }
+}
+
+impl<'a, M> From<Vec<Match<'a, M>>> for Meta<'a, M>
+where
+    M: Clone,
+{
+    fn from(input: Vec<Match<'a, M>>) -> Self {
+        Meta::Sequence(input)
+    }
+}
+
+impl<'a, M> From<Match<'a, M>> for Meta<'a, M>
+where
+    M: Clone,
+{
+    fn from(input: Match<'a, M>) -> Self {
+        Meta::Single(input.into())
+    }
+}
+
+impl<'a, M> From<Thing> for Meta<'a, M>
+where
+    M: Clone,
+{
+    fn from(input: Thing) -> Self {
+        Meta::Thing(input)
     }
 }
 

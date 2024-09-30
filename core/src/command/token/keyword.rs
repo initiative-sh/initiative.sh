@@ -1,4 +1,4 @@
-use super::{Match, MatchType, Meta, Token, TokenType};
+use super::{MatchType, Token, TokenType};
 
 use crate::utils::quoted_words;
 use crate::utils::CaseInsensitiveStr;
@@ -22,20 +22,16 @@ where
     Box::pin(stream! {
         let mut iter = quoted_words(input);
         if let Some(first_word) = iter.next() {
-            let token_match = Match {
-                token,
-                phrase: first_word.clone(),
-                meta: Meta::None,
-            };
-
             if keyword.eq_ci(first_word.as_str()) {
                 if first_word.is_at_end() {
-                    yield MatchType::Exact(token_match);
+                    yield MatchType::Exact(token.into());
                 } else {
-                    yield MatchType::Overflow(token_match, &input[first_word.range().end..]);
+                    yield MatchType::Overflow(token.into(), &input[first_word.range().end..]);
                 }
-            } else if first_word.completes_to_ci(keyword) {
-                yield MatchType::Partial(token_match);
+            } else if first_word.can_complete() {
+                if let Some(completion) = keyword.strip_prefix_ci(first_word) {
+                    yield MatchType::Partial(token.into(), Some(completion.to_string()));
+                }
             }
         }
     })
@@ -43,6 +39,7 @@ where
 
 #[cfg(test)]
 mod test {
+    use super::super::Match;
     use super::*;
 
     #[tokio::test]
@@ -53,11 +50,7 @@ mod test {
         };
 
         assert_eq!(
-            &[MatchType::Exact(Match {
-                token: token.clone(),
-                phrase: "nott".into(),
-                meta: Meta::None,
-            })][..],
+            &[MatchType::Exact(token.clone().into())][..],
             match_input(token.clone(), "nott").collect::<Vec<_>>().await,
         );
     }
@@ -70,14 +63,7 @@ mod test {
         };
 
         assert_eq!(
-            &[MatchType::Overflow(
-                Match {
-                    token: token.clone(),
-                    phrase: "nott".into(),
-                    meta: Meta::None,
-                },
-                " \"the brave\"",
-            )][..],
+            &[MatchType::Overflow(token.clone().into(), " \"the brave\"",)][..],
             match_input(token.clone(), "nott \"the brave\"")
                 .collect::<Vec<_>>()
                 .await,
@@ -92,11 +78,10 @@ mod test {
         };
 
         assert_eq!(
-            &[MatchType::Partial(Match {
-                token: token.clone(),
-                phrase: "no".into(),
-                meta: Meta::None,
-            },)][..],
+            &[MatchType::Partial(
+                token.clone().into(),
+                Some("tt".to_string())
+            )][..],
             match_input(token.clone(), " no").collect::<Vec<_>>().await,
         );
 

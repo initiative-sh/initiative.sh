@@ -1,4 +1,4 @@
-use super::{Match, MatchType, Meta, Token, TokenType};
+use super::{Match, MatchType, Token, TokenType};
 
 use crate::app::AppMeta;
 
@@ -22,11 +22,7 @@ where
     Box::pin(stream! {
         let streams = tokens.into_iter().map(|token| token.clone().match_input(input, app_meta));
         for await match_type in stream::select_all(streams) {
-            yield match_type.map(|token_match| Match {
-                token: token.clone(),
-                phrase: token_match.phrase.clone(),
-                meta: Meta::Single(Box::new(token_match)),
-            });
+            yield match_type.map(|token_match| Match::new(token.clone(), token_match));
         }
     })
 }

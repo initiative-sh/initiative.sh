@@ -62,10 +62,6 @@ impl<'a> Word<'a> {
         &phrase[self.inner_range.clone()]
     }
 
-    pub fn as_original_own_str<'b>(&'a self, phrase: &'b str) -> &'b str {
-        &phrase[self.outer_range.clone()]
-    }
-
     pub fn range(&'a self) -> &'a Range<usize> {
         &self.outer_range
     }
@@ -78,28 +74,10 @@ impl<'a> Word<'a> {
         self.outer_range.end == self.phrase.len()
     }
 
-    pub fn completes_to_ci<'b, S>(&self, other: S) -> bool
-    where
-        S: AsRef<str>,
-    {
-        let other: &str = other.as_ref();
-
-        other.starts_with_ci(self.as_str()) && self.is_at_end() && !self.is_quoted()
-    }
-
-    pub fn combine_with(&self, other: Word<'a>) -> Option<Word<'a>> {
-        if self.phrase == other.phrase {
-            let range = (self.outer_range.start.min(other.outer_range.start))
-                ..(self.outer_range.end.max(other.outer_range.end));
-
-            Some(Word {
-                phrase: self.phrase,
-                inner_range: range.clone(),
-                outer_range: range,
-            })
-        } else {
-            None
-        }
+    /// Can the word be autocompleted? (Is it in such a position that adding characters to the end
+    /// of the overall phrase will extend the current word?)
+    pub fn can_complete(&self) -> bool {
+        self.is_at_end() && !self.is_quoted()
     }
 }
 

@@ -1,4 +1,4 @@
-use super::{Match, MatchType, Meta, Token, TokenType};
+use super::{Match, MatchType, Token, TokenType};
 
 use crate::utils::quoted_phrases;
 
@@ -20,11 +20,7 @@ where
         let mut phrases = quoted_phrases(input).peekable();
 
         while let Some(phrase) = phrases.next() {
-            let token_match = Match {
-                token: token.clone(),
-                phrase: phrase.clone(),
-                meta: Meta::None,
-            };
+            let token_match = Match::new(token.clone(), phrase.as_own_str(input));
 
             if phrases.peek().is_none() {
                 yield MatchType::Exact(token_match);
@@ -48,19 +44,8 @@ mod test {
 
         assert_eq!(
             &[
-                MatchType::Overflow(
-                    Match {
-                        token: token.clone(),
-                        phrase: "Nott".into(),
-                        meta: Meta::None,
-                    },
-                    " \"The Brave\" ",
-                ),
-                MatchType::Exact(Match {
-                    token: token.clone(),
-                    phrase: "Nott \"The Brave\"".into(),
-                    meta: Meta::None,
-                }),
+                MatchType::Overflow(Match::new(token.clone(), "Nott"), " \"The Brave\" "),
+                MatchType::Exact(Match::new(token.clone(), "Nott \"The Brave\"")),
             ][..],
             match_input(token, " Nott \"The Brave\" ")
                 .collect::<Vec<_>>()

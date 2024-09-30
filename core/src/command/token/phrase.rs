@@ -1,7 +1,6 @@
 use super::{Match, MatchType, Meta, Token, TokenType};
 
 use crate::app::AppMeta;
-use crate::utils::Word;
 
 use std::iter;
 use std::pin::Pin;
@@ -10,14 +9,13 @@ use futures::prelude::*;
 use futures::task::{Context, Poll};
 use pin_project::pin_project;
 
-pub fn match_input<'a, M, W>(
+pub fn match_input<'a, M>(
     token: Token<'a, M>,
-    input: &'a W,
+    input: &'a str,
     app_meta: &'a AppMeta,
 ) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
 where
     M: Clone,
-    W: Into<Word<'a>>,
 {
     Box::pin(PhraseMatchStream::new(token, input, app_meta))
 }
@@ -28,7 +26,7 @@ where
     M: Clone,
 {
     token: Token<'a, M>,
-    input: &'a Word<'a>,
+    input: &'a str,
     app_meta: &'a AppMeta,
     first_token_stream: Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>,
     next_match_remaining_stream: Option<(
@@ -41,9 +39,7 @@ impl<'a, M> PhraseMatchStream<'a, M>
 where
     M: Clone,
 {
-    pub fn new<W>(token: Token<'a, M>, input: &'a W, app_meta: &'a AppMeta) -> Self
-    where
-    W: Into<Word<'a>> {
+    pub fn new(token: Token<'a, M>, input: &'a str, app_meta: &'a AppMeta) -> Self {
         let TokenType::Phrase(tokens) = token.token_type else {
             unreachable!();
         };
@@ -91,15 +87,12 @@ where
                                 unreachable!();
                             };
 
-                            Match {
-                                token: this.token.clone(),
-                                phrase: token_match.phrase,
-                                meta: Meta::Sequence(
-                                    iter::once(next_match.clone())
-                                        .chain(remaining_matches)
-                                        .collect(),
-                                ),
-                            }
+                            Match::new(
+                                this.token.clone(),
+                                iter::once(next_match.clone())
+                                    .chain(remaining_matches)
+                                    .collect::<Vec<_>>(),
+                            )
                         })));
                     }
 
@@ -115,28 +108,23 @@ where
             // the input.
             match Stream::poll_next(this.first_token_stream.as_mut(), cx) {
                 // A partial match was found, so the phrase is incomplete.
-                Poll::Ready(Some(MatchType::Partial(first_token_match))) => {
-                    return Poll::Ready(Some(MatchType::Partial(Match {
-                        token: this.token.clone(),
-                        phrase: first_token_match.phrase.clone(),
-                        meta: Meta::Sequence(vec![first_token_match]),
-                    })));
+                Poll::Ready(Some(MatchType::Partial(first_token_match, completion))) => {
+                    return Poll::Ready(Some(MatchType::Partial(
+                        Match::new(this.token.clone(), vec![first_token_match]),
+                        completion,
+                    )));
                 }
 
                 // An exact match was found (no leftovers), so the phrase is complete if the token
                 // list has been exhausted, or it's a partial match if there are tokens left to
                 // match.
                 Poll::Ready(Some(MatchType::Exact(first_token_match))) => {
-                    let token_match = Match {
-                        token: this.token.clone(),
-                        phrase: first_token_match.phrase.clone(),
-                        meta: Meta::Sequence(vec![first_token_match]),
-                    };
+                    let token_match = Match::new(this.token.clone(), vec![first_token_match]);
 
                     return Poll::Ready(Some(if tokens.len() == 1 {
                         MatchType::Exact(token_match)
                     } else {
-                        MatchType::Partial(token_match)
+                        MatchType::Partial(token_match, None)
                     }));
                 }
 
@@ -147,19 +135,13 @@ where
                     if tokens.len() == 1 {
                         // This was the last token, so the entire phrase overflows.
                         return Poll::Ready(Some(MatchType::Overflow(
-                            Match {
-                                token: this.token.clone(),
-                                phrase: first_token_match.phrase.clone(),
-                                meta: Meta::Sequence(vec![first_token_match]),
-                            },
+                            Match::new(this.token.clone(), vec![first_token_match]),
                             remainder,
                         )));
                     } else {
                         // More tokens to parse, now the recursion starts.
-                        let remaining_phrase_token = Token {
-                            token_type: TokenType::Phrase(&tokens[1..]),
-                            marker: this.token.marker.clone(),
-                        };
+                        let remaining_phrase_token =
+                            Token::new(TokenType::Phrase(&tokens[1..]), this.token.marker.clone());
 
                         *this.next_match_remaining_stream = Some((
                             first_token_match,
@@ -210,48 +192,32 @@ mod test {
                 MatchType::Overflow(
                     Match {
                         token: phrase_token.clone(),
-                        phrase: "Legolas is an".into(),
                         meta: Meta::Sequence(vec![
-                            Match {
-                                token: keyword_token.clone(),
-                                phrase: "Legolas".into(),
-                                meta: Meta::None,
-                            },
-                            Match {
-                                token: any_phrase_token.clone(),
-                                phrase: "is".into(),
-                                meta: Meta::None,
-                            },
-                            Match {
-                                token: any_word_token.clone(),
-                                phrase: "an".into(),
-                                meta: Meta::None,
-                            },
+                            keyword_token.clone().into(),
+                            Match::new(any_phrase_token.clone(), "is"),
+                            Match::new(any_word_token.clone(), "an"),
                         ]),
                     },
                     " elf",
                 ),
-                MatchType::Exact(Match {
-                    token: phrase_token.clone(),
-                    phrase: "Legolas is an elf".into(),
-                    meta: Meta::Sequence(vec![
-                        Match {
-                            token: keyword_token.clone(),
-                            phrase: "Legolas".into(),
-                            meta: Meta::None,
-                        },
-                        Match {
-                            token: any_phrase_token.clone(),
-                            phrase: "is an".into(),
-                            meta: Meta::None,
-                        },
-                        Match {
-                            token: any_word_token.clone(),
-                            phrase: "elf".into(),
-                            meta: Meta::None,
-                        },
-                    ]),
-                }),
+                MatchType::Exact(Match::new(
+                    phrase_token.clone(),
+                    vec![
+                        keyword_token.clone().into(),
+                        Match::new(any_phrase_token.clone(), "is an"),
+                        Match::new(any_word_token.clone(), "elf"),
+                    ],
+                )),
+                MatchType::Partial(
+                    Match::new(
+                        phrase_token.clone(),
+                        vec![
+                            keyword_token.clone().into(),
+                            Match::new(any_phrase_token.clone(), "is an elf"),
+                        ],
+                    ),
+                    None,
+                ),
             ],
             phrase_token
                 .clone()

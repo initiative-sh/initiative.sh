@@ -1,4 +1,4 @@
-use super::{Match, MatchType, Meta, Token, TokenType};
+use super::{Match, MatchType, Token, TokenType};
 
 use crate::utils::quoted_words;
 
@@ -19,11 +19,7 @@ where
     Box::pin(stream! {
         let mut iter = quoted_words(input);
         if let Some(word) = iter.next() {
-            let token_match = Match {
-                token,
-                phrase: word.clone(),
-                meta: Meta::None,
-            };
+            let token_match = Match::new(token, word.as_own_str(input));
 
             if word.is_at_end() {
                 yield MatchType::Exact(token_match);
@@ -46,11 +42,7 @@ mod test {
         };
 
         assert_eq!(
-            &[MatchType::Exact(Match {
-                token: token.clone(),
-                phrase: "Jesta".into(),
-                meta: Meta::None,
-            })][..],
+            &[MatchType::Exact(Match::new(token.clone(), "Jesta"))][..],
             match_input(token.clone(), "Jesta")
                 .collect::<Vec<_>>()
                 .await,
@@ -58,12 +50,8 @@ mod test {
 
         assert_eq!(
             &[MatchType::Overflow(
-                Match {
-                    token: token.clone(),
-                    phrase: "Nott".into(),
-                    meta: Meta::None,
-                },
-                " \"The Brave\" ",
+                Match::new(token.clone(), "Nott"),
+                " \"The Brave\" "
             )][..],
             match_input(token.clone(), " Nott \"The Brave\" ")
                 .collect::<Vec<_>>()

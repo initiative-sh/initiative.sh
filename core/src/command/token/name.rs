@@ -1,6 +1,7 @@
-use super::{Match, MatchType, Meta, Token, TokenType};
+use super::{Match, MatchType, Token, TokenType};
 
 use crate::app::AppMeta;
+use crate::storage::Record;
 use crate::utils::CaseInsensitiveStr;
 
 use std::pin::Pin;
@@ -30,7 +31,7 @@ where
             // unwrap: we've checked that there's a first(), so there must be a last()
             let last_phrase = phrases.last().unwrap();
 
-            let results: Vec<_> = if first_phrase.is_quoted() {
+            let records: Vec<_> = if first_phrase.is_quoted() {
                 // Need to query both quoted and unquoted versions of the phrase
                 let (get_by_name, get_by_name_start) = join!(
                     app_meta.repository.get_by_name((
@@ -53,39 +54,33 @@ where
                     .unwrap()
             };
 
-            for result in results {
+            for record in records.into_iter() {
+                let Record { thing, .. } = record;
+
                 // unwrap: result of get_by_name_start(), so it must have a name
-                let thing_name = result.thing.name().value().unwrap();
+                let thing_name = thing.name().value().unwrap();
 
                 if thing_name.eq_ci(last_phrase) {
-                    yield MatchType::Exact(
-                        Match {
-                            token: token.clone(),
-                            phrase: last_phrase.clone(),
-                            meta: Meta::Thing(result.thing),
-                        }
-                    );
-                } else if last_phrase.completes_to_ci(thing_name) {
-                    yield MatchType::Partial(
-                        Match {
-                            token: token.clone(),
-                            phrase: last_phrase.clone(),
-                            meta: Meta::Thing(result.thing),
-                        }
-                    );
-                } else {
-                    for phrase in phrases[0..phrases.len() - 1].iter() {
-                        if thing_name.eq_ci(phrase) {
-                            yield MatchType::Overflow(
-                                Match {
-                                    token: token.clone(),
-                                    phrase: phrase.clone(),
-                                    meta: Meta::Thing(result.thing),
-                                },
-                                &input[phrase.range().end..],
-                            );
-                            break;
-                        }
+                    yield MatchType::Exact(Match::new(token.clone(), thing));
+                    continue;
+                } else if last_phrase.can_complete() {
+                    if let Some(completion) = thing_name.strip_prefix_ci(last_phrase).map(str::to_string) {
+                        yield MatchType::Partial(
+                            Match::new(token.clone(), thing),
+                            Some(completion),
+                        );
+
+                        continue;
+                    }
+                }
+
+                for phrase in phrases[0..phrases.len() - 1].iter() {
+                    if thing_name.eq_ci(phrase) {
+                        yield MatchType::Overflow(
+                            Match::new(token.clone(), thing),
+                            &input[phrase.range().end..],
+                        );
+                        break;
                     }
                 }
             }
@@ -132,27 +127,12 @@ mod test {
 
         assert_stream_eq(
             vec![
-                MatchType::Overflow(
-                    Match {
-                        token: token.clone(),
-                        phrase: "Medium".into(),
-                        meta: Meta::Thing(things[0].clone()),
-                    },
-                    " Dave Lily",
+                MatchType::Overflow(Match::new(token.clone(), things[0].clone()), " Dave Lily"),
+                MatchType::Overflow(Match::new(token.clone(), things[1].clone()), " Lily"),
+                MatchType::Partial(
+                    Match::new(token.clone(), things[2].clone()),
+                    Some("white".to_string()),
                 ),
-                MatchType::Overflow(
-                    Match {
-                        token: token.clone(),
-                        phrase: "\"Medium\" Dave".into(),
-                        meta: Meta::Thing(things[1].clone()),
-                    },
-                    " Lily",
-                ),
-                MatchType::Partial(Match {
-                    token: token.clone(),
-                    phrase: "\"Medium\" Dave Lily".into(),
-                    meta: Meta::Thing(things[2].clone()),
-                }),
             ],
             match_input(token, "\"Medium\" Dave Lily", &app_meta),
         )
@@ -177,11 +157,10 @@ mod test {
             };
 
             assert_stream_eq(
-                vec![MatchType::Exact(Match {
-                    token: token.clone(),
-                    phrase: "teatime".into(),
-                    meta: Meta::Thing(things[0].clone()),
-                })],
+                vec![MatchType::Exact(Match::new(
+                    token.clone(),
+                    things[0].clone(),
+                ))],
                 match_input(token, "teatime", &app_meta),
             )
             .await;
@@ -194,11 +173,10 @@ mod test {
             };
 
             assert_stream_eq(
-                vec![MatchType::Exact(Match {
-                    token: token.clone(),
-                    phrase: "teatime".into(),
-                    meta: Meta::Thing(things[0].clone()),
-                })],
+                vec![MatchType::Exact(Match::new(
+                    token.clone(),
+                    things[0].clone(),
+                ))],
                 match_input(token, "teatime", &app_meta),
             )
             .await;
