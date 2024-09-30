@@ -50,15 +50,15 @@ mod test {
             &[
                 MatchType::Overflow(
                     Match {
-                        token: &token,
-                        phrase: "Nott",
+                        token: token.clone(),
+                        phrase: "Nott".into(),
                         meta: Meta::None,
                     },
                     " \"The Brave\" ",
                 ),
                 MatchType::Exact(Match {
-                    token: &token,
-                    phrase: "Nott \"The Brave\"",
+                    token: token.clone(),
+                    phrase: "Nott \"The Brave\"".into(),
                     meta: Meta::None,
                 }),
             ][..],

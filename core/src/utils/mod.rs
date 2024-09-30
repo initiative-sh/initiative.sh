@@ -34,7 +34,7 @@ pub fn pluralize(word: &str) -> (&str, &str) {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq)]
 pub struct Word<'a> {
     phrase: &'a str,
     inner_range: Range<usize>,
@@ -75,16 +75,16 @@ impl<'a> Word<'a> {
     }
 
     pub fn is_at_end(&self) -> bool {
-        self.inner_range.end == self.phrase.len()
+        self.outer_range.end == self.phrase.len()
     }
 
-    pub fn completes_to_ci<'b, W>(&self, other: W) -> bool
+    pub fn completes_to_ci<'b, S>(&self, other: S) -> bool
     where
-        W: Into<Word<'b>>,
+        S: AsRef<str>,
     {
-        let other: Word = other.into();
+        let other: &str = other.as_ref();
 
-        other.as_str().starts_with_ci(self.as_str()) && self.is_at_end()
+        other.starts_with_ci(self.as_str()) && self.is_at_end() && !self.is_quoted()
     }
 
     pub fn combine_with(&self, other: Word<'a>) -> Option<Word<'a>> {
@@ -100,6 +100,18 @@ impl<'a> Word<'a> {
         } else {
             None
         }
+    }
+}
+
+impl<'a> PartialEq for Word<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
+impl<'a> AsRef<str> for Word<'a> {
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }
 

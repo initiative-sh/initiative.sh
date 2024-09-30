@@ -29,10 +29,10 @@ where
             };
 
             if keyword.eq_ci(first_word.as_str()) {
-                if iter.next().is_some() {
-                    yield MatchType::Overflow(token_match, &input[first_word.range().end..]);
-                } else {
+                if first_word.is_at_end() {
                     yield MatchType::Exact(token_match);
+                } else {
+                    yield MatchType::Overflow(token_match, &input[first_word.range().end..]);
                 }
             } else if first_word.completes_to_ci(keyword) {
                 yield MatchType::Partial(token_match);
@@ -48,14 +48,14 @@ mod test {
     #[tokio::test]
     async fn match_input_test_exact() {
         let token = Token {
-            token_type: TokenType::Word("Nott"),
+            token_type: TokenType::Keyword("Nott"),
             marker: (),
         };
 
         assert_eq!(
             &[MatchType::Exact(Match {
-                token: &token,
-                phrase: "nott",
+                token: token.clone(),
+                phrase: "nott".into(),
                 meta: Meta::None,
             })][..],
             match_input(token.clone(), "nott").collect::<Vec<_>>().await,
@@ -65,15 +65,15 @@ mod test {
     #[tokio::test]
     async fn match_input_test_overflow() {
         let token = Token {
-            token_type: TokenType::Word("Nott"),
+            token_type: TokenType::Keyword("Nott"),
             marker: (),
         };
 
         assert_eq!(
             &[MatchType::Overflow(
                 Match {
-                    token: &token,
-                    phrase: "nott",
+                    token: token.clone(),
+                    phrase: "nott".into(),
                     meta: Meta::None,
                 },
                 " \"the brave\"",
@@ -87,14 +87,14 @@ mod test {
     #[tokio::test]
     async fn match_input_test_partial() {
         let token = Token {
-            token_type: TokenType::Word("Nott"),
+            token_type: TokenType::Keyword("Nott"),
             marker: (),
         };
 
         assert_eq!(
             &[MatchType::Partial(Match {
-                token: &token,
-                phrase: "no",
+                token: token.clone(),
+                phrase: "no".into(),
                 meta: Meta::None,
             },)][..],
             match_input(token.clone(), " no").collect::<Vec<_>>().await,

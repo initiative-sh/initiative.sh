@@ -57,7 +57,7 @@ where
                 // unwrap: result of get_by_name_start(), so it must have a name
                 let thing_name = result.thing.name().value().unwrap();
 
-                if thing_name.eq_ci(last_phrase.as_str()) {
+                if thing_name.eq_ci(last_phrase) {
                     yield MatchType::Exact(
                         Match {
                             token: token.clone(),
@@ -75,7 +75,7 @@ where
                     );
                 } else {
                     for phrase in phrases[0..phrases.len() - 1].iter() {
-                        if thing_name.eq_ci(phrase.as_str()) {
+                        if thing_name.eq_ci(phrase) {
                             yield MatchType::Overflow(
                                 Match {
                                     token: token.clone(),
@@ -134,27 +134,27 @@ mod test {
             vec![
                 MatchType::Overflow(
                     Match {
-                        token: &token,
-                        phrase: "\"Medium\"",
+                        token: token.clone(),
+                        phrase: "Medium".into(),
                         meta: Meta::Thing(things[0].clone()),
                     },
                     " Dave Lily",
                 ),
                 MatchType::Overflow(
                     Match {
-                        token: &token,
-                        phrase: "\"Medium\" Dave",
+                        token: token.clone(),
+                        phrase: "\"Medium\" Dave".into(),
                         meta: Meta::Thing(things[1].clone()),
                     },
                     " Lily",
                 ),
                 MatchType::Partial(Match {
-                    token: &token,
-                    phrase: "\"Medium\" Dave Lily",
+                    token: token.clone(),
+                    phrase: "\"Medium\" Dave Lily".into(),
                     meta: Meta::Thing(things[2].clone()),
                 }),
             ],
-            match_input(&token, "\"Medium\" Dave Lily", &app_meta),
+            match_input(token, "\"Medium\" Dave Lily", &app_meta),
         )
         .await;
     }
@@ -178,11 +178,11 @@ mod test {
 
             assert_stream_eq(
                 vec![MatchType::Exact(Match {
-                    token: &token,
-                    phrase: "teatime",
+                    token: token.clone(),
+                    phrase: "teatime".into(),
                     meta: Meta::Thing(things[0].clone()),
                 })],
-                match_input(&token, "teatime", &app_meta),
+                match_input(token, "teatime", &app_meta),
             )
             .await;
         }
@@ -195,17 +195,17 @@ mod test {
 
             assert_stream_eq(
                 vec![MatchType::Exact(Match {
-                    token: &token,
-                    phrase: "teatime",
+                    token: token.clone(),
+                    phrase: "teatime".into(),
                     meta: Meta::Thing(things[0].clone()),
                 })],
-                match_input(&token, "teatime", &app_meta),
+                match_input(token, "teatime", &app_meta),
             )
             .await;
         }
 
         assert_stream_empty(match_input(
-            &Token {
+            Token {
                 token_type: TokenType::Name(RecordSource::Any, ThingType::Place),
                 marker: (),
             },
@@ -215,7 +215,7 @@ mod test {
         .await;
 
         assert_stream_empty(match_input(
-            &Token {
+            Token {
                 token_type: TokenType::Name(RecordSource::Recent, ThingType::Any),
                 marker: (),
             },

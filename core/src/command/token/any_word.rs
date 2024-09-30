@@ -25,10 +25,10 @@ where
                 meta: Meta::None,
             };
 
-            if iter.next().is_some() {
-                yield MatchType::Overflow(token_match, &input[word.range().end..]);
-            } else {
+            if word.is_at_end() {
                 yield MatchType::Exact(token_match);
+            } else {
+                yield MatchType::Overflow(token_match, &input[word.range().end..]);
             }
         }
     })
@@ -47,23 +47,23 @@ mod test {
 
         assert_eq!(
             &[MatchType::Exact(Match {
-                token: &token,
-                phrase: "Jesta",
+                token: token.clone(),
+                phrase: "Jesta".into(),
                 meta: Meta::None,
             })][..],
-            match_input(token, "Jesta").collect::<Vec<_>>().await,
+            match_input(token.clone(), "Jesta").collect::<Vec<_>>().await,
         );
 
         assert_eq!(
             &[MatchType::Overflow(
                 Match {
-                    token: &token,
-                    phrase: "Nott",
+                    token: token.clone(),
+                    phrase: "Nott".into(),
                     meta: Meta::None,
                 },
                 " \"The Brave\" ",
             )][..],
-            match_input(token, " Nott \"The Brave\" ")
+            match_input(token.clone(), " Nott \"The Brave\" ")
                 .collect::<Vec<_>>()
                 .await,
         );

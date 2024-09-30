@@ -132,7 +132,7 @@ pub mod test {
         mut expect_results: Vec<MatchType<'a, M>>,
         stream: Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>,
     ) where
-        M: std::fmt::Debug + std::cmp::PartialEq,
+        M: std::fmt::Debug + std::cmp::PartialEq + Clone + Copy,
     {
         for match_type in stream.collect::<Vec<_>>().await {
             let Some(index) = expect_results
@@ -154,7 +154,7 @@ pub mod test {
     pub async fn assert_stream_empty<'a, M>(
         stream: Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>,
     ) where
-        M: std::fmt::Debug + std::cmp::PartialEq,
+        M: std::fmt::Debug + std::cmp::PartialEq + Clone + Copy,
     {
         assert_stream_eq(Vec::<MatchType<'a, M>>::new(), stream).await;
     }
