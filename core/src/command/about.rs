@@ -15,7 +15,11 @@ impl Command for About {
         }
     }
 
-    fn autocomplete(&self, _match_type: MatchType<Self::Marker>) -> Option<AutocompleteSuggestion> {
+    fn autocomplete(
+        &self,
+        _input: &str,
+        _match_type: MatchType<Self::Marker>,
+    ) -> Option<AutocompleteSuggestion> {
         Some(("about", "about initiative.sh").into())
     }
 

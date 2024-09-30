@@ -21,7 +21,7 @@ where
     };
 
     if tokens.is_empty() {
-        // Fail early, fail often
+        // No tokens, no matches
         Box::pin(stream::empty())
     } else {
         Box::pin(stream! {

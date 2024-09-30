@@ -22,6 +22,7 @@ trait Command {
     /// Convert a matched token into a suggestion to be displayed to the user.
     fn autocomplete<'a>(
         &self,
+        input: &str,
         token_match: MatchType<'a, Self::Marker>,
     ) -> Option<AutocompleteSuggestion>;
 
@@ -43,7 +44,7 @@ trait Command {
             let token = self.token();
             for await token_match in token.match_input(input, app_meta) {
                 if !matches!(token_match, MatchType::Overflow(..)) {
-                    if let Some(suggestion) = self.autocomplete(token_match) {
+                    if let Some(suggestion) = self.autocomplete(input, token_match) {
                         yield suggestion;
                     }
                 }

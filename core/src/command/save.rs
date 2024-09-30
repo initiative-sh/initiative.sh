@@ -1,4 +1,4 @@
-use super::token::{MatchType, Token, TokenType};
+use super::token::{MatchType, Meta, Token, TokenType};
 use super::Command;
 
 use crate::app::{AppMeta, AutocompleteSuggestion};
@@ -17,7 +17,7 @@ impl Command for Save {
                     marker: (),
                 },
                 Token {
-                    token_type: TokenType::Name(RecordSource::Recent, ThingType::Any),
+                    token_type: TokenType::Name,
                     marker: (),
                 },
             ]),
@@ -25,11 +25,59 @@ impl Command for Save {
         }
     }
 
-    fn autocomplete(&self, match_type: MatchType<Self::Marker>) -> Option<AutocompleteSuggestion> {
-        match match_type {
-            MatchType::Partial(..) => todo!(),
-            MatchType::Exact(..) => todo!(),
-            MatchType::Overflow(..) => todo!(),
+    fn autocomplete(
+        &self,
+        input: &str,
+        match_type: MatchType<Self::Marker>,
+    ) -> Option<AutocompleteSuggestion> {
+        let token_match = match &match_type {
+            MatchType::Partial(token_match, _) => token_match,
+            MatchType::Exact(token_match) => token_match,
+            MatchType::Overflow(..) => return None,
+        };
+
+        let (name_match, matched_thing) = {
+            let Meta::Sequence(token_sequence) = &token_match.meta else {
+                unreachable!();
+            };
+
+            let Meta::Single(or_token_match) = &token_sequence[1].meta else {
+                unreachable!();
+            };
+
+            (
+                or_token_match,
+                if let Meta::Thing(thing) = &or_token_match.meta {
+                    Some(thing)
+                } else {
+                    None
+                },
+            )
+        };
+
+        // don't autocomplete invalid suggestions
+        if let (Some(Marker::UnsavedThingName), Some(thing)) =
+            (name_match.token.marker, matched_thing)
+        {
+            if let MatchType::Partial(_, Some(remainder)) = &match_type {
+                Some(
+                    (
+                        format!("{}{}", input, remainder),
+                        format!("save {} to journal", thing.as_str()),
+                    )
+                        .into(),
+                )
+            } else {
+                Some(
+                    (
+                        input.to_string(),
+                        format!("save {} to journal", thing.as_str()),
+                    )
+                        .into(),
+                )
+            }
+        } else {
+            None
         }
     }
 
@@ -50,6 +98,7 @@ mod test {
     use crate::app::{AppMeta, Event};
     use crate::storage::{Change, MemoryDataStore};
     use crate::world::npc::NpcData;
+    use crate::world::place::PlaceData;
 
     use uuid::Uuid;
 
@@ -57,18 +106,28 @@ mod test {
     async fn autocomplete_test() {
         let things = &[
             NpcData {
-                name: "Cut-Me-Own-Throat Dibbler".into(),
+                name: "Cohen the Barbarian".into(),
                 ..Default::default()
             }
             .into_thing(Uuid::new_v4()),
-            NpcData {
-                name: "Cohen the Barbarian".into(),
+            PlaceData {
+                name: "Copperhead".into(),
                 ..Default::default()
             }
             .into_thing(Uuid::new_v4()),
         ];
 
-        let mut app_meta = AppMeta::new(MemoryDataStore::default(), &event_dispatcher);
+        let mut app_meta = AppMeta::new(
+            [NpcData {
+                name: "Cut-Me-Own-Throat Dibbler".into(),
+                ..Default::default()
+            }
+            .into_thing(Uuid::new_v4())]
+            .into_iter()
+            .collect::<MemoryDataStore>(),
+            &event_dispatcher,
+        );
+
         for thing in things {
             app_meta
                 .repository
@@ -81,13 +140,22 @@ mod test {
         }
 
         assert_eq!(
-            vec![AutocompleteSuggestion::new("about", "about initiative.sh")],
+            vec![
+                AutocompleteSuggestion::new(
+                    "save cohen the Barbarian",
+                    "save character to journal"
+                ),
+                AutocompleteSuggestion::new(
+                    "save copperhead",
+                    "save place to journal"
+                ),
+            ],
             autocomplete("save c", &app_meta).await,
         );
 
         assert_eq!(
             vec![AutocompleteSuggestion::new("about", "about initiative.sh")],
-            autocomplete("ABOUT", &app_meta).await,
+            autocomplete("SAVE CO", &app_meta).await,
         );
 
         assert_eq!(

@@ -27,8 +27,8 @@ pub struct Match<'a, M>
 where
     M: Clone,
 {
-    token: Token<'a, M>,
-    meta: Meta<'a, M>,
+    pub token: Token<'a, M>,
+    pub meta: Meta<'a, M>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
