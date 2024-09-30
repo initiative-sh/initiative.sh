@@ -5,9 +5,8 @@ use crate::app::AppMeta;
 use std::iter;
 use std::pin::Pin;
 
+use async_stream::stream;
 use futures::prelude::*;
-use futures::task::{Context, Poll};
-use pin_project::pin_project;
 
 pub fn match_input<'a, M>(
     token: Token<'a, M>,
@@ -17,143 +16,70 @@ pub fn match_input<'a, M>(
 where
     M: Clone,
 {
-    Box::pin(PhraseMatchStream::new(token, input, app_meta))
-}
+    let TokenType::Phrase(tokens) = token.token_type else {
+        unreachable!();
+    };
 
-#[pin_project]
-struct PhraseMatchStream<'a, M>
-where
-    M: Clone,
-{
-    token: Token<'a, M>,
-    input: &'a str,
-    app_meta: &'a AppMeta,
-    first_token_stream: Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>,
-    next_match_remaining_stream: Option<(
-        Match<'a, M>,
-        Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>,
-    )>,
-}
+    if tokens.is_empty() {
+        // Fail early, fail often
+        Box::pin(stream::empty())
+    } else {
+        Box::pin(stream! {
+            // Match the first token in the phrase
+            for await match_type in tokens[0].clone().match_input(input, app_meta) {
+                match match_type {
 
-impl<'a, M> PhraseMatchStream<'a, M>
-where
-    M: Clone,
-{
-    pub fn new(token: Token<'a, M>, input: &'a str, app_meta: &'a AppMeta) -> Self {
-        let TokenType::Phrase(tokens) = token.token_type else {
-            unreachable!();
-        };
-
-        let first_token_stream = if tokens.is_empty() {
-            Box::pin(stream::empty())
-        } else {
-            tokens[0].clone().match_input(input, app_meta)
-        };
-
-        Self {
-            token,
-            input,
-            app_meta,
-            first_token_stream,
-            next_match_remaining_stream: None,
-        }
-    }
-}
-
-impl<'a, M> Stream for PhraseMatchStream<'a, M>
-where
-    M: Clone,
-{
-    type Item = MatchType<'a, M>;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        let this = self.project();
-
-        let TokenType::Phrase(tokens) = this.token.token_type else {
-            unreachable!();
-        };
-
-        loop {
-            // An inner stream is currently present and running against a match. Process it (and
-            // possibly return) before finding another match.
-            if let Some((next_match, remaining_stream)) = this.next_match_remaining_stream.as_mut()
-            {
-                match Stream::poll_next(remaining_stream.as_mut(), cx) {
-                    // Got a result: return the first match and leave the stream in place to poll
-                    // again.
-                    Poll::Ready(Some(match_type)) => {
-                        return Poll::Ready(Some(match_type.map(|token_match| {
-                            let Meta::Sequence(remaining_matches) = token_match.meta else {
-                                unreachable!();
-                            };
-
-                            Match::new(
-                                this.token.clone(),
-                                iter::once(next_match.clone())
-                                    .chain(remaining_matches)
-                                    .collect::<Vec<_>>(),
-                            )
-                        })));
-                    }
-
-                    // The stream is exhausted: drop it and return to processing the first token.
-                    Poll::Ready(None) => *this.next_match_remaining_stream = None,
-
-                    // The stream is pending and so are we.
-                    Poll::Pending => return Poll::Pending,
-                }
-            }
-
-            // If no inner stream is present, proceed to match the first token in the list against
-            // the input.
-            match Stream::poll_next(this.first_token_stream.as_mut(), cx) {
-                // A partial match was found, so the phrase is incomplete.
-                Poll::Ready(Some(MatchType::Partial(first_token_match, completion))) => {
-                    return Poll::Ready(Some(MatchType::Partial(
-                        Match::new(this.token.clone(), vec![first_token_match]),
+                    // First token is a partial match, so the phrase is incomplete
+                    MatchType::Partial(token_match, completion) => yield MatchType::Partial(
+                        Match::new(token.clone(), vec![token_match]),
                         completion,
-                    )));
-                }
+                    ),
 
-                // An exact match was found (no leftovers), so the phrase is complete if the token
-                // list has been exhausted, or it's a partial match if there are tokens left to
-                // match.
-                Poll::Ready(Some(MatchType::Exact(first_token_match))) => {
-                    let token_match = Match::new(this.token.clone(), vec![first_token_match]);
+                    // First token is an exact match and is the only token in the phrase, so the
+                    // phrase is also an exact match.
+                    MatchType::Exact(token_match) if tokens.len() == 1 => yield MatchType::Exact(
+                        Match::new(token.clone(), vec![token_match]),
+                    ),
 
-                    return Poll::Ready(Some(if tokens.len() == 1 {
-                        MatchType::Exact(token_match)
-                    } else {
-                        MatchType::Partial(token_match, None)
-                    }));
-                }
+                    // First token is an exact match but there are more unmatched tokens, so the
+                    // phrase is incomplete.
+                    MatchType::Exact(token_match) => yield MatchType::Partial(
+                        Match::new(token.clone(), vec![token_match]),
+                        None,
+                    ),
 
-                // The token matched with leftovers, so we'll create a new sub-stream that takes
-                // the remaining token list and match it against the remaining text. This will nest
-                // repeatedly until either the token list or the text is exhausted.
-                Poll::Ready(Some(MatchType::Overflow(first_token_match, remainder))) => {
-                    if tokens.len() == 1 {
-                        // This was the last token, so the entire phrase overflows.
-                        return Poll::Ready(Some(MatchType::Overflow(
-                            Match::new(this.token.clone(), vec![first_token_match]),
-                            remainder,
-                        )));
-                    } else {
-                        // More tokens to parse, now the recursion starts.
-                        let remaining_phrase_token =
-                            Token::new(TokenType::Phrase(&tokens[1..]), this.token.marker.clone());
+                    // First token overflows and is the only token in the phrase, so the phrase
+                    // also overflows.
+                    MatchType::Overflow(token_match, remainder) if tokens.len() == 1 =>
+                            yield MatchType::Overflow(
+                                Match::new(token.clone(), vec![token_match]),
+                                remainder,
+                            ),
 
-                        *this.next_match_remaining_stream = Some((
-                            first_token_match,
-                            remaining_phrase_token.match_input(remainder, this.app_meta),
-                        ));
+                    // First token overflows but there are other tokens in the phrase, so we
+                    // recurse with the remainder of the phrase.
+                    MatchType::Overflow(token_match, remainder) => {
+                        let next_token = Token {
+                            token_type: TokenType::Phrase(&tokens[1..]),
+                            marker: token.marker.clone(),
+                        };
+
+                        for await next_match_type in next_token.match_input(remainder, app_meta) {
+                            yield next_match_type.map(|next_match| {
+                                let Meta::Sequence(next_meta_sequence) = next_match.meta else {
+                                    unreachable!();
+                                };
+
+                                Match::new(
+                                    token.clone(),
+                                    iter::once(token_match.clone()).chain(next_meta_sequence.into_iter()).collect::<Vec<_>>(),
+                                )
+                            });
+                        }
                     }
                 }
-
-                // If the first token stream is empty or pending, then so are we.
-                v @ Poll::Ready(None) | v @ Poll::Pending => return v,
             }
-        }
+        })
     }
 }
 
