@@ -8,14 +8,11 @@ use std::pin::Pin;
 use async_stream::stream;
 use futures::prelude::*;
 
-pub fn match_input<'a, M>(
-    token: Token<'a, M>,
+pub fn match_input<'a>(
+    token: Token<'a>,
     input: &'a str,
     app_meta: &'a AppMeta,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
-where
-    M: Clone,
-{
+) -> Pin<Box<dyn Stream<Item = MatchType<'a>> + 'a>> {
     let TokenType::Phrase(tokens) = token.token_type else {
         unreachable!();
     };
@@ -105,13 +102,13 @@ mod test {
         };
 
         let phrase = [
-            Token::new(TokenType::Keyword("Legolas"), Marker::Keyword),
-            Token::new(TokenType::AnyPhrase, Marker::AnyPhrase),
-            Token::new(TokenType::AnyWord, Marker::AnyWord),
+            Token::new(TokenType::Keyword("Legolas"), Marker::Keyword as u8),
+            Token::new(TokenType::AnyPhrase, Marker::AnyPhrase as u8),
+            Token::new(TokenType::AnyWord, Marker::AnyWord as u8),
         ];
         let [keyword_token, any_phrase_token, any_word_token] = &phrase;
 
-        let phrase_token = Token::new(TokenType::Phrase(&phrase), Marker::Phrase);
+        let phrase_token = Token::new(TokenType::Phrase(&phrase), Marker::Phrase as u8);
 
         assert_stream_eq(
             vec![

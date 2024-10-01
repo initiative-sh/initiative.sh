@@ -13,43 +13,31 @@ use futures::prelude::*;
 use std::pin::Pin;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Token<'a, M>
-where
-    M: Clone,
-{
-    pub token_type: TokenType<'a, M>,
-    pub marker: M,
+pub struct Token<'a> {
+    pub token_type: TokenType<'a>,
+    pub marker: Option<u8>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Match<'a, M>
-where
-    M: Clone,
-{
-    pub token: Token<'a, M>,
-    pub meta: Meta<'a, M>,
+pub struct Match<'a> {
+    pub token: Token<'a>,
+    pub meta: Meta<'a>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MatchType<'a, M>
-where
-    M: Clone,
-{
-    Overflow(Match<'a, M>, &'a str),
-    Exact(Match<'a, M>),
-    Partial(Match<'a, M>, Option<String>),
+pub enum MatchType<'a> {
+    Overflow(Match<'a>, &'a str),
+    Exact(Match<'a>),
+    Partial(Match<'a>, Option<String>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum TokenType<'a, M>
-where
-    M: Clone,
-{
+pub enum TokenType<'a> {
     /// One or more tokens, in any order but without repetition
-    AnyOf(&'a [Token<'a, M>]),
+    AnyOf(&'a [Token<'a>]),
 
     /// One or more tokens, in any order with repetition
-    AnyOfRepeated(&'a [Token<'a, M>]),
+    AnyOfRepeated(&'a [Token<'a>]),
 
     /// Any sequence of words
     AnyPhrase,
@@ -61,40 +49,40 @@ where
     Name,
 
     /// Any one of the tokens
-    Or(&'a [Token<'a, M>]),
+    Or(&'a [Token<'a>]),
 
     /// The exact sequence of tokens
-    Phrase(&'a [Token<'a, M>]),
+    Phrase(&'a [Token<'a>]),
 
     /// A literal word
     Keyword(&'a str),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Meta<'a, M>
-where
-    M: Clone,
-{
+pub enum Meta<'a> {
     None,
     Phrase(&'a str),
     Record(Record),
-    Sequence(Vec<Match<'a, M>>),
-    Single(Box<Match<'a, M>>),
+    Sequence(Vec<Match<'a>>),
+    Single(Box<Match<'a>>),
 }
 
-impl<'a, M> Token<'a, M>
-where
-    M: Clone,
-{
-    pub fn new(token_type: TokenType<'a, M>, marker: M) -> Self {
-        Token { token_type, marker }
+impl<'a> Token<'a> {
+    pub fn new<T>(token_type: TokenType<'a>, marker: T) -> Self
+    where
+        T: Into<Option<u8>>,
+    {
+        Token {
+            token_type,
+            marker: marker.into(),
+        }
     }
 
     pub fn match_input(
         self,
         input: &'a str,
         app_meta: &'a AppMeta,
-    ) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>> {
+    ) -> Pin<Box<dyn Stream<Item = MatchType<'a>> + 'a>> {
         match &self.token_type {
             TokenType::AnyOf(..) => todo!(),
             TokenType::AnyOfRepeated(..) => todo!(),
@@ -108,13 +96,10 @@ where
     }
 }
 
-impl<'a, M> MatchType<'a, M>
-where
-    M: Clone,
-{
+impl<'a> MatchType<'a> {
     pub fn map<F>(self, f: F) -> Self
     where
-        F: FnOnce(Match<'a, M>) -> Match<'a, M>,
+        F: FnOnce(Match<'a>) -> Match<'a>,
     {
         match self {
             MatchType::Overflow(token_match, overflow) => {
@@ -127,7 +112,7 @@ where
         }
     }
 
-    pub fn token_match(&self) -> &Match<'a, M> {
+    pub fn token_match(&self) -> &Match<'a> {
         match self {
             MatchType::Overflow(token_match, _)
             | MatchType::Exact(token_match)
@@ -136,11 +121,8 @@ where
     }
 }
 
-impl<'a, M> Match<'a, M>
-where
-    M: Clone,
-{
-    pub fn new(token: Token<'a, M>, meta: impl Into<Meta<'a, M>>) -> Self {
+impl<'a> Match<'a> {
+    pub fn new(token: Token<'a>, meta: impl Into<Meta<'a>>) -> Self {
         Match {
             token,
             meta: meta.into(),
@@ -148,11 +130,8 @@ where
     }
 }
 
-impl<'a, M> From<Token<'a, M>> for Match<'a, M>
-where
-    M: Clone,
-{
-    fn from(input: Token<'a, M>) -> Self {
+impl<'a> From<Token<'a>> for Match<'a> {
+    fn from(input: Token<'a>) -> Self {
         Match {
             token: input,
             meta: Meta::None,
@@ -160,37 +139,25 @@ where
     }
 }
 
-impl<'a, M> From<&'a str> for Meta<'a, M>
-where
-    M: Clone,
-{
+impl<'a> From<&'a str> for Meta<'a> {
     fn from(input: &'a str) -> Self {
         Meta::Phrase(input)
     }
 }
 
-impl<'a, M> From<Vec<Match<'a, M>>> for Meta<'a, M>
-where
-    M: Clone,
-{
-    fn from(input: Vec<Match<'a, M>>) -> Self {
+impl<'a> From<Vec<Match<'a>>> for Meta<'a> {
+    fn from(input: Vec<Match<'a>>) -> Self {
         Meta::Sequence(input)
     }
 }
 
-impl<'a, M> From<Match<'a, M>> for Meta<'a, M>
-where
-    M: Clone,
-{
-    fn from(input: Match<'a, M>) -> Self {
+impl<'a> From<Match<'a>> for Meta<'a> {
+    fn from(input: Match<'a>) -> Self {
         Meta::Single(input.into())
     }
 }
 
-impl<'a, M> From<Record> for Meta<'a, M>
-where
-    M: Clone,
-{
+impl<'a> From<Record> for Meta<'a> {
     fn from(input: Record) -> Self {
         Meta::Record(input)
     }
@@ -203,7 +170,9 @@ pub mod test {
     pub async fn assert_stream_eq<'a, T>(
         mut expect_results: Vec<T>,
         stream: Pin<Box<dyn Stream<Item = T> + 'a>>,
-    ) where T: std::fmt::Debug + PartialEq {
+    ) where
+        T: std::fmt::Debug + PartialEq,
+    {
         for match_type in stream.collect::<Vec<_>>().await {
             let Some(index) = expect_results
                 .iter()
@@ -224,11 +193,10 @@ pub mod test {
         );
     }
 
-    pub async fn assert_stream_empty<'a, M>(
-        stream: Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>,
-    ) where
-        M: std::fmt::Debug + std::cmp::PartialEq + Clone + Copy,
+    pub async fn assert_stream_empty<'a, T>(stream: Pin<Box<dyn Stream<Item = T> + 'a>>)
+    where
+        T: std::fmt::Debug + PartialEq,
     {
-        assert_stream_eq(Vec::<MatchType<'a, M>>::new(), stream).await;
+        assert_stream_eq(Vec::<T>::new(), stream).await;
     }
 }

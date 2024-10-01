@@ -15,14 +15,11 @@ use async_stream::stream;
 use futures::join;
 use futures::prelude::*;
 
-pub fn match_input<'a, M>(
-    token: Token<'a, M>,
+pub fn match_input<'a>(
+    token: Token<'a>,
     input: &'a str,
     app_meta: &'a AppMeta,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
-where
-    M: Clone,
-{
+) -> Pin<Box<dyn Stream<Item = MatchType<'a>> + 'a>> {
     assert!(matches!(token.token_type, TokenType::Name));
 
     Box::pin(stream! {
@@ -134,7 +131,7 @@ mod test {
 
         let token = Token {
             token_type: TokenType::Name,
-            marker: (),
+            marker: Some(20),
         };
 
         assert_stream_eq(
@@ -190,7 +187,7 @@ mod test {
         {
             let token = Token {
                 token_type: TokenType::Name,
-                marker: (),
+                marker: Some(20),
             };
 
             assert_stream_eq(
@@ -212,7 +209,7 @@ mod test {
         {
             let token = Token {
                 token_type: TokenType::Name,
-                marker: (),
+                marker: Some(20),
             };
 
             assert_stream_eq(

@@ -6,29 +6,23 @@ use crate::app::{AppMeta, AutocompleteSuggestion};
 pub struct Save;
 
 impl Command for Save {
-    type Marker = ();
-
-    fn token<'a>(&self) -> Token<'a, Self::Marker> {
+    fn token(&self) -> Token {
         Token {
             token_type: TokenType::Phrase(&[
                 Token {
                     token_type: TokenType::Keyword("save"),
-                    marker: (),
+                    marker: None,
                 },
                 Token {
                     token_type: TokenType::Name,
-                    marker: (),
+                    marker: None,
                 },
             ]),
-            marker: (),
+            marker: None,
         }
     }
 
-    fn autocomplete(
-        &self,
-        _input: &str,
-        match_type: MatchType<Self::Marker>,
-    ) -> Option<AutocompleteSuggestion> {
+    fn autocomplete(&self, _input: &str, match_type: MatchType) -> Option<AutocompleteSuggestion> {
         let token_match = match_type.token_match();
 
         let record = {
@@ -56,9 +50,9 @@ impl Command for Save {
         }
     }
 
-    async fn run<'a>(
+    async fn run(
         &self,
-        _token_match: MatchType<'a, Self::Marker>,
+        _token_match: MatchType<'_>,
         _app_meta: &mut AppMeta,
     ) -> Result<String, String> {
         todo!()

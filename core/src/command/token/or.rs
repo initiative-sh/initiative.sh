@@ -7,14 +7,11 @@ use std::pin::Pin;
 use async_stream::stream;
 use futures::prelude::*;
 
-pub fn match_input<'a, M>(
-    token: Token<'a, M>,
+pub fn match_input<'a>(
+    token: Token<'a>,
     input: &'a str,
     app_meta: &'a AppMeta,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
-where
-    M: Clone,
-{
+) -> Pin<Box<dyn Stream<Item = MatchType<'a>> + 'a>> {
     let TokenType::Or(tokens) = token.token_type else {
         unreachable!();
     };

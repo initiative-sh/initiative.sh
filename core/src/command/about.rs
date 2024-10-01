@@ -6,26 +6,20 @@ use crate::app::{AppMeta, AutocompleteSuggestion};
 pub struct About;
 
 impl Command for About {
-    type Marker = ();
-
-    fn token<'a>(&self) -> Token<'a, Self::Marker> {
+    fn token<'a>(&self) -> Token {
         Token {
             token_type: TokenType::Keyword("about"),
-            marker: (),
+            marker: None,
         }
     }
 
-    fn autocomplete(
-        &self,
-        _input: &str,
-        _match_type: MatchType<Self::Marker>,
-    ) -> Option<AutocompleteSuggestion> {
+    fn autocomplete(&self, _input: &str, _match_type: MatchType) -> Option<AutocompleteSuggestion> {
         Some(("about", "about initiative.sh").into())
     }
 
-    async fn run<'a>(
+    async fn run(
         &self,
-        _token_match: MatchType<'a, Self::Marker>,
+        _token_match: MatchType<'_>,
         _app_meta: &mut AppMeta,
     ) -> Result<String, String> {
         Ok(include_str!("../../../data/about.md")
@@ -36,8 +30,8 @@ impl Command for About {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use super::super::token::test::assert_stream_eq;
+    use super::*;
 
     use crate::app::{AppMeta, Event};
     use crate::storage::NullDataStore;
@@ -49,7 +43,8 @@ mod test {
         assert_stream_eq(
             vec![AutocompleteSuggestion::new("about", "about initiative.sh")],
             About.parse_autocomplete("a", &app_meta),
-        ).await;
+        )
+        .await;
     }
 
     fn event_dispatcher(_event: Event) {}

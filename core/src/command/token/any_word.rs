@@ -7,13 +7,10 @@ use std::pin::Pin;
 use async_stream::stream;
 use futures::prelude::*;
 
-pub fn match_input<'a, M>(
-    token: Token<'a, M>,
+pub fn match_input<'a>(
+    token: Token<'a>,
     input: &'a str,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
-where
-    M: Clone,
-{
+) -> Pin<Box<dyn Stream<Item = MatchType<'a>> + 'a>> {
     assert!(matches!(token.token_type, TokenType::AnyWord));
 
     Box::pin(stream! {
@@ -38,7 +35,7 @@ mod test {
     async fn match_input_test() {
         let token = Token {
             token_type: TokenType::AnyWord,
-            marker: (),
+            marker: Some(20),
         };
 
         assert_eq!(

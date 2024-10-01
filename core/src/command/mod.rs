@@ -13,25 +13,15 @@ use async_stream::stream;
 use futures::prelude::*;
 
 trait Command {
-    type Marker: Clone;
-
     /// Return a single Token representing the command's syntax. If multiple commands are possible,
     /// Token::Or can be used as a wrapper to cover the options.
-    fn token<'a>(&self) -> Token<'a, Self::Marker>;
+    fn token(&self) -> Token;
 
     /// Convert a matched token into a suggestion to be displayed to the user.
-    fn autocomplete<'a>(
-        &self,
-        input: &str,
-        token_match: MatchType<'a, Self::Marker>,
-    ) -> Option<AutocompleteSuggestion>;
+    fn autocomplete(&self, input: &str, token_match: MatchType) -> Option<AutocompleteSuggestion>;
 
     /// Run the command represented by a matched token.
-    async fn run<'a>(
-        &self,
-        token_match: MatchType<'a, Self::Marker>,
-        app_meta: &mut AppMeta,
-    ) -> Result<String, String>;
+    async fn run(&self, token_match: MatchType, app_meta: &mut AppMeta) -> Result<String, String>;
 
     /// A helper function to roughly provide Command::autocomplete(Command::token().match_input()),
     /// except that that wouldn't compile for all sorts of exciting reasons.

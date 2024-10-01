@@ -8,13 +8,10 @@ use std::pin::Pin;
 use async_stream::stream;
 use futures::prelude::*;
 
-pub fn match_input<'a, M>(
-    token: Token<'a, M>,
+pub fn match_input<'a>(
+    token: Token<'a>,
     input: &'a str,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
-where
-    M: Clone,
-{
+) -> Pin<Box<dyn Stream<Item = MatchType<'a>> + 'a>> {
     let TokenType::Keyword(keyword) = token.token_type else {
         unreachable!();
     };
@@ -46,7 +43,7 @@ mod test {
     async fn match_input_test_exact() {
         let token = Token {
             token_type: TokenType::Keyword("Nott"),
-            marker: (),
+            marker: Some(20),
         };
 
         assert_eq!(
@@ -59,7 +56,7 @@ mod test {
     async fn match_input_test_overflow() {
         let token = Token {
             token_type: TokenType::Keyword("Nott"),
-            marker: (),
+            marker: Some(20),
         };
 
         assert_eq!(
@@ -74,7 +71,7 @@ mod test {
     async fn match_input_test_partial() {
         let token = Token {
             token_type: TokenType::Keyword("Nott"),
-            marker: (),
+            marker: Some(20),
         };
 
         assert_eq!(
@@ -86,12 +83,12 @@ mod test {
         );
 
         assert_eq!(
-            Vec::<MatchType<()>>::new(),
+            Vec::<MatchType>::new(),
             match_input(token.clone(), " no ").collect::<Vec<_>>().await,
         );
 
         assert_eq!(
-            Vec::<MatchType<()>>::new(),
+            Vec::<MatchType>::new(),
             match_input(token.clone(), "\"no\"")
                 .collect::<Vec<_>>()
                 .await,
