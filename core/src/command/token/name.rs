@@ -4,7 +4,7 @@
 //! matches, even when a correct match is present, to facilitate generating user-friendly error
 //! messages like "there is no character named xyz" at higher levels.
 
-use super::{Match, MatchType, Token, TokenType};
+use super::{TokenMatch, FuzzyMatch, Token, TokenType};
 
 use crate::app::AppMeta;
 use crate::utils::CaseInsensitiveStr;
@@ -19,7 +19,7 @@ pub fn match_input<'a>(
     token: Token<'a>,
     input: &'a str,
     app_meta: &'a AppMeta,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a>> + 'a>> {
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
     assert!(matches!(token.token_type, TokenType::Name));
 
     Box::pin(stream! {
@@ -52,15 +52,15 @@ pub fn match_input<'a>(
                 let thing_name = record.thing.name().value().unwrap();
 
                 if thing_name.eq_ci(last_phrase) {
-                    yield MatchType::Exact(Match::new(token.clone(), record));
+                    yield FuzzyMatch::Exact(TokenMatch::new(token.clone(), record));
                     if let Some(i) = unmatched_phrases.iter().position(|w| w == last_phrase) {
                         unmatched_phrases.swap_remove(i);
                     }
                     continue;
                 } else if last_phrase.can_complete() {
                     if let Some(completion) = thing_name.strip_prefix_ci(last_phrase).map(str::to_string) {
-                        yield MatchType::Partial(
-                            Match::new(token.clone(), record),
+                        yield FuzzyMatch::Partial(
+                            TokenMatch::new(token.clone(), record),
                             Some(completion),
                         );
 
@@ -74,8 +74,8 @@ pub fn match_input<'a>(
                     }
 
                     if thing_name.eq_ci(phrase) {
-                        yield MatchType::Overflow(
-                            Match::new(token.clone(), record),
+                        yield FuzzyMatch::Overflow(
+                            TokenMatch::new(token.clone(), record),
                             &input[phrase.range().end..],
                         );
                         break;
@@ -85,9 +85,9 @@ pub fn match_input<'a>(
 
             for unmatched_phrase in unmatched_phrases {
                 if unmatched_phrase.is_at_end() {
-                    yield MatchType::Exact(token.clone().into());
+                    yield FuzzyMatch::Exact(token.clone().into());
                 } else {
-                    yield MatchType::Overflow(
+                    yield FuzzyMatch::Overflow(
                         token.clone().into(),
                         unmatched_phrase.after().as_own_str(&input),
                     );
@@ -136,8 +136,8 @@ mod test {
 
         assert_stream_eq(
             vec![
-                MatchType::Overflow(
-                    Match::new(
+                FuzzyMatch::Overflow(
+                    TokenMatch::new(
                         token.clone(),
                         Record {
                             status: RecordStatus::Saved,
@@ -146,8 +146,8 @@ mod test {
                     ),
                     " Dave Lily",
                 ),
-                MatchType::Overflow(
-                    Match::new(
+                FuzzyMatch::Overflow(
+                    TokenMatch::new(
                         token.clone(),
                         Record {
                             status: RecordStatus::Saved,
@@ -156,8 +156,8 @@ mod test {
                     ),
                     " Lily",
                 ),
-                MatchType::Partial(
-                    Match::new(
+                FuzzyMatch::Partial(
+                    TokenMatch::new(
                         token.clone(),
                         Record {
                             status: RecordStatus::Saved,
@@ -166,7 +166,7 @@ mod test {
                     ),
                     Some("white".to_string()),
                 ),
-                MatchType::Exact(token.clone().into()),
+                FuzzyMatch::Exact(token.clone().into()),
             ],
             match_input(token, "\"Medium\" Dave Lily", &app_meta),
         )
@@ -192,8 +192,8 @@ mod test {
 
             assert_stream_eq(
                 vec![
-                    MatchType::Overflow(token.clone().into(), " teatime"),
-                    MatchType::Exact(Match::new(
+                    FuzzyMatch::Overflow(token.clone().into(), " teatime"),
+                    FuzzyMatch::Exact(TokenMatch::new(
                         token.clone(),
                         Record {
                             status: RecordStatus::Saved,
@@ -214,8 +214,8 @@ mod test {
 
             assert_stream_eq(
                 vec![
-                    MatchType::Partial(
-                        Match::new(
+                    FuzzyMatch::Partial(
+                        TokenMatch::new(
                             token.clone(),
                             Record {
                                 status: RecordStatus::Saved,
@@ -224,7 +224,7 @@ mod test {
                         ),
                         Some(" Teatime".to_string()),
                     ),
-                    MatchType::Exact(token.clone().into()),
+                    FuzzyMatch::Exact(token.clone().into()),
                 ],
                 match_input(token, "Jonathan", &app_meta),
             )

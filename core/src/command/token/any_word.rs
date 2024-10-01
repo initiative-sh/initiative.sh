@@ -1,4 +1,4 @@
-use super::{Match, MatchType, Token, TokenType};
+use super::{TokenMatch, FuzzyMatch, Token, TokenType};
 
 use crate::utils::quoted_words;
 
@@ -10,18 +10,18 @@ use futures::prelude::*;
 pub fn match_input<'a>(
     token: Token<'a>,
     input: &'a str,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a>> + 'a>> {
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
     assert!(matches!(token.token_type, TokenType::AnyWord));
 
     Box::pin(stream! {
         let mut iter = quoted_words(input);
         if let Some(word) = iter.next() {
-            let token_match = Match::new(token, word.as_own_str(input));
+            let token_match = TokenMatch::new(token, word.as_own_str(input));
 
             if word.is_at_end() {
-                yield MatchType::Exact(token_match);
+                yield FuzzyMatch::Exact(token_match);
             } else {
-                yield MatchType::Overflow(token_match, &input[word.range().end..]);
+                yield FuzzyMatch::Overflow(token_match, &input[word.range().end..]);
             }
         }
     })
@@ -39,15 +39,15 @@ mod test {
         };
 
         assert_eq!(
-            &[MatchType::Exact(Match::new(token.clone(), "Jesta"))][..],
+            &[FuzzyMatch::Exact(TokenMatch::new(token.clone(), "Jesta"))][..],
             match_input(token.clone(), "Jesta")
                 .collect::<Vec<_>>()
                 .await,
         );
 
         assert_eq!(
-            &[MatchType::Overflow(
-                Match::new(token.clone(), "Nott"),
+            &[FuzzyMatch::Overflow(
+                TokenMatch::new(token.clone(), "Nott"),
                 " \"The Brave\" "
             )][..],
             match_input(token.clone(), " Nott \"The Brave\" ")

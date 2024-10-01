@@ -7,7 +7,7 @@ use std::pin::Pin;
 
 use crate::app::{AppMeta, AutocompleteSuggestion};
 
-use token::{MatchType, Token};
+use token::{FuzzyMatch, Token, TokenMatch};
 
 use async_stream::stream;
 use futures::prelude::*;
@@ -18,10 +18,10 @@ trait Command {
     fn token(&self) -> Token;
 
     /// Convert a matched token into a suggestion to be displayed to the user.
-    fn autocomplete(&self, input: &str, token_match: MatchType) -> Option<AutocompleteSuggestion>;
+    fn autocomplete(&self, fuzzy_match: FuzzyMatch, input: &str) -> Option<AutocompleteSuggestion>;
 
     /// Run the command represented by a matched token.
-    async fn run(&self, token_match: MatchType, app_meta: &mut AppMeta) -> Result<String, String>;
+    async fn run(&self, token_match: TokenMatch, app_meta: &mut AppMeta) -> Result<String, String>;
 
     /// A helper function to roughly provide Command::autocomplete(Command::token().match_input()),
     /// except that that wouldn't compile for all sorts of exciting reasons.
@@ -33,8 +33,8 @@ trait Command {
         Box::pin(stream! {
             let token = self.token();
             for await token_match in token.match_input(input, app_meta) {
-                if !matches!(token_match, MatchType::Overflow(..)) {
-                    if let Some(suggestion) = self.autocomplete(input, token_match) {
+                if !matches!(token_match, FuzzyMatch::Overflow(..)) {
+                    if let Some(suggestion) = self.autocomplete(token_match, input) {
                         yield suggestion;
                     }
                 }

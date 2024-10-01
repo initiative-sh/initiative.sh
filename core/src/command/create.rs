@@ -1,4 +1,4 @@
-use super::token::{MatchType, Meta, Token, TokenType};
+use super::token::{FuzzyMatch, Meta, Token, TokenType};
 use super::Command;
 
 use crate::app::{AppMeta, AutocompleteSuggestion};
@@ -92,10 +92,10 @@ impl Command for Create {
 
     fn autocomplete(
         &self,
+        fuzzy_match: FuzzyMatch<Self::Marker>,
         _input: &str,
-        match_type: MatchType<Self::Marker>,
     ) -> Option<AutocompleteSuggestion> {
-        let token_match = match_type.token_match();
+        let token_match = fuzzy_match.token_match();
 
         let record = {
             let Meta::Sequence(token_sequence) = &token_match.meta else {
@@ -124,7 +124,7 @@ impl Command for Create {
 
     async fn run<'a>(
         &self,
-        _token_match: MatchType<'a, Self::Marker>,
+        _token_match: TokenMatch<'a, Self::Marker>,
         _app_meta: &mut AppMeta,
     ) -> Result<String, String> {
         todo!()

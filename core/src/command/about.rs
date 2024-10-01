@@ -1,4 +1,4 @@
-use super::token::{MatchType, Token, TokenType};
+use super::token::{FuzzyMatch, Token, TokenType, TokenMatch};
 use super::Command;
 
 use crate::app::{AppMeta, AutocompleteSuggestion};
@@ -13,13 +13,13 @@ impl Command for About {
         }
     }
 
-    fn autocomplete(&self, _input: &str, _match_type: MatchType) -> Option<AutocompleteSuggestion> {
+    fn autocomplete(&self, _fuzzy_match: FuzzyMatch, _input: &str) -> Option<AutocompleteSuggestion> {
         Some(("about", "about initiative.sh").into())
     }
 
     async fn run(
         &self,
-        _token_match: MatchType<'_>,
+        _token_match: TokenMatch<'_>,
         _app_meta: &mut AppMeta,
     ) -> Result<String, String> {
         Ok(include_str!("../../../data/about.md")

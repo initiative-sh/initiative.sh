@@ -1,4 +1,4 @@
-use super::{MatchType, Token, TokenType};
+use super::{FuzzyMatch, Token, TokenType};
 
 use crate::utils::quoted_words;
 use crate::utils::CaseInsensitiveStr;
@@ -11,7 +11,7 @@ use futures::prelude::*;
 pub fn match_input<'a>(
     token: Token<'a>,
     input: &'a str,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a>> + 'a>> {
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
     let TokenType::Keyword(keyword) = token.token_type else {
         unreachable!();
     };
@@ -21,13 +21,13 @@ pub fn match_input<'a>(
         if let Some(first_word) = iter.next() {
             if keyword.eq_ci(first_word.as_str()) {
                 if first_word.is_at_end() {
-                    yield MatchType::Exact(token.into());
+                    yield FuzzyMatch::Exact(token.into());
                 } else {
-                    yield MatchType::Overflow(token.into(), &input[first_word.range().end..]);
+                    yield FuzzyMatch::Overflow(token.into(), &input[first_word.range().end..]);
                 }
             } else if first_word.can_complete() {
                 if let Some(completion) = keyword.strip_prefix_ci(first_word) {
-                    yield MatchType::Partial(token.into(), Some(completion.to_string()));
+                    yield FuzzyMatch::Partial(token.into(), Some(completion.to_string()));
                 }
             }
         }
@@ -36,7 +36,6 @@ pub fn match_input<'a>(
 
 #[cfg(test)]
 mod test {
-    use super::super::Match;
     use super::*;
 
     #[tokio::test]
@@ -47,7 +46,7 @@ mod test {
         };
 
         assert_eq!(
-            &[MatchType::Exact(token.clone().into())][..],
+            &[FuzzyMatch::Exact(token.clone().into())][..],
             match_input(token.clone(), "nott").collect::<Vec<_>>().await,
         );
     }
@@ -60,7 +59,7 @@ mod test {
         };
 
         assert_eq!(
-            &[MatchType::Overflow(token.clone().into(), " \"the brave\"",)][..],
+            &[FuzzyMatch::Overflow(token.clone().into(), " \"the brave\"",)][..],
             match_input(token.clone(), "nott \"the brave\"")
                 .collect::<Vec<_>>()
                 .await,
@@ -75,7 +74,7 @@ mod test {
         };
 
         assert_eq!(
-            &[MatchType::Partial(
+            &[FuzzyMatch::Partial(
                 token.clone().into(),
                 Some("tt".to_string())
             )][..],
@@ -83,12 +82,12 @@ mod test {
         );
 
         assert_eq!(
-            Vec::<MatchType>::new(),
+            Vec::<FuzzyMatch>::new(),
             match_input(token.clone(), " no ").collect::<Vec<_>>().await,
         );
 
         assert_eq!(
-            Vec::<MatchType>::new(),
+            Vec::<FuzzyMatch>::new(),
             match_input(token.clone(), "\"no\"")
                 .collect::<Vec<_>>()
                 .await,

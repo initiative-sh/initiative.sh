@@ -1,4 +1,4 @@
-use super::{Match, MatchType, Meta, Token, TokenType};
+use super::{TokenMatch, FuzzyMatch, Meta, Token, TokenType};
 
 use crate::app::AppMeta;
 
@@ -12,7 +12,7 @@ pub fn match_input<'a>(
     token: Token<'a>,
     input: &'a str,
     app_meta: &'a AppMeta,
-) -> Pin<Box<dyn Stream<Item = MatchType> + 'a>> {
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch> + 'a>> {
     let tokens = if let TokenType::PhraseUnordered(tokens) = &token.token_type {
         tokens.to_vec()
     } else {
@@ -32,46 +32,46 @@ pub fn match_input_with_tokens<'a, M>(
     input: &'a str,
     app_meta: &'a AppMeta,
     tokens: Vec<Token<'a, M>>,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a, M>> + 'a>>
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a, M>> + 'a>>
 where
     M: Clone,
 {
     Box::pin(stream! {
         // Attempt to match each token in turn
         for (test_token_index, test_token) in tokens.iter().enumerate() {
-            for await match_type in test_token.clone().match_input(input, app_meta) {
-                match match_type {
+            for await fuzzy_match in test_token.clone().match_input(input, app_meta) {
+                match fuzzy_match {
 
                     // The token is a partial match, so the phrase is incomplete
-                    MatchType::Partial(token_match, completion) => yield MatchType::Partial(
-                        Match::new(token.clone(), vec![token_match]),
+                    FuzzyMatch::Partial(token_match, completion) => yield FuzzyMatch::Partial(
+                        TokenMatch::new(token.clone(), vec![token_match]),
                         completion,
                     ),
 
                     // First token is an exact match and is the only token in the phrase, so the
                     // phrase is also an exact match.
-                    MatchType::Exact(token_match) if tokens.len() == 1 => yield MatchType::Exact(
-                        Match::new(token.clone(), vec![token_match]),
+                    FuzzyMatch::Exact(token_match) if tokens.len() == 1 => yield FuzzyMatch::Exact(
+                        TokenMatch::new(token.clone(), vec![token_match]),
                     ),
 
                     // First token is an exact match but there are more unmatched tokens, so the
                     // phrase is incomplete.
-                    MatchType::Exact(token_match) => yield MatchType::Partial(
-                        Match::new(token.clone(), vec![token_match]),
+                    FuzzyMatch::Exact(token_match) => yield FuzzyMatch::Partial(
+                        TokenMatch::new(token.clone(), vec![token_match]),
                         None,
                     ),
 
                     // First token overflows and is the only token in the phrase, so the phrase
                     // also overflows.
-                    MatchType::Overflow(token_match, remainder) if tokens.len() == 1 =>
-                            yield MatchType::Overflow(
-                                Match::new(token.clone(), vec![token_match]),
+                    FuzzyMatch::Overflow(token_match, remainder) if tokens.len() == 1 =>
+                            yield FuzzyMatch::Overflow(
+                                TokenMatch::new(token.clone(), vec![token_match]),
                                 remainder,
                             ),
 
                     // First token overflows but there are other tokens in the phrase, so we
                     // recurse with the remainder of the phrase.
-                    MatchType::Overflow(token_match, remainder) => {
+                    FuzzyMatch::Overflow(token_match, remainder) => {
                         let next_tokens: Vec<_> =
                                 tokens
                                     .iter()
@@ -80,13 +80,13 @@ where
                                     .cloned()
                                     .collect();
 
-                        for await next_match_type in match_input_with_tokens(token.clone(), remainder, app_meta, next_tokens) {
-                            yield next_match_type.map(|next_match| {
+                        for await next_fuzzy_match in match_input_with_tokens(token.clone(), remainder, app_meta, next_tokens) {
+                            yield next_fuzzy_match.map(|next_match| {
                                 let Meta::Sequence(next_meta_sequence) = next_match.meta else {
                                     unreachable!();
                                 };
 
-                                Match::new(
+                                TokenMatch::new(
                                     token.clone(),
                                     iter::once(token_match.clone()).chain(next_meta_sequence.into_iter()).collect::<Vec<_>>(),
                                 )
@@ -129,17 +129,17 @@ mod test {
 
         assert_stream_eq(
             vec![
-                MatchType::Exact(Match::new(
+                FuzzyMatch::Exact(TokenMatch::new(
                     phrase_token.clone(),
                     vec![
                         keyword_token.clone().into(),
-                        Match::new(any_word_token.clone(), "badger"),
+                        TokenMatch::new(any_word_token.clone(), "badger"),
                     ],
                 )),
-                MatchType::Exact(Match::new(
+                FuzzyMatch::Exact(TokenMatch::new(
                     phrase_token.clone(),
                     vec![
-                        Match::new(any_word_token.clone(), "badger"),
+                        TokenMatch::new(any_word_token.clone(), "badger"),
                         keyword_token.clone().into(),
                     ],
                 )),
@@ -150,21 +150,21 @@ mod test {
 
         assert_stream_eq(
             vec![
-                MatchType::Overflow(
-                    Match::new(
+                FuzzyMatch::Overflow(
+                    TokenMatch::new(
                         phrase_token.clone(),
                         vec![
                             keyword_token.clone().into(),
-                            Match::new(any_word_token.clone(), "badger"),
+                            TokenMatch::new(any_word_token.clone(), "badger"),
                         ],
                     ),
                     " badger",
                 ),
-                MatchType::Overflow(
-                    Match::new(
+                FuzzyMatch::Overflow(
+                    TokenMatch::new(
                         phrase_token.clone(),
                         vec![
-                            Match::new(any_word_token.clone(), "badger"),
+                            TokenMatch::new(any_word_token.clone(), "badger"),
                             keyword_token.clone().into(),
                         ],
                     ),

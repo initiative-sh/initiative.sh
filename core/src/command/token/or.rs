@@ -1,4 +1,4 @@
-use super::{Match, MatchType, Token, TokenType};
+use super::{FuzzyMatch, Token, TokenMatch, TokenType};
 
 use crate::app::AppMeta;
 
@@ -11,15 +11,15 @@ pub fn match_input<'a>(
     token: Token<'a>,
     input: &'a str,
     app_meta: &'a AppMeta,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a>> + 'a>> {
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
     let TokenType::Or(tokens) = token.token_type else {
         unreachable!();
     };
 
     Box::pin(stream! {
         let streams = tokens.into_iter().map(|token| token.clone().match_input(input, app_meta));
-        for await match_type in stream::select_all(streams) {
-            yield match_type.map(|token_match| Match::new(token.clone(), token_match));
+        for await fuzzy_match in stream::select_all(streams) {
+            yield fuzzy_match.map(|token_match| TokenMatch::new(token.clone(), token_match));
         }
     })
 }

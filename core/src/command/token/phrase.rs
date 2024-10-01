@@ -1,4 +1,4 @@
-use super::{Match, MatchType, Meta, Token, TokenType};
+use super::{TokenMatch, FuzzyMatch, Meta, Token, TokenType};
 
 use crate::app::AppMeta;
 
@@ -12,7 +12,7 @@ pub fn match_input<'a>(
     token: Token<'a>,
     input: &'a str,
     app_meta: &'a AppMeta,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a>> + 'a>> {
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
     let TokenType::Phrase(tokens) = token.token_type else {
         unreachable!();
     };
@@ -22,52 +22,52 @@ pub fn match_input<'a>(
         Box::pin(stream::empty())
     } else {
         Box::pin(stream! {
-            // Match the first token in the phrase
-            for await match_type in tokens[0].clone().match_input(input, app_meta) {
-                match match_type {
+            // TokenMatch the first token in the phrase
+            for await fuzzy_match in tokens[0].clone().match_input(input, app_meta) {
+                match fuzzy_match {
 
                     // First token is a partial match, so the phrase is incomplete
-                    MatchType::Partial(token_match, completion) => yield MatchType::Partial(
-                        Match::new(token.clone(), vec![token_match]),
+                    FuzzyMatch::Partial(token_match, completion) => yield FuzzyMatch::Partial(
+                        TokenMatch::new(token.clone(), vec![token_match]),
                         completion,
                     ),
 
                     // First token is an exact match and is the only token in the phrase, so the
                     // phrase is also an exact match.
-                    MatchType::Exact(token_match) if tokens.len() == 1 => yield MatchType::Exact(
-                        Match::new(token.clone(), vec![token_match]),
+                    FuzzyMatch::Exact(token_match) if tokens.len() == 1 => yield FuzzyMatch::Exact(
+                        TokenMatch::new(token.clone(), vec![token_match]),
                     ),
 
                     // First token is an exact match but there are more unmatched tokens, so the
                     // phrase is incomplete.
-                    MatchType::Exact(token_match) => yield MatchType::Partial(
-                        Match::new(token.clone(), vec![token_match]),
+                    FuzzyMatch::Exact(token_match) => yield FuzzyMatch::Partial(
+                        TokenMatch::new(token.clone(), vec![token_match]),
                         None,
                     ),
 
                     // First token overflows and is the only token in the phrase, so the phrase
                     // also overflows.
-                    MatchType::Overflow(token_match, remainder) if tokens.len() == 1 =>
-                            yield MatchType::Overflow(
-                                Match::new(token.clone(), vec![token_match]),
+                    FuzzyMatch::Overflow(token_match, remainder) if tokens.len() == 1 =>
+                            yield FuzzyMatch::Overflow(
+                                TokenMatch::new(token.clone(), vec![token_match]),
                                 remainder,
                             ),
 
                     // First token overflows but there are other tokens in the phrase, so we
                     // recurse with the remainder of the phrase.
-                    MatchType::Overflow(token_match, remainder) => {
+                    FuzzyMatch::Overflow(token_match, remainder) => {
                         let next_token = Token {
                             token_type: TokenType::Phrase(&tokens[1..]),
                             marker: token.marker.clone(),
                         };
 
-                        for await next_match_type in next_token.match_input(remainder, app_meta) {
-                            yield next_match_type.map(|next_match| {
+                        for await next_fuzzy_match in next_token.match_input(remainder, app_meta) {
+                            yield next_fuzzy_match.map(|next_match| {
                                 let Meta::Sequence(next_meta_sequence) = next_match.meta else {
                                     unreachable!();
                                 };
 
-                                Match::new(
+                                TokenMatch::new(
                                     token.clone(),
                                     iter::once(token_match.clone()).chain(next_meta_sequence.into_iter()).collect::<Vec<_>>(),
                                 )
@@ -112,31 +112,31 @@ mod test {
 
         assert_stream_eq(
             vec![
-                MatchType::Overflow(
-                    Match {
+                FuzzyMatch::Overflow(
+                    TokenMatch {
                         token: phrase_token.clone(),
                         meta: Meta::Sequence(vec![
                             keyword_token.clone().into(),
-                            Match::new(any_phrase_token.clone(), "is"),
-                            Match::new(any_word_token.clone(), "an"),
+                            TokenMatch::new(any_phrase_token.clone(), "is"),
+                            TokenMatch::new(any_word_token.clone(), "an"),
                         ]),
                     },
                     " elf",
                 ),
-                MatchType::Exact(Match::new(
+                FuzzyMatch::Exact(TokenMatch::new(
                     phrase_token.clone(),
                     vec![
                         keyword_token.clone().into(),
-                        Match::new(any_phrase_token.clone(), "is an"),
-                        Match::new(any_word_token.clone(), "elf"),
+                        TokenMatch::new(any_phrase_token.clone(), "is an"),
+                        TokenMatch::new(any_word_token.clone(), "elf"),
                     ],
                 )),
-                MatchType::Partial(
-                    Match::new(
+                FuzzyMatch::Partial(
+                    TokenMatch::new(
                         phrase_token.clone(),
                         vec![
                             keyword_token.clone().into(),
-                            Match::new(any_phrase_token.clone(), "is an elf"),
+                            TokenMatch::new(any_phrase_token.clone(), "is an elf"),
                         ],
                     ),
                     None,

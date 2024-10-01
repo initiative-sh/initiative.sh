@@ -1,4 +1,4 @@
-use super::{Match, MatchType, Token, TokenType};
+use super::{TokenMatch, FuzzyMatch, Token, TokenType};
 
 use crate::utils::quoted_phrases;
 
@@ -10,19 +10,19 @@ use futures::prelude::*;
 pub fn match_input<'a>(
     token: Token<'a>,
     input: &'a str,
-) -> Pin<Box<dyn Stream<Item = MatchType<'a>> + 'a>> {
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
     assert!(matches!(token.token_type, TokenType::AnyPhrase));
 
     Box::pin(stream! {
         let mut phrases = quoted_phrases(input).peekable();
 
         while let Some(phrase) = phrases.next() {
-            let token_match = Match::new(token.clone(), phrase.as_own_str(input));
+            let token_match = TokenMatch::new(token.clone(), phrase.as_own_str(input));
 
             if phrases.peek().is_none() {
-                yield MatchType::Exact(token_match);
+                yield FuzzyMatch::Exact(token_match);
             } else {
-                yield MatchType::Overflow(token_match, &input[phrase.range().end..]);
+                yield FuzzyMatch::Overflow(token_match, &input[phrase.range().end..]);
             }
         }
     })
@@ -41,8 +41,8 @@ mod test {
 
         assert_eq!(
             &[
-                MatchType::Overflow(Match::new(token.clone(), "Nott"), " \"The Brave\" "),
-                MatchType::Exact(Match::new(token.clone(), "Nott \"The Brave\"")),
+                FuzzyMatch::Overflow(TokenMatch::new(token.clone(), "Nott"), " \"The Brave\" "),
+                FuzzyMatch::Exact(TokenMatch::new(token.clone(), "Nott \"The Brave\"")),
             ][..],
             match_input(token, " Nott \"The Brave\" ")
                 .collect::<Vec<_>>()

@@ -19,16 +19,16 @@ pub struct Token<'a> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Match<'a> {
+pub struct TokenMatch<'a> {
     pub token: Token<'a>,
     pub meta: Meta<'a>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MatchType<'a> {
-    Overflow(Match<'a>, &'a str),
-    Exact(Match<'a>),
-    Partial(Match<'a>, Option<String>),
+pub enum FuzzyMatch<'a> {
+    Overflow(TokenMatch<'a>, &'a str),
+    Exact(TokenMatch<'a>),
+    Partial(TokenMatch<'a>, Option<String>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -63,8 +63,8 @@ pub enum Meta<'a> {
     None,
     Phrase(&'a str),
     Record(Record),
-    Sequence(Vec<Match<'a>>),
-    Single(Box<Match<'a>>),
+    Sequence(Vec<TokenMatch<'a>>),
+    Single(Box<TokenMatch<'a>>),
 }
 
 impl<'a> Token<'a> {
@@ -82,7 +82,7 @@ impl<'a> Token<'a> {
         self,
         input: &'a str,
         app_meta: &'a AppMeta,
-    ) -> Pin<Box<dyn Stream<Item = MatchType<'a>> + 'a>> {
+    ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
         match &self.token_type {
             TokenType::AnyOf(..) => todo!(),
             TokenType::AnyOfRepeated(..) => todo!(),
@@ -96,43 +96,43 @@ impl<'a> Token<'a> {
     }
 }
 
-impl<'a> MatchType<'a> {
+impl<'a> FuzzyMatch<'a> {
     pub fn map<F>(self, f: F) -> Self
     where
-        F: FnOnce(Match<'a>) -> Match<'a>,
+        F: FnOnce(TokenMatch<'a>) -> TokenMatch<'a>,
     {
         match self {
-            MatchType::Overflow(token_match, overflow) => {
-                MatchType::Overflow(f(token_match), overflow)
+            FuzzyMatch::Overflow(token_match, overflow) => {
+                FuzzyMatch::Overflow(f(token_match), overflow)
             }
-            MatchType::Exact(token_match) => MatchType::Exact(f(token_match)),
-            MatchType::Partial(token_match, completion) => {
-                MatchType::Partial(f(token_match), completion)
+            FuzzyMatch::Exact(token_match) => FuzzyMatch::Exact(f(token_match)),
+            FuzzyMatch::Partial(token_match, completion) => {
+                FuzzyMatch::Partial(f(token_match), completion)
             }
         }
     }
 
-    pub fn token_match(&self) -> &Match<'a> {
+    pub fn token_match(&self) -> &TokenMatch<'a> {
         match self {
-            MatchType::Overflow(token_match, _)
-            | MatchType::Exact(token_match)
-            | MatchType::Partial(token_match, _) => token_match,
+            FuzzyMatch::Overflow(token_match, _)
+            | FuzzyMatch::Exact(token_match)
+            | FuzzyMatch::Partial(token_match, _) => token_match,
         }
     }
 }
 
-impl<'a> Match<'a> {
+impl<'a> TokenMatch<'a> {
     pub fn new(token: Token<'a>, meta: impl Into<Meta<'a>>) -> Self {
-        Match {
+        TokenMatch {
             token,
             meta: meta.into(),
         }
     }
 }
 
-impl<'a> From<Token<'a>> for Match<'a> {
+impl<'a> From<Token<'a>> for TokenMatch<'a> {
     fn from(input: Token<'a>) -> Self {
-        Match {
+        TokenMatch {
             token: input,
             meta: Meta::None,
         }
@@ -145,14 +145,14 @@ impl<'a> From<&'a str> for Meta<'a> {
     }
 }
 
-impl<'a> From<Vec<Match<'a>>> for Meta<'a> {
-    fn from(input: Vec<Match<'a>>) -> Self {
+impl<'a> From<Vec<TokenMatch<'a>>> for Meta<'a> {
+    fn from(input: Vec<TokenMatch<'a>>) -> Self {
         Meta::Sequence(input)
     }
 }
 
-impl<'a> From<Match<'a>> for Meta<'a> {
-    fn from(input: Match<'a>) -> Self {
+impl<'a> From<TokenMatch<'a>> for Meta<'a> {
+    fn from(input: TokenMatch<'a>) -> Self {
         Meta::Single(input.into())
     }
 }
@@ -173,14 +173,14 @@ pub mod test {
     ) where
         T: std::fmt::Debug + PartialEq,
     {
-        for match_type in stream.collect::<Vec<_>>().await {
+        for result in stream.collect::<Vec<_>>().await {
             let Some(index) = expect_results
                 .iter()
-                .position(|expect_result| expect_result == &match_type)
+                .position(|expect_result| expect_result == &result)
             else {
                 panic!(
                     "Not found in expected results: {:?}\n\nRemaining expected results: {:?}",
-                    match_type, expect_results
+                    result, expect_results
                 );
             };
             expect_results.swap_remove(index);
