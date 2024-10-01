@@ -4,6 +4,9 @@ mod keyword;
 mod name;
 mod or;
 mod phrase;
+mod token_marker_iterator;
+
+use token_marker_iterator::TokenMarkerIterator;
 
 use crate::app::AppMeta;
 use crate::storage::Record;
@@ -127,6 +130,10 @@ impl<'a> TokenMatch<'a> {
             token,
             meta: meta.into(),
         }
+    }
+
+    pub fn find_marker(&'a self, marker: u8) -> impl Iterator<Item = &'a TokenMatch> {
+        TokenMarkerIterator::new(self, marker)
     }
 }
 
