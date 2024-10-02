@@ -16,7 +16,7 @@ where
     'a: 'b,
 {
     Box::pin(stream! {
-        let TokenType::Or(tokens) = token.token_type else {
+        let TokenType::Or(tokens) = &token.token_type else {
             unreachable!();
         };
 

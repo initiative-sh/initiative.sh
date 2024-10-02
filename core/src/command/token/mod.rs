@@ -147,6 +147,40 @@ impl<'a> From<Token<'a>> for TokenMatch<'a> {
     }
 }
 
+impl<'a> Meta<'a> {
+    pub fn phrase(&self) -> Option<&str> {
+        if let Meta::Phrase(s) = self {
+            Some(s)
+        } else {
+            None
+        }
+    }
+
+    pub fn record(&self) -> Option<&Record> {
+        if let Meta::Record(r) = self {
+            Some(r)
+        } else {
+            None
+        }
+    }
+
+    pub fn sequence(&self) -> Option<&[TokenMatch]> {
+        if let Meta::Sequence(v) = self {
+            Some(v.as_slice())
+        } else {
+            None
+        }
+    }
+
+    pub fn single(&self) -> Option<&TokenMatch> {
+        if let Meta::Single(b) = self {
+            Some(b.as_ref())
+        } else {
+            None
+        }
+    }
+}
+
 impl<'a> From<&'a str> for Meta<'a> {
     fn from(input: &'a str) -> Self {
         Meta::Phrase(input)

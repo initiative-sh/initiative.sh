@@ -45,7 +45,7 @@ where 'a: 'b {
                 app_meta.repository
                     .get_by_name_start(first_phrase.as_str())
                     .await
-                    .unwrap()
+                    .unwrap_or_default()
             };
 
             for record in records.into_iter() {

@@ -31,17 +31,7 @@ impl Command for Save {
     fn autocomplete(&self, fuzzy_match: FuzzyMatch, _input: &str) -> Option<AutocompleteSuggestion> {
         let token_match = fuzzy_match.token_match();
 
-        let record = {
-            let Meta::Sequence(token_sequence) = &token_match.meta else {
-                return None;
-            };
-
-            let Meta::Record(record) = &token_sequence[1].meta else {
-                return None;
-            };
-
-            record
-        };
+        let record = token_match.find_marker(Marker::Name as u8).next()?.meta.record()?;
 
         if record.is_saved() {
             None
@@ -60,8 +50,12 @@ impl Command for Save {
         CommandPriority::Canonical
     }
 
-    fn get_canonical_form_of(&self, _token_match: &TokenMatch) -> Option<String> {
-        Some("about".to_string())
+    fn get_canonical_form_of(&self, token_match: &TokenMatch) -> Option<String> {
+        if let Meta::Record(record) = &token_match.find_marker(Marker::Name as u8).next()?.meta {
+            Some(format!("save \"{}\"", record.thing.name()))
+        } else {
+            None
+        }
     }
 
     async fn run(
