@@ -2,7 +2,9 @@ mod any_of;
 mod any_phrase;
 mod any_word;
 mod keyword;
+mod keyword_list;
 mod name;
+mod optional;
 mod or;
 mod phrase;
 mod token_marker_iterator;
@@ -38,7 +40,7 @@ pub enum FuzzyMatch<'a> {
 #[derive(Debug, Eq, PartialEq)]
 pub enum TokenType<'a> {
     /// One or more tokens, in any order but without repetition
-    AnyOf(&'a [Token<'a>]),
+    AnyOf(Vec<Token<'a>>),
 
     /// Any sequence of words
     AnyPhrase,
@@ -49,14 +51,19 @@ pub enum TokenType<'a> {
     /// A literal word
     Keyword(&'a str),
 
+    /// A list of literal words
+    KeywordList(Vec<&'a str>),
+
     /// The name of an existing thing
     Name,
 
+    Optional(Box<Token<'a>>),
+
     /// Any one of the tokens
-    Or(&'a [Token<'a>]),
+    Or(Vec<Token<'a>>),
 
     /// The exact sequence of tokens
-    Phrase(&'a [Token<'a>]),
+    Phrase(Vec<Token<'a>>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -69,14 +76,180 @@ pub enum Meta<'a> {
 }
 
 impl<'a> Token<'a> {
-    pub fn new<T>(token_type: TokenType<'a>, marker: T) -> Self
+    pub fn any_of<V>(tokens: V) -> Self
     where
-        T: Into<Option<u8>>,
+        V: Into<Vec<Token<'a>>>,
     {
         Token {
-            token_type,
-            marker: marker.into(),
+            token_type: TokenType::AnyOf(tokens.into()),
+            marker: None,
         }
+    }
+
+    pub fn any_of_marked<M, V>(marker: M, tokens: V) -> Self
+    where
+        M: Into<u8>,
+        V: Into<Vec<Token<'a>>>,
+    {
+        Token {
+            token_type: TokenType::AnyOf(tokens.into()),
+            marker: Some(marker.into()),
+        }
+    }
+
+    pub fn any_phrase() -> Self {
+        Token {
+            token_type: TokenType::AnyPhrase,
+            marker: None,
+        }
+    }
+
+    pub fn any_phrase_marked<M>(marker: M) -> Self
+    where
+        M: Into<u8>,
+    {
+        Token {
+            token_type: TokenType::AnyPhrase,
+            marker: Some(marker.into()),
+        }
+    }
+
+    pub fn any_word() -> Self {
+        Token {
+            token_type: TokenType::AnyWord,
+            marker: None,
+        }
+    }
+
+    pub fn any_word_marked<M>(marker: M) -> Self
+    where
+        M: Into<u8>,
+    {
+        Token {
+            token_type: TokenType::AnyWord,
+            marker: Some(marker.into()),
+        }
+    }
+
+    pub fn keyword(keyword: &'a str) -> Self {
+        Token {
+            token_type: TokenType::Keyword(keyword),
+            marker: None,
+        }
+    }
+
+    pub fn keyword_marked<M>(marker: M, keyword: &'a str) -> Self
+    where
+        M: Into<u8>,
+    {
+        Token {
+            token_type: TokenType::Keyword(keyword),
+            marker: Some(marker.into()),
+        }
+    }
+
+    pub fn keyword_list<I>(keywords: I) -> Self
+    where
+        I: IntoIterator<Item = &'a str>,
+    {
+        Token {
+            token_type: TokenType::KeywordList(keywords.into_iter().collect()),
+            marker: None,
+        }
+    }
+
+    pub fn keyword_list_marked<M, I>(marker: M, keywords: I) -> Self
+    where
+        M: Into<u8>,
+        I: IntoIterator<Item = &'a str>,
+    {
+        Token {
+            token_type: TokenType::KeywordList(keywords.into_iter().collect()),
+            marker: Some(marker.into()),
+        }
+    }
+
+    pub fn name() -> Self {
+        Token {
+            token_type: TokenType::Name,
+            marker: None,
+        }
+    }
+
+    pub fn name_marked<M>(marker: M) -> Self
+    where
+        M: Into<u8>,
+    {
+        Token {
+            token_type: TokenType::Name,
+            marker: Some(marker.into()),
+        }
+    }
+
+    pub fn optional(token: Token<'a>) -> Self {
+        Token {
+            token_type: TokenType::Optional(Box::new(token)),
+            marker: None,
+        }
+    }
+
+    pub fn optional_marked<M>(marker: M, token: Token<'a>) -> Self
+    where
+        M: Into<u8>,
+    {
+        Token {
+            token_type: TokenType::Optional(Box::new(token)),
+            marker: Some(marker.into()),
+        }
+    }
+
+    pub fn or<I>(tokens: I) -> Self
+    where
+        I: IntoIterator<Item = Token<'a>>,
+    {
+        Token {
+            token_type: TokenType::Or(tokens.into_iter().collect()),
+            marker: None,
+        }
+    }
+
+    pub fn or_marked<M, I>(marker: M, tokens: I) -> Self
+    where
+        M: Into<u8>,
+        I: IntoIterator<Item = Token<'a>>,
+    {
+        Token {
+            token_type: TokenType::Or(tokens.into_iter().collect()),
+            marker: Some(marker.into()),
+        }
+    }
+
+    pub fn phrase<I>(tokens: I) -> Self
+    where
+        I: IntoIterator<Item = Token<'a>>,
+    {
+        Token {
+            token_type: TokenType::Phrase(tokens.into_iter().collect()),
+            marker: None,
+        }
+    }
+
+    pub fn phrase_marked<M, I>(marker: M, tokens: I) -> Self
+    where
+        M: Into<u8>,
+        I: IntoIterator<Item = Token<'a>>,
+    {
+        Token {
+            token_type: TokenType::Phrase(tokens.into_iter().collect()),
+            marker: Some(marker.into()),
+        }
+    }
+
+    pub fn marker_is<M>(&self, marker: M) -> bool
+    where
+        M: Into<u8>,
+    {
+        self.marker.as_ref().map_or(false, |m| m == &marker.into())
     }
 
     pub fn match_input<'b>(
@@ -92,7 +265,9 @@ impl<'a> Token<'a> {
             TokenType::AnyPhrase => any_phrase::match_input(self, input),
             TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Keyword(..) => keyword::match_input(self, input),
+            TokenType::KeywordList(..) => keyword_list::match_input(self, input),
             TokenType::Name => name::match_input(self, input, app_meta),
+            TokenType::Optional(..) => optional::match_input(self, input, app_meta),
             TokenType::Or(..) => or::match_input(self, input, app_meta),
             TokenType::Phrase(..) => phrase::match_input(self, input, app_meta),
         }
@@ -132,8 +307,8 @@ impl<'a> TokenMatch<'a> {
         }
     }
 
-    pub fn find_marker(&'a self, marker: u8) -> impl Iterator<Item = &'a TokenMatch> {
-        TokenMarkerIterator::new(self, marker)
+    pub fn find_markers<'b>(&'a self, markers: &'b [u8]) -> TokenMarkerIterator<'a, 'b> {
+        TokenMarkerIterator::new(self, markers)
     }
 }
 
@@ -163,7 +338,7 @@ impl<'a> Meta<'a> {
         }
     }
 
-    pub fn sequence(&self) -> Option<&[TokenMatch]> {
+    pub fn sequence(&self) -> Option<&[TokenMatch<'a>]> {
         if let Meta::Sequence(v) = self {
             Some(v.as_slice())
         } else {
@@ -171,7 +346,7 @@ impl<'a> Meta<'a> {
         }
     }
 
-    pub fn single(&self) -> Option<&TokenMatch> {
+    pub fn single(&self) -> Option<&TokenMatch<'a>> {
         if let Meta::Single(b) = self {
             Some(b.as_ref())
         } else {

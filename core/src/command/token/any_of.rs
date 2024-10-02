@@ -1,4 +1,4 @@
-use super::{TokenMatch, FuzzyMatch, Meta, Token, TokenType};
+use super::{FuzzyMatch, Meta, Token, TokenMatch, TokenType};
 
 use crate::app::AppMeta;
 
@@ -13,19 +13,16 @@ pub fn match_input<'a, 'b>(
     input: &'a str,
     app_meta: &'b AppMeta,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
-where 'a: 'b {
+where
+    'a: 'b,
+{
     let tokens = if let TokenType::AnyOf(tokens) = &token.token_type {
         tokens.iter().collect()
     } else {
         unreachable!();
     };
 
-    match_input_with_tokens(
-        token,
-        input,
-        app_meta,
-        tokens,
-    )
+    match_input_with_tokens(token, input, app_meta, tokens)
 }
 
 pub fn match_input_with_tokens<'a, 'b>(
@@ -35,7 +32,7 @@ pub fn match_input_with_tokens<'a, 'b>(
     tokens: Vec<&'a Token<'a>>,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
 where
-    'a: 'b
+    'a: 'b,
 {
     Box::pin(stream! {
         // Attempt to match each token in turn
@@ -126,7 +123,10 @@ mod test {
         ];
         let [keyword_token, any_word_token] = &phrase;
 
-        let phrase_token = Token::new(TokenType::PhraseUnordered(&phrase[..]), Marker::Phrase as u8);
+        let phrase_token = Token::new(
+            TokenType::PhraseUnordered(&phrase[..]),
+            Marker::Phrase as u8,
+        );
 
         assert_stream_eq(
             vec![

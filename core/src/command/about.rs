@@ -1,4 +1,4 @@
-use super::token::{FuzzyMatch, Token, TokenMatch, TokenType};
+use super::token::{FuzzyMatch, Token, TokenMatch};
 use super::{Command, CommandPriority};
 
 use crate::app::{AppMeta, AutocompleteSuggestion};
@@ -8,10 +8,7 @@ pub struct About;
 
 impl Command for About {
     fn token<'a>(&self) -> Token {
-        Token {
-            token_type: TokenType::Keyword("about"),
-            marker: None,
-        }
+        Token::keyword("about")
     }
 
     fn autocomplete(
@@ -22,8 +19,8 @@ impl Command for About {
         Some(("about", "about initiative.sh").into())
     }
 
-    fn get_priority(&self, _token_match: &TokenMatch) -> CommandPriority {
-        CommandPriority::Canonical
+    fn get_priority(&self, _token_match: &TokenMatch) -> Option<CommandPriority> {
+        Some(CommandPriority::Canonical)
     }
 
     fn get_canonical_form_of(&self, _token_match: &TokenMatch) -> Option<String> {

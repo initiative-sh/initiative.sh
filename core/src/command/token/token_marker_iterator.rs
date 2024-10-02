@@ -1,9 +1,9 @@
 use super::{Meta, TokenMatch};
 
-pub struct TokenMarkerIterator<'a> {
+pub struct TokenMarkerIterator<'a, 'b> {
     token_match_set: TokenMatchSet<'a>,
-    marker: u8,
-    inner: Option<Box<TokenMarkerIterator<'a>>>,
+    markers: &'b [u8],
+    inner: Option<Box<TokenMarkerIterator<'a, 'b>>>,
     cursor: usize,
 }
 
@@ -12,11 +12,11 @@ enum TokenMatchSet<'a> {
     Single(&'a TokenMatch<'a>),
 }
 
-impl<'a> TokenMarkerIterator<'a> {
-    pub fn new(token_match: &'a TokenMatch, marker: u8) -> Self {
+impl<'a, 'b> TokenMarkerIterator<'a, 'b> {
+    pub fn new(token_match: &'a TokenMatch, markers: &'b [u8]) -> Self {
         Self {
             token_match_set: TokenMatchSet::Single(token_match),
-            marker,
+            markers,
             inner: None,
             cursor: 0,
         }
@@ -45,7 +45,7 @@ impl<'a> TryFrom<&'a Meta<'a>> for TokenMatchSet<'a> {
     }
 }
 
-impl<'a> Iterator for TokenMarkerIterator<'a> {
+impl<'a, 'b> Iterator for TokenMarkerIterator<'a, 'b> {
     type Item = &'a TokenMatch<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -62,7 +62,7 @@ impl<'a> Iterator for TokenMarkerIterator<'a> {
                 if let Ok(token_match_set) = (&token_match.meta).try_into() {
                     self.inner = Some(Box::new(TokenMarkerIterator {
                         token_match_set,
-                        marker: self.marker,
+                        markers: self.markers,
                         inner: None,
                         cursor: 0,
                     }));
@@ -70,7 +70,11 @@ impl<'a> Iterator for TokenMarkerIterator<'a> {
 
                 self.cursor += 1;
 
-                if token_match.token.marker == Some(self.marker) {
+                if token_match
+                    .token
+                    .marker
+                    .map_or(false, |m| self.markers.contains(&m))
+                {
                     return Some(token_match);
                 }
             } else {

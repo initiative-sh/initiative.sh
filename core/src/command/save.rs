@@ -1,31 +1,20 @@
-use super::token::{FuzzyMatch, Meta, Token, TokenMatch, TokenType};
+use super::token::{FuzzyMatch, Meta, Token, TokenMatch};
 use super::{Command, CommandPriority};
 
 use crate::app::{AppMeta, AutocompleteSuggestion};
+use initiative_macros::{as_u8, TokenMarker};
 
 #[derive(Clone, Debug)]
 pub struct Save;
 
+#[derive(TokenMarker)]
 enum Marker {
-    Save,
     Name,
 }
 
 impl Command for Save {
     fn token(&self) -> Token {
-        Token {
-            token_type: TokenType::Phrase(&[
-                Token {
-                    token_type: TokenType::Keyword("save"),
-                    marker: Some(Marker::Save as u8),
-                },
-                Token {
-                    token_type: TokenType::Name,
-                    marker: Some(Marker::Name as u8),
-                },
-            ]),
-            marker: None,
-        }
+        Token::phrase([Token::keyword("save"), Token::name_marked(Marker::Name)])
     }
 
     fn autocomplete(
@@ -36,7 +25,7 @@ impl Command for Save {
         let token_match = fuzzy_match.token_match();
 
         let record = token_match
-            .find_marker(Marker::Name as u8)
+            .find_markers(&as_u8![Marker::Name])
             .next()?
             .meta
             .record()?;
@@ -54,12 +43,13 @@ impl Command for Save {
         }
     }
 
-    fn get_priority(&self, _token_match: &TokenMatch) -> CommandPriority {
-        CommandPriority::Canonical
+    fn get_priority(&self, _token_match: &TokenMatch) -> Option<CommandPriority> {
+        Some(CommandPriority::Canonical)
     }
 
     fn get_canonical_form_of(&self, token_match: &TokenMatch) -> Option<String> {
-        if let Meta::Record(record) = &token_match.find_marker(Marker::Name as u8).next()?.meta {
+        if let Meta::Record(record) = &token_match.find_markers(&as_u8![Marker::Name]).next()?.meta
+        {
             Some(format!("save \"{}\"", record.thing.name()))
         } else {
             None

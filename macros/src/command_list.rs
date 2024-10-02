@@ -63,7 +63,7 @@ fn impl_command_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
                 }
             }
 
-            fn get_priority(&self, token_match: &TokenMatch) -> CommandPriority {
+            fn get_priority(&self, token_match: &TokenMatch) -> Option<CommandPriority> {
                 match self {
                     #(#match_items => c.get_priority(token_match),)*
                 }

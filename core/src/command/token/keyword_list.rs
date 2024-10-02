@@ -12,21 +12,23 @@ pub fn match_input<'a>(
     token: &'a Token<'a>,
     input: &'a str,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
-    let TokenType::Keyword(keyword) = token.token_type else {
-        unreachable!();
-    };
-
     Box::pin(stream! {
+        let TokenType::KeywordList(keywords) = &token.token_type else {
+            unreachable!();
+        };
+
         for phrase in quoted_phrases(input) {
-            if keyword.eq_ci(phrase.as_str()) {
-                if phrase.is_at_end() {
-                    yield FuzzyMatch::Exact(token.into());
-                } else {
-                    yield FuzzyMatch::Overflow(token.into(), &input[phrase.range().end..]);
-                }
-            } else if phrase.can_complete() {
-                if let Some(completion) = keyword.strip_prefix_ci(phrase) {
-                    yield FuzzyMatch::Partial(token.into(), Some(completion.to_string()));
+            for keyword in keywords.iter() {
+                if keyword.eq_ci(phrase.as_str()) {
+                    if phrase.is_at_end() {
+                        yield FuzzyMatch::Exact(token.into());
+                    } else {
+                        yield FuzzyMatch::Overflow(token.into(), &input[phrase.range().end..]);
+                    }
+                } else if phrase.can_complete() {
+                    if let Some(completion) = keyword.strip_prefix_ci(&phrase) {
+                        yield FuzzyMatch::Partial(token.into(), Some(completion.to_string()));
+                    }
                 }
             }
         }
@@ -58,8 +60,8 @@ mod test {
         };
 
         assert_eq!(
-            &[FuzzyMatch::Overflow(token.into(), " \"the brave\"",)][..],
-            match_input(token, "nott \"the brave\"")
+            &[FuzzyMatch::Overflow(token.clone().into(), " \"the brave\"",)][..],
+            match_input(token.clone(), "nott \"the brave\"")
                 .collect::<Vec<_>>()
                 .await,
         );
@@ -73,18 +75,23 @@ mod test {
         };
 
         assert_eq!(
-            &[FuzzyMatch::Partial(token.into(), Some("tt".to_string()))][..],
-            match_input(token, " no").collect::<Vec<_>>().await,
+            &[FuzzyMatch::Partial(
+                token.clone().into(),
+                Some("tt".to_string())
+            )][..],
+            match_input(token.clone(), " no").collect::<Vec<_>>().await,
         );
 
         assert_eq!(
             Vec::<FuzzyMatch>::new(),
-            match_input(token, " no ").collect::<Vec<_>>().await,
+            match_input(token.clone(), " no ").collect::<Vec<_>>().await,
         );
 
         assert_eq!(
             Vec::<FuzzyMatch>::new(),
-            match_input(token, "\"no\"").collect::<Vec<_>>().await,
+            match_input(token.clone(), "\"no\"")
+                .collect::<Vec<_>>()
+                .await,
         );
     }
 }

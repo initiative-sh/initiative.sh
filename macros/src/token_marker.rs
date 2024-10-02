@@ -45,7 +45,7 @@ fn impl_token_marker(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
 
     Ok(quote! {
         impl TryFrom<u8> for #ident {
-            type Err = ();
+            type Error = ();
 
             fn try_from(input: u8) -> Result<#ident, ()> {
                 Ok(match input {
