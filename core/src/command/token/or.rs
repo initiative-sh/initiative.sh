@@ -7,16 +7,19 @@ use std::pin::Pin;
 use async_stream::stream;
 use futures::prelude::*;
 
-pub fn match_input<'a>(
+pub fn match_input<'a, 'b>(
     token: Token<'a>,
     input: &'a str,
-    app_meta: &'a AppMeta,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
-    let TokenType::Or(tokens) = token.token_type else {
-        unreachable!();
-    };
-
+    app_meta: &'b AppMeta,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+where
+    'a: 'b,
+{
     Box::pin(stream! {
+        let TokenType::Or(tokens) = token.token_type else {
+            unreachable!();
+        };
+
         let streams = tokens.into_iter().map(|token| token.clone().match_input(input, app_meta));
         for await fuzzy_match in stream::select_all(streams) {
             yield fuzzy_match.map(|token_match| TokenMatch::new(token.clone(), token_match));

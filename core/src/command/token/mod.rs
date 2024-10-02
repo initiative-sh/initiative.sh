@@ -81,11 +81,12 @@ impl<'a> Token<'a> {
         }
     }
 
-    pub fn match_input(
+    pub fn match_input<'b>(
         self,
         input: &'a str,
-        app_meta: &'a AppMeta,
-    ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
+        app_meta: &'b AppMeta,
+    ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+    where 'a: 'b {
         match &self.token_type {
             TokenType::AnyOf(..) => todo!(),
             TokenType::AnyOfRepeated(..) => todo!(),

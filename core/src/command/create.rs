@@ -4,6 +4,7 @@ use super::Command;
 use crate::app::{AppMeta, AutocompleteSuggestion};
 use initiative_macros::token;
 
+#[derive(Clone, Debug)]
 pub struct Create;
 
 impl Command for Create {

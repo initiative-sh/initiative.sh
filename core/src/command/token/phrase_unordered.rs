@@ -11,7 +11,7 @@ use futures::prelude::*;
 pub fn match_input<'a>(
     token: Token<'a>,
     input: &'a str,
-    app_meta: &'a AppMeta,
+    app_meta: &AppMeta,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatch> + 'a>> {
     let tokens = if let TokenType::PhraseUnordered(tokens) = &token.token_type {
         tokens.to_vec()

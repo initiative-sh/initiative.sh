@@ -8,11 +8,12 @@ use std::pin::Pin;
 use async_stream::stream;
 use futures::prelude::*;
 
-pub fn match_input<'a>(
+pub fn match_input<'a, 'b>(
     token: Token<'a>,
     input: &'a str,
-    app_meta: &'a AppMeta,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
+    app_meta: &'b AppMeta,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+where 'a: 'b {
     let TokenType::Phrase(tokens) = token.token_type else {
         unreachable!();
     };

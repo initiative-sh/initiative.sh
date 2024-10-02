@@ -1,9 +1,15 @@
-use super::token::{FuzzyMatch, Meta, Token, TokenType, TokenMatch};
-use super::Command;
+use super::token::{FuzzyMatch, Meta, Token, TokenMatch, TokenType};
+use super::{Command, CommandPriority};
 
 use crate::app::{AppMeta, AutocompleteSuggestion};
 
+#[derive(Clone, Debug)]
 pub struct Save;
+
+enum Marker {
+    Save,
+    Name,
+}
 
 impl Command for Save {
     fn token(&self) -> Token {
@@ -11,11 +17,11 @@ impl Command for Save {
             token_type: TokenType::Phrase(&[
                 Token {
                     token_type: TokenType::Keyword("save"),
-                    marker: None,
+                    marker: Some(Marker::Save as u8),
                 },
                 Token {
                     token_type: TokenType::Name,
-                    marker: None,
+                    marker: Some(Marker::Name as u8),
                 },
             ]),
             marker: None,
@@ -48,6 +54,14 @@ impl Command for Save {
                     .into(),
             )
         }
+    }
+
+    fn get_priority(&self, _token_match: &TokenMatch) -> CommandPriority {
+        CommandPriority::Canonical
+    }
+
+    fn get_canonical_form_of(&self, _token_match: &TokenMatch) -> Option<String> {
+        Some("about".to_string())
     }
 
     async fn run(
