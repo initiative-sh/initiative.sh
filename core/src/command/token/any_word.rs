@@ -1,4 +1,4 @@
-use super::{TokenMatch, FuzzyMatch, Token, TokenType};
+use super::{FuzzyMatch, Token, TokenMatch, TokenType};
 
 use crate::utils::quoted_words;
 
@@ -8,7 +8,7 @@ use async_stream::stream;
 use futures::prelude::*;
 
 pub fn match_input<'a>(
-    token: Token<'a>,
+    token: &'a Token<'a>,
     input: &'a str,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
     assert!(matches!(token.token_type, TokenType::AnyWord));

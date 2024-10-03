@@ -8,7 +8,7 @@ use async_stream::stream;
 use futures::prelude::*;
 
 pub fn match_input<'a, 'b>(
-    token: Token<'a>,
+    token: &'a Token<'a>,
     input: &'a str,
     app_meta: &'b AppMeta,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
@@ -20,9 +20,9 @@ where
             unreachable!();
         };
 
-        let streams = tokens.into_iter().map(|token| token.clone().match_input(input, app_meta));
+        let streams = tokens.into_iter().map(|token| token.match_input(input, app_meta));
         for await fuzzy_match in stream::select_all(streams) {
-            yield fuzzy_match.map(|token_match| TokenMatch::new(token.clone(), token_match));
+            yield fuzzy_match.map(|token_match| TokenMatch::new(token, token_match));
         }
     })
 }

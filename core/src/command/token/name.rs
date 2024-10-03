@@ -4,7 +4,7 @@
 //! matches, even when a correct match is present, to facilitate generating user-friendly error
 //! messages like "there is no character named xyz" at higher levels.
 
-use super::{TokenMatch, FuzzyMatch, Token, TokenType};
+use super::{FuzzyMatch, Token, TokenMatch, TokenType};
 
 use crate::app::AppMeta;
 use crate::utils::CaseInsensitiveStr;
@@ -16,11 +16,13 @@ use futures::join;
 use futures::prelude::*;
 
 pub fn match_input<'a, 'b>(
-    token: Token<'a>,
+    token: &'a Token<'a>,
     input: &'a str,
     app_meta: &'b AppMeta,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
-where 'a: 'b {
+where
+    'a: 'b,
+{
     assert!(matches!(token.token_type, TokenType::Name));
 
     Box::pin(stream! {
@@ -53,7 +55,7 @@ where 'a: 'b {
                 let thing_name = record.thing.name().value().unwrap();
 
                 if thing_name.eq_ci(last_phrase) {
-                    yield FuzzyMatch::Exact(TokenMatch::new(token.clone(), record));
+                    yield FuzzyMatch::Exact(TokenMatch::new(token, record));
                     if let Some(i) = unmatched_phrases.iter().position(|w| w == last_phrase) {
                         unmatched_phrases.swap_remove(i);
                     }
@@ -61,7 +63,7 @@ where 'a: 'b {
                 } else if last_phrase.can_complete() {
                     if let Some(completion) = thing_name.strip_prefix_ci(last_phrase).map(str::to_string) {
                         yield FuzzyMatch::Partial(
-                            TokenMatch::new(token.clone(), record),
+                            TokenMatch::new(token, record),
                             Some(completion),
                         );
 
@@ -76,7 +78,7 @@ where 'a: 'b {
 
                     if thing_name.eq_ci(phrase) {
                         yield FuzzyMatch::Overflow(
-                            TokenMatch::new(token.clone(), record),
+                            TokenMatch::new(token, record),
                             &input[phrase.range().end..],
                         );
                         break;
@@ -86,10 +88,10 @@ where 'a: 'b {
 
             for unmatched_phrase in unmatched_phrases {
                 if unmatched_phrase.is_at_end() {
-                    yield FuzzyMatch::Exact(token.clone().into());
+                    yield FuzzyMatch::Exact(token.into());
                 } else {
                     yield FuzzyMatch::Overflow(
-                        token.clone().into(),
+                        token.into(),
                         unmatched_phrase.after().as_own_str(&input),
                     );
                 }

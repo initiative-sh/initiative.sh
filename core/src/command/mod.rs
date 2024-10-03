@@ -4,6 +4,7 @@ mod save;
 mod token;
 
 use std::iter;
+use std::mem;
 use std::pin::Pin;
 
 use crate::app::{AppMeta, AutocompleteSuggestion};
@@ -94,7 +95,11 @@ impl Command for CommandList {
         }
     }
 
-    async fn run<'a>(&self, token_match: TokenMatch<'a>, app_meta: &mut AppMeta) -> Result<String, String> {
+    async fn run<'a>(
+        &self,
+        token_match: TokenMatch<'a>,
+        app_meta: &mut AppMeta,
+    ) -> Result<String, String> {
         match self {
             CommandList::About(c) => c.run(token_match, app_meta).await,
             CommandList::Save(c) => c.run(token_match, app_meta).await,
@@ -134,18 +139,31 @@ pub async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<AutocompleteSu
 }
 
 pub async fn run(input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
-    let mut token_matches: Vec<(&CommandList, CommandPriority, TokenMatch)> =
-        stream::iter(CommandList::get_all())
-            .flat_map(|c| stream::repeat(c).zip(c.token().match_input(input, app_meta)))
-            .filter_map(|(c, fuzzy_match)| {
-                future::ready(if let FuzzyMatch::Exact(token_match) = fuzzy_match {
-                    Some((c, c.get_priority(&token_match), token_match))
-                } else {
-                    None
-                })
-            })
-            .collect()
-            .await;
+    // The only reason this vec exists is to ensure that the Tokens referenced by TokenMatch et al
+    // outlive their references.
+    let commands_tokens: Vec<(&CommandList, Token)> = CommandList::get_all()
+        .iter()
+        .map(|c| (c, c.token()))
+        .collect();
+
+    let mut token_matches: Vec<(&CommandList, CommandPriority, TokenMatch)> = Vec::new();
+    let mut match_streams = stream::SelectAll::default();
+
+    for (i, _) in commands_tokens.iter().enumerate() {
+        match_streams.push(
+            stream::repeat(commands_tokens[i].0)
+                .zip(commands_tokens[i].1.match_input(input, app_meta)),
+        );
+    }
+
+    while let Some((command, fuzzy_match)) = match_streams.next().await {
+        if let FuzzyMatch::Exact(token_match) = fuzzy_match {
+            token_matches.push((command, command.get_priority(&token_match), token_match));
+        }
+    }
+
+    // Release "ownership" of app_meta by now-empty stream
+    mem::drop(match_streams);
 
     token_matches.sort_by_key(|&(_, command_priority, _)| command_priority);
 
@@ -192,13 +210,13 @@ pub async fn run(input: &str, app_meta: &mut AppMeta) -> Result<String, String> 
     } else {
         let first_token_match = token_matches.remove(0);
 
-        let mut iter = iter::once(&first_token_match).chain(
-            token_matches
-                .iter()
-                .take_while(|(_, command_priority, _)| command_priority == &first_token_match.1),
-        )
-        .filter_map(|(command, _, token_match)| command.get_canonical_form_of(&token_match))
-        .peekable();
+        let mut iter =
+            iter::once(&first_token_match)
+                .chain(token_matches.iter().take_while(|(_, command_priority, _)| {
+                    command_priority == &first_token_match.1
+                }))
+                .filter_map(|(command, _, token_match)| command.get_canonical_form_of(&token_match))
+                .peekable();
 
         if iter.peek().is_none() {
             Err(format!("Unknown command: \"{}\"", input))

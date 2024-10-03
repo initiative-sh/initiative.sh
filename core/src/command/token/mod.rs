@@ -1,3 +1,4 @@
+mod any_of;
 mod any_phrase;
 mod any_word;
 mod keyword;
@@ -15,7 +16,7 @@ use futures::prelude::*;
 
 use std::pin::Pin;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Token<'a> {
     pub token_type: TokenType<'a>,
     pub marker: Option<u8>,
@@ -23,7 +24,7 @@ pub struct Token<'a> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TokenMatch<'a> {
-    pub token: Token<'a>,
+    pub token: &'a Token<'a>,
     pub meta: Meta<'a>,
 }
 
@@ -34,19 +35,19 @@ pub enum FuzzyMatch<'a> {
     Partial(TokenMatch<'a>, Option<String>),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum TokenType<'a> {
     /// One or more tokens, in any order but without repetition
     AnyOf(&'a [Token<'a>]),
-
-    /// One or more tokens, in any order with repetition
-    AnyOfRepeated(&'a [Token<'a>]),
 
     /// Any sequence of words
     AnyPhrase,
 
     /// Any single word
     AnyWord,
+
+    /// A literal word
+    Keyword(&'a str),
 
     /// The name of an existing thing
     Name,
@@ -56,9 +57,6 @@ pub enum TokenType<'a> {
 
     /// The exact sequence of tokens
     Phrase(&'a [Token<'a>]),
-
-    /// A literal word
-    Keyword(&'a str),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -82,20 +80,21 @@ impl<'a> Token<'a> {
     }
 
     pub fn match_input<'b>(
-        self,
+        &'a self,
         input: &'a str,
         app_meta: &'b AppMeta,
     ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
-    where 'a: 'b {
+    where
+        'a: 'b,
+    {
         match &self.token_type {
-            TokenType::AnyOf(..) => todo!(),
-            TokenType::AnyOfRepeated(..) => todo!(),
+            TokenType::AnyOf(..) => any_of::match_input(self, input, app_meta),
             TokenType::AnyPhrase => any_phrase::match_input(self, input),
             TokenType::AnyWord => any_word::match_input(self, input),
+            TokenType::Keyword(..) => keyword::match_input(self, input),
             TokenType::Name => name::match_input(self, input, app_meta),
             TokenType::Or(..) => or::match_input(self, input, app_meta),
             TokenType::Phrase(..) => phrase::match_input(self, input, app_meta),
-            TokenType::Keyword(..) => keyword::match_input(self, input),
         }
     }
 }
@@ -126,7 +125,7 @@ impl<'a> FuzzyMatch<'a> {
 }
 
 impl<'a> TokenMatch<'a> {
-    pub fn new(token: Token<'a>, meta: impl Into<Meta<'a>>) -> Self {
+    pub fn new(token: &'a Token<'a>, meta: impl Into<Meta<'a>>) -> Self {
         TokenMatch {
             token,
             meta: meta.into(),
@@ -138,8 +137,8 @@ impl<'a> TokenMatch<'a> {
     }
 }
 
-impl<'a> From<Token<'a>> for TokenMatch<'a> {
-    fn from(input: Token<'a>) -> Self {
+impl<'a> From<&'a Token<'a>> for TokenMatch<'a> {
+    fn from(input: &'a Token<'a>) -> Self {
         TokenMatch {
             token: input,
             meta: Meta::None,

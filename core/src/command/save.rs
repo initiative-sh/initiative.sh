@@ -28,10 +28,18 @@ impl Command for Save {
         }
     }
 
-    fn autocomplete(&self, fuzzy_match: FuzzyMatch, _input: &str) -> Option<AutocompleteSuggestion> {
+    fn autocomplete(
+        &self,
+        fuzzy_match: FuzzyMatch,
+        _input: &str,
+    ) -> Option<AutocompleteSuggestion> {
         let token_match = fuzzy_match.token_match();
 
-        let record = token_match.find_marker(Marker::Name as u8).next()?.meta.record()?;
+        let record = token_match
+            .find_marker(Marker::Name as u8)
+            .next()?
+            .meta
+            .record()?;
 
         if record.is_saved() {
             None

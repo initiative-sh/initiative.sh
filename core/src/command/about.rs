@@ -14,7 +14,11 @@ impl Command for About {
         }
     }
 
-    fn autocomplete(&self, _fuzzy_match: FuzzyMatch, _input: &str) -> Option<AutocompleteSuggestion> {
+    fn autocomplete(
+        &self,
+        _fuzzy_match: FuzzyMatch,
+        _input: &str,
+    ) -> Option<AutocompleteSuggestion> {
         Some(("about", "about initiative.sh").into())
     }
 

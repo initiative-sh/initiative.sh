@@ -8,13 +8,14 @@ use std::pin::Pin;
 use async_stream::stream;
 use futures::prelude::*;
 
-pub fn match_input<'a>(
-    token: Token<'a>,
+pub fn match_input<'a, 'b>(
+    token: &'a Token<'a>,
     input: &'a str,
-    app_meta: &AppMeta,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch> + 'a>> {
-    let tokens = if let TokenType::PhraseUnordered(tokens) = &token.token_type {
-        tokens.to_vec()
+    app_meta: &'b AppMeta,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+where 'a: 'b {
+    let tokens = if let TokenType::AnyOf(tokens) = &token.token_type {
+        tokens.iter().collect()
     } else {
         unreachable!();
     };
@@ -27,37 +28,37 @@ pub fn match_input<'a>(
     )
 }
 
-pub fn match_input_with_tokens<'a, M>(
-    token: Token<'a, M>,
+pub fn match_input_with_tokens<'a, 'b>(
+    token: &'a Token<'a>,
     input: &'a str,
-    app_meta: &'a AppMeta,
-    tokens: Vec<Token<'a, M>>,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a, M>> + 'a>>
+    app_meta: &'b AppMeta,
+    tokens: Vec<&'a Token<'a>>,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
 where
-    M: Clone,
+    'a: 'b
 {
     Box::pin(stream! {
         // Attempt to match each token in turn
         for (test_token_index, test_token) in tokens.iter().enumerate() {
-            for await fuzzy_match in test_token.clone().match_input(input, app_meta) {
+            for await fuzzy_match in test_token.match_input(input, app_meta) {
                 match fuzzy_match {
 
                     // The token is a partial match, so the phrase is incomplete
                     FuzzyMatch::Partial(token_match, completion) => yield FuzzyMatch::Partial(
-                        TokenMatch::new(token.clone(), vec![token_match]),
+                        TokenMatch::new(token, vec![token_match]),
                         completion,
                     ),
 
                     // First token is an exact match and is the only token in the phrase, so the
                     // phrase is also an exact match.
                     FuzzyMatch::Exact(token_match) if tokens.len() == 1 => yield FuzzyMatch::Exact(
-                        TokenMatch::new(token.clone(), vec![token_match]),
+                        TokenMatch::new(token, vec![token_match]),
                     ),
 
                     // First token is an exact match but there are more unmatched tokens, so the
                     // phrase is incomplete.
                     FuzzyMatch::Exact(token_match) => yield FuzzyMatch::Partial(
-                        TokenMatch::new(token.clone(), vec![token_match]),
+                        TokenMatch::new(token, vec![token_match]),
                         None,
                     ),
 
@@ -65,7 +66,7 @@ where
                     // also overflows.
                     FuzzyMatch::Overflow(token_match, remainder) if tokens.len() == 1 =>
                             yield FuzzyMatch::Overflow(
-                                TokenMatch::new(token.clone(), vec![token_match]),
+                                TokenMatch::new(token, vec![token_match]),
                                 remainder,
                             ),
 
@@ -77,17 +78,17 @@ where
                                     .iter()
                                     .take(test_token_index)
                                     .chain(tokens.iter().skip(test_token_index + 1))
-                                    .cloned()
+                                    .map(|&t| t)
                                     .collect();
 
-                        for await next_fuzzy_match in match_input_with_tokens(token.clone(), remainder, app_meta, next_tokens) {
+                        for await next_fuzzy_match in match_input_with_tokens(token, remainder, app_meta, next_tokens) {
                             yield next_fuzzy_match.map(|next_match| {
                                 let Meta::Sequence(next_meta_sequence) = next_match.meta else {
                                     unreachable!();
                                 };
 
                                 TokenMatch::new(
-                                    token.clone(),
+                                    token,
                                     iter::once(token_match.clone()).chain(next_meta_sequence.into_iter()).collect::<Vec<_>>(),
                                 )
                             });

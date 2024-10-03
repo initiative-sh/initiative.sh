@@ -1,4 +1,4 @@
-use super::{TokenMatch, FuzzyMatch, Token, TokenType};
+use super::{FuzzyMatch, Token, TokenMatch, TokenType};
 
 use crate::utils::quoted_phrases;
 
@@ -8,7 +8,7 @@ use async_stream::stream;
 use futures::prelude::*;
 
 pub fn match_input<'a>(
-    token: Token<'a>,
+    token: &'a Token<'a>,
     input: &'a str,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
     assert!(matches!(token.token_type, TokenType::AnyPhrase));
@@ -17,7 +17,7 @@ pub fn match_input<'a>(
         let mut phrases = quoted_phrases(input).peekable();
 
         while let Some(phrase) = phrases.next() {
-            let token_match = TokenMatch::new(token.clone(), phrase.as_own_str(input));
+            let token_match = TokenMatch::new(token, phrase.as_own_str(input));
 
             if phrases.peek().is_none() {
                 yield FuzzyMatch::Exact(token_match);

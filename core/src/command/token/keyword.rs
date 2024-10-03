@@ -9,7 +9,7 @@ use async_stream::stream;
 use futures::prelude::*;
 
 pub fn match_input<'a>(
-    token: Token<'a>,
+    token: &'a Token<'a>,
     input: &'a str,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
     let TokenType::Keyword(keyword) = token.token_type else {
