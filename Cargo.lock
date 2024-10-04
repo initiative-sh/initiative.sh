@@ -336,6 +336,7 @@ name = "initiative-macros"
 version = "0.1.0"
 dependencies = [
  "initiative-reference",
+ "proc-macro2",
  "quote",
  "regex",
  "syn 1.0.75",
