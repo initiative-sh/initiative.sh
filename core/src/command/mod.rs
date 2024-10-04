@@ -8,6 +8,7 @@ use std::mem;
 use std::pin::Pin;
 
 use crate::app::{AppMeta, AutocompleteSuggestion};
+use initiative_macros::CommandList;
 
 use token::{FuzzyMatch, Token, TokenMatch};
 
@@ -52,59 +53,10 @@ trait Command {
     }
 }
 
+#[derive(CommandList)]
 enum CommandList {
     About(about::About),
     Save(save::Save),
-}
-
-impl CommandList {
-    const fn get_all() -> &'static [CommandList] {
-        &[
-            CommandList::About(about::About),
-            CommandList::Save(save::Save),
-        ]
-    }
-}
-
-impl Command for CommandList {
-    fn token(&self) -> Token {
-        match self {
-            CommandList::About(c) => c.token(),
-            CommandList::Save(c) => c.token(),
-        }
-    }
-
-    fn autocomplete(&self, fuzzy_match: FuzzyMatch, input: &str) -> Option<AutocompleteSuggestion> {
-        match self {
-            CommandList::About(c) => c.autocomplete(fuzzy_match, input),
-            CommandList::Save(c) => c.autocomplete(fuzzy_match, input),
-        }
-    }
-
-    fn get_priority(&self, token_match: &TokenMatch) -> CommandPriority {
-        match self {
-            CommandList::About(c) => c.get_priority(token_match),
-            CommandList::Save(c) => c.get_priority(token_match),
-        }
-    }
-
-    fn get_canonical_form_of(&self, token_match: &TokenMatch) -> Option<String> {
-        match self {
-            CommandList::About(c) => c.get_canonical_form_of(token_match),
-            CommandList::Save(c) => c.get_canonical_form_of(token_match),
-        }
-    }
-
-    async fn run<'a>(
-        &self,
-        token_match: TokenMatch<'a>,
-        app_meta: &mut AppMeta,
-    ) -> Result<String, String> {
-        match self {
-            CommandList::About(c) => c.run(token_match, app_meta).await,
-            CommandList::Save(c) => c.run(token_match, app_meta).await,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
