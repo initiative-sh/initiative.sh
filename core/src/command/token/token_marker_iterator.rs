@@ -1,9 +1,9 @@
 use super::{Meta, TokenMatch};
 
-pub struct TokenMarkerIterator<'a, 'b> {
+pub struct TokenMarkerIterator<'a, 'b, T> {
     token_match_set: TokenMatchSet<'a>,
-    markers: &'b [u8],
-    inner: Option<Box<TokenMarkerIterator<'a, 'b>>>,
+    markers: &'b [T],
+    inner: Option<Box<TokenMarkerIterator<'a, 'b, T>>>,
     cursor: usize,
 }
 
@@ -12,8 +12,11 @@ enum TokenMatchSet<'a> {
     Single(&'a TokenMatch<'a>),
 }
 
-impl<'a, 'b> TokenMarkerIterator<'a, 'b> {
-    pub fn new(token_match: &'a TokenMatch, markers: &'b [u8]) -> Self {
+impl<'a, 'b, T> TokenMarkerIterator<'a, 'b, T>
+where
+    &'b T: PartialEq<u8>,
+{
+    pub fn new(token_match: &'a TokenMatch, markers: &'b [T]) -> Self {
         Self {
             token_match_set: TokenMatchSet::Single(token_match),
             markers,
@@ -45,7 +48,10 @@ impl<'a> TryFrom<&'a Meta<'a>> for TokenMatchSet<'a> {
     }
 }
 
-impl<'a, 'b> Iterator for TokenMarkerIterator<'a, 'b> {
+impl<'a, 'b, T> Iterator for TokenMarkerIterator<'a, 'b, T>
+where
+    &'b T: PartialEq<u8>,
+{
     type Item = &'a TokenMatch<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -70,11 +76,9 @@ impl<'a, 'b> Iterator for TokenMarkerIterator<'a, 'b> {
 
                 self.cursor += 1;
 
-                if token_match
-                    .token
-                    .marker
-                    .map_or(false, |m| self.markers.contains(&m))
-                {
+                if token_match.token.marker.map_or(false, |my_m| {
+                    self.markers.iter().any(|find_m| find_m == my_m)
+                }) {
                     return Some(token_match);
                 }
             } else {

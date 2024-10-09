@@ -75,6 +75,12 @@ fn impl_token_marker(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
             }
         }
 
+        impl PartialEq<u8> for &#ident {
+            fn eq(&self, other: &u8) -> bool {
+                &u8::from(*self) == other
+            }
+        }
+
         impl PartialEq<#ident> for u8 {
             fn eq(&self, other: &#ident) -> bool {
                 self == &u8::from(other)

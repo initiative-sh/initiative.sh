@@ -16,12 +16,11 @@
 //!
 //! The preferred way of parsing token trees is using markers: a `u8` value assigned to a Token
 //! upon creation which persists through the TokenMatch data provided to
-//! `autocomplete()`/`get_priority()`. The `initiative_macros::TokenMarker` derive macro and
-//! `initiative_macros::as_u8` proc macro are convenience tools that simplify using enums for this
-//! purpose. Effectively they abstract away a whole lot of `Marker::Foo as u8`. Rather than
-//! manually climbing through the token tree in search of a particular marker, the
-//! `Token::find_markers()` method can be used to jump directly (and recursively) to the token(s)
-//! of interest.
+//! `autocomplete()`/`get_priority()`. The `initiative_macros::TokenMarker` derive macro is a
+//! convenience tool that simplifies using enums for this purpose. It effectively abstracts away a
+//! whole lot of `Marker::Foo as u8`. Rather than manually climbing through the token tree in
+//! search of a particular marker, the `Token::find_markers()` method can be used to jump directly
+//! (and recursively) to the token(s) of interest.
 //!
 //! If `get_priority()` returns `Some(x)`, the dispatcher (`run()`) will choose which command to
 //! execute based on the returned priority: `CommandPriority::Canonical` matches will always be

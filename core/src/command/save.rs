@@ -2,7 +2,7 @@ use super::token::{FuzzyMatch, Meta, Token, TokenMatch};
 use super::{Command, CommandPriority};
 
 use crate::app::{AppMeta, AutocompleteSuggestion};
-use initiative_macros::{as_u8, TokenMarker};
+use initiative_macros::TokenMarker;
 
 #[derive(Clone, Debug)]
 pub struct Save;
@@ -25,7 +25,7 @@ impl Command for Save {
         let token_match = fuzzy_match.token_match();
 
         let record = token_match
-            .find_markers(&as_u8![Marker::Name])
+            .find_markers(&[Marker::Name])
             .next()?
             .meta
             .record()?;
@@ -48,7 +48,7 @@ impl Command for Save {
     }
 
     fn get_canonical_form_of(&self, token_match: &TokenMatch) -> Option<String> {
-        if let Meta::Record(record) = &token_match.find_markers(&as_u8![Marker::Name]).next()?.meta
+        if let Meta::Record(record) = &token_match.find_markers(&[Marker::Name]).next()?.meta
         {
             Some(format!("save \"{}\"", record.thing.name()))
         } else {

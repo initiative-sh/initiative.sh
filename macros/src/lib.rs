@@ -8,20 +8,12 @@
 use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
-mod as_u8;
 mod changelog;
 mod command_list;
 mod motd;
 mod reference_enum;
 mod token_marker;
 mod word_list;
-
-/// A convenience macro to cast all elements of an array to u8.
-#[proc_macro]
-pub fn as_u8(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input);
-    as_u8::run(input).unwrap().into()
-}
 
 /// A microoptimization to compile only part of the lengthy `changelog.md` file into the
 /// application binary.

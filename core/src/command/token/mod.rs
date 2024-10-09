@@ -307,7 +307,10 @@ impl<'a> TokenMatch<'a> {
         }
     }
 
-    pub fn find_markers<'b>(&'a self, markers: &'b [u8]) -> TokenMarkerIterator<'a, 'b> {
+    pub fn find_markers<'b, T>(&'a self, markers: &'b [T]) -> TokenMarkerIterator<'a, 'b, T>
+    where
+        &'b T: PartialEq<u8>,
+    {
         TokenMarkerIterator::new(self, markers)
     }
 }

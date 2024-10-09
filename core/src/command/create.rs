@@ -7,7 +7,7 @@ use crate::world::npc::{Age, Ethnicity, Gender, NpcData, Species};
 use crate::world::place::{PlaceData, PlaceType};
 use crate::world::thing::ThingData;
 use crate::world::{Field, WorldCommand};
-use initiative_macros::{as_u8, TokenMarker};
+use initiative_macros::TokenMarker;
 
 #[derive(Clone, Debug)]
 pub struct Create;
@@ -87,13 +87,13 @@ impl Command for Create {
 
     fn get_priority(&self, token_match: &TokenMatch) -> Option<CommandPriority> {
         if token_match
-            .find_markers(&as_u8![Marker::CreateKeyword])
+            .find_markers(&[Marker::CreateKeyword])
             .next()
             .is_some()
         {
             Some(CommandPriority::Canonical)
         } else if token_match
-            .find_markers(&as_u8![Marker::NpcNoun, Marker::Species, Marker::PlaceType])
+            .find_markers(&[Marker::NpcNoun, Marker::Species, Marker::PlaceType])
             .next()
             .is_some()
         {
@@ -109,14 +109,14 @@ impl Command for Create {
         app_meta: &mut AppMeta,
     ) -> Result<String, String> {
         let thing_token = token_match
-            .find_markers(&as_u8![Marker::NpcNoun, Marker::Species, Marker::PlaceType])
+            .find_markers(&[Marker::NpcNoun, Marker::Species, Marker::PlaceType])
             .next()
             .unwrap();
 
         let original_thing_data: ThingData = if thing_token.token.marker_is(Marker::PlaceType) {
             let mut place_data = PlaceData::default();
 
-            for marked_token in token_match.find_markers(&as_u8![Marker::Name, Marker::PlaceType]) {
+            for marked_token in token_match.find_markers(&[Marker::Name, Marker::PlaceType]) {
                 let marker = marked_token.token.marker.unwrap();
                 let meta = &marked_token.meta;
 
@@ -131,7 +131,7 @@ impl Command for Create {
         } else {
             let mut npc_data = NpcData::default();
 
-            for marked_token in token_match.find_markers(&as_u8![
+            for marked_token in token_match.find_markers(&[
                 Marker::Age,
                 Marker::Ethnicity,
                 Marker::Gender,
@@ -261,7 +261,7 @@ impl Command for Create {
 
     fn get_canonical_form_of(&self, token_match: &TokenMatch) -> Option<String> {
         let thing_token = token_match
-            .find_markers(&as_u8![Marker::NpcNoun, Marker::Species, Marker::PlaceType])
+            .find_markers(&[Marker::NpcNoun, Marker::Species, Marker::PlaceType])
             .next()
             .unwrap();
 
@@ -271,7 +271,7 @@ impl Command for Create {
                 .to_string();
 
             if let Some(name) = token_match
-                .find_markers(&as_u8![Marker::Name])
+                .find_markers(&[Marker::Name])
                 .next()
                 .and_then(|token| token.meta.phrase())
             {
@@ -283,7 +283,7 @@ impl Command for Create {
             let mut result = String::new();
 
             if let Some(age_str) = token_match
-                .find_markers(&as_u8![Marker::Age])
+                .find_markers(&[Marker::Age])
                 .next()
                 .and_then(|token| token.meta.phrase())
                 .and_then(|s| Age::try_from(s).ok())
@@ -294,7 +294,7 @@ impl Command for Create {
             }
 
             if let Some(gender_str) = token_match
-                .find_markers(&as_u8![Marker::Gender])
+                .find_markers(&[Marker::Gender])
                 .next()
                 .and_then(|token| token.meta.phrase())
                 .and_then(|s| Gender::try_from(s).ok())
@@ -305,7 +305,7 @@ impl Command for Create {
             }
 
             if let Some(ethnicity_str) = token_match
-                .find_markers(&as_u8![Marker::Ethnicity])
+                .find_markers(&[Marker::Ethnicity])
                 .next()
                 .and_then(|token| token.meta.phrase())
                 .and_then(|s| Ethnicity::try_from(s).ok())
@@ -316,7 +316,7 @@ impl Command for Create {
             }
 
             if let Some(species_str) = token_match
-                .find_markers(&as_u8![Marker::Species])
+                .find_markers(&[Marker::Species])
                 .next()
                 .and_then(|token| token.meta.phrase())
                 .and_then(|s| Species::try_from(s).ok())
@@ -328,7 +328,7 @@ impl Command for Create {
             }
 
             if let Some(name) = token_match
-                .find_markers(&as_u8![Marker::Name])
+                .find_markers(&[Marker::Name])
                 .next()
                 .and_then(|token| token.meta.phrase())
             {
@@ -338,7 +338,7 @@ impl Command for Create {
             result
         };
 
-        if result.starts_with(&['a', 'e', 'i', 'o', 'u', 'y', 'A', 'E', 'I', 'O', 'U', 'Y']) {
+        if result.starts_with(&['a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U']) {
             Some(format!("create an {result}"))
         } else {
             Some(format!("create a {result}"))
