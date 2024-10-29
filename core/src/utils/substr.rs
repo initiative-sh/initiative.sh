@@ -32,6 +32,18 @@ impl<'a> Substr<'a> {
         &self.phrase[self.inner_range.clone()]
     }
 
+    /// Returns the outer portion of the Substr, including quotes if present.
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn as_outer_str(&self) -> &'a str {
+        &self.phrase[self.outer_range.clone()]
+    }
+
+    /// Returns the entire input phrase.
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn as_original_str(&self) -> &'a str {
+        self.phrase
+    }
+
     /// Returns the outer range of the Substr, ie. including quotes (if any).
     pub fn range(&self) -> Range<usize> {
         self.outer_range.clone()
@@ -150,12 +162,18 @@ mod test {
 
     #[test]
     fn as_str_test() {
-        let substr = {
-            let word = Substr::new("abc", 1..2, 0..3);
-            word.as_str()
+        let (as_str, as_outer_str, as_original_str) = {
+            let substr = Substr::new("abcde", 2..3, 1..4);
+            (
+                substr.as_str(),
+                substr.as_outer_str(),
+                substr.as_original_str(),
+            )
         };
 
-        assert_eq!("b", substr);
+        assert_eq!("c", as_str);
+        assert_eq!("bcd", as_outer_str);
+        assert_eq!("abcde", as_original_str);
     }
 
     #[test]
