@@ -58,6 +58,10 @@ impl<'a> Word<'a> {
         &self.phrase[self.inner_range.clone()]
     }
 
+    pub fn as_original_str(&'a self) -> &'a str {
+        &self.phrase[self.outer_range.clone()]
+    }
+
     pub fn range(&self) -> Range<usize> {
         self.outer_range.clone()
     }
