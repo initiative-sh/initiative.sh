@@ -1,27 +1,52 @@
 use super::Word;
+use std::iter::Peekable;
 use std::str::CharIndices;
 
-pub fn quoted_words(phrase: &str) -> QuotedWordIterator<'_> {
-    QuotedWordIterator::new(phrase)
+pub fn quoted_words<'a, W>(phrase: W) -> QuotedWordIter<'a>
+where
+    W: Into<Word<'a>>,
+{
+    QuotedWordIter::new(phrase.into())
 }
 
-pub struct QuotedWordIterator<'a> {
-    phrase: &'a str,
+pub fn quoted_phrases<'a, W>(phrase: W) -> QuotedPhrasesIter<'a>
+where
+    W: Into<Word<'a>>,
+{
+    QuotedPhrasesIter::new(phrase.into())
+}
+
+pub struct QuotedWordIter<'a> {
+    phrase: Word<'a>,
     char_iter: CharIndices<'a>,
     quote_len: Option<usize>,
 }
 
-impl<'a> QuotedWordIterator<'a> {
-    fn new(phrase: &'a str) -> Self {
+pub struct QuotedPhrasesIter<'a> {
+    first: Option<Word<'a>>,
+    inner: Peekable<QuotedWordIter<'a>>,
+}
+
+impl<'a> QuotedWordIter<'a> {
+    fn new(phrase: Word<'a>) -> Self {
         Self {
+            char_iter: phrase.phrase.char_indices(),
             phrase,
-            char_iter: phrase.char_indices(),
             quote_len: None,
         }
     }
 }
 
-impl<'a> Iterator for QuotedWordIterator<'a> {
+impl<'a> QuotedPhrasesIter<'a> {
+    fn new(phrase: Word<'a>) -> Self {
+        let mut inner = QuotedWordIter::new(phrase).peekable();
+        let first = inner.peek().cloned();
+
+        QuotedPhrasesIter { first, inner }
+    }
+}
+
+impl<'a> Iterator for QuotedWordIter<'a> {
     type Item = Word<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -31,18 +56,18 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
             if let Some((i, c)) = self.char_iter.next() {
                 if c == '"' {
                     return Some(Word::new(
-                        self.phrase,
+                        self.phrase.phrase,
                         i..i,
                         i - quote_len..i + c.len_utf8(),
                     ));
                 } else {
-                    (self.phrase[i - quote_len..i].chars().next(), i)
+                    (self.phrase.phrase[i - quote_len..i].chars().next(), i)
                 }
             } else {
                 return Some(Word::new(
-                    self.phrase,
-                    self.phrase.len()..self.phrase.len(),
-                    self.phrase.len() - quote_len..self.phrase.len(),
+                    self.phrase.phrase,
+                    self.phrase.phrase.len()..self.phrase.phrase.len(),
+                    self.phrase.phrase.len() - quote_len..self.phrase.phrase.len(),
                 ));
             }
         } else {
@@ -61,7 +86,7 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                     if c == '"' {
                         // Empty quotes = yield empty string
                         return Some(Word::new(
-                            self.phrase,
+                            self.phrase.phrase,
                             i..i,
                             i - first_char.len_utf8()..i + c.len_utf8(),
                         ));
@@ -70,9 +95,9 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                     }
                 } else {
                     return Some(Word::new(
-                        self.phrase,
-                        self.phrase.len()..self.phrase.len(),
-                        first_index..self.phrase.len(),
+                        self.phrase.phrase,
+                        self.phrase.phrase.len()..self.phrase.phrase.len(),
+                        first_index..self.phrase.phrase.len(),
                     ));
                 }
             } else {
@@ -85,7 +110,7 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                 if let Some(quote_char) = quote_char {
                     if c == '"' {
                         return Some(Word::new(
-                            self.phrase,
+                            self.phrase.phrase,
                             first_index..i,
                             first_index - quote_char.len_utf8()..i + c.len_utf8(),
                         ));
@@ -98,20 +123,43 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                 }
             } else if let Some(quote_char) = quote_char {
                 return Some(Word::new(
-                    self.phrase,
-                    first_index..self.phrase.len(),
-                    first_index - quote_char.len_utf8()..self.phrase.len(),
+                    self.phrase.phrase,
+                    first_index..self.phrase.phrase.len(),
+                    first_index - quote_char.len_utf8()..self.phrase.phrase.len(),
                 ));
             } else {
-                break self.phrase.len();
+                break self.phrase.phrase.len();
             }
         };
 
         Some(Word::new(
-            self.phrase,
+            self.phrase.phrase,
             first_index..last_index,
             first_index..last_index,
         ))
+    }
+}
+
+impl<'a> Iterator for QuotedPhrasesIter<'a> {
+    type Item = Word<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let Some(first_word) = &self.first else {
+            return None;
+        };
+        let Some(word) = self.inner.next() else {
+            return None;
+        };
+
+        if &word == first_word {
+            Some(word)
+        } else {
+            Some(Word::new(
+                first_word.phrase,
+                first_word.range().start..word.range().end,
+                first_word.range().start..word.range().end,
+            ))
+        }
     }
 }
 
@@ -139,6 +187,22 @@ mod test {
         let word = input_iter.next().unwrap();
         assert_eq!("Johnny Cash", word.as_str());
         assert_eq!(14..27, word.range());
+
+        assert!(input_iter.next().is_none());
+    }
+
+    #[test]
+    fn quoted_phrase_iter_test() {
+        let input = "  \"Medium\" Dave  ";
+        let mut input_iter = quoted_phrases(input);
+
+        let word = input_iter.next().unwrap();
+        assert_eq!("Medium", word.as_str());
+        assert_eq!(2..10, *word.range());
+
+        let word = input_iter.next().unwrap();
+        assert_eq!("\"Medium\" Dave", word.as_str());
+        assert_eq!(2..15, *word.range());
 
         assert!(input_iter.next().is_none());
     }
