@@ -1,27 +1,96 @@
 use super::Substr;
 use std::str::CharIndices;
 
-pub fn quoted_words(phrase: &str) -> QuotedWordIterator<'_> {
-    QuotedWordIterator::new(phrase)
+/// Iterate through all words in the input, treating multiple words surrounded by quotation marks
+/// as a single word. Returns [`Substr`] objects, preserving the word's context within the larger
+/// string.
+///
+/// # Examples
+///
+/// ```
+/// # use initiative_core::utils::quoted_words;
+/// let mut iter = quoted_words(r#"   Ronny  "Two Spoons" Johnson  "#)
+///     .map(|substr| substr.as_str());
+///
+/// assert_eq!(Some("Ronny"), iter.next());
+/// assert_eq!(Some("Two Spoons"), iter.next());
+/// assert_eq!(Some("Johnson"), iter.next());
+/// assert_eq!(None, iter.next());
+/// ```
+///
+/// ## Interacting with the [`Substr`] object
+///
+/// ```
+/// # use initiative_core::utils::quoted_words;
+/// let mut iter = quoted_words(r#"   Ronny  "Two Spoons" Johnson  "#);
+/// let word = iter.nth(1).unwrap();
+///
+/// assert_eq!("Two Spoons", word.as_str());
+/// assert_eq!(r#""Two Spoons""#, word.as_outer_str());
+/// assert_eq!(" Johnson  ", word.after().as_str());
+/// assert_eq!(r#"   Ronny  "Two Spoons" Johnson  "#, word.as_original_str());
+/// ```
+pub fn quoted_words<'a, W>(phrase: W) -> impl Iterator<Item = Substr<'a>>
+where
+    W: Into<Substr<'a>>,
+{
+    QuotedWordIter::new(phrase.into())
 }
 
-pub struct QuotedWordIterator<'a> {
-    phrase: &'a str,
+/// Iterate through the possible phrases in the input (always starting from the first word). In the
+/// event that the first word is quoted per [`quoted_words`], the first result will be the contents
+/// of the quotes, but subsequent results will include the quotes as part of a larger phrase.
+///
+/// Also like `quoted_words`, the returned values are [`Substr`] objects, which can be cast back to
+/// `&str` using [`Substr::as_str`].
+///
+/// # Examples
+///
+/// ```
+/// # use initiative_core::utils::quoted_phrases;
+/// let mut iter = quoted_phrases(r#"  "Medium" Dave Lilywhite  "#)
+///     .map(|substr| substr.as_str());
+///
+/// assert_eq!(Some("Medium"), iter.next());
+/// assert_eq!(Some(r#""Medium" Dave"#), iter.next());
+/// assert_eq!(Some(r#""Medium" Dave Lilywhite"#), iter.next());
+/// assert_eq!(None, iter.next());
+/// ```
+#[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+pub fn quoted_phrases<'a, W>(phrase: W) -> impl Iterator<Item = Substr<'a>>
+where
+    W: Into<Substr<'a>>,
+{
+    let mut iter = quoted_words(phrase);
+    let first = iter.next();
+    let start = first.as_ref().map(|f| f.range().start).unwrap_or(0);
+
+    first.into_iter().chain(iter.map(move |substr| {
+        Substr::new(
+            substr.as_original_str(),
+            start..substr.range().end,
+            start..substr.range().end,
+        )
+    }))
+}
+
+pub struct QuotedWordIter<'a> {
+    phrase: Substr<'a>,
     char_iter: CharIndices<'a>,
     quote_len: Option<usize>,
 }
 
-impl<'a> QuotedWordIterator<'a> {
-    fn new(phrase: &'a str) -> Self {
+impl<'a> QuotedWordIter<'a> {
+    fn new(phrase: Substr<'a>) -> Self {
         Self {
+            char_iter: phrase.as_original_str().char_indices(),
             phrase,
-            char_iter: phrase.char_indices(),
             quote_len: None,
         }
     }
 }
 
-impl<'a> Iterator for QuotedWordIterator<'a> {
+impl<'a> Iterator for QuotedWordIter<'a> {
     type Item = Substr<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -31,18 +100,24 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
             if let Some((i, c)) = self.char_iter.next() {
                 if c == '"' {
                     return Some(Substr::new(
-                        self.phrase,
+                        self.phrase.as_original_str(),
                         i..i,
                         i - quote_len..i + c.len_utf8(),
                     ));
                 } else {
-                    (self.phrase[i - quote_len..i].chars().next(), i)
+                    (
+                        self.phrase.as_original_str()[i - quote_len..i]
+                            .chars()
+                            .next(),
+                        i,
+                    )
                 }
             } else {
+                let original_str = self.phrase.as_original_str();
                 return Some(Substr::new(
-                    self.phrase,
-                    self.phrase.len()..self.phrase.len(),
-                    self.phrase.len() - quote_len..self.phrase.len(),
+                    original_str,
+                    original_str.len()..original_str.len(),
+                    original_str.len() - quote_len..original_str.len(),
                 ));
             }
         } else {
@@ -61,7 +136,7 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                     if c == '"' {
                         // Empty quotes = yield empty string
                         return Some(Substr::new(
-                            self.phrase,
+                            self.phrase.as_original_str(),
                             i..i,
                             i - first_char.len_utf8()..i + c.len_utf8(),
                         ));
@@ -69,10 +144,11 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                         (Some(first_char), i)
                     }
                 } else {
+                    let original_str = self.phrase.as_original_str();
                     return Some(Substr::new(
-                        self.phrase,
-                        self.phrase.len()..self.phrase.len(),
-                        first_index..self.phrase.len(),
+                        original_str,
+                        original_str.len()..original_str.len(),
+                        first_index..original_str.len(),
                     ));
                 }
             } else {
@@ -85,7 +161,7 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                 if let Some(quote_char) = quote_char {
                     if c == '"' {
                         return Some(Substr::new(
-                            self.phrase,
+                            self.phrase.as_original_str(),
                             first_index..i,
                             first_index - quote_char.len_utf8()..i + c.len_utf8(),
                         ));
@@ -97,18 +173,19 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                     break i;
                 }
             } else if let Some(quote_char) = quote_char {
+                let original_str = self.phrase.as_original_str();
                 return Some(Substr::new(
-                    self.phrase,
-                    first_index..self.phrase.len(),
-                    first_index - quote_char.len_utf8()..self.phrase.len(),
+                    original_str,
+                    first_index..original_str.len(),
+                    first_index - quote_char.len_utf8()..original_str.len(),
                 ));
             } else {
-                break self.phrase.len();
+                break self.phrase.as_original_str().len();
             }
         };
 
         Some(Substr::new(
-            self.phrase,
+            self.phrase.as_original_str(),
             first_index..last_index,
             first_index..last_index,
         ))
@@ -141,6 +218,32 @@ mod test {
         assert_eq!(14..27, word.range());
 
         assert!(input_iter.next().is_none());
+    }
+
+    #[test]
+    fn quoted_phrases_test() {
+        let input = "  \"Medium\" Dave  ";
+        let mut input_iter = quoted_phrases(input);
+
+        let substr = input_iter.next().unwrap();
+        assert_eq!("Medium", substr.as_str());
+        assert_eq!(2..10, substr.range());
+
+        let substr = input_iter.next().unwrap();
+        assert_eq!("\"Medium\" Dave", substr.as_str());
+        assert_eq!(2..15, substr.range());
+
+        assert!(input_iter.next().is_none());
+    }
+
+    #[test]
+    fn quoted_phrases_test_repeated() {
+        assert_eq!(
+            vec!["badger", "badger badger", "badger badger badger"],
+            quoted_phrases("badger badger badger")
+                .map(|w| w.as_str())
+                .collect::<Vec<_>>(),
+        );
     }
 
     #[test]

@@ -39,7 +39,6 @@ impl<'a> Substr<'a> {
     }
 
     /// Returns the entire input phrase.
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn as_original_str(&self) -> &'a str {
         self.phrase
     }
