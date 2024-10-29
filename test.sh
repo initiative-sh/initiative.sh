@@ -3,7 +3,7 @@ set -euxo pipefail
 
 cargo test --workspace
 
-cargo clippy --workspace -- --deny warnings
+cargo clippy --workspace --tests -- --deny warnings
 
 git ls-files '*.rs' | xargs rustfmt --check --edition 2021
 if git grep ',)' '*.rs'; then
