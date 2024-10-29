@@ -10,6 +10,7 @@ pub use command::assert_autocomplete;
 mod command;
 mod meta;
 
+use crate::command as new_command;
 use crate::storage::backup::{import, BackupData};
 use crate::utils::CaseInsensitiveStr;
 use initiative_macros::motd;
@@ -58,10 +59,7 @@ impl App {
     ///
     /// On success or failure, returns a String that can be displayed back to the user.
     pub async fn command(&mut self, input: &str) -> Result<String, String> {
-        Command::parse_input_irrefutable(input, &self.meta)
-            .await
-            .run(input, &mut self.meta)
-            .await
+        new_command::run(input, &mut self.meta).await
     }
 
     /// The user has updated their input and a new set of suggestions should be populated. This
@@ -72,10 +70,7 @@ impl App {
     ///
     /// Returns a maximum of 10 results.
     pub async fn autocomplete(&self, input: &str) -> Vec<AutocompleteSuggestion> {
-        let mut suggestions: Vec<_> = Command::autocomplete(input, &self.meta).await;
-        suggestions.sort_by(|a, b| a.term.cmp_ci(&b.term));
-        suggestions.truncate(10);
-        suggestions
+        new_command::autocomplete(input, &self.meta).await
     }
 
     /// The part of the import flow that occurs after the user selects a file in response to the
