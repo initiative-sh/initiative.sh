@@ -2,7 +2,8 @@
 pub mod test_utils;
 
 pub use case_insensitive_str::CaseInsensitiveStr;
-pub use quoted_word_iter::quoted_words;
+#[cfg_attr(not(feature = "integration-tests"), expect(unused_imports))]
+pub use quoted_word_iter::{quoted_phrases, quoted_words};
 pub use substr::Substr;
 
 mod case_insensitive_str;
