@@ -9,7 +9,6 @@ use std::fmt;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AppCommand {
-    About,
     Changelog,
     Debug,
     Help,
@@ -20,9 +19,6 @@ pub enum AppCommand {
 impl Runnable for AppCommand {
     async fn run(self, _input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
         Ok(match self {
-            Self::About => include_str!("../../../../data/about.md")
-                .trim_end()
-                .to_string(),
             Self::Debug => format!(
                 "{:?}\n\n{:?}",
                 app_meta,
@@ -55,9 +51,7 @@ impl Runnable for AppCommand {
 #[async_trait(?Send)]
 impl ContextAwareParse for AppCommand {
     async fn parse_input(input: &str, _app_meta: &AppMeta) -> CommandMatches<Self> {
-        if input.eq_ci("about") {
-            CommandMatches::new_canonical(Self::About)
-        } else if input.eq_ci("changelog") {
+        if input.eq_ci("changelog") {
             CommandMatches::new_canonical(Self::Changelog)
         } else if input.eq_ci("debug") {
             CommandMatches::new_canonical(Self::Debug)
@@ -83,7 +77,6 @@ impl Autocomplete for AppCommand {
         }
 
         [
-            AutocompleteSuggestion::new("about", "about initiative.sh"),
             AutocompleteSuggestion::new("changelog", "show latest updates"),
             AutocompleteSuggestion::new("help", "how to use initiative.sh"),
         ]
@@ -102,7 +95,6 @@ impl Autocomplete for AppCommand {
 impl fmt::Display for AppCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
-            Self::About => write!(f, "about"),
             Self::Changelog => write!(f, "changelog"),
             Self::Debug => write!(f, "debug"),
             Self::Help => write!(f, "help"),
@@ -149,7 +141,6 @@ mod test {
         let app_meta = app_meta();
 
         [
-            ("about", "about initiative.sh"),
             ("changelog", "show latest updates"),
             ("help", "how to use initiative.sh"),
         ]
@@ -167,16 +158,6 @@ mod test {
         });
 
         assert_autocomplete(
-            &[("about", "about initiative.sh")][..],
-            block_on(AppCommand::autocomplete("a", &app_meta)),
-        );
-
-        assert_autocomplete(
-            &[("about", "about initiative.sh")][..],
-            block_on(AppCommand::autocomplete("A", &app_meta)),
-        );
-
-        assert_autocomplete(
             &[("roll [dice]", "roll eg. 8d6 or d20+3")][..],
             block_on(AppCommand::autocomplete("roll", &app_meta)),
         );
@@ -192,34 +173,29 @@ mod test {
     fn display_test() {
         let app_meta = app_meta();
 
-        [
-            AppCommand::About,
-            AppCommand::Changelog,
-            AppCommand::Debug,
-            AppCommand::Help,
-        ]
-        .into_iter()
-        .for_each(|command| {
-            let command_string = command.to_string();
-            assert_ne!("", command_string);
+        [AppCommand::Changelog, AppCommand::Debug, AppCommand::Help]
+            .into_iter()
+            .for_each(|command| {
+                let command_string = command.to_string();
+                assert_ne!("", command_string);
 
-            assert_eq!(
-                CommandMatches::new_canonical(command.clone()),
-                block_on(AppCommand::parse_input(&command_string, &app_meta)),
-                "{}",
-                command_string,
-            );
+                assert_eq!(
+                    CommandMatches::new_canonical(command.clone()),
+                    block_on(AppCommand::parse_input(&command_string, &app_meta)),
+                    "{}",
+                    command_string,
+                );
 
-            assert_eq!(
-                CommandMatches::new_canonical(command),
-                block_on(AppCommand::parse_input(
-                    &command_string.to_uppercase(),
-                    &app_meta
-                )),
-                "{}",
-                command_string.to_uppercase(),
-            );
-        });
+                assert_eq!(
+                    CommandMatches::new_canonical(command),
+                    block_on(AppCommand::parse_input(
+                        &command_string.to_uppercase(),
+                        &app_meta
+                    )),
+                    "{}",
+                    command_string.to_uppercase(),
+                );
+            });
 
         assert_eq!("roll d20", AppCommand::Roll("d20".to_string()).to_string());
 
