@@ -126,19 +126,19 @@ mod test {
 
         let word = input_iter.next().unwrap();
         assert_eq!("a", word.as_str());
-        assert_eq!(0..1, *word.range());
+        assert_eq!(0..1, word.range());
 
         let word = input_iter.next().unwrap();
         assert_eq!("boy", word.as_str());
-        assert_eq!(2..5, *word.range());
+        assert_eq!(2..5, word.range());
 
         let word = input_iter.next().unwrap();
         assert_eq!("named", word.as_str());
-        assert_eq!(8..13, *word.range());
+        assert_eq!(8..13, word.range());
 
         let word = input_iter.next().unwrap();
         assert_eq!("Johnny Cash", word.as_str());
-        assert_eq!(14..27, *word.range());
+        assert_eq!(14..27, word.range());
 
         assert!(input_iter.next().is_none());
     }
@@ -150,19 +150,19 @@ mod test {
 
         let word = input_iter.next().unwrap();
         assert_eq!("Legolas", word.as_str());
-        assert_eq!(0..9, *word.range());
+        assert_eq!(0..9, word.range());
 
         let word = input_iter.next().unwrap();
         assert_eq!(",", word.as_str());
-        assert_eq!(9..10, *word.range());
+        assert_eq!(9..10, word.range());
 
         let word = input_iter.next().unwrap();
         assert_eq!("an", word.as_str());
-        assert_eq!(11..13, *word.range());
+        assert_eq!(11..13, word.range());
 
         let word = input_iter.next().unwrap();
         assert_eq!("elf", word.as_str());
-        assert_eq!(14..17, *word.range());
+        assert_eq!(14..17, word.range());
 
         assert!(input_iter.next().is_none());
     }
@@ -174,7 +174,7 @@ mod test {
 
         let word = input_iter.next().unwrap();
         assert_eq!("", word.as_str());
-        assert_eq!(0..2, *word.range());
+        assert_eq!(0..2, word.range());
 
         assert!(input_iter.next().is_none());
     }
@@ -186,15 +186,15 @@ mod test {
 
         let word = input_iter.next().unwrap();
         assert_eq!("bl", word.as_str());
-        assert_eq!(2..4, *word.range());
+        assert_eq!(2..4, word.range());
 
         let word = input_iter.next().unwrap();
         assert_eq!("", word.as_str());
-        assert_eq!(4..6, *word.range());
+        assert_eq!(4..6, word.range());
 
         let word = input_iter.next().unwrap();
         assert_eq!("ah", word.as_str());
-        assert_eq!(6..8, *word.range());
+        assert_eq!(6..8, word.range());
 
         assert!(input_iter.next().is_none());
     }
@@ -206,11 +206,11 @@ mod test {
 
         let word = input_iter.next().unwrap();
         assert_eq!("bl", word.as_str());
-        assert_eq!(2..4, *word.range());
+        assert_eq!(2..4, word.range());
 
         let word = input_iter.next().unwrap();
         assert_eq!("ah ", word.as_str());
-        assert_eq!(4..8, *word.range());
+        assert_eq!(4..8, word.range());
 
         assert!(input_iter.next().is_none());
     }
@@ -222,7 +222,7 @@ mod test {
 
         let word = input_iter.next().unwrap();
         assert_eq!("", word.as_str());
-        assert_eq!(1..2, *word.range());
+        assert_eq!(1..2, word.range());
 
         assert!(input_iter.next().is_none());
     }
@@ -234,11 +234,11 @@ mod test {
 
         let word = input_iter.next().unwrap();
         assert_eq!("bl", word.as_str());
-        assert_eq!(2..4, *word.range());
+        assert_eq!(2..4, word.range());
 
         let word = input_iter.next().unwrap();
         assert_eq!("", word.as_str());
-        assert_eq!(4..5, *word.range());
+        assert_eq!(4..5, word.range());
 
         assert!(input_iter.next().is_none());
     }
@@ -250,7 +250,7 @@ mod test {
 
         let word = input_iter.next().unwrap();
         assert_eq!("🥔", word.as_str());
-        assert_eq!(0..4, *word.range());
+        assert_eq!(0..4, word.range());
 
         assert!(input_iter.next().is_none());
     }

@@ -175,17 +175,14 @@ impl fmt::Display for CommandAlias {
 mod tests {
     use super::*;
     use crate::app::{assert_autocomplete, AppCommand, Command, Event};
+    use crate::command::TransitionalCommand;
     use crate::storage::NullDataStore;
     use std::collections::HashSet;
     use tokio_test::block_on;
 
     #[test]
     fn literal_constructor_test() {
-        let alias = CommandAlias::literal(
-            "term".to_string(),
-            "summary".to_string(),
-            AppCommand::About.into(),
-        );
+        let alias = CommandAlias::literal("term".to_string(), "summary".to_string(), about());
 
         if let CommandAlias::Literal {
             term,
@@ -195,7 +192,7 @@ mod tests {
         {
             assert_eq!("term", term);
             assert_eq!("summary", summary);
-            assert_eq!(Box::new(Command::from(AppCommand::About)), command);
+            assert_eq!(Box::new(about()), command);
         } else {
             panic!("{:?}", alias);
         }
@@ -203,10 +200,10 @@ mod tests {
 
     #[test]
     fn wildcard_constructor_test() {
-        let alias = CommandAlias::strict_wildcard(AppCommand::About.into());
+        let alias = CommandAlias::strict_wildcard(about());
 
         if let CommandAlias::StrictWildcard { command } = alias {
-            assert_eq!(Box::new(Command::from(AppCommand::About)), command);
+            assert_eq!(Box::new(about()), command);
         } else {
             panic!("{:?}", alias);
         }
@@ -215,31 +212,28 @@ mod tests {
     #[test]
     fn eq_test() {
         assert_eq!(
-            literal("foo", "foo", AppCommand::About.into()),
+            literal("foo", "foo", about()),
             literal("foo", "bar", AppCommand::Help.into()),
         );
         assert_ne!(
-            literal("foo", "foo", AppCommand::About.into()),
-            literal("bar", "foo", AppCommand::About.into()),
+            literal("foo", "foo", about()),
+            literal("bar", "foo", about()),
         );
 
         assert_eq!(
-            strict_wildcard(AppCommand::About.into()),
+            strict_wildcard(about()),
             strict_wildcard(AppCommand::Help.into()),
         );
-        assert_ne!(
-            literal("", "", AppCommand::About.into()),
-            strict_wildcard(AppCommand::About.into()),
-        );
+        assert_ne!(literal("", "", about()), strict_wildcard(about()));
     }
 
     #[test]
     fn hash_test() {
         let mut set = HashSet::with_capacity(2);
 
-        assert!(set.insert(literal("foo", "", AppCommand::About.into())));
-        assert!(set.insert(literal("bar", "", AppCommand::About.into())));
-        assert!(set.insert(strict_wildcard(AppCommand::About.into())));
+        assert!(set.insert(literal("foo", "", about())));
+        assert!(set.insert(literal("bar", "", about())));
+        assert!(set.insert(strict_wildcard(about())));
         assert!(!set.insert(literal("foo", "", AppCommand::Help.into())));
         assert!(!set.insert(literal("FOO", "", AppCommand::Help.into())));
         assert!(!set.insert(strict_wildcard(AppCommand::Help.into())));
@@ -247,7 +241,7 @@ mod tests {
 
     #[test]
     fn runnable_test_literal() {
-        let about_alias = literal("about alias", "about summary", AppCommand::About.into());
+        let about_alias = literal("about alias", "about summary", about());
 
         let mut app_meta = app_meta();
         app_meta.command_aliases.insert(about_alias.clone());
@@ -278,21 +272,20 @@ mod tests {
         );
 
         {
-            let (about_result, about_alias_result) = (
-                block_on(AppCommand::About.run("about alias", &mut app_meta)),
-                block_on(about_alias.run("about alias", &mut app_meta)),
-            );
+            let about_alias_result = block_on(about_alias.run("about alias", &mut app_meta));
+            assert!(!app_meta.command_aliases.is_empty());
+
+            let about_result = block_on(about().run("about", &mut app_meta));
+            assert!(app_meta.command_aliases.is_empty());
 
             assert!(about_result.is_ok(), "{:?}", about_result);
             assert_eq!(about_result, about_alias_result);
-
-            assert!(!app_meta.command_aliases.is_empty());
         }
     }
 
     #[test]
     fn runnable_test_strict_wildcard() {
-        let about_alias = strict_wildcard(AppCommand::About.into());
+        let about_alias = strict_wildcard(about());
 
         let mut app_meta = app_meta();
         app_meta.command_aliases.insert(about_alias.clone());
@@ -312,7 +305,7 @@ mod tests {
             assert_eq!(2, app_meta.command_aliases.len());
 
             let (about_result, about_alias_result) = (
-                block_on(AppCommand::About.run("about", &mut app_meta)),
+                block_on(about().run("about", &mut app_meta)),
                 block_on(about_alias.run("about", &mut app_meta)),
             );
 
@@ -320,6 +313,10 @@ mod tests {
             assert_eq!(about_result, about_alias_result);
             assert!(app_meta.command_aliases.is_empty());
         }
+    }
+
+    fn about() -> Command {
+        Command::from(TransitionalCommand::new("about"))
     }
 
     fn event_dispatcher(_event: Event) {}

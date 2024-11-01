@@ -14,6 +14,7 @@ mod runnable;
 mod tutorial;
 
 use super::AppMeta;
+use crate::command::TransitionalCommand;
 use crate::reference::ReferenceCommand;
 use crate::storage::StorageCommand;
 use crate::time::TimeCommand;
@@ -51,6 +52,7 @@ impl Command {
             ReferenceCommand::parse_input(input, app_meta),
             StorageCommand::parse_input(input, app_meta),
             TimeCommand::parse_input(input, app_meta),
+            TransitionalCommand::parse_input(input, app_meta),
             TutorialCommand::parse_input(input, app_meta),
             WorldCommand::parse_input(input, app_meta),
         );
@@ -62,7 +64,8 @@ impl Command {
             .union(parse_results.3)
             .union(parse_results.4)
             .union(parse_results.5)
-            .union(parse_results.6);
+            .union(parse_results.6)
+            .union(parse_results.7);
 
         // While it is normally a fatal error to encounter two command subtypes claiming canonical
         // matches on a given input, the exception is where aliases are present. In this case, we
@@ -163,6 +166,7 @@ impl Autocomplete for Command {
             ReferenceCommand::autocomplete(input, app_meta),
             StorageCommand::autocomplete(input, app_meta),
             TimeCommand::autocomplete(input, app_meta),
+            TransitionalCommand::autocomplete(input, app_meta),
             TutorialCommand::autocomplete(input, app_meta),
             WorldCommand::autocomplete(input, app_meta),
         );
@@ -175,6 +179,7 @@ impl Autocomplete for Command {
             .chain(results.4)
             .chain(results.5)
             .chain(results.6)
+            .chain(results.7)
             .collect()
     }
 }
@@ -186,6 +191,7 @@ pub enum CommandType {
     Reference(ReferenceCommand),
     Storage(StorageCommand),
     Time(TimeCommand),
+    Transitional(TransitionalCommand),
     Tutorial(TutorialCommand),
     World(WorldCommand),
 }
@@ -202,6 +208,7 @@ impl CommandType {
             Self::Reference(c) => c.run(input, app_meta).await,
             Self::Storage(c) => c.run(input, app_meta).await,
             Self::Time(c) => c.run(input, app_meta).await,
+            Self::Transitional(c) => c.run(input, app_meta).await,
             Self::Tutorial(c) => c.run(input, app_meta).await,
             Self::World(c) => c.run(input, app_meta).await,
         }
@@ -216,6 +223,7 @@ impl fmt::Display for CommandType {
             Self::Reference(c) => write!(f, "{}", c),
             Self::Storage(c) => write!(f, "{}", c),
             Self::Time(c) => write!(f, "{}", c),
+            Self::Transitional(c) => write!(f, "{}", c),
             Self::Tutorial(c) => write!(f, "{}", c),
             Self::World(c) => write!(f, "{}", c),
         }
@@ -260,6 +268,12 @@ impl From<TimeCommand> for CommandType {
     }
 }
 
+impl From<TransitionalCommand> for CommandType {
+    fn from(c: TransitionalCommand) -> CommandType {
+        CommandType::Transitional(c)
+    }
+}
+
 impl From<TutorialCommand> for CommandType {
     fn from(c: TutorialCommand) -> CommandType {
         CommandType::Tutorial(c)
@@ -288,9 +302,9 @@ mod test {
 
         assert_eq!(
             Command::from(CommandMatches::new_canonical(CommandType::App(
-                AppCommand::About
+                AppCommand::Changelog
             ))),
-            block_on(Command::parse_input("about", &app_meta))
+            block_on(Command::parse_input("changelog", &app_meta))
                 .take_best_match()
                 .unwrap(),
         );
@@ -307,6 +321,15 @@ mod test {
         assert_eq!(
             Command::from(CommandMatches::default()),
             block_on(Command::parse_input("Gandalf the Grey", &app_meta))
+                .take_best_match()
+                .unwrap(),
+        );
+
+        assert_eq!(
+            Command::from(CommandMatches::new_canonical(CommandType::Transitional(
+                TransitionalCommand::new("about"),
+            ))),
+            block_on(Command::parse_input("about", &app_meta))
                 .take_best_match()
                 .unwrap(),
         );

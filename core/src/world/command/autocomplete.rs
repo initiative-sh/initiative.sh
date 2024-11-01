@@ -147,7 +147,7 @@ fn autocomplete_terms<T: Default + FromStr + Into<ThingData>>(
             let mut suggestions = Vec::new();
 
             let words: HashSet<&str> = quoted_words(parsed.desc_lower())
-                .map(|word| word.as_own_str(parsed.desc_lower()))
+                .map(|word| word.as_str())
                 .collect();
 
             if thing_data.name().is_none() {
@@ -174,7 +174,7 @@ fn autocomplete_terms<T: Default + FromStr + Into<ThingData>>(
         // Multiple words: make suggestions if existing words made sense.
         let words: HashSet<&str> = {
             quoted_words(parsed.desc_lower())
-                .map(|word| word.as_own_str(parsed.desc_lower()))
+                .map(|word| word.as_str())
                 .filter(|s| s != &parsed.partial && !s.in_ci(ARTICLES))
                 .collect()
         };

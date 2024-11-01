@@ -39,7 +39,7 @@ pub fn assert_autocomplete(
     assert_eq!(expected, actual);
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(into = "(Cow<'static, str>, Cow<'static, str>)")]
 pub struct AutocompleteSuggestion {
     pub term: Cow<'static, str>,

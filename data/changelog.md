@@ -1,3 +1,5 @@
+* **Enhancement:** Migrate the `about` command to use a new architecture. (No
+  user-facing impact but it was a lot of work.) @MikkelPaulson
 * **Enhancement:** Feature parity for CLI autocompletion. @mplauman
 * **Enhancement:** Name generator now works for `theater`. @azylko
 * **Bug:** Fixed a positioning issue with the autocomplete popup. @MikkelPaulson
