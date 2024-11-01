@@ -49,15 +49,11 @@ impl<'a> Word<'a> {
         }
     }
 
-    pub fn as_str(&'a self) -> &'a str {
+    pub fn as_str(&self) -> &'a str {
         &self.phrase[self.inner_range.clone()]
     }
 
-    pub fn as_own_str<'b>(&'a self, phrase: &'b str) -> &'b str {
-        &phrase[self.inner_range.clone()]
-    }
-
-    pub fn range(&'a self) -> &'a Range<usize> {
-        &self.outer_range
+    pub fn range(&self) -> Range<usize> {
+        self.outer_range.clone()
     }
 }
