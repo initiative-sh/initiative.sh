@@ -134,6 +134,12 @@ impl<T> From<Option<T>> for Field<T> {
     }
 }
 
+impl From<Option<&str>> for Field<String> {
+    fn from(value: Option<&str>) -> Field<String> {
+        Field::Locked(value.map(String::from))
+    }
+}
+
 impl<T> From<Field<T>> for Option<T> {
     fn from(field: Field<T>) -> Option<T> {
         match field {
