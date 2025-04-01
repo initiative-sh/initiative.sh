@@ -17,6 +17,7 @@ fn all_commands_are_valid() {
             .skip(1)
             .step_by(2)
             .filter(|s| !s.contains('['))
+            .filter(|&s| s != "tutorial")
         {
             // Basically, we just want to make sure all commands run successfully.
             app.command(command).expect(command);

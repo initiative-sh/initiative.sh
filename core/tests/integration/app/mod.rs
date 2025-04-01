@@ -3,6 +3,7 @@ mod changelog;
 mod debug;
 mod help;
 mod roll;
+#[cfg(feature = "tutorial")]
 mod tutorial;
 
 use crate::common::{get_name, sync_app};

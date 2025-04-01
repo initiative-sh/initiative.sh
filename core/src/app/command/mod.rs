@@ -3,6 +3,7 @@ pub use app::AppCommand;
 pub use runnable::{
     Autocomplete, AutocompleteSuggestion, CommandMatches, ContextAwareParse, Runnable,
 };
+#[cfg(feature = "tutorial")]
 pub use tutorial::TutorialCommand;
 
 #[cfg(test)]
@@ -11,6 +12,7 @@ pub use runnable::assert_autocomplete;
 mod alias;
 mod app;
 mod runnable;
+#[cfg(feature = "tutorial")]
 mod tutorial;
 
 use super::AppMeta;
@@ -46,31 +48,62 @@ impl Command {
     }
 
     pub async fn parse_input_irrefutable(input: &str, app_meta: &AppMeta) -> Self {
-        let parse_results = join!(
-            CommandAlias::parse_input(input, app_meta),
-            AppCommand::parse_input(input, app_meta),
-            ReferenceCommand::parse_input(input, app_meta),
-            StorageCommand::parse_input(input, app_meta),
-            TimeCommand::parse_input(input, app_meta),
-            TransitionalCommand::parse_input(input, app_meta),
-            TutorialCommand::parse_input(input, app_meta),
-            WorldCommand::parse_input(input, app_meta),
-        );
+        #[cfg(feature = "tutorial")]
+        let (alias_result, mut result) = {
+            let parse_results = join!(
+                CommandAlias::parse_input(input, app_meta),
+                AppCommand::parse_input(input, app_meta),
+                ReferenceCommand::parse_input(input, app_meta),
+                StorageCommand::parse_input(input, app_meta),
+                TimeCommand::parse_input(input, app_meta),
+                TransitionalCommand::parse_input(input, app_meta),
+                TutorialCommand::parse_input(input, app_meta),
+                WorldCommand::parse_input(input, app_meta),
+            );
 
-        // We deliberately skip parse_results.0 and handle it afterwards.
-        let mut result = CommandMatches::default()
-            .union(parse_results.1)
-            .union(parse_results.2)
-            .union(parse_results.3)
-            .union(parse_results.4)
-            .union(parse_results.5)
-            .union(parse_results.6)
-            .union(parse_results.7);
+            // We deliberately skip parse_results.0 and handle it afterwards.
+            (
+                parse_results.0,
+                CommandMatches::default()
+                    .union(parse_results.1)
+                    .union(parse_results.2)
+                    .union(parse_results.3)
+                    .union(parse_results.4)
+                    .union(parse_results.5)
+                    .union(parse_results.6)
+                    .union(parse_results.7),
+            )
+        };
+
+        #[cfg(not(feature = "tutorial"))]
+        let (alias_result, mut result) = {
+            let parse_results = join!(
+                CommandAlias::parse_input(input, app_meta),
+                AppCommand::parse_input(input, app_meta),
+                ReferenceCommand::parse_input(input, app_meta),
+                StorageCommand::parse_input(input, app_meta),
+                TimeCommand::parse_input(input, app_meta),
+                TransitionalCommand::parse_input(input, app_meta),
+                WorldCommand::parse_input(input, app_meta),
+            );
+
+            // We deliberately skip parse_results.0 and handle it afterwards.
+            (
+                parse_results.0,
+                CommandMatches::default()
+                    .union(parse_results.1)
+                    .union(parse_results.2)
+                    .union(parse_results.3)
+                    .union(parse_results.4)
+                    .union(parse_results.5)
+                    .union(parse_results.6),
+            )
+        };
 
         // While it is normally a fatal error to encounter two command subtypes claiming canonical
         // matches on a given input, the exception is where aliases are present. In this case, we
         // want the alias to overwrite the canonical match that would otherwise be returned.
-        result = result.union_with_overwrite(parse_results.0);
+        result = result.union_with_overwrite(alias_result);
 
         result.into()
     }
@@ -159,6 +192,7 @@ impl ContextAwareParse for Command {
 
 #[async_trait(?Send)]
 impl Autocomplete for Command {
+    #[cfg(feature = "tutorial")]
     async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
         let results = join!(
             CommandAlias::autocomplete(input, app_meta),
@@ -182,6 +216,29 @@ impl Autocomplete for Command {
             .chain(results.7)
             .collect()
     }
+
+    #[cfg(not(feature = "tutorial"))]
+    async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
+        let results = join!(
+            CommandAlias::autocomplete(input, app_meta),
+            AppCommand::autocomplete(input, app_meta),
+            ReferenceCommand::autocomplete(input, app_meta),
+            StorageCommand::autocomplete(input, app_meta),
+            TimeCommand::autocomplete(input, app_meta),
+            TransitionalCommand::autocomplete(input, app_meta),
+            WorldCommand::autocomplete(input, app_meta),
+        );
+
+        std::iter::empty()
+            .chain(results.0)
+            .chain(results.1)
+            .chain(results.2)
+            .chain(results.3)
+            .chain(results.4)
+            .chain(results.5)
+            .chain(results.6)
+            .collect()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -192,13 +249,20 @@ pub enum CommandType {
     Storage(StorageCommand),
     Time(TimeCommand),
     Transitional(TransitionalCommand),
+    #[cfg(feature = "tutorial")]
     Tutorial(TutorialCommand),
     World(WorldCommand),
 }
 
 impl CommandType {
     async fn run(self, input: &str, app_meta: &mut AppMeta) -> Result<String, String> {
+        #[cfg(feature = "tutorial")]
         if !matches!(self, Self::Alias(_) | Self::Tutorial(_)) {
+            app_meta.command_aliases.clear();
+        }
+
+        #[cfg(not(feature = "tutorial"))]
+        if !matches!(self, Self::Alias(_)) {
             app_meta.command_aliases.clear();
         }
 
@@ -209,6 +273,7 @@ impl CommandType {
             Self::Storage(c) => c.run(input, app_meta).await,
             Self::Time(c) => c.run(input, app_meta).await,
             Self::Transitional(c) => c.run(input, app_meta).await,
+            #[cfg(feature = "tutorial")]
             Self::Tutorial(c) => c.run(input, app_meta).await,
             Self::World(c) => c.run(input, app_meta).await,
         }
@@ -224,6 +289,7 @@ impl fmt::Display for CommandType {
             Self::Storage(c) => write!(f, "{}", c),
             Self::Time(c) => write!(f, "{}", c),
             Self::Transitional(c) => write!(f, "{}", c),
+            #[cfg(feature = "tutorial")]
             Self::Tutorial(c) => write!(f, "{}", c),
             Self::World(c) => write!(f, "{}", c),
         }
@@ -274,6 +340,7 @@ impl From<TransitionalCommand> for CommandType {
     }
 }
 
+#[cfg(feature = "tutorial")]
 impl From<TutorialCommand> for CommandType {
     fn from(c: TutorialCommand) -> CommandType {
         CommandType::Tutorial(c)

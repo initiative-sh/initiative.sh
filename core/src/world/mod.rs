@@ -3,7 +3,9 @@ pub mod npc;
 pub mod place;
 pub mod thing;
 
-pub use command::{ParsedThing, WorldCommand};
+#[cfg(any(feature = "tutorial", test))]
+pub use command::ParsedThing;
+pub use command::WorldCommand;
 pub use demographics::Demographics;
 pub use field::Field;
 
