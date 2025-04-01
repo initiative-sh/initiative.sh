@@ -1,5 +1,5 @@
 pub use case_insensitive_str::CaseInsensitiveStr;
-pub use quoted_word_iter::quoted_words;
+pub use quoted_word_iter::{quoted_phrases, quoted_words};
 
 mod case_insensitive_str;
 mod quoted_word_iter;
@@ -56,6 +56,10 @@ impl<'a> Word<'a> {
 
     pub fn as_str(&self) -> &'a str {
         &self.phrase[self.inner_range.clone()]
+    }
+
+    pub fn as_original_str(&self) -> &'a str {
+        &self.phrase[self.outer_range.clone()]
     }
 
     pub fn range(&self) -> Range<usize> {

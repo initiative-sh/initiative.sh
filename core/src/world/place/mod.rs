@@ -6,6 +6,7 @@ mod region;
 mod view;
 
 use super::{Demographics, Field, Generate};
+use crate::world::thing::Thing;
 use initiative_macros::WordList;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -127,6 +128,13 @@ impl PlaceData {
         subtype.apply_diff(&mut diff.subtype);
         name.apply_diff(&mut diff.name);
         description.apply_diff(&mut diff.description);
+    }
+
+    pub fn into_thing(self, uuid: Uuid) -> Thing {
+        Thing {
+            uuid: uuid,
+            data: self.into(),
+        }
     }
 }
 

@@ -1,8 +1,11 @@
 use crate::utils::CaseInsensitiveStr;
 use crate::{Thing, Uuid};
 use async_trait::async_trait;
+use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::iter::FromIterator;
+use std::rc::Rc;
 
 #[derive(Default)]
 pub struct NullDataStore;
@@ -10,8 +13,8 @@ pub struct NullDataStore;
 #[cfg_attr(test, derive(Debug, PartialEq))]
 #[derive(Clone, Default)]
 pub struct MemoryDataStore {
-    pub things: std::rc::Rc<std::cell::RefCell<HashMap<Uuid, Thing>>>,
-    pub key_values: std::rc::Rc<std::cell::RefCell<std::collections::HashMap<String, String>>>,
+    pub things: Rc<RefCell<HashMap<Uuid, Thing>>>,
+    pub key_values: Rc<RefCell<HashMap<String, String>>>,
 }
 
 #[async_trait(?Send)]
@@ -71,6 +74,20 @@ impl MemoryDataStore {
             self.things.borrow().clone(),
             self.key_values.borrow().clone(),
         )
+    }
+}
+
+impl FromIterator<Thing> for MemoryDataStore {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = Thing>,
+    {
+        MemoryDataStore {
+            things: Rc::new(RefCell::new(
+                iter.into_iter().map(|thing| (thing.uuid, thing)).collect(),
+            )),
+            key_values: Rc::default(),
+        }
     }
 }
 
