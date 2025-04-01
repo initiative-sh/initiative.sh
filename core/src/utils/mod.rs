@@ -87,13 +87,13 @@ impl<'a> Word<'a> {
     }
 }
 
-impl<'a> PartialEq for Word<'a> {
+impl PartialEq for Word<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.as_str() == other.as_str()
     }
 }
 
-impl<'a> AsRef<str> for Word<'a> {
+impl AsRef<str> for Word<'_> {
     fn as_ref(&self) -> &str {
         self.as_str()
     }

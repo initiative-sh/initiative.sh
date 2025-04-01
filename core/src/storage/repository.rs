@@ -248,7 +248,7 @@ impl Repository {
             })
             .chain(
                 self.recent()
-                    .filter(|t| t.name().value().map_or(false, |s| s.starts_with_ci(name)))
+                    .filter(|t| t.name().value().is_some_and(|s| s.starts_with_ci(name)))
                     .map(|thing| Record {
                         status: RecordStatus::Unsaved,
                         thing: thing.clone(),
@@ -278,7 +278,7 @@ impl Repository {
         let (recent_thing, saved_thing) = join!(
             async {
                 self.recent()
-                    .find(|t| t.name().value().map_or(false, |s| s.eq_ci(name)))
+                    .find(|t| t.name().value().is_some_and(|s| s.eq_ci(name)))
             },
             self.data_store.get_thing_by_name(name)
         );
@@ -668,8 +668,7 @@ impl Repository {
     ///
     /// Publicly this is invoked using modify() with Change::Save { uuid: None, .. }
     async fn save_thing_by_name(&mut self, name: &Name) -> Result<Thing, Error> {
-        if let Some(thing) = self.take_recent(|t| t.name().value().map_or(false, |s| s.eq_ci(name)))
-        {
+        if let Some(thing) = self.take_recent(|t| t.name().value().is_some_and(|s| s.eq_ci(name))) {
             match self.save_thing(&thing).await {
                 Ok(()) => Ok(thing),
                 Err(e) => {
@@ -910,7 +909,7 @@ impl Record {
     }
 }
 
-impl<'a> fmt::Display for DisplayUndo<'a> {
+impl fmt::Display for DisplayUndo<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let change = self.0;
 
@@ -932,7 +931,7 @@ impl<'a> fmt::Display for DisplayUndo<'a> {
     }
 }
 
-impl<'a> fmt::Display for DisplayRedo<'a> {
+impl fmt::Display for DisplayRedo<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let change = self.0;
 

@@ -74,7 +74,7 @@ fn write_text_block(f: &mut fmt::Formatter, lines: &[String]) -> fmt::Result {
 
     for line in lines.iter() {
         if prev_line.is_some() {
-            if !prev_line.map_or(false, is_list) || !is_list(line) {
+            if !prev_line.is_some_and(is_list) || !is_list(line) {
                 writeln!(f)?;
             }
             writeln!(f)?;

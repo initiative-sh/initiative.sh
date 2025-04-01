@@ -16,7 +16,7 @@ struct ParsedInput<'a> {
     partial: &'a str,
 }
 
-impl<'a> ParsedInput<'a> {
+impl ParsedInput<'_> {
     fn suggestion(&self, suggestion: &str) -> String {
         format!("{}{}", self.name_desc, suggestion)
     }

@@ -38,14 +38,14 @@ impl Trait {
     }
 }
 
-impl<'a> fmt::Display for SummaryView<'a> {
+impl fmt::Display for SummaryView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let species_trait = self.0;
         write!(f, "`{}`", species_trait.name)
     }
 }
 
-impl<'a> fmt::Display for DetailsView<'a> {
+impl fmt::Display for DetailsView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let species_trait = self.0;
 

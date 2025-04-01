@@ -136,7 +136,7 @@ impl FromStr for Time {
     }
 }
 
-impl<'a> fmt::Display for TimeShortView<'a> {
+impl fmt::Display for TimeShortView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let time = self.0;
         write!(
@@ -147,7 +147,7 @@ impl<'a> fmt::Display for TimeShortView<'a> {
     }
 }
 
-impl<'a> fmt::Display for TimeLongView<'a> {
+impl fmt::Display for TimeLongView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let time = self.0;
 

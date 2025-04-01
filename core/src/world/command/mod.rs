@@ -498,7 +498,7 @@ fn append_unknown_words_notice(
             let mut words = unknown_words.into_iter();
             let mut unknown_word = words.next();
             for (i, _) in input.char_indices() {
-                if unknown_word.as_ref().map_or(false, |word| i >= word.end) {
+                if unknown_word.as_ref().is_some_and(|word| i >= word.end) {
                     unknown_word = words.next();
                 }
 

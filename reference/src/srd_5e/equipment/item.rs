@@ -106,7 +106,7 @@ impl Item {
         crate::to_camel_case(&self.index)
     }
 
-    pub fn display_table_row<'a>(&'a self, columns: &'a [Column]) -> TableRowView {
+    pub fn display_table_row<'a>(&'a self, columns: &'a [Column]) -> TableRowView<'a> {
         TableRowView {
             item: self,
             columns,
@@ -183,7 +183,7 @@ pub struct TableRowView<'a> {
 
 pub struct DetailsView<'a>(&'a Item);
 
-impl<'a> fmt::Display for TableRowView<'a> {
+impl fmt::Display for TableRowView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let item = &self.item;
 
@@ -194,11 +194,7 @@ impl<'a> fmt::Display for TableRowView<'a> {
         for column in self.columns {
             match column {
                 Column::ArmorClass => item.armor_class.as_ref().map(|ac| {
-                    if item
-                        .armor_category
-                        .as_ref()
-                        .map_or(false, |c| c == "Shield")
-                    {
+                    if item.armor_category.as_ref().is_some_and(|c| c == "Shield") {
                         write!(f, " +{} |", ac)
                     } else {
                         write!(f, " {} |", ac)
@@ -247,7 +243,7 @@ impl<'a> fmt::Display for TableRowView<'a> {
     }
 }
 
-impl<'a> fmt::Display for DetailsView<'a> {
+impl fmt::Display for DetailsView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let item = self.0;
 
@@ -266,11 +262,7 @@ impl<'a> fmt::Display for DetailsView<'a> {
         }
 
         if let Some(ac) = &item.armor_class {
-            if item
-                .armor_category
-                .as_ref()
-                .map_or(false, |c| c == "Shield")
-            {
+            if item.armor_category.as_ref().is_some_and(|c| c == "Shield") {
                 write!(f, "\\\n**Armor Class (AC):** +{}", ac)?;
             } else {
                 write!(f, "\\\n**Armor Class (AC):** {}", ac)?;

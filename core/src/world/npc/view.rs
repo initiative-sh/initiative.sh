@@ -51,7 +51,7 @@ impl<'a> DetailsView<'a> {
     }
 }
 
-impl<'a> fmt::Display for SummaryView<'a> {
+impl fmt::Display for SummaryView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let npc = self.0;
         let has_details = npc.age.is_some()
@@ -92,13 +92,13 @@ impl<'a> fmt::Display for SummaryView<'a> {
     }
 }
 
-impl<'a> fmt::Display for DescriptionView<'a> {
+impl fmt::Display for DescriptionView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write_summary_details(self.0, f)
     }
 }
 
-impl<'a> fmt::Display for DetailsView<'a> {
+impl fmt::Display for DetailsView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let Self {
             npc,

@@ -298,7 +298,7 @@ impl FromStr for ParsedThing<ThingData> {
     }
 }
 
-impl<'a> fmt::Display for SummaryView<'a> {
+impl fmt::Display for SummaryView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0 {
             ThingData::Place(l) => write!(f, "{}", l.display_summary()),
@@ -307,7 +307,7 @@ impl<'a> fmt::Display for SummaryView<'a> {
     }
 }
 
-impl<'a> fmt::Display for DescriptionView<'a> {
+impl fmt::Display for DescriptionView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0 {
             ThingData::Place(l) => write!(f, "{}", l.display_description()),
@@ -316,7 +316,7 @@ impl<'a> fmt::Display for DescriptionView<'a> {
     }
 }
 
-impl<'a> fmt::Display for DetailsView<'a> {
+impl fmt::Display for DetailsView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             DetailsView::Npc(view) => write!(f, "{}", view),

@@ -60,7 +60,7 @@ impl ContextAwareParse for AppCommand {
         } else if input.starts_with_ci("roll ") {
             CommandMatches::new_canonical(Self::Roll(input[5..].to_string()))
         } else if !input.chars().all(|c| c.is_ascii_digit())
-            && Roller::new(input).map_or(false, |r| r.roll().is_ok())
+            && Roller::new(input).is_ok_and(|r| r.roll().is_ok())
         {
             CommandMatches::new_fuzzy(Self::Roll(input.to_string()))
         } else {
