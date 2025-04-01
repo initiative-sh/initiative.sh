@@ -36,7 +36,7 @@ pub struct SummaryView<'a>(&'a MagicItem);
 
 pub struct DetailsView<'a>(&'a MagicItem);
 
-impl<'a> fmt::Display for SummaryView<'a> {
+impl fmt::Display for SummaryView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let magic_item = &self.0;
 
@@ -46,7 +46,7 @@ impl<'a> fmt::Display for SummaryView<'a> {
     }
 }
 
-impl<'a> fmt::Display for DetailsView<'a> {
+impl fmt::Display for DetailsView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let magic_item = self.0;
 

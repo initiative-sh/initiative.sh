@@ -42,7 +42,7 @@ impl<'a> DetailsView<'a> {
     }
 }
 
-impl<'a> fmt::Display for NameView<'a> {
+impl fmt::Display for NameView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let place = self.0;
 
@@ -59,7 +59,7 @@ impl<'a> fmt::Display for NameView<'a> {
     }
 }
 
-impl<'a> fmt::Display for SummaryView<'a> {
+impl fmt::Display for SummaryView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let place = self.0;
 
@@ -72,7 +72,7 @@ impl<'a> fmt::Display for SummaryView<'a> {
     }
 }
 
-impl<'a> fmt::Display for DescriptionView<'a> {
+impl fmt::Display for DescriptionView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(subtype) = self.0.subtype.value() {
             write!(f, "{}", subtype)
@@ -82,7 +82,7 @@ impl<'a> fmt::Display for DescriptionView<'a> {
     }
 }
 
-impl<'a> fmt::Display for DetailsView<'a> {
+impl fmt::Display for DetailsView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let Self {
             place,

@@ -88,6 +88,7 @@ fn import_event() {
 }
 
 #[test]
+#[expect(static_mut_refs)]
 fn export_and_import() {
     let (backup_data, journal_before) = {
         let mut app = sync_app_with_dispatcher(&event_dispatcher);

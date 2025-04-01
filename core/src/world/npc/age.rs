@@ -239,7 +239,7 @@ mod test {
 
     struct TestWrapper<'a>(&'a Age, Option<&'a Species>, Option<&'a Ethnicity>);
 
-    impl<'a> fmt::Display for TestWrapper<'a> {
+    impl fmt::Display for TestWrapper<'_> {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             self.0.fmt_with_species_ethnicity(self.1, self.2, f)
         }

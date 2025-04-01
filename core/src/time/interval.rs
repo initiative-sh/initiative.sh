@@ -120,7 +120,7 @@ impl FromStr for Interval {
     }
 }
 
-impl<'a> fmt::Display for IntervalShortView<'a> {
+impl fmt::Display for IntervalShortView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let interval = self.0;
         let mut output = false;
@@ -152,7 +152,7 @@ impl<'a> fmt::Display for IntervalShortView<'a> {
     }
 }
 
-impl<'a> fmt::Display for IntervalLongView<'a> {
+impl fmt::Display for IntervalLongView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let interval = self.0;
         let mut output = false;

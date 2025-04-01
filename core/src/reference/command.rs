@@ -174,7 +174,7 @@ fn linkify_dice(input: &str) -> String {
             while !hold.is_empty() {
                 let hold_trimmed = hold.trim();
                 if hold_trimmed.contains(&['d', 'D'][..])
-                    && Roller::new(hold_trimmed).map_or(false, |r| r.roll().is_ok())
+                    && Roller::new(hold_trimmed).is_ok_and(|r| r.roll().is_ok())
                 {
                     result.push('`');
                     result.push_str(hold_trimmed);

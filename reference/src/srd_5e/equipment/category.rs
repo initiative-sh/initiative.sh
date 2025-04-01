@@ -68,7 +68,7 @@ impl ItemCategory {
             .any(|item| item.url.contains("/magic-items/"))
     }
 
-    pub fn display_item_table<'a>(&'a self, items: &'a [Item]) -> ItemTableView {
+    pub fn display_item_table<'a>(&'a self, items: &'a [Item]) -> ItemTableView<'a> {
         ItemTableView {
             category: self,
             items,
@@ -79,7 +79,7 @@ impl ItemCategory {
         &'a self,
         magic_items: &'a [MagicItem],
         title: &'a str,
-    ) -> MagicItemListView {
+    ) -> MagicItemListView<'a> {
         MagicItemListView {
             category: self,
             magic_items,
@@ -88,7 +88,7 @@ impl ItemCategory {
     }
 }
 
-impl<'a> fmt::Display for ItemTableView<'a> {
+impl fmt::Display for ItemTableView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "# {}\n\n|", &self.category.name())?;
 
@@ -155,7 +155,7 @@ impl<'a> fmt::Display for ItemTableView<'a> {
     }
 }
 
-impl<'a> fmt::Display for MagicItemListView<'a> {
+impl fmt::Display for MagicItemListView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "# {}", self.title)?;
 

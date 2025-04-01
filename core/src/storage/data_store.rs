@@ -106,7 +106,7 @@ impl DataStore for MemoryDataStore {
             .things
             .borrow()
             .values()
-            .find(|thing| thing.name().value().map_or(false, |s| s.eq_ci(name)))
+            .find(|thing| thing.name().value().is_some_and(|s| s.eq_ci(name)))
             .cloned())
     }
 
@@ -119,12 +119,7 @@ impl DataStore for MemoryDataStore {
             .things
             .borrow()
             .values()
-            .filter(|thing| {
-                thing
-                    .name()
-                    .value()
-                    .map_or(false, |s| s.starts_with_ci(name))
-            })
+            .filter(|thing| thing.name().value().is_some_and(|s| s.starts_with_ci(name)))
             .take(limit.unwrap_or(usize::MAX))
             .cloned()
             .collect())

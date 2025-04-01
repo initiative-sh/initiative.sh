@@ -72,6 +72,7 @@ static mut APP: Option<core::app::App> = None;
 
 static mut ROOT_ELEMENT_ID: Option<String> = None;
 
+#[expect(static_mut_refs)]
 fn app() -> &'static mut core::app::App {
     unsafe {
         if APP.is_none() {

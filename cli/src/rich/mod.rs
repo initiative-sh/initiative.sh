@@ -369,7 +369,7 @@ impl Input {
             (Key::Esc, false) => self.search_query = None,
 
             (Key::Char('\n'), false) => {
-                while self.history.last().map_or(false, |s| s.is_empty()) {
+                while self.history.last().is_some_and(|s| s.is_empty()) {
                     self.history.pop();
                 }
 
@@ -1004,7 +1004,7 @@ mod test {
         input.key(Key::Char('b'), false);
         input.key(Key::Char('a'), false);
         assert_eq!(Some("ba".to_string()), input.search_query);
-        assert!(input.history.last().map_or(false, |s| s.is_empty()));
+        assert!(input.history.last().is_some_and(|s| s.is_empty()));
         assert_eq!(2, input.index);
 
         input.key(Key::Char('r'), false);
