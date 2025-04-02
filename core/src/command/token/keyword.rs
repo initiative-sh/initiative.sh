@@ -10,9 +10,7 @@ pub fn match_input<'a>(
     token: &'a Token,
     input: &'a str,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
-    #[expect(irrefutable_let_patterns)]
-    let TokenType::Keyword(keyword) = token.token_type
-    else {
+    let TokenType::Keyword(keyword) = token.token_type else {
         unreachable!();
     };
 

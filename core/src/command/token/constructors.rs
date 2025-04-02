@@ -3,6 +3,38 @@
 use super::{Token, TokenType};
 use std::hash::Hash;
 
+/// Matches any single word.
+///
+/// # Examples
+///
+/// ```
+/// # use initiative_core::command::prelude::*;
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta();
+/// let token = any_word();
+///
+/// assert_eq!(
+///     Some(TokenMatch::new(&token, "BADGER")),
+///     token
+///         .match_input_exact("BADGER", &app_meta)
+///         .next()
+///         .await,
+/// );
+/// # })
+/// ```
+pub fn any_word() -> Token {
+    Token::new(TokenType::AnyWord)
+}
+
+/// A variant of `any_word` with a marker assigned.
+pub fn any_word_m<M>(marker: M) -> Token
+where
+    M: Hash,
+{
+    Token::new_m(marker, TokenType::AnyWord)
+}
+
 /// A single keyword, matched case-insensitively.
 ///
 /// # Examples

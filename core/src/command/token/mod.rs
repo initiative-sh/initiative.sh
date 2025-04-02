@@ -1,5 +1,6 @@
 pub mod constructors;
 
+mod any_word;
 mod keyword;
 
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -34,6 +35,9 @@ pub enum FuzzyMatch<'a> {
 #[derive(Debug, Eq, PartialEq)]
 #[cfg_attr(test, derive(Clone))]
 pub enum TokenType {
+    /// See [`token_constructors::any_word`].
+    AnyWord,
+
     /// See [`token_constructors::keyword`].
     Keyword(&'static str),
 }
@@ -71,6 +75,7 @@ impl Token {
         'a: 'b,
     {
         match &self.token_type {
+            TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Keyword(..) => keyword::match_input(self, input),
         }
     }
