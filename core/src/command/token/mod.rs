@@ -3,6 +3,7 @@ mod any_phrase;
 mod any_word;
 mod keyword;
 mod keyword_list;
+mod optional;
 mod or;
 
 use crate::app::AppMeta;
@@ -49,6 +50,9 @@ pub enum TokenType {
     /// See [`token_constructors::keyword_list`].
     KeywordList(Vec<&'static str>),
 
+    /// See [`token_constructors::optional`].
+    Optional(Box<Token>),
+
     /// See [`token_constructors::or`].
     Or(Vec<Token>),
 }
@@ -77,6 +81,7 @@ impl Token {
             TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Keyword(..) => keyword::match_input(self, input),
             TokenType::KeywordList(..) => keyword_list::match_input(self, input),
+            TokenType::Optional(..) => optional::match_input(self, input, app_meta),
             TokenType::Or(..) => or::match_input(self, input, app_meta),
         }
     }
@@ -521,6 +526,53 @@ pub mod token_constructors {
     {
         Token {
             token_type: TokenType::KeywordList(keywords.into_iter().collect()),
+            marker: Some(marker.into()),
+        }
+    }
+
+    /// Matches the input with and without the contained token.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let token = optional(keyword("badger"));
+    ///
+    /// assert_eq!(
+    ///     vec![
+    ///         // Passes the input directly through to the overflow,
+    ///         FuzzyMatch::Overflow(TokenMatch::from(&token), "badger".into()),
+    ///
+    ///         // as well as the matched result if present.
+    ///         FuzzyMatch::Exact(TokenMatch::new(&token, TokenMatch::from(&keyword("badger")))),
+    ///     ],
+    ///     token
+    ///         .match_input("badger", &app_meta)
+    ///         .collect::<Vec<_>>()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn optional(token: Token) -> Token {
+        Token {
+            token_type: TokenType::Optional(Box::new(token)),
+            marker: None,
+        }
+    }
+
+    /// A variant of `optional` with a marker assigned.
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn optional_m<M>(marker: M, token: Token) -> Token
+    where
+        M: Into<u8>,
+    {
+        Token {
+            token_type: TokenType::Optional(Box::new(token)),
             marker: Some(marker.into()),
         }
     }
