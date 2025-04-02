@@ -5,7 +5,7 @@ pub struct About;
 
 impl Command for About {
     fn token<'a>(&self) -> Token {
-        Token::keyword("about")
+        keyword("about")
     }
 
     fn autocomplete(

@@ -1,13 +1,16 @@
+pub mod constructors;
+
 mod keyword;
 
 use crate::app::AppMeta;
+use crate::storage::Record;
 use crate::utils::Substr;
-
-use std::pin::Pin;
+use initiative_macros::From;
 
 use futures::prelude::*;
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(test, derive(Clone))]
 pub struct Token {
     pub token_type: TokenType,
     pub marker: Option<u8>,
@@ -16,7 +19,7 @@ pub struct Token {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TokenMatch<'a> {
     pub token: &'a Token,
-    pub match_meta: MatchMeta,
+    pub match_meta: MatchMeta<'a>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -27,29 +30,27 @@ pub enum FuzzyMatch<'a> {
 }
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(test, derive(Clone))]
 pub enum TokenType {
-    /// A literal word
+    /// See [`token_constructors::keyword`].
     Keyword(&'static str),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MatchMeta {
+#[derive(Clone, Debug, Eq, From, PartialEq)]
+pub enum MatchMeta<'a> {
     None,
+    Phrase(&'a str),
+    Record(Record),
+    Sequence(Vec<TokenMatch<'a>>),
+    Single(Box<TokenMatch<'a>>),
 }
 
 impl Token {
-    pub fn keyword(keyword: &'static str) -> Self {
-        Token {
-            token_type: TokenType::Keyword(keyword),
-            marker: None,
-        }
-    }
-
     pub fn match_input<'a, 'b>(
         &'a self,
         input: &'a str,
         _app_meta: &'b AppMeta,
-    ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+    ) -> impl Stream<Item = FuzzyMatch<'a>> + 'b
     where
         'a: 'b,
     {
@@ -57,10 +58,22 @@ impl Token {
             TokenType::Keyword(..) => keyword::match_input(self, input),
         }
     }
+
+    pub fn match_input_exact<'a, 'b>(
+        &'a self,
+        input: &'a str,
+        app_meta: &'b AppMeta,
+    ) -> impl Stream<Item = TokenMatch<'a>> + 'b
+    where
+        'a: 'b,
+    {
+        self.match_input(input, app_meta)
+            .filter_map(|fuzzy_match| future::ready(fuzzy_match.into_exact()))
+    }
 }
 
 impl<'a> TokenMatch<'a> {
-    pub fn new(token: &'a Token, match_meta: impl Into<MatchMeta>) -> Self {
+    pub fn new(token: &'a Token, match_meta: impl Into<MatchMeta<'a>>) -> Self {
         TokenMatch {
             token,
             match_meta: match_meta.into(),
@@ -75,11 +88,89 @@ impl<'a> From<&'a Token> for TokenMatch<'a> {
 }
 
 impl<'a> FuzzyMatch<'a> {
+    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
+    pub fn map<F>(self, f: F) -> Self
+    where
+        F: FnOnce(TokenMatch<'a>) -> TokenMatch<'a>,
+    {
+        match self {
+            FuzzyMatch::Overflow(token_match, overflow) => {
+                FuzzyMatch::Overflow(f(token_match), overflow)
+            }
+            FuzzyMatch::Exact(token_match) => FuzzyMatch::Exact(f(token_match)),
+            FuzzyMatch::Partial(token_match, completion) => {
+                FuzzyMatch::Partial(f(token_match), completion)
+            }
+        }
+    }
+
+    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
+    pub fn token_match(&self) -> &TokenMatch<'a> {
+        match self {
+            FuzzyMatch::Overflow(token_match, _)
+            | FuzzyMatch::Exact(token_match)
+            | FuzzyMatch::Partial(token_match, _) => token_match,
+        }
+    }
+
     pub fn into_exact(self) -> Option<TokenMatch<'a>> {
         if let FuzzyMatch::Exact(token_match) = self {
             Some(token_match)
         } else {
             None
         }
+    }
+}
+
+impl<'a> MatchMeta<'a> {
+    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
+    pub fn phrase(&self) -> Option<&str> {
+        if let MatchMeta::Phrase(s) = self {
+            Some(s)
+        } else {
+            None
+        }
+    }
+
+    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
+    pub fn record(&self) -> Option<&Record> {
+        if let MatchMeta::Record(r) = self {
+            Some(r)
+        } else {
+            None
+        }
+    }
+
+    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
+    pub fn sequence(&self) -> Option<&[TokenMatch<'a>]> {
+        if let MatchMeta::Sequence(v) = self {
+            Some(v.as_slice())
+        } else {
+            None
+        }
+    }
+
+    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
+    pub fn into_sequence(self) -> Option<Vec<TokenMatch<'a>>> {
+        if let MatchMeta::Sequence(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
+    pub fn single(&self) -> Option<&TokenMatch<'a>> {
+        if let MatchMeta::Single(b) = self {
+            Some(b.as_ref())
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> From<TokenMatch<'a>> for MatchMeta<'a> {
+    fn from(input: TokenMatch<'a>) -> MatchMeta<'a> {
+        Box::new(input).into()
     }
 }
