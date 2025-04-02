@@ -47,8 +47,8 @@ mod test {
             marker: Some(20),
         };
 
-        assert_eq!(
-            &[FuzzyMatch::Exact((&token).into())][..],
+        test::assert_eq_unordered!(
+            [FuzzyMatch::Exact((&token).into())],
             token
                 .match_input("nott", &test::app_meta())
                 .collect::<Vec<_>>()
@@ -63,11 +63,11 @@ mod test {
             marker: Some(20),
         };
 
-        assert_eq!(
-            &[FuzzyMatch::Overflow(
+        test::assert_eq_unordered!(
+            [FuzzyMatch::Overflow(
                 (&token).into(),
                 " \"the brave\"".into(),
-            )][..],
+            )],
             token
                 .match_input("nott \"the brave\"", &test::app_meta())
                 .collect::<Vec<_>>()
@@ -82,24 +82,22 @@ mod test {
             marker: Some(20),
         };
 
-        assert_eq!(
-            &[FuzzyMatch::Partial((&token).into(), Some("tt".to_string()))][..],
+        test::assert_eq_unordered!(
+            [FuzzyMatch::Partial((&token).into(), Some("tt".to_string()))],
             token
                 .match_input(" no", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
 
-        assert_eq!(
-            Vec::<FuzzyMatch>::new(),
+        test::assert_empty!(
             token
                 .match_input(" no ", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
 
-        assert_eq!(
-            Vec::<FuzzyMatch>::new(),
+        test::assert_empty!(
             token
                 .match_input("\"no\"", &test::app_meta())
                 .collect::<Vec<_>>()

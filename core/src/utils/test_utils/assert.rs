@@ -16,13 +16,33 @@ macro_rules! assert_autocomplete_eq {
 }
 
 #[macro_export]
-macro_rules! assert_autocomplete_empty {
-    ($expression: expr $(,)?) => {
-        let expected: Vec<$crate::app::AutocompleteSuggestion> = Vec::new();
+macro_rules! assert_eq_unordered {
+    ($left:expr, $right:expr $(,)?) => {{
+        let left: Vec<_> = $left.into();
+        let mut right: Vec<_> = $right.into();
 
-        let mut actual: Vec<$crate::app::AutocompleteSuggestion> = $expression;
-        actual.sort();
+        for left_item in &left {
+            let Some(index) = right.iter().position(|right_item| right_item == left_item) else {
+                panic!(
+                    "Not found in right collection: {:?}\n\nLeft:  {:?}\nRight: {:?}",
+                    left_item, left, $right,
+                );
+            };
+            right.swap_remove(index);
+        }
 
-        assert_eq!(expected, actual);
+        if let Some(right_item) = right.first() {
+            panic!(
+                "Not found in left collection: {:?}\n\nLeft:  {:?}\nRight: {:?}",
+                right_item, left, $right,
+            );
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! assert_empty {
+    ($expr:expr $(,)?) => {
+        assert!($expr.is_empty(), "Expected empty value, got:\n{:?}", $expr);
     };
 }
