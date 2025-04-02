@@ -5,6 +5,7 @@ mod any_phrase;
 mod any_word;
 mod keyword;
 mod keyword_list;
+mod or;
 
 use std::hash::{DefaultHasher, Hash, Hasher};
 
@@ -52,6 +53,9 @@ pub enum TokenType {
 
     /// See [`token_constructors::keyword_list`].
     KeywordList(Vec<&'static str>),
+
+    /// See [`token_constructors::or`].
+    Or(Vec<Token>),
 }
 
 #[derive(Clone, Debug, Eq, From, PartialEq)]
@@ -92,6 +96,7 @@ impl Token {
             TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Keyword(..) => keyword::match_input(self, input),
             TokenType::KeywordList(..) => keyword_list::match_input(self, input),
+            TokenType::Or(..) => or::match_input(self, input, app_meta),
         }
     }
 

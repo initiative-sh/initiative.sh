@@ -275,3 +275,55 @@ where
         TokenType::KeywordList(keywords.into_iter().collect()),
     )
 }
+
+/// Matches exactly one of a set of possible tokens. The matched token will be included in the
+/// result.
+///
+/// # Examples
+///
+/// ```
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta();
+/// use initiative_core::command::prelude::*;
+///
+/// let token = or([keyword("badger"), any_word()]);
+///
+/// assert_eq!(
+///     vec![
+///         // "badger" matches a provided keyword,
+///         FuzzyMatch::Overflow(
+///             TokenMatch::new(&token, TokenMatch::from(&keyword("badger"))),
+///             " badger".into(),
+///         ),
+///
+///         // but it satisfies the wildcard any_word() case as well.
+///         // It only ever matches a single token, so the second "badger" in the input is
+///         // never consumed.
+///         FuzzyMatch::Overflow(
+///             TokenMatch::new(&token, TokenMatch::new(&any_word(), "badger")),
+///             " badger".into(),
+///         ),
+///     ],
+///     token
+///         .match_input("badger badger", &app_meta)
+///         .collect::<Vec<_>>()
+///         .await,
+/// );
+/// # })
+/// ```
+pub fn or<V>(tokens: V) -> Token
+where
+    V: IntoIterator<Item = Token>,
+{
+    Token::new(TokenType::Or(tokens.into_iter().collect()))
+}
+
+/// A variant of `or` with a marker assigned.
+pub fn or_m<M, V>(marker: M, tokens: V) -> Token
+where
+    M: Hash,
+    V: IntoIterator<Item = Token>,
+{
+    Token::new_m(marker, TokenType::Or(tokens.into_iter().collect()))
+}
