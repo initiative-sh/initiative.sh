@@ -2,6 +2,7 @@ mod any_of;
 mod any_phrase;
 mod any_word;
 mod keyword;
+mod keyword_list;
 
 use crate::app::AppMeta;
 use crate::storage::Record;
@@ -43,6 +44,9 @@ pub enum TokenType {
 
     /// See [`token_constructors::keyword`].
     Keyword(&'static str),
+
+    /// See [`token_constructors::keyword_list`].
+    KeywordList(Vec<&'static str>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -68,6 +72,7 @@ impl Token {
             TokenType::AnyPhrase => any_phrase::match_input(self, input),
             TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Keyword(..) => keyword::match_input(self, input),
+            TokenType::KeywordList(..) => keyword_list::match_input(self, input),
         }
     }
 
@@ -433,6 +438,84 @@ pub mod token_constructors {
     {
         Token {
             token_type: TokenType::Keyword(keyword),
+            marker: Some(marker.into()),
+        }
+    }
+
+    /// Matches exactly one of a set of possible keywords, case-insensitively.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let token = keyword_list(["badger", "mushroom", "snake"]);
+    ///
+    /// // Only consumes one word, despite the repetition in the input.
+    /// assert_eq!(
+    ///     vec![FuzzyMatch::Overflow(
+    ///         TokenMatch::new(&token, "badger"),
+    ///         " badger mushroom".into(),
+    ///     )],
+    ///     token
+    ///         .match_input("badger badger mushroom", &app_meta)
+    ///         .collect::<Vec<_>>()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    ///
+    /// ## Autocomplete
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let token = keyword_list(["badge", "badger"]);
+    ///
+    /// assert_eq!(
+    ///     vec![
+    ///         // The input appears in the keyword list,
+    ///         FuzzyMatch::Exact(TokenMatch::new(&token, "badge")),
+    ///
+    ///         // but can also be completed to another word.
+    ///         FuzzyMatch::Partial(
+    ///             TokenMatch::new(&token, "badge"),
+    ///             Some("r".to_string()),
+    ///         ),
+    ///     ],
+    ///     token
+    ///         .match_input("badge", &app_meta)
+    ///         .collect::<Vec<_>>()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn keyword_list<V>(keywords: V) -> Token
+    where
+        V: IntoIterator<Item = &'static str>,
+    {
+        Token {
+            token_type: TokenType::KeywordList(keywords.into_iter().collect()),
+            marker: None,
+        }
+    }
+
+    /// A variant of `keyword_list` with a marker assigned.
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn keyword_list_m<M, V>(marker: M, keywords: V) -> Token
+    where
+        M: Into<u8>,
+        V: IntoIterator<Item = &'static str>,
+    {
+        Token {
+            token_type: TokenType::KeywordList(keywords.into_iter().collect()),
             marker: Some(marker.into()),
         }
     }
