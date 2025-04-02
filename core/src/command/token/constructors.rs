@@ -366,3 +366,46 @@ where
 {
     Token::new_m(marker, TokenType::Or(tokens.into_iter().collect()))
 }
+
+/// Matches an exact sequence of tokens.
+///
+/// # Examples
+///
+/// ```
+/// # use initiative_core::command::prelude::*;
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta();
+/// let token = sequence([keyword("badger"), keyword("mushroom"), keyword("snake")]);
+///
+/// // The first two keywords are matched, but the third is not present.
+/// assert_eq!(
+///     vec![FuzzyMatch::Partial(
+///         TokenMatch::new(&token, vec![
+///             TokenMatch::from(&keyword("badger")),
+///             TokenMatch::from(&keyword("mushroom")),
+///         ]),
+///         None,
+///     )],
+///     token
+///         .match_input("badger mushroom", &app_meta)
+///         .collect::<Vec<_>>()
+///         .await,
+/// );
+/// # })
+/// ```
+pub fn sequence<V>(tokens: V) -> Token
+where
+    V: Into<Vec<Token>>,
+{
+    Token::new(TokenType::Sequence(tokens.into()))
+}
+
+/// A variant of `sequence` with a marker assigned.
+pub fn sequence_m<M, V>(marker: M, tokens: V) -> Token
+where
+    M: Hash,
+    V: Into<Vec<Token>>,
+{
+    Token::new_m(marker, TokenType::Sequence(tokens.into()))
+}

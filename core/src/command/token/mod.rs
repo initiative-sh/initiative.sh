@@ -7,6 +7,7 @@ mod keyword;
 mod keyword_list;
 mod optional;
 mod or;
+mod sequence;
 
 use std::hash::{DefaultHasher, Hash, Hasher};
 
@@ -60,6 +61,9 @@ pub enum TokenType {
 
     /// See [`token_constructors::or`].
     Or(Vec<Token>),
+
+    /// See [`token_constructors::sequence`].
+    Sequence(Vec<Token>),
 }
 
 #[derive(Clone, Debug, Eq, From, PartialEq)]
@@ -102,6 +106,7 @@ impl Token {
             TokenType::KeywordList(..) => keyword_list::match_input(self, input),
             TokenType::Optional(..) => optional::match_input(self, input, app_meta),
             TokenType::Or(..) => or::match_input(self, input, app_meta),
+            TokenType::Sequence(..) => sequence::match_input(self, input, app_meta),
         }
     }
 
