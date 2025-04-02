@@ -56,7 +56,6 @@ where
 /// assert_eq!(Some(r#""Medium" Dave Lilywhite"#), iter.next());
 /// assert_eq!(None, iter.next());
 /// ```
-#[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
 pub fn quoted_phrases<'a, W>(phrase: W) -> impl Iterator<Item = Substr<'a>>
 where
     W: Into<Substr<'a>>,

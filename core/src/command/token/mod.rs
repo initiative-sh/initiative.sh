@@ -1,4 +1,5 @@
 mod any_of;
+mod any_phrase;
 mod any_word;
 mod keyword;
 
@@ -34,6 +35,9 @@ pub enum TokenType {
     /// See [`token_constructors::any_of`].
     AnyOf(Vec<Token>),
 
+    /// See [`token_constructors::any_phrase`].
+    AnyPhrase,
+
     /// See [`token_constructors::any_word`].
     AnyWord,
 
@@ -61,6 +65,7 @@ impl Token {
     {
         match &self.token_type {
             TokenType::AnyOf(..) => any_of::match_input(self, input, app_meta),
+            TokenType::AnyPhrase => any_phrase::match_input(self, input),
             TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Keyword(..) => keyword::match_input(self, input),
         }
@@ -269,6 +274,62 @@ pub mod token_constructors {
     {
         Token {
             token_type: TokenType::AnyOf(tokens.into()),
+            marker: Some(marker.into()),
+        }
+    }
+
+    /// Matches all sequences of one or more words. Quoted phrases are treated as single words.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let token = any_phrase();
+    ///
+    /// assert_eq!(
+    ///     vec![
+    ///         // Ungreedily matches the quoted phrase as a single token,
+    ///         FuzzyMatch::Overflow(
+    ///             TokenMatch::new(&token, "badger badger"),
+    ///             " mushroom snake ".into(),
+    ///         ),
+    ///
+    ///         // the first two "words",
+    ///         FuzzyMatch::Overflow(
+    ///             TokenMatch::new(&token, r#""badger badger" mushroom"#),
+    ///             " snake ".into(),
+    ///         ),
+    ///
+    ///         // and the whole phrase.
+    ///         FuzzyMatch::Exact(TokenMatch::new(&token, r#""badger badger" mushroom snake"#)),
+    ///     ],
+    ///     token
+    ///         .match_input(r#" "badger badger" mushroom snake "#, &app_meta)
+    ///         .collect::<Vec<_>>()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn any_phrase() -> Token {
+        Token {
+            token_type: TokenType::AnyPhrase,
+            marker: None,
+        }
+    }
+
+    /// A variant of `any_phrase` with a marker assigned.
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn any_phrase_m<M>(marker: M) -> Token
+    where
+        M: Into<u8>,
+    {
+        Token {
+            token_type: TokenType::AnyPhrase,
             marker: Some(marker.into()),
         }
     }
