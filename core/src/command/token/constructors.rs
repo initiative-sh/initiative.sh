@@ -276,6 +276,60 @@ where
     )
 }
 
+/// Matches the name of a Thing found in the journal or recent entities.
+///
+/// # Examples
+///
+/// ```
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
+/// use initiative_core::command::prelude::*;
+///
+/// let query = "odysseus";
+/// let token = name();
+/// let odysseus = app_meta.repository.get_by_name("Odysseus").await.unwrap();
+///
+/// assert_eq!(
+///     Some(TokenMatch::new(&token, odysseus)),
+///     token.match_input_exact(query, &app_meta).next().await,
+/// );
+/// # })
+/// ```
+///
+/// ## Autocomplete
+///
+/// ```
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
+/// use initiative_core::command::prelude::*;
+///
+/// let query = "ody";
+/// let token = name();
+/// let odysseus = app_meta.repository.get_by_name("Odysseus").await.unwrap();
+///
+/// assert_eq!(
+///     Some(FuzzyMatch::Partial(
+///         TokenMatch::new(&token, odysseus),
+///         Some("sseus".to_string()),
+///     )),
+///     token.match_input(query, &app_meta).next().await,
+/// );
+/// # })
+/// ```
+pub fn name() -> Token {
+    Token::new(TokenType::Name)
+}
+
+/// A variant of `name` with a marker assigned.
+pub fn name_m<M>(marker: M) -> Token
+where
+    M: Hash,
+{
+    Token::new_m(marker, TokenType::Name)
+}
+
 /// Matches the input with and without the contained token.
 ///
 /// # Examples

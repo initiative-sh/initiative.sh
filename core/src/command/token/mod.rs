@@ -5,6 +5,7 @@ mod any_phrase;
 mod any_word;
 mod keyword;
 mod keyword_list;
+mod name;
 mod optional;
 mod or;
 mod sequence;
@@ -56,6 +57,9 @@ pub enum TokenType {
     /// See [`token_constructors::keyword_list`].
     KeywordList(Vec<&'static str>),
 
+    /// See [`token_constructors::name`].
+    Name,
+
     /// See [`token_constructors::optional`].
     Optional(Box<Token>),
 
@@ -104,6 +108,7 @@ impl Token {
             TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Keyword(..) => keyword::match_input(self, input),
             TokenType::KeywordList(..) => keyword_list::match_input(self, input),
+            TokenType::Name => name::match_input(self, input, app_meta),
             TokenType::Optional(..) => optional::match_input(self, input, app_meta),
             TokenType::Or(..) => or::match_input(self, input, app_meta),
             TokenType::Sequence(..) => sequence::match_input(self, input, app_meta),
