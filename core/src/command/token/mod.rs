@@ -3,6 +3,7 @@ mod any_phrase;
 mod any_word;
 mod keyword;
 mod keyword_list;
+mod or;
 
 use crate::app::AppMeta;
 use crate::storage::Record;
@@ -47,6 +48,9 @@ pub enum TokenType {
 
     /// See [`token_constructors::keyword_list`].
     KeywordList(Vec<&'static str>),
+
+    /// See [`token_constructors::or`].
+    Or(Vec<Token>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -73,6 +77,7 @@ impl Token {
             TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Keyword(..) => keyword::match_input(self, input),
             TokenType::KeywordList(..) => keyword_list::match_input(self, input),
+            TokenType::Or(..) => or::match_input(self, input, app_meta),
         }
     }
 
@@ -516,6 +521,66 @@ pub mod token_constructors {
     {
         Token {
             token_type: TokenType::KeywordList(keywords.into_iter().collect()),
+            marker: Some(marker.into()),
+        }
+    }
+
+    /// Matches exactly one of a set of possible tokens. The matched token will be included in the
+    /// result.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let token = or([keyword("badger"), any_word()]);
+    ///
+    /// assert_eq!(
+    ///     vec![
+    ///         // "badger" matches a provided keyword,
+    ///         FuzzyMatch::Overflow(
+    ///             TokenMatch::new(&token, TokenMatch::from(&keyword("badger"))),
+    ///             " badger".into(),
+    ///         ),
+    ///
+    ///         // but it satisfies the wildcard any_word() case as well.
+    ///         // It only ever matches a single token, so the second "badger" in the input is
+    ///         // never consumed.
+    ///         FuzzyMatch::Overflow(
+    ///             TokenMatch::new(&token, TokenMatch::new(&any_word(), "badger")),
+    ///             " badger".into(),
+    ///         ),
+    ///     ],
+    ///     token
+    ///         .match_input("badger badger", &app_meta)
+    ///         .collect::<Vec<_>>()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn or<V>(tokens: V) -> Token
+    where
+        V: IntoIterator<Item = Token>,
+    {
+        Token {
+            token_type: TokenType::Or(tokens.into_iter().collect()),
+            marker: None,
+        }
+    }
+
+    /// A variant of `or` with a marker assigned.
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn or_m<M, V>(marker: M, tokens: V) -> Token
+    where
+        M: Into<u8>,
+        V: IntoIterator<Item = Token>,
+    {
+        Token {
+            token_type: TokenType::Or(tokens.into_iter().collect()),
             marker: Some(marker.into()),
         }
     }
