@@ -202,3 +202,76 @@ where
 {
     Token::new_m(marker, TokenType::Keyword(keyword))
 }
+
+/// Matches exactly one of a set of possible keywords, case-insensitively.
+///
+/// # Examples
+///
+/// ```
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta();
+/// use initiative_core::command::prelude::*;
+///
+/// let token = keyword_list(["badger", "mushroom", "snake"]);
+///
+/// // Only consumes one word, despite the repetition in the input.
+/// assert_eq!(
+///     vec![FuzzyMatch::Overflow(
+///         TokenMatch::new(&token, "badger"),
+///         " badger mushroom".into(),
+///     )],
+///     token
+///         .match_input("badger badger mushroom", &app_meta)
+///         .collect::<Vec<_>>()
+///         .await,
+/// );
+/// # })
+/// ```
+///
+/// ## Autocomplete
+///
+/// ```
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta();
+/// use initiative_core::command::prelude::*;
+///
+/// let token = keyword_list(["badge", "badger"]);
+///
+/// assert_eq!(
+///     vec![
+///         // The input appears in the keyword list,
+///         FuzzyMatch::Exact(TokenMatch::new(&token, "badge")),
+///
+///         // but can also be completed to another word.
+///         FuzzyMatch::Partial(
+///             TokenMatch::new(&token, "badge"),
+///             Some("r".to_string()),
+///         ),
+///     ],
+///     token
+///         .match_input("badge", &app_meta)
+///         .collect::<Vec<_>>()
+///         .await,
+/// );
+/// # })
+/// ```
+pub fn keyword_list<V>(keywords: V) -> Token
+where
+    V: IntoIterator<Item = &'static str>,
+{
+    Token::new(TokenType::KeywordList(keywords.into_iter().collect()))
+}
+
+/// A variant of `keyword_list` with a marker assigned.
+pub fn keyword_list_m<M, V>(marker: M, keywords: V) -> Token
+where
+    M: Hash,
+    V: IntoIterator<Item = &'static str>,
+{
+    Token::new_m(
+        marker,
+        TokenType::KeywordList(keywords.into_iter().collect()),
+    )
+}
