@@ -9,5 +9,5 @@ pub use world::place;
 pub use world::thing;
 mod world;
 
-pub use crate::{assert_autocomplete_empty, assert_autocomplete_eq};
+pub use crate::{assert_autocomplete_eq, assert_empty, assert_eq_unordered};
 mod assert;

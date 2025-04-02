@@ -188,7 +188,7 @@ mod test {
     async fn autocomplete_test() {
         let app_meta = test::app_meta();
 
-        test::assert_autocomplete_empty!(TimeCommand::autocomplete("", &app_meta).await);
+        test::assert_empty!(TimeCommand::autocomplete("", &app_meta).await);
 
         test::assert_autocomplete_eq!(
             [
