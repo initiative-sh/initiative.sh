@@ -1,3 +1,4 @@
+mod any_word;
 mod keyword;
 
 use crate::app::AppMeta;
@@ -29,6 +30,9 @@ pub enum FuzzyMatch<'a> {
 #[derive(Debug, Eq, PartialEq)]
 #[cfg_attr(test, derive(Clone))]
 pub enum TokenType {
+    /// See [`token_constructors::any_word`].
+    AnyWord,
+
     /// See [`token_constructors::keyword`].
     Keyword(&'static str),
 }
@@ -52,6 +56,7 @@ impl Token {
         'a: 'b,
     {
         match &self.token_type {
+            TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Keyword(..) => keyword::match_input(self, input),
         }
     }
@@ -192,6 +197,46 @@ impl From<Record> for MatchMeta<'_> {
 
 pub mod token_constructors {
     use super::*;
+
+    /// Matches any single word.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use initiative_core::command::prelude::*;
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// let token = any_word();
+    ///
+    /// assert_eq!(
+    ///     Some(TokenMatch::new(&token, "BADGER")),
+    ///     token
+    ///         .match_input_exact("BADGER", &app_meta)
+    ///         .next()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn any_word() -> Token {
+        Token {
+            token_type: TokenType::AnyWord,
+            marker: None,
+        }
+    }
+
+    /// A variant of `any_word` with a marker assigned.
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn any_word_m<M>(marker: M) -> Token
+    where
+        M: Into<u8>,
+    {
+        Token {
+            token_type: TokenType::AnyWord,
+            marker: Some(marker.into()),
+        }
+    }
 
     /// A single keyword, matched case-insensitively.
     ///
