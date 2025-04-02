@@ -67,6 +67,54 @@ where
     Token::new_m(marker, TokenType::AnyOf(tokens.into()))
 }
 
+/// Matches all sequences of one or more words. Quoted phrases are treated as single words.
+///
+/// # Examples
+///
+/// ```
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta();
+/// use initiative_core::command::prelude::*;
+///
+/// let token = any_phrase();
+///
+/// assert_eq!(
+///     vec![
+///         // Ungreedily matches the quoted phrase as a single token,
+///         FuzzyMatch::Overflow(
+///             TokenMatch::new(&token, "badger badger"),
+///             " mushroom snake ".into(),
+///         ),
+///
+///         // the first two "words",
+///         FuzzyMatch::Overflow(
+///             TokenMatch::new(&token, r#""badger badger" mushroom"#),
+///             " snake ".into(),
+///         ),
+///
+///         // and the whole phrase.
+///         FuzzyMatch::Exact(TokenMatch::new(&token, r#""badger badger" mushroom snake"#)),
+///     ],
+///     token
+///         .match_input(r#" "badger badger" mushroom snake "#, &app_meta)
+///         .collect::<Vec<_>>()
+///         .await,
+/// );
+/// # })
+/// ```
+pub fn any_phrase() -> Token {
+    Token::new(TokenType::AnyPhrase)
+}
+
+/// A variant of `any_phrase` with a marker assigned.
+pub fn any_phrase_m<M>(marker: M) -> Token
+where
+    M: Hash,
+{
+    Token::new_m(marker, TokenType::AnyPhrase)
+}
+
 /// Matches any single word.
 ///
 /// # Examples

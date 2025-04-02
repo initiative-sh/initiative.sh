@@ -1,6 +1,7 @@
 pub mod constructors;
 
 mod any_of;
+mod any_phrase;
 mod any_word;
 mod keyword;
 
@@ -38,6 +39,9 @@ pub enum FuzzyMatch<'a> {
 pub enum TokenType {
     /// See [`token_constructors::any_of`].
     AnyOf(Vec<Token>),
+
+    /// See [`token_constructors::any_phrase`].
+    AnyPhrase,
 
     /// See [`token_constructors::any_word`].
     AnyWord,
@@ -80,6 +84,7 @@ impl Token {
     {
         match &self.token_type {
             TokenType::AnyOf(..) => any_of::match_input(self, input, app_meta),
+            TokenType::AnyPhrase => any_phrase::match_input(self, input),
             TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Keyword(..) => keyword::match_input(self, input),
         }
