@@ -5,6 +5,7 @@ mod keyword;
 mod keyword_list;
 mod optional;
 mod or;
+mod sequence;
 
 use crate::app::AppMeta;
 use crate::storage::Record;
@@ -55,6 +56,9 @@ pub enum TokenType {
 
     /// See [`token_constructors::or`].
     Or(Vec<Token>),
+
+    /// See [`token_constructors::sequence`].
+    Sequence(Vec<Token>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -83,6 +87,7 @@ impl Token {
             TokenType::KeywordList(..) => keyword_list::match_input(self, input),
             TokenType::Optional(..) => optional::match_input(self, input, app_meta),
             TokenType::Or(..) => or::match_input(self, input, app_meta),
+            TokenType::Sequence(..) => sequence::match_input(self, input, app_meta),
         }
     }
 
@@ -633,6 +638,57 @@ pub mod token_constructors {
     {
         Token {
             token_type: TokenType::Or(tokens.into_iter().collect()),
+            marker: Some(marker.into()),
+        }
+    }
+
+    /// Matches an exact sequence of tokens.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use initiative_core::command::prelude::*;
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// let token = sequence([keyword("badger"), keyword("mushroom"), keyword("snake")]);
+    ///
+    /// // The first two keywords are matched, but the third is not present.
+    /// assert_eq!(
+    ///     vec![FuzzyMatch::Partial(
+    ///         TokenMatch::new(&token, vec![
+    ///             TokenMatch::from(&keyword("badger")),
+    ///             TokenMatch::from(&keyword("mushroom")),
+    ///         ]),
+    ///         None,
+    ///     )],
+    ///     token
+    ///         .match_input("badger mushroom", &app_meta)
+    ///         .collect::<Vec<_>>()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn sequence<V>(tokens: V) -> Token
+    where
+        V: Into<Vec<Token>>,
+    {
+        Token {
+            token_type: TokenType::Sequence(tokens.into()),
+            marker: None,
+        }
+    }
+
+    /// A variant of `sequence` with a marker assigned.
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn sequence_m<M, V>(marker: M, tokens: V) -> Token
+    where
+        M: Into<u8>,
+        V: Into<Vec<Token>>,
+    {
+        Token {
+            token_type: TokenType::Sequence(tokens.into()),
             marker: Some(marker.into()),
         }
     }
