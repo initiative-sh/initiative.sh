@@ -276,6 +276,45 @@ where
     )
 }
 
+/// Matches the input with and without the contained token.
+///
+/// # Examples
+///
+/// ```
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta();
+/// use initiative_core::command::prelude::*;
+///
+/// let token = optional(keyword("badger"));
+///
+/// assert_eq!(
+///     vec![
+///         // Passes the input directly through to the overflow,
+///         FuzzyMatch::Overflow(TokenMatch::from(&token), "badger".into()),
+///
+///         // as well as the matched result if present.
+///         FuzzyMatch::Exact(TokenMatch::new(&token, TokenMatch::from(&keyword("badger")))),
+///     ],
+///     token
+///         .match_input("badger", &app_meta)
+///         .collect::<Vec<_>>()
+///         .await,
+/// );
+/// # })
+/// ```
+pub fn optional(token: Token) -> Token {
+    Token::new(TokenType::Optional(Box::new(token)))
+}
+
+/// A variant of `optional` with a marker assigned.
+pub fn optional_m<M>(marker: M, token: Token) -> Token
+where
+    M: Hash,
+{
+    Token::new_m(marker, TokenType::Optional(Box::new(token)))
+}
+
 /// Matches exactly one of a set of possible tokens. The matched token will be included in the
 /// result.
 ///
