@@ -33,7 +33,6 @@ impl<'a> Substr<'a> {
     }
 
     /// Returns the outer portion of the Substr, including quotes if present.
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn as_outer_str(&self) -> &'a str {
         &self.phrase[self.outer_range.clone()]
     }

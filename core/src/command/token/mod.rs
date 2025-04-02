@@ -3,6 +3,7 @@ mod any_phrase;
 mod any_word;
 mod keyword;
 mod keyword_list;
+mod name;
 mod optional;
 mod or;
 mod sequence;
@@ -51,6 +52,9 @@ pub enum TokenType {
     /// See [`token_constructors::keyword_list`].
     KeywordList(Vec<&'static str>),
 
+    /// See [`token_constructors::name`].
+    Name,
+
     /// See [`token_constructors::optional`].
     Optional(Box<Token>),
 
@@ -85,6 +89,7 @@ impl Token {
             TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Keyword(..) => keyword::match_input(self, input),
             TokenType::KeywordList(..) => keyword_list::match_input(self, input),
+            TokenType::Name => name::match_input(self, input, app_meta),
             TokenType::Optional(..) => optional::match_input(self, input, app_meta),
             TokenType::Or(..) => or::match_input(self, input, app_meta),
             TokenType::Sequence(..) => sequence::match_input(self, input, app_meta),
@@ -531,6 +536,68 @@ pub mod token_constructors {
     {
         Token {
             token_type: TokenType::KeywordList(keywords.into_iter().collect()),
+            marker: Some(marker.into()),
+        }
+    }
+
+    /// Matches the name of a Thing found in the journal or recent entities.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let query = "odysseus";
+    /// let token = name();
+    /// let odysseus = app_meta.repository.get_by_name("Odysseus").await.unwrap();
+    ///
+    /// assert_eq!(
+    ///     Some(TokenMatch::new(&token, odysseus)),
+    ///     token.match_input_exact(query, &app_meta).next().await,
+    /// );
+    /// # })
+    /// ```
+    ///
+    /// ## Autocomplete
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let query = "ody";
+    /// let token = name();
+    /// let odysseus = app_meta.repository.get_by_name("Odysseus").await.unwrap();
+    ///
+    /// assert_eq!(
+    ///     Some(FuzzyMatch::Partial(
+    ///         TokenMatch::new(&token, odysseus),
+    ///         Some("sseus".to_string()),
+    ///     )),
+    ///     token.match_input(query, &app_meta).next().await,
+    /// );
+    /// # })
+    /// ```
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn name() -> Token {
+        Token {
+            token_type: TokenType::Name,
+            marker: None,
+        }
+    }
+
+    /// A variant of `name` with a marker assigned.
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn name_m<M>(marker: M) -> Token
+    where
+        M: Into<u8>,
+    {
+        Token {
+            token_type: TokenType::Name,
             marker: Some(marker.into()),
         }
     }
