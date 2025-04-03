@@ -38,8 +38,7 @@ pub fn match_input<'a>(
 mod test {
     use super::*;
 
-    use crate::app::{AppMeta, Event};
-    use crate::storage::NullDataStore;
+    use crate::test_utils as test;
 
     #[tokio::test]
     async fn match_input_test_exact() {
@@ -51,7 +50,7 @@ mod test {
         assert_eq!(
             &[FuzzyMatch::Exact((&token).into())][..],
             token
-                .match_input("nott", &app_meta())
+                .match_input("nott", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
@@ -70,7 +69,7 @@ mod test {
                 " \"the brave\"".into(),
             )][..],
             token
-                .match_input("nott \"the brave\"", &app_meta())
+                .match_input("nott \"the brave\"", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
@@ -86,7 +85,7 @@ mod test {
         assert_eq!(
             &[FuzzyMatch::Partial((&token).into(), Some("tt".to_string()))][..],
             token
-                .match_input(" no", &app_meta())
+                .match_input(" no", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
@@ -94,7 +93,7 @@ mod test {
         assert_eq!(
             Vec::<FuzzyMatch>::new(),
             token
-                .match_input(" no ", &app_meta())
+                .match_input(" no ", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
@@ -102,15 +101,9 @@ mod test {
         assert_eq!(
             Vec::<FuzzyMatch>::new(),
             token
-                .match_input("\"no\"", &app_meta())
+                .match_input("\"no\"", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
     }
-
-    fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore, &event_dispatcher)
-    }
-
-    fn event_dispatcher(_event: Event) {}
 }

@@ -290,15 +290,14 @@ impl From<WorldCommand> for CommandType {
 mod test {
     use super::*;
     use crate::app::assert_autocomplete;
-    use crate::storage::NullDataStore;
+    use crate::test_utils as test;
     use crate::world::npc::NpcData;
     use crate::world::ParsedThing;
-    use crate::Event;
     use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
-        let app_meta = app_meta();
+        let app_meta = test::app_meta();
 
         assert_eq!(
             Command::from(CommandMatches::new_canonical(CommandType::App(
@@ -376,7 +375,7 @@ mod test {
                 ("dwarf", "create dwarf"),
                 ("dwarvish", "create dwarvish person"),
             ][..],
-            block_on(Command::autocomplete("d", &app_meta())),
+            block_on(Command::autocomplete("d", &test::app_meta())),
         );
     }
 
@@ -414,11 +413,5 @@ mod test {
             }
             .into(),
         );
-    }
-
-    fn event_dispatcher(_event: Event) {}
-
-    fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore, &event_dispatcher)
     }
 }
