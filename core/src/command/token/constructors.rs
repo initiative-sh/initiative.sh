@@ -58,7 +58,35 @@ where
     Token::new(TokenType::AnyOf(tokens.into()))
 }
 
-/// A variant of `any_of` with a marker assigned.
+/// A variant of `any_of` with a marker assigned, making it easy to jump directly to the
+/// matched result within the token tree.
+///
+/// # Examples
+///
+/// ```
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta();
+/// use initiative_core::command::prelude::*;
+///
+/// #[derive(Hash)]
+/// enum Marker {
+///     AnyOf,
+/// }
+///
+/// let query = "badger snake";
+/// let token = sequence([
+///     keyword("badger"),
+///     any_of_m(Marker::AnyOf, [keyword("mushroom"), keyword("snake")]),
+/// ]);
+/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+///
+/// assert_eq!(
+///     Some(&[TokenMatch::from(&keyword("snake"))][..]),
+///     token_match.find_marker(Marker::AnyOf).unwrap().meta_sequence(),
+/// );
+/// # })
+/// ```
 pub fn any_of_m<M, V>(marker: M, tokens: V) -> Token
 where
     M: Hash,
@@ -107,7 +135,32 @@ pub fn any_phrase() -> Token {
     Token::new(TokenType::AnyPhrase)
 }
 
-/// A variant of `any_phrase` with a marker assigned.
+/// A variant of `any_phrase` with a marker assigned, making it easy to jump directly to the
+/// matched result within the token tree.
+///
+/// # Examples
+///
+/// ```
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta();
+/// use initiative_core::command::prelude::*;
+///
+/// #[derive(Hash)]
+/// enum Marker {
+///     AnyPhrase,
+/// }
+///
+/// let query = "badger mushroom snake";
+/// let token = sequence([keyword("badger"), any_phrase_m(Marker::AnyPhrase)]);
+/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+///
+/// assert_eq!(
+///     Some("mushroom snake"),
+///     token_match.find_marker(Marker::AnyPhrase).unwrap().meta_phrase(),
+/// );
+/// # })
+/// ```
 pub fn any_phrase_m<M>(marker: M) -> Token
 where
     M: Hash,
@@ -139,7 +192,32 @@ pub fn any_word() -> Token {
     Token::new(TokenType::AnyWord)
 }
 
-/// A variant of `any_word` with a marker assigned.
+/// A variant of `any_word` with a marker assigned, making it easy to jump directly to the
+/// matched result within the token tree.
+///
+/// # Examples
+///
+/// ```
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta();
+/// use initiative_core::command::prelude::*;
+///
+/// #[derive(Hash)]
+/// enum Marker {
+///     AnyWord,
+/// }
+///
+/// let query = "badger mushroom";
+/// let token = sequence([keyword("badger"), any_phrase_m(Marker::AnyWord)]);
+/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+///
+/// assert_eq!(
+///     Some("mushroom"),
+///     token_match.find_marker(Marker::AnyWord).unwrap().meta_phrase(),
+/// );
+/// # })
+/// ```
 pub fn any_word_m<M>(marker: M) -> Token
 where
     M: Hash,
@@ -195,7 +273,38 @@ pub fn keyword(keyword: &'static str) -> Token {
     Token::new(TokenType::Keyword(keyword))
 }
 
-/// A variant of `keyword` with a marker assigned.
+/// A variant of `keyword` with a marker assigned, making it easy to jump directly to the
+/// matched result within the token tree.
+///
+/// # Examples
+///
+/// ```
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta();
+/// use initiative_core::command::prelude::*;
+///
+/// #[derive(Hash)]
+/// enum Marker {
+///     Keyword,
+/// }
+///
+/// let token = sequence([
+///     optional(keyword_m(Marker::Keyword, "badger")),
+///     keyword("mushroom"),
+/// ]);
+///
+/// // We can easily distinguish between the case when the keyword was matched
+/// let query = "badger mushroom";
+/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+/// assert!(token_match.contains_marker(Marker::Keyword));
+///
+/// // and when it wasn't.
+/// let query = "mushroom";
+/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+/// assert!(!token_match.contains_marker(Marker::Keyword));
+/// # })
+/// ```
 pub fn keyword_m<M>(marker: M, keyword: &'static str) -> Token
 where
     M: Hash,
@@ -264,7 +373,35 @@ where
     Token::new(TokenType::KeywordList(keywords.into_iter().collect()))
 }
 
-/// A variant of `keyword_list` with a marker assigned.
+/// A variant of `any_word` with a marker assigned, making it easy to jump directly to the
+/// matched result within the token tree.
+///
+/// # Examples
+///
+/// ```
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta();
+/// use initiative_core::command::prelude::*;
+///
+/// #[derive(Hash)]
+/// enum Marker {
+///     KeywordList,
+/// }
+///
+/// let query = "badger mushroom";
+/// let token = sequence([
+///     keyword("badger"),
+///     keyword_list_m(Marker::KeywordList, ["mushroom", "snake"]),
+/// ]);
+/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+///
+/// assert_eq!(
+///     Some("mushroom"),
+///     token_match.find_marker(Marker::KeywordList).unwrap().meta_phrase(),
+/// );
+/// # })
+/// ```
 pub fn keyword_list_m<M, V>(marker: M, keywords: V) -> Token
 where
     M: Hash,
@@ -289,11 +426,12 @@ where
 /// let query = "odysseus";
 /// let token = name();
 /// let odysseus = app_meta.repository.get_by_name("Odysseus").await.unwrap();
+/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
 ///
-/// assert_eq!(
-///     Some(TokenMatch::new(&token, odysseus)),
-///     token.match_input_exact(query, &app_meta).next().await,
-/// );
+/// assert_eq!(TokenMatch::new(&token, odysseus.clone()), token_match);
+///
+/// // The matched Record can be accessed directly from the TokenMatch tree.
+/// assert_eq!(Some(&odysseus), token_match.meta_record());
 /// # })
 /// ```
 ///
@@ -322,7 +460,34 @@ pub fn name() -> Token {
     Token::new(TokenType::Name)
 }
 
-/// A variant of `name` with a marker assigned.
+/// A variant of `name` with a marker assigned, making it easy to jump directly to the
+/// matched result within the token tree.
+///
+/// # Examples
+///
+/// ```
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
+/// use initiative_core::command::prelude::*;
+///
+/// #[derive(Hash)]
+/// enum Marker {
+///     Name,
+/// }
+///
+/// let query = "hail odysseus";
+/// let token = sequence([keyword("hail"), name_m(Marker::Name)]);
+/// let odysseus = app_meta.repository.get_by_name("Odysseus").await.unwrap();
+///
+/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+///
+/// assert_eq!(
+///     Some(&odysseus),
+///     token_match.find_marker(Marker::Name).unwrap().meta_record(),
+/// );
+/// # })
+/// ```
 pub fn name_m<M>(marker: M) -> Token
 where
     M: Hash,
@@ -361,7 +526,42 @@ pub fn optional(token: Token) -> Token {
     Token::new(TokenType::Optional(Box::new(token)))
 }
 
-/// A variant of `optional` with a marker assigned.
+/// A variant of `name` with a marker assigned, making it easy to jump directly to the
+/// matched result within the token tree.
+///
+/// # Examples
+///
+/// We can inspect the metadata of the `optional` token to see if a match occurred or not. More
+/// normally, the inner token would be marked and we would check to see if the marked token
+/// exists in the tree (`TokenMatch::contains_token`).
+///
+/// ```
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
+/// use initiative_core::command::prelude::*;
+///
+/// #[derive(Hash)]
+/// enum Marker {
+///     Optional,
+/// }
+///
+/// let token = sequence([
+///     optional_m(Marker::Optional, keyword("badger")),
+///     keyword("mushroom"),
+/// ]);
+///
+/// // We can inspect the metadata to see that this case contains a match
+/// let query = "badger mushroom";
+/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+/// assert!(token_match.find_marker(Marker::Optional).unwrap().meta_single().is_some());
+///
+/// // and this case does not.
+/// let query = "mushroom";
+/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+/// assert!(token_match.find_marker(Marker::Optional).unwrap().meta_single().is_none());
+/// # })
+/// ```
 pub fn optional_m<M>(marker: M, token: Token) -> Token
 where
     M: Hash,
