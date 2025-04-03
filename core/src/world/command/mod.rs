@@ -519,15 +519,14 @@ fn append_unknown_words_notice(
 mod test {
     use super::*;
     use crate::app::assert_autocomplete;
-    use crate::storage::NullDataStore;
+    use crate::test_utils as utils;
     use crate::world::npc::{Age, Gender, NpcData, Species};
     use crate::world::place::{PlaceData, PlaceType};
-    use crate::Event;
     use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
-        let mut app_meta = app_meta();
+        let mut app_meta = utils::app_meta();
 
         assert_eq!(
             CommandMatches::new_fuzzy(create(NpcData::default())),
@@ -587,7 +586,7 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        let mut app_meta = app_meta();
+        let mut app_meta = utils::app_meta();
 
         block_on(
             app_meta.repository.modify(Change::Create {
@@ -689,7 +688,7 @@ mod test {
 
     #[test]
     fn display_test() {
-        let app_meta = app_meta();
+        let app_meta = utils::app_meta();
 
         [
             create(PlaceData {
@@ -738,11 +737,5 @@ mod test {
         WorldCommand::Create {
             parsed_thing_data: parsed_thing(thing_data),
         }
-    }
-
-    fn event_dispatcher(_event: Event) {}
-
-    fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore, &event_dispatcher)
     }
 }

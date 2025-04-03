@@ -152,12 +152,12 @@ impl fmt::Display for TimeCommand {
 mod test {
     use super::*;
     use crate::app::assert_autocomplete;
-    use crate::{Event, NullDataStore};
+    use crate::test_utils as test;
     use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
-        let app_meta = app_meta();
+        let app_meta = test::app_meta();
 
         assert_eq!(
             CommandMatches::new_canonical(TimeCommand::Add {
@@ -188,7 +188,7 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        let app_meta = app_meta();
+        let app_meta = test::app_meta();
 
         assert_eq!(
             Vec::<AutocompleteSuggestion>::new(),
@@ -305,7 +305,7 @@ mod test {
 
     #[test]
     fn display_test() {
-        let app_meta = app_meta();
+        let app_meta = test::app_meta();
 
         [
             TimeCommand::Add {
@@ -338,11 +338,5 @@ mod test {
                 command_string.to_uppercase(),
             );
         });
-    }
-
-    fn event_dispatcher(_event: Event) {}
-
-    fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore, &event_dispatcher)
     }
 }

@@ -368,15 +368,14 @@ impl fmt::Display for StorageCommand {
 mod test {
     use super::*;
     use crate::app::assert_autocomplete;
-    use crate::storage::MemoryDataStore;
+    use crate::test_utils as test;
     use crate::world::npc::{Age, Gender, NpcData, Species};
     use crate::world::place::{PlaceData, PlaceType};
-    use crate::Event;
     use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
-        let app_meta = app_meta();
+        let app_meta = test::app_meta();
 
         assert_eq!(
             CommandMatches::default(),
@@ -464,7 +463,7 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        let mut app_meta = app_meta();
+        let mut app_meta = test::app_meta::with_data_store::memory();
 
         block_on(
             app_meta.repository.modify(Change::Create {
@@ -641,14 +640,14 @@ mod test {
             &[("undo", "Nothing to undo.")][..],
             block_on(StorageCommand::autocomplete(
                 "undo",
-                &AppMeta::new(MemoryDataStore::default(), &event_dispatcher),
+                &test::app_meta::with_data_store::memory(),
             )),
         );
     }
 
     #[test]
     fn display_test() {
-        let app_meta = app_meta();
+        let app_meta = test::app_meta();
 
         [
             StorageCommand::Delete {
@@ -675,11 +674,5 @@ mod test {
                 command_string,
             );
         });
-    }
-
-    fn event_dispatcher(_event: Event) {}
-
-    fn app_meta() -> AppMeta {
-        AppMeta::new(MemoryDataStore::default(), &event_dispatcher)
     }
 }

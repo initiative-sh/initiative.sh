@@ -318,8 +318,7 @@ impl Autocomplete for NpcData {
 mod test {
     use super::*;
     use crate::app::assert_autocomplete;
-    use crate::storage::NullDataStore;
-    use crate::Event;
+    use crate::test_utils as utils;
     use tokio_test::block_on;
 
     #[test]
@@ -417,7 +416,7 @@ mod test {
                 ("imports-shop", "create imports-shop"),
                 ("island", "create island"),
             ][..],
-            block_on(PlaceData::autocomplete("i", &app_meta())),
+            block_on(PlaceData::autocomplete("i", &utils::app_meta())),
         );
 
         assert_autocomplete(
@@ -426,25 +425,25 @@ mod test {
                 ("an imports-shop", "create imports-shop"),
                 ("an island", "create island"),
             ][..],
-            block_on(PlaceData::autocomplete("an i", &app_meta())),
+            block_on(PlaceData::autocomplete("an i", &utils::app_meta())),
         );
 
         assert_autocomplete(
             &[("an inn named [name]", "specify a name")][..],
-            block_on(PlaceData::autocomplete("an inn n", &app_meta())),
+            block_on(PlaceData::autocomplete("an inn n", &utils::app_meta())),
         );
 
         assert_eq!(
             Vec::<AutocompleteSuggestion>::new(),
             block_on(PlaceData::autocomplete(
                 "a streetcar named desire",
-                &app_meta()
+                &utils::app_meta()
             )),
         );
 
         assert_eq!(
             Vec::<AutocompleteSuggestion>::new(),
-            block_on(PlaceData::autocomplete("Foo, an inn n", &app_meta())),
+            block_on(PlaceData::autocomplete("Foo, an inn n", &utils::app_meta())),
         );
     }
 
@@ -452,7 +451,7 @@ mod test {
     fn place_autocomplete_test_typing() {
         {
             let input = "a bar called Heaven";
-            let app_meta = app_meta();
+            let app_meta = utils::app_meta();
 
             for i in 2..input.len() {
                 assert_ne!(
@@ -466,7 +465,7 @@ mod test {
 
         {
             let input = "Foo, inn";
-            let app_meta = app_meta();
+            let app_meta = utils::app_meta();
 
             for i in 4..input.len() {
                 assert_ne!(
@@ -488,7 +487,7 @@ mod test {
                 ("elf [gender]", "specify a gender"),
                 ("elf named [name]", "specify a name"),
             ][..],
-            block_on(NpcData::autocomplete("elf ", &app_meta())),
+            block_on(NpcData::autocomplete("elf ", &utils::app_meta())),
         );
 
         assert_autocomplete(
@@ -497,14 +496,14 @@ mod test {
                 ("human [gender]", "specify a gender"),
                 ("human named [name]", "specify a name"),
             ][..],
-            block_on(NpcData::autocomplete("human ", &app_meta())),
+            block_on(NpcData::autocomplete("human ", &utils::app_meta())),
         );
     }
 
     #[test]
     fn npc_autocomplete_test_typing() {
         let input = "an elderly elvish dwarf woman named Tiramisu";
-        let app_meta = app_meta();
+        let app_meta = utils::app_meta();
 
         for i in 3..input.len() {
             assert_ne!(
@@ -514,11 +513,5 @@ mod test {
                 &input[..i],
             );
         }
-    }
-
-    fn event_dispatcher(_event: Event) {}
-
-    fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore, &event_dispatcher)
     }
 }

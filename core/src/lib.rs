@@ -14,6 +14,9 @@ pub use storage::{DataStore, MemoryDataStore, NullDataStore};
 pub use uuid::Uuid;
 pub use world::thing::Thing;
 
+#[cfg(test)]
+use utils::test_utils;
+
 mod command;
 mod reference;
 mod storage;

@@ -174,9 +174,9 @@ impl fmt::Display for CommandAlias {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::{assert_autocomplete, AppCommand, Command, Event};
+    use crate::app::{assert_autocomplete, AppCommand, Command};
     use crate::command::TransitionalCommand;
-    use crate::storage::NullDataStore;
+    use crate::test_utils as test;
     use std::collections::HashSet;
     use tokio_test::block_on;
 
@@ -243,7 +243,7 @@ mod tests {
     fn runnable_test_literal() {
         let about_alias = literal("about alias", "about summary", about());
 
-        let mut app_meta = app_meta();
+        let mut app_meta = test::app_meta();
         app_meta.command_aliases.insert(about_alias.clone());
         app_meta.command_aliases.insert(literal(
             "help alias",
@@ -287,7 +287,7 @@ mod tests {
     fn runnable_test_strict_wildcard() {
         let about_alias = strict_wildcard(about());
 
-        let mut app_meta = app_meta();
+        let mut app_meta = test::app_meta();
         app_meta.command_aliases.insert(about_alias.clone());
         app_meta.command_aliases.insert(literal(
             "literal alias",
@@ -317,12 +317,6 @@ mod tests {
 
     fn about() -> Command {
         Command::from(TransitionalCommand::new("about"))
-    }
-
-    fn event_dispatcher(_event: Event) {}
-
-    fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore, &event_dispatcher)
     }
 
     fn literal(
