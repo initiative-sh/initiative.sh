@@ -39,12 +39,12 @@ impl Command for About {
 mod test {
     use super::*;
 
+    use crate::command;
     use crate::test_utils as test;
-    use futures::StreamExt as _;
 
     #[tokio::test]
     async fn run_test() {
-        assert!(crate::command::run("about", &mut test::app_meta())
+        assert!(command::run("about", &mut test::app_meta())
             .await
             .unwrap()
             .contains("About initiative.sh"));
@@ -54,10 +54,7 @@ mod test {
     async fn autocomplete_test() {
         test::assert_autocomplete_eq!(
             [("about", "about initiative.sh")],
-            About
-                .parse_autocomplete("a", &test::app_meta())
-                .collect()
-                .await,
+            command::autocomplete("a", &test::app_meta()).await,
         );
     }
 }

@@ -160,7 +160,6 @@ impl<'a> TokenMatch<'a> {
     /// Returns `true` if the `TokenMatch` or any of its descendents contain the given marker.
     ///
     /// Returns `false` if the marker is not present.
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn contains_marker<T>(&'a self, marker: T) -> bool
     where
         T: PartialEq<u8>,
@@ -179,7 +178,6 @@ impl<'a> TokenMatch<'a> {
     }
 
     /// Iterate through all TokenMatch objects in the tree with a given set of markers.
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn find_markers<'b, T>(
         &'a self,
         markers: &'b [T],
@@ -227,7 +225,6 @@ impl<'a> FuzzyMatch<'a> {
         }
     }
 
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
     pub fn token_match(&self) -> &TokenMatch<'a> {
         match self {
             FuzzyMatch::Overflow(token_match, _)
@@ -246,7 +243,6 @@ impl<'a> FuzzyMatch<'a> {
 }
 
 impl<'a> MatchMeta<'a> {
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
     pub fn phrase(&self) -> Option<&str> {
         if let MatchMeta::Phrase(s) = self {
             Some(s)
@@ -255,7 +251,6 @@ impl<'a> MatchMeta<'a> {
         }
     }
 
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
     pub fn record(&self) -> Option<&Record> {
         if let MatchMeta::Record(r) = self {
             Some(r)
@@ -264,7 +259,7 @@ impl<'a> MatchMeta<'a> {
         }
     }
 
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn into_record(self) -> Option<Record> {
         if let MatchMeta::Record(r) = self {
             Some(r)
@@ -273,7 +268,6 @@ impl<'a> MatchMeta<'a> {
         }
     }
 
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
     pub fn sequence(&self) -> Option<&[TokenMatch<'a>]> {
         if let MatchMeta::Sequence(v) = self {
             Some(v.as_slice())
@@ -375,7 +369,6 @@ pub mod token_constructors {
     /// );
     /// # })
     /// ```
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn any_of<V>(tokens: V) -> Token
     where
         V: Into<Vec<Token>>,
@@ -497,7 +490,6 @@ pub mod token_constructors {
     /// );
     /// # })
     /// ```
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn any_phrase_m<M>(marker: M) -> Token
     where
         M: Into<u8>,
@@ -656,7 +648,6 @@ pub mod token_constructors {
     /// assert!(!token_match.contains_marker(Marker::Keyword));
     /// # })
     /// ```
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn keyword_m<M>(marker: M, keyword: &'static str) -> Token
     where
         M: Into<u8>,
@@ -721,7 +712,6 @@ pub mod token_constructors {
     /// );
     /// # })
     /// ```
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn keyword_list<V>(keywords: V) -> Token
     where
         V: IntoIterator<Item = &'static str>,
@@ -761,7 +751,6 @@ pub mod token_constructors {
     /// );
     /// # })
     /// ```
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn keyword_list_m<M, V>(marker: M, keywords: V) -> Token
     where
         M: Into<u8>,
@@ -852,7 +841,6 @@ pub mod token_constructors {
     /// );
     /// # })
     /// ```
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn name_m<M>(marker: M) -> Token
     where
         M: Into<u8>,
@@ -890,7 +878,6 @@ pub mod token_constructors {
     /// );
     /// # })
     /// ```
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn optional(token: Token) -> Token {
         Token {
             token_type: TokenType::Optional(Box::new(token)),
@@ -981,7 +968,6 @@ pub mod token_constructors {
     /// );
     /// # })
     /// ```
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn or<V>(tokens: V) -> Token
     where
         V: IntoIterator<Item = Token>,
@@ -1032,7 +1018,6 @@ pub mod token_constructors {
     /// );
     /// # })
     /// ```
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn sequence<V>(tokens: V) -> Token
     where
         V: Into<Vec<Token>>,
