@@ -1,4 +1,3 @@
-#[expect(unused_imports)]
 pub use memory::empty as memory;
 
 use crate::storage::{KeyValue, MemoryDataStore, NullDataStore};

@@ -139,7 +139,6 @@ pub mod place {
         builder::Builder::default()
     }
 
-    #[expect(dead_code)]
     pub fn relations() -> builder::RelationsBuilder {
         builder::RelationsBuilder::default()
     }

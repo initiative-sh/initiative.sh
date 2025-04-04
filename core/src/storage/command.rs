@@ -574,16 +574,16 @@ mod test {
 
         for command in [
             StorageCommand::Delete {
-                name: "Potato Johnson".to_string(),
+                name: "Odysseus".to_string(),
             },
             StorageCommand::Save {
-                name: "Potato Johnson".to_string(),
+                name: "Odysseus".to_string(),
             },
             StorageCommand::Export,
             StorageCommand::Import,
             StorageCommand::Journal,
             StorageCommand::Load {
-                name: "Potato Johnson".to_string(),
+                name: "Odysseus".to_string(),
             },
         ] {
             let command_string = command.to_string();
