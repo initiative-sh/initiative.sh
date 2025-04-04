@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize, Serializer};
 use std::fmt;
 use std::mem;
 
-#[derive(Clone, Debug, Eq, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(from = "Option<T>")]
 pub enum Field<T> {
     Locked(Option<T>),
@@ -110,9 +110,23 @@ impl<T> Field<T> {
     }
 }
 
+impl<T: Eq> Eq for Field<T> {}
+
 impl<T: PartialEq> PartialEq for Field<T> {
     fn eq(&self, other: &Self) -> bool {
         self.value() == other.value()
+    }
+}
+
+impl<T: std::cmp::Ord> std::cmp::Ord for Field<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.value().cmp(&other.value())
+    }
+}
+
+impl<T: std::cmp::PartialOrd> std::cmp::PartialOrd for Field<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.value().partial_cmp(&other.value())
     }
 }
 

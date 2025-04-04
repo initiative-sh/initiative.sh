@@ -319,7 +319,7 @@ mod test {
 
         assert_eq!(
             Command::from(CommandMatches::default()),
-            block_on(Command::parse_input("Gandalf the Grey", &app_meta))
+            block_on(Command::parse_input("Odysseus", &app_meta))
                 .take_best_match()
                 .unwrap(),
         );
