@@ -133,18 +133,17 @@ impl Generate for Ethnicity {
 }
 
 #[cfg(test)]
-mod test_generate_for_ethnicity {
+mod test {
     use super::*;
-    use crate::world::npc::ethnicity::{regenerate, Ethnicity};
-    use crate::world::npc::NpcData;
+    use crate::world::npc::ethnicity::{test_utils as test, Ethnicity};
+
+    use Age::{Adolescent, Adult, Child, Infant, YoungAdult};
+    use Ethnicity::Tiefling;
+    use Gender::{Feminine, Masculine, NonBinaryThey};
 
     #[test]
     fn gen_name_test() {
         let mut rng = SmallRng::seed_from_u64(0);
-        let adult = Age::Adult;
-        let m = Gender::Masculine;
-        let f = Gender::Feminine;
-        let t = Gender::NonBinaryThey;
 
         assert_eq!(
             [
@@ -160,26 +159,17 @@ mod test_generate_for_ethnicity {
                 "Goroth Alegtos",
             ],
             [
-                gen_name(&mut rng, &Age::Infant, &m),
-                gen_name(&mut rng, &Age::Child, &f),
-                gen_name(&mut rng, &Age::Adolescent, &m),
-                gen_name(&mut rng, &Age::YoungAdult, &f),
-                gen_name(&mut rng, &adult, &m),
-                gen_name(&mut rng, &adult, &m),
-                gen_name(&mut rng, &adult, &f),
-                gen_name(&mut rng, &adult, &f),
-                gen_name(&mut rng, &adult, &t),
-                gen_name(&mut rng, &adult, &t),
+                test::gen_name(&mut rng, Tiefling, Infant, Masculine),
+                test::gen_name(&mut rng, Tiefling, Child, Feminine),
+                test::gen_name(&mut rng, Tiefling, Adolescent, Masculine),
+                test::gen_name(&mut rng, Tiefling, YoungAdult, Feminine),
+                test::gen_name(&mut rng, Tiefling, Adult, Masculine),
+                test::gen_name(&mut rng, Tiefling, Adult, Masculine),
+                test::gen_name(&mut rng, Tiefling, Adult, Feminine),
+                test::gen_name(&mut rng, Tiefling, Adult, Feminine),
+                test::gen_name(&mut rng, Tiefling, Adult, NonBinaryThey),
+                test::gen_name(&mut rng, Tiefling, Adult, NonBinaryThey),
             ],
         );
-    }
-
-    fn gen_name(rng: &mut impl Rng, age: &Age, gender: &Gender) -> String {
-        let mut npc = NpcData::default();
-        npc.gender.replace(*gender);
-        npc.age.replace(*age);
-        npc.ethnicity.replace(Ethnicity::Tiefling);
-        regenerate(rng, &mut npc);
-        format!("{}", npc.name)
     }
 }
