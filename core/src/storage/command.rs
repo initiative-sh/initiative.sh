@@ -369,287 +369,210 @@ mod test {
     use super::*;
     use crate::app::assert_autocomplete;
     use crate::test_utils as test;
-    use crate::world::npc::{Age, Gender, NpcData, Species};
-    use crate::world::place::{PlaceData, PlaceType};
-    use tokio_test::block_on;
 
-    #[test]
-    fn parse_input_test() {
+    #[tokio::test]
+    async fn parse_input_test() {
         let app_meta = test::app_meta();
 
         assert_eq!(
             CommandMatches::default(),
-            block_on(StorageCommand::parse_input("Gandalf the Grey", &app_meta)),
+            StorageCommand::parse_input("Odysseus", &app_meta).await,
         );
 
         assert_eq!(
             CommandMatches::new_canonical(StorageCommand::Delete {
-                name: "Gandalf the Grey".to_string(),
+                name: "Odysseus".to_string(),
             }),
-            block_on(StorageCommand::parse_input(
-                "delete Gandalf the Grey",
-                &app_meta
-            )),
+            StorageCommand::parse_input("delete Odysseus", &app_meta).await,
         );
 
         assert_eq!(
-            block_on(StorageCommand::parse_input(
-                "delete Gandalf the Grey",
-                &app_meta
-            )),
-            block_on(StorageCommand::parse_input(
-                "DELETE Gandalf the Grey",
-                &app_meta
-            )),
+            StorageCommand::parse_input("delete Odysseus", &app_meta).await,
+            StorageCommand::parse_input("DELETE Odysseus", &app_meta).await,
         );
 
         assert_eq!(
             CommandMatches::new_canonical(StorageCommand::Save {
-                name: "Gandalf the Grey".to_string(),
+                name: "Odysseus".to_string(),
             }),
-            block_on(StorageCommand::parse_input(
-                "save Gandalf the Grey",
-                &app_meta
-            )),
+            StorageCommand::parse_input("save Odysseus", &app_meta).await,
         );
 
         assert_eq!(
-            block_on(StorageCommand::parse_input(
-                "save Gandalf the Grey",
-                &app_meta
-            )),
-            block_on(StorageCommand::parse_input(
-                "SAVE Gandalf the Grey",
-                &app_meta
-            )),
+            StorageCommand::parse_input("save Odysseus", &app_meta).await,
+            StorageCommand::parse_input("SAVE Odysseus", &app_meta).await,
         );
 
         assert_eq!(
             CommandMatches::new_canonical(StorageCommand::Load {
-                name: "Gandalf the Grey".to_string()
+                name: "Odysseus".to_string()
             }),
-            block_on(StorageCommand::parse_input(
-                "load Gandalf the Grey",
-                &app_meta
-            )),
+            StorageCommand::parse_input("load Odysseus", &app_meta).await,
         );
 
         assert_eq!(
-            block_on(StorageCommand::parse_input(
-                "load Gandalf the Grey",
-                &app_meta
-            )),
-            block_on(StorageCommand::parse_input(
-                "LOAD Gandalf the Grey",
-                &app_meta
-            )),
+            StorageCommand::parse_input("load Odysseus", &app_meta).await,
+            StorageCommand::parse_input("LOAD Odysseus", &app_meta).await,
         );
 
         assert_eq!(
             CommandMatches::new_canonical(StorageCommand::Journal),
-            block_on(StorageCommand::parse_input("journal", &app_meta)),
+            StorageCommand::parse_input("journal", &app_meta).await,
         );
 
         assert_eq!(
             CommandMatches::new_canonical(StorageCommand::Journal),
-            block_on(StorageCommand::parse_input("JOURNAL", &app_meta)),
+            StorageCommand::parse_input("JOURNAL", &app_meta).await,
         );
 
         assert_eq!(
             CommandMatches::default(),
-            block_on(StorageCommand::parse_input("potato", &app_meta)),
+            StorageCommand::parse_input("potato", &app_meta).await,
         );
     }
 
-    #[test]
-    fn autocomplete_test() {
-        let mut app_meta = test::app_meta::with_data_store::memory();
+    #[tokio::test]
+    async fn autocomplete_test() {
+        let mut app_meta = test::app_meta::with_test_data().await;
 
-        block_on(
-            app_meta.repository.modify(Change::Create {
-                thing_data: NpcData {
-                    name: "Potato Johnson".into(),
-                    species: Species::Elf.into(),
-                    gender: Gender::NonBinaryThey.into(),
-                    age: Age::Adult.into(),
-                    ..Default::default()
-                }
-                .into(),
-                uuid: None,
-            }),
-        )
-        .unwrap();
-
-        block_on(
-            app_meta.repository.modify(Change::Create {
-                thing_data: NpcData {
-                    name: "potato can be lowercase".into(),
-                    ..Default::default()
-                }
-                .into(),
-                uuid: None,
-            }),
-        )
-        .unwrap();
-
-        block_on(
-            app_meta.repository.modify(Change::Create {
-                thing_data: PlaceData {
-                    name: "Potato & Meat".into(),
-                    subtype: "inn".parse::<PlaceType>().ok().into(),
-                    ..Default::default()
-                }
-                .into(),
-                uuid: None,
-            }),
-        )
-        .unwrap();
-
-        assert!(block_on(StorageCommand::autocomplete("delete P", &app_meta)).is_empty());
+        assert!(StorageCommand::autocomplete("delete z", &app_meta)
+            .await
+            .is_empty());
 
         assert_autocomplete(
-            &[
-                ("save Potato Johnson", "save character to journal"),
-                ("save potato can be lowercase", "save character to journal"),
-                ("save Potato & Meat", "save place to journal"),
-            ][..],
-            block_on(StorageCommand::autocomplete("save ", &app_meta)),
+            &[("save Odysseus", "save character to journal")][..],
+            StorageCommand::autocomplete("save ", &app_meta).await,
         );
 
         assert_eq!(
-            block_on(StorageCommand::autocomplete("save ", &app_meta)),
-            block_on(StorageCommand::autocomplete("SAve ", &app_meta)),
+            StorageCommand::autocomplete("save ", &app_meta).await,
+            StorageCommand::autocomplete("SAve ", &app_meta).await,
         );
 
         assert_autocomplete(
             &[
-                ("load Potato Johnson", "adult elf, they/them (unsaved)"),
-                ("load Potato & Meat", "inn (unsaved)"),
-                ("load potato can be lowercase", "person (unsaved)"),
+                ("load Penelope", "middle-aged human, she/her"),
+                ("load Polyphemus", "adult half-orc, he/him"),
             ][..],
-            block_on(StorageCommand::autocomplete("load P", &app_meta)),
+            StorageCommand::autocomplete("load P", &app_meta).await,
         );
 
         assert_eq!(
-            block_on(StorageCommand::autocomplete("load P", &app_meta)),
-            block_on(StorageCommand::autocomplete("LOad p", &app_meta)),
+            StorageCommand::autocomplete("load P", &app_meta).await,
+            StorageCommand::autocomplete("LOad p", &app_meta).await,
         );
 
         assert_autocomplete(
             &[("delete [name]", "remove an entry from journal")][..],
-            block_on(StorageCommand::autocomplete("delete", &app_meta)),
+            StorageCommand::autocomplete("delete", &app_meta).await,
         );
 
         assert_autocomplete(
             &[("delete [name]", "remove an entry from journal")][..],
-            block_on(StorageCommand::autocomplete("DELete", &app_meta)),
+            StorageCommand::autocomplete("DELete", &app_meta).await,
         );
 
         assert_autocomplete(
             &[("load [name]", "load an entry")][..],
-            block_on(StorageCommand::autocomplete("load", &app_meta)),
+            StorageCommand::autocomplete("load", &app_meta).await,
         );
 
         assert_autocomplete(
             &[("load [name]", "load an entry")][..],
-            block_on(StorageCommand::autocomplete("LOad", &app_meta)),
+            StorageCommand::autocomplete("LOad", &app_meta).await,
         );
 
         assert_autocomplete(
             &[("save [name]", "save an entry to journal")][..],
-            block_on(StorageCommand::autocomplete("s", &app_meta)),
+            StorageCommand::autocomplete("sa", &app_meta).await,
         );
 
         assert_autocomplete(
             &[("save [name]", "save an entry to journal")][..],
-            block_on(StorageCommand::autocomplete("S", &app_meta)),
+            StorageCommand::autocomplete("SA", &app_meta).await,
         );
 
         assert_autocomplete(
             &[("journal", "list journal contents")][..],
-            block_on(StorageCommand::autocomplete("j", &app_meta)),
+            StorageCommand::autocomplete("j", &app_meta).await,
         );
 
         assert_autocomplete(
             &[("journal", "list journal contents")][..],
-            block_on(StorageCommand::autocomplete("J", &app_meta)),
+            StorageCommand::autocomplete("J", &app_meta).await,
         );
 
         assert_autocomplete(
             &[("export", "export the journal contents")][..],
-            block_on(StorageCommand::autocomplete("e", &app_meta)),
+            StorageCommand::autocomplete("e", &app_meta).await,
         );
 
         assert_autocomplete(
             &[("export", "export the journal contents")][..],
-            block_on(StorageCommand::autocomplete("E", &app_meta)),
+            StorageCommand::autocomplete("E", &app_meta).await,
         );
 
         assert_autocomplete(
             &[("import", "import a journal backup")][..],
-            block_on(StorageCommand::autocomplete("i", &app_meta)),
+            StorageCommand::autocomplete("im", &app_meta).await,
         );
 
         assert_autocomplete(
             &[("import", "import a journal backup")][..],
-            block_on(StorageCommand::autocomplete("I", &app_meta)),
+            StorageCommand::autocomplete("IM", &app_meta).await,
         );
 
         assert_autocomplete(
             &[
-                ("Potato & Meat", "inn (unsaved)"),
-                ("Potato Johnson", "adult elf, they/them (unsaved)"),
-                ("potato can be lowercase", "person (unsaved)"),
+                ("Penelope", "middle-aged human, she/her"),
+                ("Polyphemus", "adult half-orc, he/him"),
             ][..],
-            block_on(StorageCommand::autocomplete("p", &app_meta)),
+            StorageCommand::autocomplete("p", &app_meta).await,
         );
 
         assert_eq!(
-            block_on(StorageCommand::autocomplete("p", &app_meta)),
-            block_on(StorageCommand::autocomplete("P", &app_meta)),
+            StorageCommand::autocomplete("p", &app_meta).await,
+            StorageCommand::autocomplete("P", &app_meta).await,
         );
 
         assert_autocomplete(
-            &[("Potato Johnson", "adult elf, they/them (unsaved)")][..],
-            block_on(StorageCommand::autocomplete("Potato Johnson", &app_meta)),
+            &[("Odysseus", "middle-aged human, he/him (unsaved)")][..],
+            StorageCommand::autocomplete("Odysseus", &app_meta).await,
         );
 
         assert_autocomplete(
-            &[("Potato Johnson", "adult elf, they/them (unsaved)")][..],
-            block_on(StorageCommand::autocomplete("pOTATO jOHNSON", &app_meta)),
+            &[("Odysseus", "middle-aged human, he/him (unsaved)")][..],
+            StorageCommand::autocomplete("oDYSSEUS", &app_meta).await,
         );
 
         assert_autocomplete(
-            &[("undo", "undo creating Potato & Meat")][..],
-            block_on(StorageCommand::autocomplete("undo", &app_meta)),
+            &[("undo", "undo creating Odysseus")][..],
+            StorageCommand::autocomplete("undo", &app_meta).await,
         );
 
         assert_autocomplete(
             &[("redo", "Nothing to redo.")][..],
-            block_on(StorageCommand::autocomplete("redo", &app_meta)),
+            StorageCommand::autocomplete("redo", &app_meta).await,
         );
 
-        block_on(app_meta.repository.undo()).unwrap().unwrap();
+        app_meta.repository.undo().await.unwrap().unwrap();
 
         assert_autocomplete(
-            &[("redo", "redo creating Potato & Meat")][..],
-            block_on(StorageCommand::autocomplete("redo", &app_meta)),
+            &[("redo", "redo creating Odysseus")][..],
+            StorageCommand::autocomplete("redo", &app_meta).await,
         );
 
         assert_autocomplete(
             &[("undo", "Nothing to undo.")][..],
-            block_on(StorageCommand::autocomplete(
-                "undo",
-                &test::app_meta::with_data_store::memory(),
-            )),
+            StorageCommand::autocomplete("undo", &app_meta).await,
         );
     }
 
-    #[test]
-    fn display_test() {
+    #[tokio::test]
+    async fn display_test() {
         let app_meta = test::app_meta();
 
-        [
+        for command in [
             StorageCommand::Delete {
                 name: "Potato Johnson".to_string(),
             },
@@ -662,17 +585,15 @@ mod test {
             StorageCommand::Load {
                 name: "Potato Johnson".to_string(),
             },
-        ]
-        .into_iter()
-        .for_each(|command| {
+        ] {
             let command_string = command.to_string();
             assert_ne!("", command_string);
             assert_eq!(
                 CommandMatches::new_canonical(command),
-                block_on(StorageCommand::parse_input(&command_string, &app_meta)),
+                StorageCommand::parse_input(&command_string, &app_meta).await,
                 "{}",
                 command_string,
             );
-        });
+        }
     }
 }

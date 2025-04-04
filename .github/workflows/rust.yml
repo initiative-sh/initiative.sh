@@ -22,7 +22,7 @@ jobs:
       - name: Run rustfmt
         run: rustfmt --check --edition 2021 --verbose */src/{lib,main}.rs */tests/*.rs
       - name: Verify no mangled parens
-        run: if git grep ',)' '*.rs'; then exit 1; fi
+        run: if git grep -E -- ',[])]([^*?]|$)' *.rs >&2; then exit 1; fi
       - name: Run Clippy
         run: cargo clippy --workspace --tests -- --deny warnings
 
