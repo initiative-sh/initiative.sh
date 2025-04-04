@@ -33,6 +33,18 @@ pub mod memory {
         );
         data_store
     }
+
+    pub fn with_test_data() -> MemoryDataStore {
+        test::data_store::memory::with(
+            [
+                test::world::thing::penelope(),
+                test::world::thing::polyphemus(),
+                test::world::thing::greece(),
+                test::world::thing::ithaca(),
+            ],
+            [],
+        )
+    }
 }
 
 pub fn null() -> NullDataStore {

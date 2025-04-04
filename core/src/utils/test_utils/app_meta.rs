@@ -1,5 +1,5 @@
 use crate::app::AppMeta;
-use crate::storage::{DataStore, KeyValue, Repository};
+use crate::storage::{Change, DataStore, KeyValue, Repository};
 use crate::world::thing::Thing;
 use crate::Event;
 
@@ -8,7 +8,23 @@ use crate::utils::test_utils as test;
 #[expect(unused_imports)]
 pub use with_data_store::null as empty;
 
+pub async fn with_test_data() -> AppMeta {
+    let mut repository = Repository::new(test::data_store::memory::with_test_data());
+
+    let odysseus = test::thing::odysseus();
+    repository
+        .modify(Change::Create {
+            thing_data: odysseus.data,
+            uuid: Some(test::thing::ODYSSEUS),
+        })
+        .await
+        .unwrap();
+
+    test::app_meta::with_repository(repository)
+}
+
 pub mod with_data_store {
+    #[expect(unused_imports)]
     pub use memory::empty as memory;
 
     use super::*;
@@ -16,6 +32,7 @@ pub mod with_data_store {
     pub mod memory {
         use super::*;
 
+        #[expect(dead_code)]
         pub fn empty() -> AppMeta {
             test::app_meta::with_data_store(test::data_store::memory::empty())
         }
@@ -45,7 +62,6 @@ pub fn with_data_store(data_store: impl DataStore + 'static) -> AppMeta {
     AppMeta::new(data_store, &event_dispatcher)
 }
 
-#[expect(dead_code)]
 pub fn with_repository(repository: Repository) -> AppMeta {
     let mut app_meta = test::app_meta();
     app_meta.repository = repository;
