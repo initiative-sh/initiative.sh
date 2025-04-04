@@ -40,25 +40,18 @@ impl fmt::Debug for AppMeta {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::storage::NullDataStore;
+    use crate::test_utils as test;
     use crate::world::Demographics;
     use std::collections::HashMap;
 
     #[test]
     fn debug_test() {
-        let mut app_meta = app_meta();
+        let mut app_meta = test::app_meta();
         app_meta.demographics = Demographics::new(HashMap::new());
 
         assert_eq!(
             "AppMeta { command_aliases: {}, demographics: Demographics { groups: GroupMapWrapper({}) }, repository: Repository { data_store_enabled: false, recent: [] } }",
             format!("{:?}", app_meta),
         );
-    }
-
-    fn event_dispatcher(_event: Event) {}
-
-    fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore, &event_dispatcher)
     }
 }

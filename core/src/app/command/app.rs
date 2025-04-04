@@ -107,13 +107,12 @@ impl fmt::Display for AppCommand {
 mod test {
     use super::*;
     use crate::app::assert_autocomplete;
-    use crate::storage::NullDataStore;
-    use crate::Event;
+    use crate::test_utils as test;
     use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
-        let app_meta = app_meta();
+        let app_meta = test::app_meta();
 
         assert_eq!(
             CommandMatches::new_canonical(AppCommand::Debug),
@@ -138,7 +137,7 @@ mod test {
 
     #[test]
     fn autocomplete_test() {
-        let app_meta = app_meta();
+        let app_meta = test::app_meta();
 
         [
             ("changelog", "show latest updates"),
@@ -171,7 +170,7 @@ mod test {
 
     #[test]
     fn display_test() {
-        let app_meta = app_meta();
+        let app_meta = test::app_meta();
 
         [AppCommand::Changelog, AppCommand::Debug, AppCommand::Help]
             .into_iter()
@@ -208,11 +207,5 @@ mod test {
             CommandMatches::new_canonical(AppCommand::Roll("D20".to_string())),
             block_on(AppCommand::parse_input("ROLL D20", &app_meta)),
         );
-    }
-
-    fn event_dispatcher(_event: Event) {}
-
-    fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore, &event_dispatcher)
     }
 }

@@ -1,3 +1,6 @@
+#[cfg(test)]
+pub mod test_utils;
+
 pub use case_insensitive_str::CaseInsensitiveStr;
 pub use quoted_word_iter::quoted_words;
 
