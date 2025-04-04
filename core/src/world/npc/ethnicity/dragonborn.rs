@@ -172,18 +172,17 @@ impl Generate for Ethnicity {
 }
 
 #[cfg(test)]
-mod test_generate_for_ethnicity {
+mod test {
     use super::*;
-    use crate::world::npc::ethnicity::{regenerate, Ethnicity};
-    use crate::world::npc::NpcData;
+    use crate::world::npc::ethnicity::{test_utils as test, Ethnicity};
+
+    use Age::Adult;
+    use Ethnicity::Dragonborn;
+    use Gender::{Feminine, Masculine, NonBinaryThey};
 
     #[test]
     fn gen_name_test() {
         let mut rng = SmallRng::seed_from_u64(0);
-        let age = Age::Adult;
-        let m = Gender::Masculine;
-        let f = Gender::Feminine;
-        let t = Gender::NonBinaryThey;
 
         assert_eq!(
             [
@@ -195,22 +194,13 @@ mod test_generate_for_ethnicity {
                 "Akrena Ardendark",
             ],
             [
-                gen_name(&mut rng, &age, &m),
-                gen_name(&mut rng, &age, &m),
-                gen_name(&mut rng, &age, &f),
-                gen_name(&mut rng, &age, &f),
-                gen_name(&mut rng, &age, &t),
-                gen_name(&mut rng, &age, &t),
+                test::gen_name(&mut rng, Dragonborn, Adult, Masculine),
+                test::gen_name(&mut rng, Dragonborn, Adult, Masculine),
+                test::gen_name(&mut rng, Dragonborn, Adult, Feminine),
+                test::gen_name(&mut rng, Dragonborn, Adult, Feminine),
+                test::gen_name(&mut rng, Dragonborn, Adult, NonBinaryThey),
+                test::gen_name(&mut rng, Dragonborn, Adult, NonBinaryThey),
             ],
         );
-    }
-
-    fn gen_name(rng: &mut impl Rng, age: &Age, gender: &Gender) -> String {
-        let mut npc = NpcData::default();
-        npc.gender.replace(*gender);
-        npc.age.replace(*age);
-        npc.ethnicity.replace(Ethnicity::Dragonborn);
-        regenerate(rng, &mut npc);
-        format!("{}", npc.name)
     }
 }
