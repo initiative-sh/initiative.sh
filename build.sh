@@ -10,7 +10,7 @@ if ! command -v rustup; then
   ./rustup.sh -y --target wasm32-unknown-unknown --profile minimal
   rm rustup.sh
 
-  # shellcheck disable=SC1090
+  # shellcheck disable=SC1091
   source "$HOME/.cargo/env"
 fi
 
@@ -20,7 +20,13 @@ fi
 
 
 cd "$project_root/web"
+
+# very messy workaround for https://github.com/rustwasm/wasm-pack/issues/1420
+mv package.json package.json.bak
+echo -n '{}' > package.json
 wasm-pack build --release
+mv -f package.json.bak package.json
+
 npm install
 NODE_OPTIONS=--openssl-legacy-provider npm run build
 
