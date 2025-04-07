@@ -1,3 +1,6 @@
+// Mask the `into_serde()` deprecation error for now.
+#![expect(deprecated)]
+
 //! This is the WebAssembly frontend of the initiative.sh project. It provides a skinny shim
 //! between the `initiative_core` crate and the JavaScript code contained in the `js` subdirectory
 //! of the module. Its only real purpose is to gently massage Rust types into JS-friendly types

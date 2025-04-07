@@ -1,3 +1,6 @@
+// Mask the `into_serde()` deprecation error for now.
+#![expect(deprecated)]
+
 use async_trait::async_trait;
 use initiative_core::{Thing, Uuid};
 use wasm_bindgen::prelude::*;

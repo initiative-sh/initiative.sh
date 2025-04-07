@@ -1,3 +1,5 @@
+* **Enhancement:** Update wasm-bindgen for compatibility with Rust 1.86.0. (No
+  user-facing impact.) @MikkelPaulson
 * **Enhancement:** Migrate the `about` command to use a new architecture. (No
   user-facing impact but it was a lot of work.) @MikkelPaulson
 * **Enhancement:** Feature parity for CLI autocompletion. @mplauman
