@@ -518,25 +518,22 @@ fn append_unknown_words_notice(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::app::assert_autocomplete;
-    use crate::storage::NullDataStore;
+    use crate::test_utils as test;
     use crate::world::npc::{Age, Gender, NpcData, Species};
     use crate::world::place::{PlaceData, PlaceType};
-    use crate::Event;
-    use tokio_test::block_on;
 
-    #[test]
-    fn parse_input_test() {
-        let mut app_meta = app_meta();
+    #[tokio::test]
+    async fn parse_input_test() {
+        let mut app_meta = test::app_meta();
 
         assert_eq!(
             CommandMatches::new_fuzzy(create(NpcData::default())),
-            block_on(WorldCommand::parse_input("npc", &app_meta)),
+            WorldCommand::parse_input("npc", &app_meta).await,
         );
 
         assert_eq!(
             CommandMatches::new_canonical(create(NpcData::default())),
-            block_on(WorldCommand::parse_input("create npc", &app_meta)),
+            WorldCommand::parse_input("create npc", &app_meta).await,
         );
 
         assert_eq!(
@@ -544,26 +541,27 @@ mod test {
                 species: Species::Elf.into(),
                 ..Default::default()
             })),
-            block_on(WorldCommand::parse_input("elf", &app_meta)),
+            WorldCommand::parse_input("elf", &app_meta).await,
         );
 
         assert_eq!(
             CommandMatches::default(),
-            block_on(WorldCommand::parse_input("potato", &app_meta)),
+            WorldCommand::parse_input("potato", &app_meta).await,
         );
 
         {
-            block_on(
-                app_meta.repository.modify(Change::Create {
+            app_meta
+                .repository
+                .modify(Change::Create {
                     thing_data: NpcData {
                         name: "Spot".into(),
                         ..Default::default()
                     }
                     .into(),
                     uuid: None,
-                }),
-            )
-            .unwrap();
+                })
+                .await
+                .unwrap();
 
             assert_eq!(
                 CommandMatches::new_fuzzy(WorldCommand::Edit {
@@ -580,31 +578,16 @@ mod test {
                         word_count: 2,
                     },
                 }),
-                block_on(WorldCommand::parse_input("Spot is a good boy", &app_meta)),
+                WorldCommand::parse_input("Spot is a good boy", &app_meta).await,
             );
         }
     }
 
-    #[test]
-    fn autocomplete_test() {
-        let mut app_meta = app_meta();
+    #[tokio::test]
+    async fn autocomplete_test() {
+        let app_meta = test::app_meta::with_test_data().await;
 
-        block_on(
-            app_meta.repository.modify(Change::Create {
-                thing_data: NpcData {
-                    name: "Potato Johnson".into(),
-                    species: Species::Elf.into(),
-                    gender: Gender::NonBinaryThey.into(),
-                    age: Age::Adult.into(),
-                    ..Default::default()
-                }
-                .into(),
-                uuid: None,
-            }),
-        )
-        .unwrap();
-
-        [
+        for (word, summary) in [
             ("npc", "create person"),
             // Species
             ("dragonborn", "create dragonborn"),
@@ -618,22 +601,20 @@ mod test {
             ("tiefling", "create tiefling"),
             // PlaceType
             ("inn", "create inn"),
-        ]
-        .into_iter()
-        .for_each(|(word, summary)| {
-            assert_eq!(
-                vec![AutocompleteSuggestion::new(word, summary)],
-                block_on(WorldCommand::autocomplete(word, &app_meta)),
+        ] {
+            test::assert_autocomplete_eq!(
+                [(word, summary)],
+                WorldCommand::autocomplete(word, &app_meta).await,
             );
 
-            assert_eq!(
-                vec![AutocompleteSuggestion::new(word, summary)],
-                block_on(WorldCommand::autocomplete(&word.to_uppercase(), &app_meta)),
+            test::assert_autocomplete_eq!(
+                [(word, summary)],
+                WorldCommand::autocomplete(&word.to_uppercase(), &app_meta).await,
             );
-        });
+        }
 
-        assert_autocomplete(
-            &[
+        test::assert_autocomplete_eq!(
+            [
                 ("baby", "create infant"),
                 ("bakery", "create bakery"),
                 ("bank", "create bank"),
@@ -650,80 +631,60 @@ mod test {
                 ("bridge", "create bridge"),
                 ("building", "create building"),
                 ("business", "create business"),
-            ][..],
-            block_on(WorldCommand::autocomplete("b", &app_meta)),
+            ],
+            WorldCommand::autocomplete("b", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[(
-                "Potato Johnson is [character description]",
-                "edit character",
-            )][..],
-            block_on(WorldCommand::autocomplete("Potato Johnson", &app_meta)),
+        test::assert_autocomplete_eq!(
+            [("penelope is [character description]", "edit character")],
+            WorldCommand::autocomplete("penelope", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[(
-                "Potato Johnson is a [character description]",
-                "edit character",
-            )][..],
-            block_on(WorldCommand::autocomplete(
-                "Potato Johnson is a ",
-                &app_meta,
-            )),
+        test::assert_autocomplete_eq!(
+            [("PENELOPE is a [character description]", "edit character")],
+            WorldCommand::autocomplete("PENELOPE is a ", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[
-                ("Potato Johnson is an elderly", "edit character"),
-                ("Potato Johnson is an elf", "edit character"),
-                ("Potato Johnson is an elvish", "edit character"),
-                ("Potato Johnson is an enby", "edit character"),
-            ][..],
-            block_on(WorldCommand::autocomplete(
-                "Potato Johnson is an e",
-                &app_meta,
-            )),
+        test::assert_autocomplete_eq!(
+            [
+                ("penelope is an elderly", "edit character"),
+                ("penelope is an elf", "edit character"),
+                ("penelope is an elvish", "edit character"),
+                ("penelope is an enby", "edit character"),
+            ],
+            WorldCommand::autocomplete("penelope is an e", &app_meta).await,
         );
     }
 
-    #[test]
-    fn display_test() {
-        let app_meta = app_meta();
+    #[tokio::test]
+    async fn display_test() {
+        let app_meta = test::app_meta();
 
-        [
+        for command in [
             create(PlaceData {
                 subtype: "inn".parse::<PlaceType>().ok().into(),
                 ..Default::default()
             }),
             create(NpcData::default()),
-            create(NpcData {
-                species: Some(Species::Elf).into(),
-                ..Default::default()
-            }),
-        ]
-        .into_iter()
-        .for_each(|command| {
+            create(test::npc().species(Species::Elf).build()),
+        ] {
             let command_string = command.to_string();
             assert_ne!("", command_string);
 
             assert_eq!(
                 CommandMatches::new_canonical(command.clone()),
-                block_on(WorldCommand::parse_input(&command_string, &app_meta)),
+                WorldCommand::parse_input(&command_string, &app_meta).await,
                 "{}",
                 command_string,
             );
 
             assert_eq!(
                 CommandMatches::new_canonical(command),
-                block_on(WorldCommand::parse_input(
-                    &command_string.to_uppercase(),
-                    &app_meta
-                )),
+                WorldCommand::parse_input(&command_string.to_uppercase(), &app_meta).await,
                 "{}",
                 command_string.to_uppercase(),
             );
-        });
+        }
     }
 
     fn parsed_thing(thing_data: impl Into<ThingData>) -> ParsedThing<ThingData> {
@@ -738,11 +699,5 @@ mod test {
         WorldCommand::Create {
             parsed_thing_data: parsed_thing(thing_data),
         }
-    }
-
-    fn event_dispatcher(_event: Event) {}
-
-    fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore, &event_dispatcher)
     }
 }

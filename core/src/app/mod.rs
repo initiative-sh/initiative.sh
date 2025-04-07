@@ -4,9 +4,6 @@ pub use command::{
 };
 pub use meta::AppMeta;
 
-#[cfg(test)]
-pub use command::assert_autocomplete;
-
 mod command;
 mod meta;
 

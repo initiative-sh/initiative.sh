@@ -184,6 +184,7 @@ impl Generate for NpcData {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::utils::test_utils as test;
     use rand::prelude::*;
 
     #[test]
@@ -208,63 +209,39 @@ mod test {
 
     #[test]
     fn serialize_deserialize_test() {
-        let npc = gandalf();
-
         assert_eq!(
-            r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"neuter","age":"geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"human","ethnicity":"human","location_uuid":null}"#,
-            serde_json::to_string(&npc).unwrap()
+            r#"{"uuid":"00000000-0000-0000-0000-000000000011","name":"Odysseus","gender":"masculine","age":"middle-aged","age_years":50,"size":{"type":"Medium","height":72,"weight":180},"species":"human","ethnicity":"human","location_uuid":"00000000-0000-0000-0000-000000000003"}"#,
+            serde_json::to_string(&test::npc::odysseus()).unwrap()
         );
 
-        let value: Npc = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000000","name":"Gandalf the Grey","gender":"neuter","age":"geriatric","age_years":65535,"size":{"type":"Medium","height":72,"weight":200},"species":"human","ethnicity":"human","location_uuid":null}"#).unwrap();
+        let value: Npc = serde_json::from_str(r#"{"uuid":"00000000-0000-0000-0000-000000000011","name":"Odysseus","gender":"masculine","age":"middle-aged","age_years":50,"size":{"type":"Medium","height":72,"weight":180},"species":"human","ethnicity":"human","location_uuid":"00000000-0000-0000-0000-000000000003"}"#).unwrap();
 
-        assert_eq!(npc, value);
+        assert_eq!(test::npc::odysseus(), value);
     }
 
     #[test]
     fn apply_diff_test_no_change() {
-        let mut npc = gandalf();
+        let mut npc = test::npc::odysseus();
         let mut diff = NpcData::default();
 
         npc.data.apply_diff(&mut diff);
 
-        assert_eq!(gandalf(), npc);
+        assert_eq!(test::npc::odysseus(), npc);
         assert_eq!(NpcData::default(), diff);
     }
 
     #[test]
     fn apply_diff_test_from_empty() {
-        let gandalf = gandalf();
+        let mut npc_data = NpcData::default();
+        let mut diff = test::npc::odysseus().data.clone();
 
-        let mut npc = NpcData::default();
-        let mut diff = gandalf.data.clone();
+        npc_data.apply_diff(&mut diff);
 
-        npc.apply_diff(&mut diff);
-
-        assert_eq!(gandalf.data, npc);
+        assert_eq!(test::npc::odysseus().data, npc_data);
 
         let mut empty_locked = NpcData::default();
         empty_locked.lock_all();
         assert_eq!(empty_locked, diff);
-    }
-
-    fn gandalf() -> Npc {
-        Npc {
-            uuid: uuid::Uuid::nil(),
-            data: NpcData {
-                name: "Gandalf the Grey".into(),
-                gender: Gender::Neuter.into(),
-                age: Age::Geriatric.into(),
-                age_years: u16::MAX.into(),
-                size: Size::Medium {
-                    height: 72,
-                    weight: 200,
-                }
-                .into(),
-                species: Species::Human.into(),
-                ethnicity: Ethnicity::Human.into(),
-                location_uuid: None.into(),
-            },
-        }
     }
 
     #[test]

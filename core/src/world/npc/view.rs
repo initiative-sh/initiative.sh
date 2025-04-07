@@ -165,9 +165,8 @@ impl fmt::Display for DetailsView<'_> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::world::npc::{Age, Ethnicity, Gender, Npc, Size, Species};
-    use crate::world::place::{Place, PlaceData, PlaceType};
-    use crate::world::Field;
+    use crate::utils::test_utils as test;
+    use crate::world::npc::{Age, Ethnicity, Gender, Npc, Species};
 
     const NAME: u8 = 0b1;
     const AGE: u8 = 0b10;
@@ -226,31 +225,20 @@ mod test {
 
     #[test]
     fn details_view_test_filled() {
-        let mut npc = NpcData::default();
-        npc.name.replace("Potato Johnson".to_string());
-        npc.species.replace(Species::Human);
-        npc.ethnicity.replace(Ethnicity::Elvish);
-        npc.gender.replace(Gender::NonBinaryThey);
-        npc.age.replace(Age::Adult);
-        npc.age_years.replace(30);
-        npc.size.replace(Size::Medium {
-            height: 71,
-            weight: 140,
-        });
-
         assert_eq!(
-            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000000">
+            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000011">
 
-# Potato Johnson
-*adult human, they/them*
+# Odysseus
+*middle-aged human, he/him*
 
-**Species:** human (elvish)\
-**Gender:** non-binary\
-**Age:** 30 years\
-**Size:** 5'11", 140 lbs (medium)
+**Species:** human\
+**Gender:** masculine\
+**Age:** 50 years\
+**Size:** 6'0", 180 lbs (medium)
 
 </div>"#,
-            npc.display_details(Uuid::nil(), NpcRelations::default())
+            test::npc::odysseus::data()
+                .display_details(test::npc::odysseus::UUID, NpcRelations::default())
                 .to_string(),
         );
     }
@@ -258,7 +246,7 @@ mod test {
     #[test]
     fn details_view_test_species_ethnicity() {
         assert_eq!(
-            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000000">
+            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000004">
 
 # Unnamed NPC
 *human*
@@ -271,7 +259,7 @@ mod test {
                 .to_string(),
         );
         assert_eq!(
-            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000000">
+            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000010">
 
 # Unnamed NPC
 *elvish person*
@@ -284,7 +272,7 @@ mod test {
                 .to_string(),
         );
         assert_eq!(
-            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000000">
+            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000014">
 
 # Unnamed NPC
 *human*
@@ -317,104 +305,65 @@ mod test {
 
     #[test]
     fn details_view_test_with_parent_location() {
-        let npc = NpcData {
-            name: "Frodo Baggins".into(),
-            ..Default::default()
-        };
-
-        let relations = NpcRelations {
-            location: Some((
-                Place {
-                    uuid: Uuid::nil(),
-                    data: PlaceData {
-                        name: "Mount Doom".into(),
-                        subtype: "mountain".parse::<PlaceType>().unwrap().into(),
-                        ..Default::default()
-                    },
-                },
-                None,
-            )),
-        };
-
         assert_eq!(
-            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000000">
+            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000011">
 
-# Frodo Baggins
+# Odysseus
 *person*
 
 **Species:** N/A\
-**Location:** ⛰ `Mount Doom` (mountain)
+**Location:** 🏞 `Styx` (river)
 
 </div>"#,
-            DetailsView::new(&npc, Uuid::nil(), relations).to_string(),
+            DetailsView::new(
+                &test::npc().name("Odysseus").build(),
+                test::npc::odysseus::UUID,
+                test::npc::odysseus::relations(),
+            )
+            .to_string(),
         );
     }
 
     #[test]
     fn details_view_test_with_grandparent_location() {
-        let npc = NpcData {
-            name: "Frodo Baggins".into(),
-            ..Default::default()
-        };
-
-        let relations = NpcRelations {
-            location: Some((
-                Place {
-                    uuid: Uuid::nil(),
-                    data: PlaceData {
-                        name: "The Prancing Pony".into(),
-                        subtype: "inn".parse::<PlaceType>().unwrap().into(),
-                        ..Default::default()
-                    },
-                },
-                Some(Place {
-                    uuid: Uuid::nil(),
-                    data: PlaceData {
-                        name: "Bree".into(),
-                        subtype: "town".parse::<PlaceType>().unwrap().into(),
-                        ..Default::default()
-                    },
-                }),
-            )),
-        };
-
         assert_eq!(
-            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000000">
+            r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000012">
 
-# Frodo Baggins
+# Penelope
 *person*
 
 **Species:** N/A\
-**Location:** 🏨 `The Prancing Pony`, 🏘 `Bree`
+**Location:** 🏝 `Ithaca`, 👑 `Greece`
 
 </div>"#,
-            DetailsView::new(&npc, Uuid::nil(), relations).to_string(),
+            DetailsView::new(
+                &test::npc().name("Penelope").build(),
+                test::npc::penelope::UUID,
+                test::npc::penelope::relations(),
+            )
+            .to_string(),
         );
     }
 
     fn gen_npc(bitmask: u8) -> Npc {
-        let mut npc_data = NpcData::default();
+        let mut builder = test::npc();
 
         if bitmask & NAME > 0 {
-            npc_data.name = Field::new_generated("Potato Johnson".to_string());
+            builder = builder.name("Potato Johnson");
         }
         if bitmask & AGE > 0 {
-            npc_data.age = Field::new_generated(Age::Elderly);
-            npc_data.age_years = Field::new_generated(60);
+            builder = builder.age(Age::Elderly).age_years(60);
         }
         if bitmask & SPECIES > 0 {
-            npc_data.species = Field::new_generated(Species::Human);
+            builder = builder.species(Species::Human);
         }
         if bitmask & GENDER > 0 {
-            npc_data.gender = Field::new_generated(Gender::Masculine);
+            builder = builder.gender(Gender::Masculine);
         }
         if bitmask & ETHNICITY > 0 {
-            npc_data.ethnicity = Field::new_generated(Ethnicity::Elvish);
+            builder = builder.ethnicity(Ethnicity::Elvish);
         }
 
-        Npc {
-            uuid: Uuid::nil(),
-            data: npc_data,
-        }
+        builder.build_with_uuid(Uuid::from_u128(bitmask.into()))
     }
 }

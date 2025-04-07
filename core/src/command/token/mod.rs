@@ -83,34 +83,3 @@ impl<'a> FuzzyMatch<'a> {
         }
     }
 }
-
-#[cfg(test)]
-pub mod test {
-    use super::*;
-
-    pub async fn assert_stream_eq<'a, T>(
-        mut expect_results: Vec<T>,
-        stream: Pin<Box<dyn Stream<Item = T> + 'a>>,
-    ) where
-        T: std::fmt::Debug + PartialEq,
-    {
-        for result in stream.collect::<Vec<_>>().await {
-            let Some(index) = expect_results
-                .iter()
-                .position(|expect_result| expect_result == &result)
-            else {
-                panic!(
-                    "Not found in expected results: {:?}\n\nRemaining expected results: {:?}",
-                    result, expect_results
-                );
-            };
-            expect_results.swap_remove(index);
-        }
-
-        assert_eq!(
-            Vec::<T>::new(),
-            expect_results,
-            "Expected all results to be exhausted",
-        );
-    }
-}

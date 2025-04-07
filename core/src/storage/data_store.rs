@@ -1,8 +1,10 @@
 use crate::utils::CaseInsensitiveStr;
 use crate::{Thing, Uuid};
 use async_trait::async_trait;
+use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 #[derive(Default)]
 pub struct NullDataStore;
@@ -10,8 +12,8 @@ pub struct NullDataStore;
 #[cfg_attr(test, derive(Debug, PartialEq))]
 #[derive(Clone, Default)]
 pub struct MemoryDataStore {
-    pub things: std::rc::Rc<std::cell::RefCell<HashMap<Uuid, Thing>>>,
-    pub key_values: std::rc::Rc<std::cell::RefCell<std::collections::HashMap<String, String>>>,
+    pub things: Rc<RefCell<HashMap<Uuid, Thing>>>,
+    pub key_values: Rc<RefCell<HashMap<String, String>>>,
 }
 
 #[async_trait(?Send)]
@@ -186,207 +188,137 @@ pub trait DataStore {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::world::npc::{Npc, NpcData};
-    use crate::world::place::{Place, PlaceData};
-    use tokio_test::block_on;
+    use crate::utils::test_utils as test;
 
-    const TEST_UUID: Uuid = Uuid::from_u128(u128::MAX);
+    #[tokio::test]
+    async fn memory_delete_thing_by_uuid_test() {
+        let mut ds = test::data_store::memory::with_test_data();
+        let len = ds.things.borrow().len();
 
-    #[test]
-    fn memory_delete_thing_by_uuid_test() {
-        let mut ds = MemoryDataStore::default();
-
-        assert_eq!(Ok(()), block_on(ds.save_thing(&person(TEST_UUID))));
-        assert_eq!(Ok(1), block_on(ds.get_all_the_things()).map(|v| v.len()));
-        assert_eq!(Err(()), block_on(ds.delete_thing_by_uuid(&Uuid::nil())));
-        assert_eq!(Ok(1), block_on(ds.get_all_the_things()).map(|v| v.len()));
-        assert_eq!(Ok(()), block_on(ds.delete_thing_by_uuid(&TEST_UUID)));
-        assert_eq!(Ok(0), block_on(ds.get_all_the_things()).map(|v| v.len()));
-    }
-
-    #[test]
-    fn memory_get_thing_by_uuid_test() {
-        let mut ds = MemoryDataStore::default();
-
-        assert_eq!(Ok(None), block_on(ds.get_thing_by_uuid(&TEST_UUID)));
-        assert_eq!(Ok(()), block_on(ds.save_thing(&person(TEST_UUID))));
         assert_eq!(
-            Ok(Some(person(TEST_UUID))),
-            block_on(ds.get_thing_by_uuid(&TEST_UUID)),
+            Err(()),
+            ds.delete_thing_by_uuid(&test::thing::ODYSSEUS).await
         );
+        assert_eq!(len, ds.things.borrow().len());
+        assert_eq!(
+            Ok(()),
+            ds.delete_thing_by_uuid(&test::thing::PENELOPE).await
+        );
+        assert_eq!(len - 1, ds.things.borrow().len());
     }
 
-    #[test]
-    fn memory_get_thing_by_name_test() {
-        let mut ds = MemoryDataStore::default();
+    #[tokio::test]
+    async fn memory_get_thing_by_uuid_test() {
+        let ds = test::data_store::memory::with_test_data();
 
-        let gandalf_the_grey = Npc {
-            uuid: TEST_UUID,
-            data: NpcData {
-                name: "Gandalf the Grey".into(),
-                ..Default::default()
-            },
-        }
-        .into();
-
-        assert_eq!(Ok(None), block_on(ds.get_thing_by_name("gANDALF THE gREY")));
-        assert_eq!(Ok(()), block_on(ds.save_thing(&gandalf_the_grey)));
+        assert_eq!(Ok(None), ds.get_thing_by_uuid(&test::thing::ODYSSEUS).await);
         assert_eq!(
-            Ok(Some(gandalf_the_grey)),
-            block_on(ds.get_thing_by_name("gANDALF THE gREY")),
+            Ok(Some(test::thing::penelope())),
+            ds.get_thing_by_uuid(&test::thing::PENELOPE).await,
         );
     }
 
-    #[test]
-    fn memory_get_things_by_name_start_test() {
-        let mut ds = MemoryDataStore::default();
+    #[tokio::test]
+    async fn memory_get_thing_by_name_test() {
+        let ds = test::data_store::memory::with_test_data();
 
-        for name in ["Gandalf the Grey", "gANDALF THE wHITE", "Frodo Baggins"] {
-            block_on(
-                ds.save_thing(
-                    &Npc {
-                        uuid: Uuid::new_v4(),
-                        data: NpcData {
-                            name: name.into(),
-                            ..Default::default()
-                        },
-                    }
-                    .into(),
-                ),
-            )
-            .unwrap();
-        }
+        assert_eq!(Ok(None), ds.get_thing_by_name("odysseus").await);
+        assert_eq!(
+            Ok(Some(test::thing::penelope())),
+            ds.get_thing_by_name("penelope").await,
+        );
+    }
 
-        let mut results = block_on(ds.get_things_by_name_start("gan", None)).unwrap();
-        results.sort_by(|a, b| a.name().value().cmp(&b.name().value()));
-        let mut result_iter = results.iter();
+    #[tokio::test]
+    async fn memory_get_things_by_name_start_test() {
+        let ds = test::data_store::memory::with_test_data();
+
+        let mut results = ds.get_things_by_name_start("p", None).await.unwrap();
+        results.sort_by_key(|thing| thing.uuid);
         assert_eq!(
-            "Gandalf the Grey",
-            result_iter.next().and_then(|t| t.name().value()).unwrap(),
+            vec![test::thing::penelope(), test::thing::polyphemus()],
+            results
         );
-        assert_eq!(
-            "gANDALF THE wHITE",
-            result_iter.next().and_then(|t| t.name().value()).unwrap(),
-        );
-        assert_eq!(None, result_iter.next());
 
         assert_eq!(
             1,
-            block_on(ds.get_things_by_name_start("gan", Some(1)))
+            ds.get_things_by_name_start("p", Some(1))
+                .await
                 .unwrap()
                 .len(),
         );
     }
 
-    #[test]
-    fn memory_edit_thing_test() {
-        let mut ds = MemoryDataStore::default();
+    #[tokio::test]
+    async fn memory_edit_thing_test() {
+        let mut ds = test::data_store::memory();
 
-        let gandalf_the_grey = Npc {
-            uuid: TEST_UUID,
-            data: NpcData {
-                name: "Gandalf the Grey".into(),
-                ..Default::default()
-            },
-        };
+        let odysseus = test::thing::odysseus();
+        let nobody = test::npc().name("Nobody").build_thing(test::npc::ODYSSEUS);
 
-        let gandalf_the_white = Npc {
-            uuid: TEST_UUID,
-            data: NpcData {
-                name: "Gandalf the White".into(),
-                ..Default::default()
-            },
-        };
-
-        assert_eq!(Ok(()), block_on(ds.edit_thing(&gandalf_the_grey.into())));
-        assert_eq!(Ok(1), block_on(ds.get_all_the_things()).map(|v| v.len()));
-        assert_eq!(Ok(()), block_on(ds.edit_thing(&gandalf_the_white.into())));
-        assert_eq!(Ok(1), block_on(ds.get_all_the_things()).map(|v| v.len()));
+        assert_eq!(Ok(()), ds.edit_thing(&odysseus).await);
+        assert_eq!(1, ds.things.borrow().len());
+        assert_eq!(Ok(()), ds.edit_thing(&nobody).await);
+        assert_eq!(1, ds.things.borrow().len());
         assert_eq!(
-            Some("Gandalf the White"),
-            block_on(ds.get_all_the_things())
-                .unwrap()
-                .first()
+            "Nobody",
+            ds.things
+                .borrow()
+                .get(&test::npc::ODYSSEUS)
                 .unwrap()
                 .name()
-                .value()
-                .map(|s| s.as_str()),
+                .to_string(),
         );
     }
 
-    #[test]
-    fn memory_get_all_the_things_test() {
-        let mut ds = MemoryDataStore::default();
+    #[tokio::test]
+    async fn memory_get_all_the_things_test() {
+        let ds =
+            test::data_store::memory::with([test::thing::odysseus(), test::thing::penelope()], []);
 
-        assert_eq!(Ok(()), block_on(ds.save_thing(&person(Uuid::from_u128(1)))));
-        assert_eq!(Ok(()), block_on(ds.save_thing(&person(Uuid::from_u128(2)))));
-        assert_eq!(Ok(()), block_on(ds.save_thing(&person(Uuid::from_u128(3)))));
-
-        let mut all_the_things = block_on(ds.get_all_the_things()).unwrap();
-        all_the_things.sort_by(|a, b| a.uuid.cmp(&b.uuid));
-        assert_eq!(3, all_the_things.len());
-        all_the_things
-            .iter()
-            .zip(1u128..)
-            .for_each(|(t, i)| assert_eq!(Uuid::from_u128(i), t.uuid));
+        let all_the_things = ds.get_all_the_things().await.unwrap();
+        assert_eq!(2, all_the_things.len(), "{all_the_things:?}");
     }
 
-    #[test]
-    fn memory_save_thing_test() {
-        let mut ds = MemoryDataStore::default();
+    #[tokio::test]
+    async fn memory_save_thing_test() {
+        let mut ds = test::data_store::memory();
 
-        assert_eq!(Ok(()), block_on(ds.save_thing(&person(TEST_UUID))));
-        assert_eq!(Err(()), block_on(ds.save_thing(&place(TEST_UUID))));
-
-        assert_eq!(Ok(1), block_on(ds.get_all_the_things()).map(|v| v.len()));
-    }
-
-    #[test]
-    fn memory_key_value_test() {
-        let mut ds = MemoryDataStore::default();
-
-        assert_eq!(Ok(()), block_on(ds.set_value("somekey", "abc")));
-        assert_eq!(Ok(()), block_on(ds.set_value("otherkey", "def")));
-        assert_eq!(Ok(()), block_on(ds.set_value("somekey", "xyz")));
-        assert_eq!(Ok(None), block_on(ds.get_value("notakey")));
+        assert_eq!(Ok(()), ds.save_thing(&test::thing::odysseus()).await);
         assert_eq!(
-            Ok(Some("xyz".to_string())),
-            block_on(ds.get_value("somekey")),
+            Err(()),
+            ds.save_thing(&test::npc().build_thing(test::thing::ODYSSEUS))
+                .await,
         );
-        assert_eq!(Ok(()), block_on(ds.delete_value("somekey")));
-        assert_eq!(Ok(None), block_on(ds.get_value("somekey")));
+
+        assert_eq!(Ok(1), ds.get_all_the_things().await.map(|v| v.len()));
     }
 
-    #[test]
-    fn memory_clone_test() {
-        let mut ds1 = MemoryDataStore::default();
+    #[tokio::test]
+    async fn memory_key_value_test() {
+        let mut ds = test::data_store::memory();
+
+        assert_eq!(Ok(()), ds.set_value("somekey", "abc").await);
+        assert_eq!(Ok(()), ds.set_value("otherkey", "def").await);
+        assert_eq!(Ok(()), ds.set_value("somekey", "xyz").await);
+        assert_eq!(Ok(None), ds.get_value("notakey").await);
+        assert_eq!(Ok(Some("xyz".to_string())), ds.get_value("somekey").await);
+        assert_eq!(Ok(()), ds.delete_value("somekey").await);
+        assert_eq!(Ok(None), ds.get_value("somekey").await);
+    }
+
+    #[tokio::test]
+    async fn memory_clone_test() {
+        let mut ds1 = test::data_store::memory();
         let ds2 = ds1.clone();
 
-        assert_eq!(Ok(()), block_on(ds1.set_value("somekey", "abc")));
+        assert_eq!(Ok(()), ds1.set_value("somekey", "abc").await);
+        assert_eq!(Ok(Some("abc".to_string())), ds2.get_value("somekey").await);
+
+        assert_eq!(Ok(()), ds1.save_thing(&test::thing::odysseus()).await);
         assert_eq!(
-            Ok(Some("abc".to_string())),
-            block_on(ds2.get_value("somekey"))
+            Ok(Some(test::thing::odysseus())),
+            ds2.get_thing_by_uuid(&test::thing::ODYSSEUS).await,
         );
-
-        let uuid = Uuid::new_v4();
-        let person = person(uuid);
-        assert_eq!(Ok(()), block_on(ds1.save_thing(&person)));
-        assert_eq!(Ok(Some(person)), block_on(ds2.get_thing_by_uuid(&uuid)));
-    }
-
-    fn person(uuid: Uuid) -> Thing {
-        Npc {
-            uuid,
-            data: NpcData::default(),
-        }
-        .into()
-    }
-
-    fn place(uuid: Uuid) -> Thing {
-        Place {
-            uuid,
-            data: PlaceData::default(),
-        }
-        .into()
     }
 }

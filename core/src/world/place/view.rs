@@ -136,7 +136,7 @@ impl fmt::Display for DetailsView<'_> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::world::place::Place;
+    use crate::utils::test_utils as test;
 
     #[test]
     fn view_test_empty() {
@@ -159,23 +159,17 @@ mod test {
 
     #[test]
     fn view_test_name_only() {
-        let place = PlaceData {
-            name: "The Invulnerable Vagrant".into(),
-            ..Default::default()
-        };
+        let place = test::place().name("Olympus").build();
+        assert_eq!("📍 `Olympus`", format!("{}", place.display_name()));
         assert_eq!(
-            "📍 `The Invulnerable Vagrant`",
-            format!("{}", place.display_name()),
-        );
-        assert_eq!(
-            "📍 `The Invulnerable Vagrant` (place)",
+            "📍 `Olympus` (place)",
             format!("{}", place.display_summary()),
         );
         assert_eq!("place", format!("{}", place.display_description()));
         assert_eq!(
             r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
 
-# The Invulnerable Vagrant
+# Olympus
 *place*
 
 </div>"#,
@@ -187,10 +181,9 @@ mod test {
 
     #[test]
     fn view_test_subtype_only() {
-        let place = PlaceData {
-            subtype: "inn".parse::<PlaceType>().unwrap().into(),
-            ..Default::default()
-        };
+        let place = test::place()
+            .subtype("inn".parse::<PlaceType>().unwrap())
+            .build();
         assert_eq!("", format!("{}", place.display_name()));
         assert_eq!("🏨 inn", format!("{}", place.display_summary()));
         assert_eq!("inn", format!("{}", place.display_description()));
@@ -209,10 +202,7 @@ mod test {
 
     #[test]
     fn view_test_description_only() {
-        let place = PlaceData {
-            description: "A street with no name.".into(),
-            ..Default::default()
-        };
+        let place = test::place().description("A street with no name.").build();
         assert_eq!("", format!("{}", place.display_name()));
         assert_eq!("📍 place", format!("{}", place.display_summary()));
         assert_eq!("place", format!("{}", place.display_description()));
@@ -233,40 +223,30 @@ A street with no name.
 
     #[test]
     fn view_test_name_subtype() {
-        let place = PlaceData {
-            subtype: "inn".parse::<PlaceType>().unwrap().into(),
-            name: "Oaken Mermaid Inn".into(),
-            ..Default::default()
-        };
+        let place = test::place::ithaca();
+        assert_eq!("🏝 `Ithaca`", format!("{}", place.display_name()));
         assert_eq!(
-            "🏨 `Oaken Mermaid Inn`",
-            format!("{}", place.display_name()),
-        );
-        assert_eq!(
-            "🏨 `Oaken Mermaid Inn` (inn)",
+            "🏝 `Ithaca` (island)",
             format!("{}", place.display_summary()),
         );
-        assert_eq!("inn", format!("{}", place.display_description()));
+        assert_eq!("island", format!("{}", place.display_description()));
         assert_eq!(
-            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
+            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000001">
 
-# Oaken Mermaid Inn
-*inn*
+# Ithaca
+*island*
 
 </div>"#,
-            place
-                .display_details(Uuid::nil(), PlaceRelations::default())
-                .to_string(),
+            place.display_details(PlaceRelations::default()).to_string(),
         );
     }
 
     #[test]
     fn view_test_name_description() {
-        let place = PlaceData {
-            name: "The Invulnerable Vagrant".into(),
-            description: "Come in and see me, and me, and me!".into(),
-            ..Default::default()
-        };
+        let place = test::place()
+            .name("The Invulnerable Vagrant")
+            .description("Come in and see me, and me, and me!")
+            .build();
         assert_eq!(
             "📍 `The Invulnerable Vagrant`",
             format!("{}", place.display_name()),
@@ -293,11 +273,10 @@ Come in and see me, and me, and me!
 
     #[test]
     fn view_test_subtype_description() {
-        let place = PlaceData {
-            subtype: "inn".parse::<PlaceType>().unwrap().into(),
-            description: "You can check out any time you like.".into(),
-            ..Default::default()
-        };
+        let place = test::place()
+            .subtype("inn".parse::<PlaceType>().unwrap())
+            .description("You can check out any time you like.")
+            .build();
         assert_eq!("", format!("{}", place.display_name()));
         assert_eq!("🏨 inn", format!("{}", place.display_summary()));
         assert_eq!("inn", format!("{}", place.display_description()));
@@ -318,110 +297,66 @@ You can check out any time you like.
 
     #[test]
     fn view_test_name_subtype_description() {
-        let place = PlaceData {
-            subtype: "inn".parse::<PlaceType>().unwrap().into(),
-            name: "Oaken Mermaid Inn".into(),
-            description: "I am Mordenkainen.".into(),
-            ..Default::default()
-        };
+        let place = test::place::greece();
+        assert_eq!("👑 `Greece`", format!("{}", place.display_name()));
         assert_eq!(
-            "🏨 `Oaken Mermaid Inn`",
-            format!("{}", place.display_name()),
-        );
-        assert_eq!(
-            "🏨 `Oaken Mermaid Inn` (inn)",
+            "👑 `Greece` (territory)",
             format!("{}", place.display_summary()),
         );
-        assert_eq!("inn", format!("{}", place.display_description()));
+        assert_eq!("territory", format!("{}", place.display_description()));
         assert_eq!(
-            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
+            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000002">
 
-# Oaken Mermaid Inn
-*inn*
+# Greece
+*territory*
 
-I am Mordenkainen.
+You're cruisin' for a bruisin'.
 
 </div>"#,
-            place
-                .display_details(Uuid::nil(), PlaceRelations::default())
-                .to_string(),
+            place.display_details(PlaceRelations::default()).to_string(),
         );
     }
 
     #[test]
     fn details_view_test_with_parent_location() {
-        let place = PlaceData {
-            name: "The Prancing Pony".into(),
-            subtype: "inn".parse::<PlaceType>().unwrap().into(),
-            ..Default::default()
-        };
-
-        let relations = PlaceRelations {
-            location: Some((
-                Place {
-                    uuid: Uuid::nil(),
-                    data: PlaceData {
-                        name: "Bree".into(),
-                        subtype: "town".parse::<PlaceType>().unwrap().into(),
-                        ..Default::default()
-                    },
-                },
-                None,
-            )),
-        };
-
         assert_eq!(
-            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
+            r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000001">
 
-# The Prancing Pony
-*inn*
+# Ithaca
+*island*
 
-**Location:** 🏘 `Bree` (town)
+**Location:** 👑 `Greece` (territory)
 
 </div>"#,
-            DetailsView::new(&place, Uuid::nil(), relations).to_string(),
+            test::place::ithaca()
+                .display_details(test::place::ithaca::relations())
+                .to_string(),
         );
     }
 
     #[test]
     fn details_view_test_with_grandparent_location() {
-        let place = PlaceData {
-            name: "The Prancing Pony".into(),
-            subtype: "inn".parse::<PlaceType>().unwrap().into(),
-            ..Default::default()
-        };
-
-        let relations = PlaceRelations {
-            location: Some((
-                Place {
-                    uuid: Uuid::nil(),
-                    data: PlaceData {
-                        name: "Bree".into(),
-                        subtype: "town".parse::<PlaceType>().unwrap().into(),
-                        ..Default::default()
-                    },
-                },
-                Some(Place {
-                    uuid: Uuid::nil(),
-                    data: PlaceData {
-                        name: "The Shire".into(),
-                        subtype: "region".parse::<PlaceType>().unwrap().into(),
-                        ..Default::default()
-                    },
-                }),
-            )),
-        };
-
         assert_eq!(
             r#"<div class="thing-box place" data-uuid="00000000-0000-0000-0000-000000000000">
 
-# The Prancing Pony
-*inn*
+# Chez Penelope
+*castle*
 
-**Location:** 🏘 `Bree`, 👑 `The Shire`
+**Location:** 🏝 `Ithaca`, 👑 `Greece`
 
 </div>"#,
-            DetailsView::new(&place, Uuid::nil(), relations).to_string(),
+            test::place()
+                .name("Chez Penelope")
+                .subtype("castle".parse::<PlaceType>().unwrap())
+                .build()
+                .display_details(
+                    Uuid::nil(),
+                    test::place::relations()
+                        .location(test::place::ithaca())
+                        .location(test::place::greece())
+                        .build()
+                )
+                .to_string(),
         );
     }
 }

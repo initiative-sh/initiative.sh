@@ -166,6 +166,22 @@ fn gen_name(
 }
 
 #[cfg(test)]
+pub mod test_utils {
+    use super::*;
+    use crate::utils::test_utils as test;
+
+    pub fn gen_name(rng: &mut impl Rng, ethnicity: Ethnicity, age: Age, gender: Gender) -> String {
+        let mut npc = test::npc()
+            .age(age)
+            .ethnicity(ethnicity)
+            .gender(gender)
+            .build();
+        regenerate(rng, &mut npc);
+        format!("{}", npc.name)
+    }
+}
+
+#[cfg(test)]
 mod test {
     use super::*;
     use rand::prelude::*;

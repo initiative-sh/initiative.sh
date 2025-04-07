@@ -37,17 +37,14 @@ impl Command for About {
 
 #[cfg(test)]
 mod test {
-    use super::super::token::test::assert_stream_eq;
     use super::*;
 
-    use crate::app::{AppMeta, Event};
-    use crate::storage::NullDataStore;
+    use crate::utils::test_utils as test;
+    use futures::StreamExt as _;
 
     #[tokio::test]
     async fn run_test() {
-        let mut app_meta = AppMeta::new(NullDataStore, &event_dispatcher);
-
-        assert!(crate::command::run("about", &mut app_meta)
+        assert!(crate::command::run("about", &mut test::app_meta())
             .await
             .unwrap()
             .contains("About initiative.sh"));
@@ -55,14 +52,12 @@ mod test {
 
     #[tokio::test]
     async fn autocomplete_test() {
-        let app_meta = AppMeta::new(NullDataStore, &event_dispatcher);
-
-        assert_stream_eq(
-            vec![AutocompleteSuggestion::new("about", "about initiative.sh")],
-            About.parse_autocomplete("a", &app_meta),
-        )
-        .await;
+        test::assert_autocomplete_eq!(
+            [("about", "about initiative.sh")],
+            About
+                .parse_autocomplete("a", &test::app_meta())
+                .collect()
+                .await,
+        );
     }
-
-    fn event_dispatcher(_event: Event) {}
 }

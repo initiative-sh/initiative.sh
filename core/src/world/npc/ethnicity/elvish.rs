@@ -220,18 +220,17 @@ impl Generate for Ethnicity {
 }
 
 #[cfg(test)]
-mod test_generate_for_ethnicity {
+mod test {
     use super::*;
-    use crate::world::npc::ethnicity::{regenerate, Ethnicity};
-    use crate::world::npc::NpcData;
+    use crate::world::npc::ethnicity::{test_utils as test, Ethnicity};
+
+    use Age::{Adolescent, Adult, Child, Infant};
+    use Ethnicity::Elvish;
+    use Gender::{Feminine, Masculine, NonBinaryThey};
 
     #[test]
     fn gen_name_test() {
         let mut rng = SmallRng::seed_from_u64(0);
-        let adult = Age::Adult;
-        let m = Gender::Masculine;
-        let f = Gender::Feminine;
-        let t = Gender::NonBinaryThey;
 
         assert_eq!(
             [
@@ -246,25 +245,16 @@ mod test_generate_for_ethnicity {
                 "Kina Riwareth",
             ],
             [
-                gen_name(&mut rng, &Age::Infant, &m),
-                gen_name(&mut rng, &Age::Child, &f),
-                gen_name(&mut rng, &Age::Adolescent, &t),
-                gen_name(&mut rng, &adult, &m),
-                gen_name(&mut rng, &adult, &m),
-                gen_name(&mut rng, &adult, &f),
-                gen_name(&mut rng, &adult, &f),
-                gen_name(&mut rng, &adult, &t),
-                gen_name(&mut rng, &adult, &t),
+                test::gen_name(&mut rng, Elvish, Infant, Masculine),
+                test::gen_name(&mut rng, Elvish, Child, Feminine),
+                test::gen_name(&mut rng, Elvish, Adolescent, NonBinaryThey),
+                test::gen_name(&mut rng, Elvish, Adult, Masculine),
+                test::gen_name(&mut rng, Elvish, Adult, Masculine),
+                test::gen_name(&mut rng, Elvish, Adult, Feminine),
+                test::gen_name(&mut rng, Elvish, Adult, Feminine),
+                test::gen_name(&mut rng, Elvish, Adult, NonBinaryThey),
+                test::gen_name(&mut rng, Elvish, Adult, NonBinaryThey),
             ],
         );
-    }
-
-    fn gen_name(rng: &mut impl Rng, age: &Age, gender: &Gender) -> String {
-        let mut npc = NpcData::default();
-        npc.gender.replace(*gender);
-        npc.age.replace(*age);
-        npc.ethnicity.replace(Ethnicity::Elvish);
-        regenerate(rng, &mut npc);
-        format!("{}", npc.name)
     }
 }

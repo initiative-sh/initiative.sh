@@ -5,9 +5,6 @@ pub use runnable::{
 };
 pub use tutorial::TutorialCommand;
 
-#[cfg(test)]
-pub use runnable::assert_autocomplete;
-
 mod alias;
 mod app;
 mod runnable;
@@ -289,16 +286,14 @@ impl From<WorldCommand> for CommandType {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::app::assert_autocomplete;
-    use crate::storage::NullDataStore;
+    use crate::test_utils as test;
     use crate::world::npc::NpcData;
     use crate::world::ParsedThing;
-    use crate::Event;
     use tokio_test::block_on;
 
     #[test]
     fn parse_input_test() {
-        let app_meta = app_meta();
+        let app_meta = test::app_meta();
 
         assert_eq!(
             Command::from(CommandMatches::new_canonical(CommandType::App(
@@ -320,7 +315,7 @@ mod test {
 
         assert_eq!(
             Command::from(CommandMatches::default()),
-            block_on(Command::parse_input("Gandalf the Grey", &app_meta))
+            block_on(Command::parse_input("Odysseus", &app_meta))
                 .take_best_match()
                 .unwrap(),
         );
@@ -350,33 +345,39 @@ mod test {
         );
     }
 
-    #[test]
-    fn autocomplete_test() {
-        assert_autocomplete(
-            &[
-                ("Dancing Lights", "SRD spell"),
-                ("Darkness", "SRD spell"),
-                ("Darkvision", "SRD spell"),
-                ("date", "get the current time"),
-                ("Daylight", "SRD spell"),
-                ("Death Ward", "SRD spell"),
-                ("Delayed Blast Fireball", "SRD spell"),
-                ("delete [name]", "remove an entry from journal"),
-                ("Demiplane", "SRD spell"),
-                ("desert", "create desert"),
-                ("Detect Evil and Good", "SRD spell"),
-                ("Detect Magic", "SRD spell"),
-                ("Detect Poison and Disease", "SRD spell"),
-                ("distillery", "create distillery"),
-                ("district", "create district"),
-                ("domain", "create domain"),
-                ("dragonborn", "create dragonborn"),
-                ("duchy", "create duchy"),
-                ("duty-house", "create duty-house"),
-                ("dwarf", "create dwarf"),
-                ("dwarvish", "create dwarvish person"),
-            ][..],
-            block_on(Command::autocomplete("d", &app_meta())),
+    #[tokio::test]
+    async fn autocomplete_test() {
+        test::assert_autocomplete_eq!(
+            [
+                ("Pass Without Trace", "SRD spell"),
+                ("Passwall", "SRD spell"),
+                ("Penelope", "middle-aged human, she/her"),
+                ("Phantasmal Killer", "SRD spell"),
+                ("Phantom Steed", "SRD spell"),
+                ("Planar Ally", "SRD spell"),
+                ("Planar Binding", "SRD spell"),
+                ("Plane Shift", "SRD spell"),
+                ("Plant Growth", "SRD spell"),
+                ("Poison Spray", "SRD spell"),
+                ("Polymorph", "SRD spell"),
+                ("Polyphemus", "adult half-orc, he/him"),
+                ("palace", "create palace"),
+                ("parish", "create town"),
+                ("pass", "create pass"),
+                ("peninsula", "create peninsula"),
+                ("person", "create person"),
+                ("pet-store", "create pet-store"),
+                ("pier", "create pier"),
+                ("place", "create place"),
+                ("plain", "create plain"),
+                ("plateau", "create plateau"),
+                ("portal", "create portal"),
+                ("principality", "create principality"),
+                ("prison", "create prison"),
+                ("province", "create province"),
+                ("pub", "create bar"),
+            ],
+            Command::autocomplete("p", &test::app_meta::with_test_data().await).await,
         );
     }
 
@@ -389,10 +390,10 @@ mod test {
 
         assert_eq!(
             CommandType::Storage(StorageCommand::Load {
-                name: "Gandalf the Grey".to_string(),
+                name: "Odysseus".to_string(),
             }),
             StorageCommand::Load {
-                name: "Gandalf the Grey".to_string(),
+                name: "Odysseus".to_string(),
             }
             .into(),
         );
@@ -414,11 +415,5 @@ mod test {
             }
             .into(),
         );
-    }
-
-    fn event_dispatcher(_event: Event) {}
-
-    fn app_meta() -> AppMeta {
-        AppMeta::new(NullDataStore, &event_dispatcher)
     }
 }

@@ -18,27 +18,6 @@ pub trait Autocomplete {
     async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<AutocompleteSuggestion>;
 }
 
-#[track_caller]
-#[cfg(test)]
-pub fn assert_autocomplete(
-    expected_suggestions: &[(&'static str, &'static str)],
-    actual_suggestions: Vec<AutocompleteSuggestion>,
-) {
-    let mut expected: Vec<_> = expected_suggestions
-        .iter()
-        .map(|(a, b)| ((*a).into(), (*b).into()))
-        .collect();
-    expected.sort();
-
-    let mut actual: Vec<(Cow<'static, str>, Cow<'static, str>)> = actual_suggestions
-        .into_iter()
-        .map(|suggestion| suggestion.into())
-        .collect();
-    actual.sort();
-
-    assert_eq!(expected, actual);
-}
-
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(into = "(Cow<'static, str>, Cow<'static, str>)")]
 pub struct AutocompleteSuggestion {
