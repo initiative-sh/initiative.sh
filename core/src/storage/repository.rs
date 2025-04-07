@@ -966,11 +966,9 @@ impl fmt::Debug for Repository {
 mod test {
     use super::*;
     use crate::storage::data_store::{MemoryDataStore, NullDataStore};
+    use crate::utils::test_utils as test;
     use crate::world::npc::Npc;
     use crate::world::place::Place;
-    use async_trait::async_trait;
-    use std::cell::RefCell;
-    use std::rc::Rc;
     use tokio_test::block_on;
     use uuid::Uuid;
 
@@ -1530,7 +1528,7 @@ data_store.snapshot() = {:?}",
 
     #[test]
     fn change_test_edit_and_unsave_data_store_failed() {
-        let mut repo = Repository::new(TimeBombDataStore::new(7));
+        let mut repo = Repository::new(test::data_store::time_bomb(7));
         populate_repo(&mut repo);
 
         let change = Change::EditAndUnsave {
@@ -2019,93 +2017,5 @@ data_store.snapshot() = {:?}",
         );
 
         block_on(repo.init());
-    }
-
-    struct TimeBombDataStore {
-        t_minus: Rc<RefCell<usize>>,
-        data_store: MemoryDataStore,
-    }
-
-    impl TimeBombDataStore {
-        pub fn new(t_minus: usize) -> Self {
-            Self {
-                t_minus: Rc::new(t_minus.into()),
-                data_store: MemoryDataStore::default(),
-            }
-        }
-
-        fn tick(&self) -> Result<(), ()> {
-            if *self.t_minus.borrow() == 0 {
-                Err(())
-            } else {
-                self.t_minus.replace_with(|&mut i| i - 1);
-                Ok(())
-            }
-        }
-    }
-
-    #[async_trait(?Send)]
-    impl DataStore for TimeBombDataStore {
-        async fn health_check(&self) -> Result<(), ()> {
-            if *self.t_minus.borrow() == 0 {
-                Err(())
-            } else {
-                Ok(())
-            }
-        }
-
-        async fn delete_thing_by_uuid(&mut self, uuid: &Uuid) -> Result<(), ()> {
-            self.tick()?;
-            self.data_store.delete_thing_by_uuid(uuid).await
-        }
-
-        async fn edit_thing(&mut self, thing: &Thing) -> Result<(), ()> {
-            self.tick()?;
-            self.data_store.edit_thing(thing).await
-        }
-
-        async fn get_all_the_things(&self) -> Result<Vec<Thing>, ()> {
-            self.tick()?;
-            self.data_store.get_all_the_things().await
-        }
-
-        async fn get_thing_by_uuid(&self, uuid: &Uuid) -> Result<Option<Thing>, ()> {
-            self.tick()?;
-            self.data_store.get_thing_by_uuid(uuid).await
-        }
-
-        async fn get_thing_by_name(&self, name: &str) -> Result<Option<Thing>, ()> {
-            self.tick()?;
-            self.data_store.get_thing_by_name(name).await
-        }
-
-        async fn get_things_by_name_start(
-            &self,
-            name: &str,
-            limit: Option<usize>,
-        ) -> Result<Vec<Thing>, ()> {
-            self.tick()?;
-            self.data_store.get_things_by_name_start(name, limit).await
-        }
-
-        async fn save_thing(&mut self, thing: &Thing) -> Result<(), ()> {
-            self.tick()?;
-            self.data_store.save_thing(thing).await
-        }
-
-        async fn set_value(&mut self, key: &str, value: &str) -> Result<(), ()> {
-            self.tick()?;
-            self.data_store.set_value(key, value).await
-        }
-
-        async fn get_value(&self, key: &str) -> Result<Option<String>, ()> {
-            self.tick()?;
-            self.data_store.get_value(key).await
-        }
-
-        async fn delete_value(&mut self, key: &str) -> Result<(), ()> {
-            self.tick()?;
-            self.data_store.delete_value(key).await
-        }
     }
 }
