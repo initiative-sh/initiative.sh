@@ -174,11 +174,10 @@ impl fmt::Display for CommandAlias {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::{assert_autocomplete, AppCommand, Command};
+    use crate::app::{AppCommand, Command};
     use crate::command::TransitionalCommand;
     use crate::test_utils as test;
     use std::collections::HashSet;
-    use tokio_test::block_on;
 
     #[test]
     fn literal_constructor_test() {
@@ -239,8 +238,8 @@ mod tests {
         assert!(!set.insert(strict_wildcard(AppCommand::Help.into())));
     }
 
-    #[test]
-    fn runnable_test_literal() {
+    #[tokio::test]
+    async fn runnable_test_literal() {
         let about_alias = literal("about alias", "about summary", about());
 
         let mut app_meta = test::app_meta();
@@ -251,31 +250,31 @@ mod tests {
             AppCommand::Help.into(),
         ));
 
-        assert_autocomplete(
-            &[("about alias", "about summary")][..],
-            block_on(CommandAlias::autocomplete("a", &app_meta)),
+        test::assert_autocomplete_eq!(
+            [("about alias", "about summary")],
+            CommandAlias::autocomplete("a", &app_meta).await,
         );
 
         assert_eq!(
-            block_on(CommandAlias::autocomplete("a", &app_meta)),
-            block_on(CommandAlias::autocomplete("A", &app_meta)),
+            CommandAlias::autocomplete("a", &app_meta).await,
+            CommandAlias::autocomplete("A", &app_meta).await,
         );
 
         assert_eq!(
             CommandMatches::default(),
-            block_on(CommandAlias::parse_input("blah", &app_meta)),
+            CommandAlias::parse_input("blah", &app_meta).await,
         );
 
         assert_eq!(
             CommandMatches::new_canonical(about_alias.clone()),
-            block_on(CommandAlias::parse_input("about alias", &app_meta)),
+            CommandAlias::parse_input("about alias", &app_meta).await,
         );
 
         {
-            let about_alias_result = block_on(about_alias.run("about alias", &mut app_meta));
+            let about_alias_result = about_alias.run("about alias", &mut app_meta).await;
             assert!(!app_meta.command_aliases.is_empty());
 
-            let about_result = block_on(about().run("about", &mut app_meta));
+            let about_result = about().run("about", &mut app_meta).await;
             assert!(app_meta.command_aliases.is_empty());
 
             assert!(about_result.is_ok(), "{:?}", about_result);
@@ -283,8 +282,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn runnable_test_strict_wildcard() {
+    #[tokio::test]
+    async fn runnable_test_strict_wildcard() {
         let about_alias = strict_wildcard(about());
 
         let mut app_meta = test::app_meta();
@@ -298,15 +297,15 @@ mod tests {
         // Should be caught by the wildcard, not the literal alias
         assert_eq!(
             CommandMatches::new_canonical(about_alias.clone()),
-            block_on(CommandAlias::parse_input("literal alias", &app_meta)),
+            CommandAlias::parse_input("literal alias", &app_meta).await,
         );
 
         {
             assert_eq!(2, app_meta.command_aliases.len());
 
             let (about_result, about_alias_result) = (
-                block_on(about().run("about", &mut app_meta)),
-                block_on(about_alias.run("about", &mut app_meta)),
+                about().run("about", &mut app_meta).await,
+                about_alias.run("about", &mut app_meta).await,
             );
 
             assert!(about_result.is_ok(), "{:?}", about_result);

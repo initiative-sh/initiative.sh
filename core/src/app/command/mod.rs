@@ -5,9 +5,6 @@ pub use runnable::{
 };
 pub use tutorial::TutorialCommand;
 
-#[cfg(test)]
-pub use runnable::assert_autocomplete;
-
 mod alias;
 mod app;
 mod runnable;
@@ -289,7 +286,6 @@ impl From<WorldCommand> for CommandType {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::app::assert_autocomplete;
     use crate::test_utils as test;
     use crate::world::npc::NpcData;
     use crate::world::ParsedThing;
@@ -351,8 +347,8 @@ mod test {
 
     #[tokio::test]
     async fn autocomplete_test() {
-        assert_autocomplete(
-            &[
+        test::assert_autocomplete_eq!(
+            [
                 ("Pass Without Trace", "SRD spell"),
                 ("Passwall", "SRD spell"),
                 ("Penelope", "middle-aged human, she/her"),
@@ -380,7 +376,7 @@ mod test {
                 ("prison", "create prison"),
                 ("province", "create province"),
                 ("pub", "create bar"),
-            ][..],
+            ],
             Command::autocomplete("p", &test::app_meta::with_test_data().await).await,
         );
     }

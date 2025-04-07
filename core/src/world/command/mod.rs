@@ -518,7 +518,6 @@ fn append_unknown_words_notice(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::app::assert_autocomplete;
     use crate::test_utils as test;
     use crate::world::npc::{Age, Gender, NpcData, Species};
     use crate::world::place::{PlaceData, PlaceType};
@@ -603,19 +602,19 @@ mod test {
             // PlaceType
             ("inn", "create inn"),
         ] {
-            assert_eq!(
-                vec![AutocompleteSuggestion::new(word, summary)],
+            test::assert_autocomplete_eq!(
+                [(word, summary)],
                 WorldCommand::autocomplete(word, &app_meta).await,
             );
 
-            assert_eq!(
-                vec![AutocompleteSuggestion::new(word, summary)],
+            test::assert_autocomplete_eq!(
+                [(word, summary)],
                 WorldCommand::autocomplete(&word.to_uppercase(), &app_meta).await,
             );
         }
 
-        assert_autocomplete(
-            &[
+        test::assert_autocomplete_eq!(
+            [
                 ("baby", "create infant"),
                 ("bakery", "create bakery"),
                 ("bank", "create bank"),
@@ -632,27 +631,27 @@ mod test {
                 ("bridge", "create bridge"),
                 ("building", "create building"),
                 ("business", "create business"),
-            ][..],
+            ],
             WorldCommand::autocomplete("b", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("penelope is [character description]", "edit character")][..],
+        test::assert_autocomplete_eq!(
+            [("penelope is [character description]", "edit character")],
             WorldCommand::autocomplete("penelope", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("PENELOPE is a [character description]", "edit character")][..],
+        test::assert_autocomplete_eq!(
+            [("PENELOPE is a [character description]", "edit character")],
             WorldCommand::autocomplete("PENELOPE is a ", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[
+        test::assert_autocomplete_eq!(
+            [
                 ("penelope is an elderly", "edit character"),
                 ("penelope is an elf", "edit character"),
                 ("penelope is an elvish", "edit character"),
                 ("penelope is an enby", "edit character"),
-            ][..],
+            ],
             WorldCommand::autocomplete("penelope is an e", &app_meta).await,
         );
     }

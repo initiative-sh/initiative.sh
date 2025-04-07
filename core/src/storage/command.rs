@@ -367,7 +367,6 @@ impl fmt::Display for StorageCommand {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::app::assert_autocomplete;
     use crate::test_utils as test;
 
     #[tokio::test]
@@ -439,8 +438,8 @@ mod test {
             .await
             .is_empty());
 
-        assert_autocomplete(
-            &[("save Odysseus", "save character to journal")][..],
+        test::assert_autocomplete_eq!(
+            [("save Odysseus", "save character to journal")],
             StorageCommand::autocomplete("save ", &app_meta).await,
         );
 
@@ -449,11 +448,11 @@ mod test {
             StorageCommand::autocomplete("SAve ", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[
+        test::assert_autocomplete_eq!(
+            [
                 ("load Penelope", "middle-aged human, she/her"),
                 ("load Polyphemus", "adult half-orc, he/him"),
-            ][..],
+            ],
             StorageCommand::autocomplete("load P", &app_meta).await,
         );
 
@@ -462,71 +461,71 @@ mod test {
             StorageCommand::autocomplete("LOad p", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("delete [name]", "remove an entry from journal")][..],
+        test::assert_autocomplete_eq!(
+            [("delete [name]", "remove an entry from journal")],
             StorageCommand::autocomplete("delete", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("delete [name]", "remove an entry from journal")][..],
+        test::assert_autocomplete_eq!(
+            [("delete [name]", "remove an entry from journal")],
             StorageCommand::autocomplete("DELete", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("load [name]", "load an entry")][..],
+        test::assert_autocomplete_eq!(
+            [("load [name]", "load an entry")],
             StorageCommand::autocomplete("load", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("load [name]", "load an entry")][..],
+        test::assert_autocomplete_eq!(
+            [("load [name]", "load an entry")],
             StorageCommand::autocomplete("LOad", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("save [name]", "save an entry to journal")][..],
+        test::assert_autocomplete_eq!(
+            [("save [name]", "save an entry to journal")],
             StorageCommand::autocomplete("sa", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("save [name]", "save an entry to journal")][..],
+        test::assert_autocomplete_eq!(
+            [("save [name]", "save an entry to journal")],
             StorageCommand::autocomplete("SA", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("journal", "list journal contents")][..],
+        test::assert_autocomplete_eq!(
+            [("journal", "list journal contents")],
             StorageCommand::autocomplete("j", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("journal", "list journal contents")][..],
+        test::assert_autocomplete_eq!(
+            [("journal", "list journal contents")],
             StorageCommand::autocomplete("J", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("export", "export the journal contents")][..],
+        test::assert_autocomplete_eq!(
+            [("export", "export the journal contents")],
             StorageCommand::autocomplete("e", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("export", "export the journal contents")][..],
+        test::assert_autocomplete_eq!(
+            [("export", "export the journal contents")],
             StorageCommand::autocomplete("E", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("import", "import a journal backup")][..],
+        test::assert_autocomplete_eq!(
+            [("import", "import a journal backup")],
             StorageCommand::autocomplete("im", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("import", "import a journal backup")][..],
+        test::assert_autocomplete_eq!(
+            [("import", "import a journal backup")],
             StorageCommand::autocomplete("IM", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[
+        test::assert_autocomplete_eq!(
+            [
                 ("Penelope", "middle-aged human, she/her"),
                 ("Polyphemus", "adult half-orc, he/him"),
-            ][..],
+            ],
             StorageCommand::autocomplete("p", &app_meta).await,
         );
 
@@ -535,35 +534,35 @@ mod test {
             StorageCommand::autocomplete("P", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("Odysseus", "middle-aged human, he/him (unsaved)")][..],
+        test::assert_autocomplete_eq!(
+            [("Odysseus", "middle-aged human, he/him (unsaved)")],
             StorageCommand::autocomplete("Odysseus", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("Odysseus", "middle-aged human, he/him (unsaved)")][..],
+        test::assert_autocomplete_eq!(
+            [("Odysseus", "middle-aged human, he/him (unsaved)")],
             StorageCommand::autocomplete("oDYSSEUS", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("undo", "undo creating Odysseus")][..],
+        test::assert_autocomplete_eq!(
+            [("undo", "undo creating Odysseus")],
             StorageCommand::autocomplete("undo", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("redo", "Nothing to redo.")][..],
+        test::assert_autocomplete_eq!(
+            [("redo", "Nothing to redo.")],
             StorageCommand::autocomplete("redo", &app_meta).await,
         );
 
         app_meta.repository.undo().await.unwrap().unwrap();
 
-        assert_autocomplete(
-            &[("redo", "redo creating Odysseus")][..],
+        test::assert_autocomplete_eq!(
+            [("redo", "redo creating Odysseus")],
             StorageCommand::autocomplete("redo", &app_meta).await,
         );
 
-        assert_autocomplete(
-            &[("undo", "Nothing to undo.")][..],
+        test::assert_autocomplete_eq!(
+            [("undo", "Nothing to undo.")],
             StorageCommand::autocomplete("undo", &app_meta).await,
         );
     }

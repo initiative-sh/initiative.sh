@@ -317,9 +317,7 @@ impl Autocomplete for NpcData {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::app::assert_autocomplete;
-    use crate::test_utils as utils;
-    use tokio_test::block_on;
+    use crate::test_utils as test;
 
     #[test]
     fn parsed_input_suggestion_test() {
@@ -408,55 +406,50 @@ mod test {
         assert_eq!("", parsed_input.partial);
     }
 
-    #[test]
-    fn place_autocomplete_test() {
-        assert_autocomplete(
-            &[
+    #[tokio::test]
+    async fn place_autocomplete_test() {
+        test::assert_autocomplete_eq!(
+            [
                 ("inn", "create inn"),
                 ("imports-shop", "create imports-shop"),
                 ("island", "create island"),
-            ][..],
-            block_on(PlaceData::autocomplete("i", &utils::app_meta())),
+            ],
+            PlaceData::autocomplete("i", &test::app_meta()).await,
         );
 
-        assert_autocomplete(
-            &[
+        test::assert_autocomplete_eq!(
+            [
                 ("an inn", "create inn"),
                 ("an imports-shop", "create imports-shop"),
                 ("an island", "create island"),
-            ][..],
-            block_on(PlaceData::autocomplete("an i", &utils::app_meta())),
+            ],
+            PlaceData::autocomplete("an i", &test::app_meta()).await,
         );
 
-        assert_autocomplete(
-            &[("an inn named [name]", "specify a name")][..],
-            block_on(PlaceData::autocomplete("an inn n", &utils::app_meta())),
+        test::assert_autocomplete_eq!(
+            [("an inn named [name]", "specify a name")],
+            PlaceData::autocomplete("an inn n", &test::app_meta()).await,
         );
 
-        assert_eq!(
-            Vec::<AutocompleteSuggestion>::new(),
-            block_on(PlaceData::autocomplete(
-                "a streetcar named desire",
-                &utils::app_meta()
-            )),
+        test::assert_autocomplete_empty!(
+            PlaceData::autocomplete("a streetcar named desire", &test::app_meta()).await,
         );
 
-        assert_eq!(
-            Vec::<AutocompleteSuggestion>::new(),
-            block_on(PlaceData::autocomplete("Foo, an inn n", &utils::app_meta())),
+        test::assert_autocomplete_empty!(
+            PlaceData::autocomplete("Foo, an inn n", &test::app_meta()).await,
         );
     }
 
-    #[test]
-    fn place_autocomplete_test_typing() {
+    #[tokio::test]
+    async fn place_autocomplete_test_typing() {
         {
             let input = "a bar called Heaven";
-            let app_meta = utils::app_meta();
+            let app_meta = test::app_meta();
 
             for i in 2..input.len() {
                 assert_ne!(
                     Vec::<AutocompleteSuggestion>::new(),
-                    block_on(PlaceData::autocomplete(&input[..i], &app_meta)),
+                    PlaceData::autocomplete(&input[..i], &app_meta).await,
                     "Input: {}",
                     &input[..i],
                 );
@@ -465,12 +458,12 @@ mod test {
 
         {
             let input = "Foo, inn";
-            let app_meta = utils::app_meta();
+            let app_meta = test::app_meta();
 
             for i in 4..input.len() {
                 assert_ne!(
                     Vec::<AutocompleteSuggestion>::new(),
-                    block_on(PlaceData::autocomplete(&input[..i], &app_meta)),
+                    PlaceData::autocomplete(&input[..i], &app_meta).await,
                     "Input: {}",
                     &input[..i],
                 );
@@ -478,37 +471,37 @@ mod test {
         }
     }
 
-    #[test]
-    fn autocomplete_test_npc() {
-        assert_autocomplete(
-            &[
+    #[tokio::test]
+    async fn autocomplete_test_npc() {
+        test::assert_autocomplete_eq!(
+            [
                 ("elf [age]", "specify an age (eg. \"elderly\")"),
                 ("elf [ethnicity]", "specify an ethnicity (eg. \"elvish\")"),
                 ("elf [gender]", "specify a gender"),
                 ("elf named [name]", "specify a name"),
-            ][..],
-            block_on(NpcData::autocomplete("elf ", &utils::app_meta())),
+            ],
+            NpcData::autocomplete("elf ", &test::app_meta()).await,
         );
 
-        assert_autocomplete(
-            &[
+        test::assert_autocomplete_eq!(
+            [
                 ("human [age]", "specify an age (eg. \"elderly\")"),
                 ("human [gender]", "specify a gender"),
                 ("human named [name]", "specify a name"),
-            ][..],
-            block_on(NpcData::autocomplete("human ", &utils::app_meta())),
+            ],
+            NpcData::autocomplete("human ", &test::app_meta()).await,
         );
     }
 
-    #[test]
-    fn npc_autocomplete_test_typing() {
+    #[tokio::test]
+    async fn npc_autocomplete_test_typing() {
         let input = "an elderly elvish dwarf woman named Tiramisu";
-        let app_meta = utils::app_meta();
+        let app_meta = test::app_meta();
 
         for i in 3..input.len() {
             assert_ne!(
                 Vec::<AutocompleteSuggestion>::new(),
-                block_on(NpcData::autocomplete(&input[..i], &app_meta)),
+                NpcData::autocomplete(&input[..i], &app_meta).await,
                 "Input: {}",
                 &input[..i],
             );

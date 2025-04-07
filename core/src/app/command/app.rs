@@ -106,106 +106,97 @@ impl fmt::Display for AppCommand {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::app::assert_autocomplete;
     use crate::test_utils as test;
-    use tokio_test::block_on;
 
-    #[test]
-    fn parse_input_test() {
+    #[tokio::test]
+    async fn parse_input_test() {
         let app_meta = test::app_meta();
 
         assert_eq!(
             CommandMatches::new_canonical(AppCommand::Debug),
-            block_on(AppCommand::parse_input("debug", &app_meta)),
+            AppCommand::parse_input("debug", &app_meta).await,
         );
 
         assert_eq!(
             CommandMatches::new_canonical(AppCommand::Roll("d20".to_string())),
-            block_on(AppCommand::parse_input("roll d20", &app_meta)),
+            AppCommand::parse_input("roll d20", &app_meta).await,
         );
 
         assert_eq!(
             CommandMatches::new_fuzzy(AppCommand::Roll("d20".to_string())),
-            block_on(AppCommand::parse_input("d20", &app_meta)),
+            AppCommand::parse_input("d20", &app_meta).await,
         );
 
         assert_eq!(
             CommandMatches::default(),
-            block_on(AppCommand::parse_input("potato", &app_meta)),
+            AppCommand::parse_input("potato", &app_meta).await,
         );
     }
 
-    #[test]
-    fn autocomplete_test() {
+    #[tokio::test]
+    async fn autocomplete_test() {
         let app_meta = test::app_meta();
 
-        [
+        for (term, summary) in [
             ("changelog", "show latest updates"),
             ("help", "how to use initiative.sh"),
-        ]
-        .into_iter()
-        .for_each(|(term, summary)| {
-            assert_eq!(
-                vec![AutocompleteSuggestion::new(term, summary)],
-                block_on(AppCommand::autocomplete(term, &app_meta)),
+        ] {
+            test::assert_autocomplete_eq!(
+                [(term, summary)],
+                AppCommand::autocomplete(term, &app_meta).await,
             );
 
-            assert_eq!(
-                block_on(AppCommand::autocomplete(term, &app_meta)),
-                block_on(AppCommand::autocomplete(&term.to_uppercase(), &app_meta)),
+            test::assert_autocomplete_eq!(
+                [(term, summary)],
+                AppCommand::autocomplete(&term.to_uppercase(), &app_meta).await,
             );
-        });
+        }
 
-        assert_autocomplete(
-            &[("roll [dice]", "roll eg. 8d6 or d20+3")][..],
-            block_on(AppCommand::autocomplete("roll", &app_meta)),
+        test::assert_autocomplete_eq!(
+            [("roll [dice]", "roll eg. 8d6 or d20+3")],
+            AppCommand::autocomplete("roll", &app_meta).await,
         );
 
         // Debug should be excluded from the autocomplete results.
         assert_eq!(
             Vec::<AutocompleteSuggestion>::new(),
-            block_on(AppCommand::autocomplete("debug", &app_meta)),
+            AppCommand::autocomplete("debug", &app_meta).await,
         );
     }
 
-    #[test]
-    fn display_test() {
+    #[tokio::test]
+    async fn display_test() {
         let app_meta = test::app_meta();
 
-        [AppCommand::Changelog, AppCommand::Debug, AppCommand::Help]
-            .into_iter()
-            .for_each(|command| {
-                let command_string = command.to_string();
-                assert_ne!("", command_string);
+        for command in [AppCommand::Changelog, AppCommand::Debug, AppCommand::Help] {
+            let command_string = command.to_string();
+            assert_ne!("", command_string);
 
-                assert_eq!(
-                    CommandMatches::new_canonical(command.clone()),
-                    block_on(AppCommand::parse_input(&command_string, &app_meta)),
-                    "{}",
-                    command_string,
-                );
+            assert_eq!(
+                CommandMatches::new_canonical(command.clone()),
+                AppCommand::parse_input(&command_string, &app_meta).await,
+                "{}",
+                command_string,
+            );
 
-                assert_eq!(
-                    CommandMatches::new_canonical(command),
-                    block_on(AppCommand::parse_input(
-                        &command_string.to_uppercase(),
-                        &app_meta
-                    )),
-                    "{}",
-                    command_string.to_uppercase(),
-                );
-            });
+            assert_eq!(
+                CommandMatches::new_canonical(command),
+                AppCommand::parse_input(&command_string.to_uppercase(), &app_meta).await,
+                "{}",
+                command_string.to_uppercase(),
+            );
+        }
 
         assert_eq!("roll d20", AppCommand::Roll("d20".to_string()).to_string());
 
         assert_eq!(
             CommandMatches::new_canonical(AppCommand::Roll("d20".to_string())),
-            block_on(AppCommand::parse_input("roll d20", &app_meta)),
+            AppCommand::parse_input("roll d20", &app_meta).await,
         );
 
         assert_eq!(
             CommandMatches::new_canonical(AppCommand::Roll("D20".to_string())),
-            block_on(AppCommand::parse_input("ROLL D20", &app_meta)),
+            AppCommand::parse_input("ROLL D20", &app_meta).await,
         );
     }
 }

@@ -9,3 +9,6 @@ pub use world::npc;
 pub use world::place;
 pub use world::thing;
 mod world;
+
+pub use crate::{assert_autocomplete_empty, assert_autocomplete_eq};
+mod assert;
