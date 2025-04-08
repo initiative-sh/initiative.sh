@@ -1,3 +1,4 @@
+mod any_of;
 mod any_word;
 mod keyword;
 
@@ -30,6 +31,9 @@ pub enum FuzzyMatch<'a> {
 #[derive(Debug, Eq, PartialEq)]
 #[cfg_attr(test, derive(Clone))]
 pub enum TokenType {
+    /// See [`token_constructors::any_of`].
+    AnyOf(Vec<Token>),
+
     /// See [`token_constructors::any_word`].
     AnyWord,
 
@@ -50,12 +54,13 @@ impl Token {
     pub fn match_input<'a, 'b>(
         &'a self,
         input: &'a str,
-        _app_meta: &'b AppMeta,
+        app_meta: &'b AppMeta,
     ) -> impl Stream<Item = FuzzyMatch<'a>> + 'b
     where
         'a: 'b,
     {
         match &self.token_type {
+            TokenType::AnyOf(..) => any_of::match_input(self, input, app_meta),
             TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Keyword(..) => keyword::match_input(self, input),
         }
@@ -90,7 +95,6 @@ impl<'a> From<&'a Token> for TokenMatch<'a> {
 }
 
 impl<'a> FuzzyMatch<'a> {
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
     pub fn map<F>(self, f: F) -> Self
     where
         F: FnOnce(TokenMatch<'a>) -> TokenMatch<'a>,
@@ -152,7 +156,6 @@ impl<'a> MatchMeta<'a> {
         }
     }
 
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
     pub fn into_sequence(self) -> Option<Vec<TokenMatch<'a>>> {
         if let MatchMeta::Sequence(v) = self {
             Some(v)
@@ -197,6 +200,78 @@ impl From<Record> for MatchMeta<'_> {
 
 pub mod token_constructors {
     use super::*;
+
+    /// Matches one or more of a set of tokens, in any order but without repetition.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let token = any_of([keyword("badger"), keyword("mushroom"), keyword("snake")]);
+    ///
+    /// assert_eq!(
+    ///     vec![
+    ///         // "Ungreedy" version consuming only one token,
+    ///         FuzzyMatch::Overflow(
+    ///             TokenMatch::new(&token, vec![
+    ///                 TokenMatch::from(&keyword("mushroom")),
+    ///             ]),
+    ///             " snake badger badger".into(),
+    ///         ),
+    ///
+    ///         // two tokens,
+    ///         FuzzyMatch::Overflow(
+    ///             TokenMatch::new(&token, vec![
+    ///                 TokenMatch::from(&keyword("mushroom")),
+    ///                 TokenMatch::from(&keyword("snake")),
+    ///             ]),
+    ///             " badger badger".into(),
+    ///         ),
+    ///
+    ///         // and all three tokens. The final word is repeated and so does not match.
+    ///         FuzzyMatch::Overflow(
+    ///             TokenMatch::new(&token, vec![
+    ///                 TokenMatch::from(&keyword("mushroom")),
+    ///                 TokenMatch::from(&keyword("snake")),
+    ///                 TokenMatch::from(&keyword("badger")),
+    ///             ]),
+    ///             " badger".into(),
+    ///         ),
+    ///     ],
+    ///     token
+    ///         .match_input("mushroom snake badger badger", &app_meta)
+    ///         .collect::<Vec<_>>()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn any_of<V>(tokens: V) -> Token
+    where
+        V: Into<Vec<Token>>,
+    {
+        Token {
+            token_type: TokenType::AnyOf(tokens.into()),
+            marker: None,
+        }
+    }
+
+    /// A variant of `any_of` with a marker assigned.
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn any_of_m<M, V>(marker: M, tokens: V) -> Token
+    where
+        M: Into<u8>,
+        V: Into<Vec<Token>>,
+    {
+        Token {
+            token_type: TokenType::AnyOf(tokens.into()),
+            marker: Some(marker.into()),
+        }
+    }
 
     /// Matches any single word.
     ///
