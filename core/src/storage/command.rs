@@ -289,15 +289,15 @@ impl Autocomplete for StorageCommand {
         {
             (
                 join!(
-                    app_meta.repository.get_by_name_start(input, Some(10)),
-                    app_meta.repository.get_by_name_start(name, Some(10)),
+                    app_meta.repository.get_by_name_start(input),
+                    app_meta.repository.get_by_name_start(name),
                 ),
                 prefix,
             )
         } else {
             (
                 (
-                    app_meta.repository.get_by_name_start(input, Some(10)).await,
+                    app_meta.repository.get_by_name_start(input).await,
                     Ok(Vec::new()),
                 ),
                 "",
