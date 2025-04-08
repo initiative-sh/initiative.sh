@@ -1,4 +1,5 @@
 use super::{Demographics, Field, Generate};
+use crate::storage::ThingType;
 use crate::world::command::ParsedThing;
 use crate::world::npc::{DetailsView as NpcDetailsView, Gender, Npc, NpcData, NpcRelations};
 use crate::world::place::{DetailsView as PlaceDetailsView, Place, PlaceData, PlaceRelations};
@@ -75,6 +76,10 @@ impl Thing {
         self.data.lock_all()
     }
 
+    pub fn is_type(&self, thing_type: ThingType) -> bool {
+        self.data.is_type(thing_type)
+    }
+
     #[expect(clippy::result_unit_err)]
     pub fn try_apply_diff(&mut self, diff: &mut ThingData) -> Result<(), ()> {
         self.data.try_apply_diff(diff)
@@ -82,6 +87,15 @@ impl Thing {
 }
 
 impl ThingData {
+    pub fn is_type(&self, thing_type: ThingType) -> bool {
+        matches!(
+            (self, thing_type),
+            (_, ThingType::Any)
+                | (ThingData::Npc(_), ThingType::Npc)
+                | (ThingData::Place(_), ThingType::Place)
+        )
+    }
+
     pub fn name(&self) -> &Field<String> {
         match &self {
             ThingData::Place(place) => &place.name,
