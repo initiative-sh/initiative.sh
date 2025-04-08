@@ -1,5 +1,6 @@
 pub mod constructors;
 
+mod any_of;
 mod any_word;
 mod keyword;
 
@@ -35,6 +36,9 @@ pub enum FuzzyMatch<'a> {
 #[derive(Debug, Eq, PartialEq)]
 #[cfg_attr(test, derive(Clone))]
 pub enum TokenType {
+    /// See [`token_constructors::any_of`].
+    AnyOf(Vec<Token>),
+
     /// See [`token_constructors::any_word`].
     AnyWord,
 
@@ -69,12 +73,13 @@ impl Token {
     pub fn match_input<'a, 'b>(
         &'a self,
         input: &'a str,
-        _app_meta: &'b AppMeta,
+        app_meta: &'b AppMeta,
     ) -> impl Stream<Item = FuzzyMatch<'a>> + 'b
     where
         'a: 'b,
     {
         match &self.token_type {
+            TokenType::AnyOf(..) => any_of::match_input(self, input, app_meta),
             TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Keyword(..) => keyword::match_input(self, input),
         }
@@ -129,7 +134,6 @@ impl<'a> From<&'a Token> for TokenMatch<'a> {
 }
 
 impl<'a> FuzzyMatch<'a> {
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
     pub fn map<F>(self, f: F) -> Self
     where
         F: FnOnce(TokenMatch<'a>) -> TokenMatch<'a>,
@@ -188,7 +192,6 @@ impl<'a> MatchMeta<'a> {
         }
     }
 
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
     pub fn into_sequence(self) -> Option<Vec<TokenMatch<'a>>> {
         if let MatchMeta::Sequence(v) = self {
             Some(v)
