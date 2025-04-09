@@ -3,7 +3,7 @@ use crate::storage::{Change, DataStore, KeyValue, Repository};
 use crate::world::thing::Thing;
 use crate::Event;
 
-use crate::utils::test_utils as test;
+use crate::test_utils as test;
 
 pub use with_data_store::null as empty;
 

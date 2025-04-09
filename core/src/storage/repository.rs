@@ -966,7 +966,7 @@ impl fmt::Debug for Repository {
 mod test {
     use super::*;
     use crate::storage::data_store::{MemoryDataStore, NullDataStore};
-    use crate::utils::test_utils as test;
+    use crate::test_utils as test;
     use crate::world::npc::Npc;
     use crate::world::place::Place;
     use tokio_test::block_on;

@@ -1,7 +1,7 @@
 pub use memory::empty as memory;
 
 use crate::storage::{KeyValue, MemoryDataStore, NullDataStore};
-use crate::utils::test_utils as test;
+use crate::test_utils as test;
 use crate::world::thing::Thing;
 
 pub mod memory {

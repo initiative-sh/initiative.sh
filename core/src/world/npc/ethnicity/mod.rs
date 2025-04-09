@@ -168,7 +168,7 @@ fn gen_name(
 #[cfg(test)]
 pub mod test_utils {
     use super::*;
-    use crate::utils::test_utils as test;
+    use crate::test_utils as test;
 
     pub fn gen_name(rng: &mut impl Rng, ethnicity: Ethnicity, age: Age, gender: Gender) -> String {
         let mut npc = test::npc()

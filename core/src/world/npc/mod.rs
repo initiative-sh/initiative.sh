@@ -184,7 +184,7 @@ impl Generate for NpcData {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::utils::test_utils as test;
+    use crate::test_utils as test;
     use rand::prelude::*;
 
     #[test]
