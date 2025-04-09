@@ -136,7 +136,7 @@ impl fmt::Display for DetailsView<'_> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::utils::test_utils as test;
+    use crate::test_utils as test;
 
     #[test]
     fn view_test_empty() {

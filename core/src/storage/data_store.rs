@@ -188,7 +188,7 @@ pub trait DataStore {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::utils::test_utils as test;
+    use crate::test_utils as test;
 
     #[tokio::test]
     async fn memory_delete_thing_by_uuid_test() {
