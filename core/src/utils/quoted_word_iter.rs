@@ -1,4 +1,4 @@
-use super::Word;
+use super::Substr;
 use std::str::CharIndices;
 
 pub fn quoted_words(phrase: &str) -> QuotedWordIterator<'_> {
@@ -22,7 +22,7 @@ impl<'a> QuotedWordIterator<'a> {
 }
 
 impl<'a> Iterator for QuotedWordIterator<'a> {
-    type Item = Word<'a>;
+    type Item = Substr<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let (quote_char, first_index) = if let Some(quote_len) = self.quote_len {
@@ -30,7 +30,7 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
 
             if let Some((i, c)) = self.char_iter.next() {
                 if c == '"' {
-                    return Some(Word::new(
+                    return Some(Substr::new(
                         self.phrase,
                         i..i,
                         i - quote_len..i + c.len_utf8(),
@@ -39,7 +39,7 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                     (self.phrase[i - quote_len..i].chars().next(), i)
                 }
             } else {
-                return Some(Word::new(
+                return Some(Substr::new(
                     self.phrase,
                     self.phrase.len()..self.phrase.len(),
                     self.phrase.len() - quote_len..self.phrase.len(),
@@ -60,7 +60,7 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                 if let Some((i, c)) = self.char_iter.next() {
                     if c == '"' {
                         // Empty quotes = yield empty string
-                        return Some(Word::new(
+                        return Some(Substr::new(
                             self.phrase,
                             i..i,
                             i - first_char.len_utf8()..i + c.len_utf8(),
@@ -69,7 +69,7 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                         (Some(first_char), i)
                     }
                 } else {
-                    return Some(Word::new(
+                    return Some(Substr::new(
                         self.phrase,
                         self.phrase.len()..self.phrase.len(),
                         first_index..self.phrase.len(),
@@ -84,7 +84,7 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
             if let Some((i, c)) = self.char_iter.next() {
                 if let Some(quote_char) = quote_char {
                     if c == '"' {
-                        return Some(Word::new(
+                        return Some(Substr::new(
                             self.phrase,
                             first_index..i,
                             first_index - quote_char.len_utf8()..i + c.len_utf8(),
@@ -97,7 +97,7 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
                     break i;
                 }
             } else if let Some(quote_char) = quote_char {
-                return Some(Word::new(
+                return Some(Substr::new(
                     self.phrase,
                     first_index..self.phrase.len(),
                     first_index - quote_char.len_utf8()..self.phrase.len(),
@@ -107,7 +107,7 @@ impl<'a> Iterator for QuotedWordIterator<'a> {
             }
         };
 
-        Some(Word::new(
+        Some(Substr::new(
             self.phrase,
             first_index..last_index,
             first_index..last_index,

@@ -1,7 +1,7 @@
 mod keyword;
 
 use crate::app::AppMeta;
-use crate::utils::Word;
+use crate::utils::Substr;
 
 use std::pin::Pin;
 
@@ -21,7 +21,7 @@ pub struct TokenMatch<'a> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FuzzyMatch<'a> {
-    Overflow(TokenMatch<'a>, Word<'a>),
+    Overflow(TokenMatch<'a>, Substr<'a>),
     Exact(TokenMatch<'a>),
     Partial(TokenMatch<'a>, Option<String>),
 }
