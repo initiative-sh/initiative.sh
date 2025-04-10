@@ -5,7 +5,6 @@ use crate::Event;
 
 use crate::utils::test_utils as test;
 
-#[expect(unused_imports)]
 pub use with_data_store::null as empty;
 
 pub async fn with_test_data() -> AppMeta {
@@ -24,7 +23,6 @@ pub async fn with_test_data() -> AppMeta {
 }
 
 pub mod with_data_store {
-    #[expect(unused_imports)]
     pub use memory::empty as memory;
 
     use super::*;
@@ -32,12 +30,10 @@ pub mod with_data_store {
     pub mod memory {
         use super::*;
 
-        #[expect(dead_code)]
         pub fn empty() -> AppMeta {
             test::app_meta::with_data_store(test::data_store::memory::empty())
         }
 
-        #[expect(dead_code)]
         pub fn with<ThingIter, KeyValueIter>(
             thing_iter: ThingIter,
             key_value_iter: KeyValueIter,

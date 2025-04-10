@@ -36,7 +36,7 @@ jobs:
       - name: Update Rust
         run: rustc --version && rustup update
       - name: Run unit tests
-        run: cargo test --workspace --verbose
+        run: cargo test --workspace --verbose --all-targets --features integration-tests
 
 #  browser-wasm-tests:
 #    name: Browser WASM tests (Firefox and Chrome)
