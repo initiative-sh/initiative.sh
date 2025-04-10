@@ -1,4 +1,4 @@
-#[cfg(test)]
+#[cfg(any(test, feature = "integration-tests"))]
 pub mod test_utils;
 
 pub use case_insensitive_str::CaseInsensitiveStr;

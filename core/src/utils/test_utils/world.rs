@@ -99,7 +99,6 @@ pub mod npc {
         builder::Builder::default()
     }
 
-    #[expect(dead_code)]
     pub fn relations() -> builder::RelationsBuilder {
         builder::RelationsBuilder::default()
     }
@@ -160,7 +159,6 @@ pub mod place {
 }
 
 pub mod thing {
-    #[expect(unused_imports)]
     pub use super::odyssey::{GREECE, ITHACA, ODYSSEUS, PENELOPE, POLYPHEMUS, STYX};
 
     use crate::world::thing::Thing;

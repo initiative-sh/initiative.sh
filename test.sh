@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euxo pipefail
 
-cargo test --workspace
+cargo test --workspace --features integration-tests
 
 cargo clippy --workspace --tests -- --deny warnings
 
