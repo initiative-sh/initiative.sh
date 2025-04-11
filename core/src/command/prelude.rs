@@ -3,5 +3,3 @@ pub use super::token::constructors::*;
 pub use super::token::{FuzzyMatch, MatchMeta, Token, TokenMatch, TokenType};
 pub use super::{Command, CommandPriority};
 pub use crate::app::{AppMeta, AutocompleteSuggestion};
-#[cfg_attr(not(any(test, feature = "integration-tests")), expect(unused_imports))]
-pub use initiative_macros::TokenMarker;

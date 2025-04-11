@@ -40,7 +40,7 @@ mod test {
 
     use crate::test_utils as test;
 
-    #[derive(TokenMarker)]
+    #[derive(Hash)]
     enum Marker {
         Keyword,
     }

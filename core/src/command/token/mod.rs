@@ -2,6 +2,8 @@ pub mod constructors;
 
 mod keyword;
 
+use std::hash::{DefaultHasher, Hash, Hasher};
+
 use crate::app::AppMeta;
 use crate::storage::Record;
 use crate::utils::Substr;
@@ -13,7 +15,7 @@ use futures::prelude::*;
 #[cfg_attr(test, derive(Clone))]
 pub struct Token {
     pub token_type: TokenType,
-    pub marker: Option<u8>,
+    pub marker: u64,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -46,6 +48,20 @@ pub enum MatchMeta<'a> {
 }
 
 impl Token {
+    pub fn new(token_type: TokenType) -> Token {
+        Token {
+            token_type,
+            marker: 0,
+        }
+    }
+
+    pub fn new_m<M: Hash>(marker: M, token_type: TokenType) -> Token {
+        Token {
+            token_type,
+            marker: hash_marker(marker),
+        }
+    }
+
     pub fn match_input<'a, 'b>(
         &'a self,
         input: &'a str,
@@ -189,4 +205,10 @@ impl<'a> From<TokenMatch<'a>> for MatchMeta<'a> {
     fn from(input: TokenMatch<'a>) -> MatchMeta<'a> {
         Box::new(input).into()
     }
+}
+
+fn hash_marker<M: Hash>(marker: M) -> u64 {
+    let mut hasher = DefaultHasher::default();
+    marker.hash(&mut hasher);
+    hasher.finish()
 }

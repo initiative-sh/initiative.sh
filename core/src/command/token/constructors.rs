@@ -1,6 +1,7 @@
 #![cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
 
 use super::{Token, TokenType};
+use std::hash::Hash;
 
 /// A single keyword, matched case-insensitively.
 ///
@@ -47,19 +48,13 @@ use super::{Token, TokenType};
 /// # })
 /// ```
 pub fn keyword(keyword: &'static str) -> Token {
-    Token {
-        token_type: TokenType::Keyword(keyword),
-        marker: None,
-    }
+    Token::new(TokenType::Keyword(keyword))
 }
 
 /// A variant of `keyword` with a marker assigned.
 pub fn keyword_m<M>(marker: M, keyword: &'static str) -> Token
 where
-    M: Into<u8>,
+    M: Hash,
 {
-    Token {
-        token_type: TokenType::Keyword(keyword),
-        marker: Some(marker.into()),
-    }
+    Token::new_m(marker, TokenType::Keyword(keyword))
 }
