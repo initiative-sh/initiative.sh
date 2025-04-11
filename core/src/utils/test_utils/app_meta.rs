@@ -10,14 +10,19 @@ pub use with_data_store::null as empty;
 pub async fn with_test_data() -> AppMeta {
     let mut repository = Repository::new(test::data_store::memory::with_test_data());
 
-    let odysseus = test::thing::odysseus();
-    repository
-        .modify(Change::Create {
-            thing_data: odysseus.data,
-            uuid: Some(test::thing::ODYSSEUS),
-        })
-        .await
-        .unwrap();
+    for thing in [
+        test::thing::odysseus(),
+        test::thing::pylos(),
+        test::thing::polyphemus(),
+    ] {
+        repository
+            .modify(Change::Create {
+                thing_data: thing.data,
+                uuid: Some(thing.uuid),
+            })
+            .await
+            .unwrap();
+    }
 
     test::app_meta::with_repository(repository)
 }

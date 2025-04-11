@@ -439,7 +439,11 @@ mod test {
             .is_empty());
 
         test::assert_autocomplete_eq!(
-            [("save Odysseus", "save character to journal")],
+            [
+                ("save Odysseus", "save character to journal"),
+                ("save Polyphemus", "save character to journal"),
+                ("save Pylos", "save place to journal"),
+            ],
             StorageCommand::autocomplete("save ", &app_meta).await,
         );
 
@@ -451,7 +455,9 @@ mod test {
         test::assert_autocomplete_eq!(
             [
                 ("load Penelope", "middle-aged human, she/her"),
-                ("load Polyphemus", "adult half-orc, he/him"),
+                ("load Phoenicia", "territory"),
+                ("load Polyphemus", "adult half-orc, he/him (unsaved)"),
+                ("load Pylos", "city (unsaved)"),
             ],
             StorageCommand::autocomplete("load P", &app_meta).await,
         );
@@ -524,7 +530,9 @@ mod test {
         test::assert_autocomplete_eq!(
             [
                 ("Penelope", "middle-aged human, she/her"),
-                ("Polyphemus", "adult half-orc, he/him"),
+                ("Phoenicia", "territory"),
+                ("Polyphemus", "adult half-orc, he/him (unsaved)"),
+                ("Pylos", "city (unsaved)"),
             ],
             StorageCommand::autocomplete("p", &app_meta).await,
         );
@@ -545,13 +553,18 @@ mod test {
         );
 
         test::assert_autocomplete_eq!(
-            [("undo", "undo creating Odysseus")],
-            StorageCommand::autocomplete("undo", &app_meta).await,
-        );
-
-        test::assert_autocomplete_eq!(
             [("redo", "Nothing to redo.")],
             StorageCommand::autocomplete("redo", &app_meta).await,
+        );
+
+        // undo Polyphemus
+        app_meta.repository.undo().await.unwrap().unwrap();
+        // undo Pylos
+        app_meta.repository.undo().await.unwrap().unwrap();
+
+        test::assert_autocomplete_eq!(
+            [("undo", "undo creating Odysseus")],
+            StorageCommand::autocomplete("undo", &app_meta).await,
         );
 
         app_meta.repository.undo().await.unwrap().unwrap();

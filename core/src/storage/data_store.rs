@@ -236,8 +236,8 @@ mod test {
         let mut results = ds.get_things_by_name_start("p", None).await.unwrap();
         results.sort_by_key(|thing| thing.uuid);
         assert_eq!(
-            vec![test::thing::penelope(), test::thing::polyphemus()],
-            results
+            vec![test::thing::phoenicia(), test::thing::penelope()],
+            results,
         );
 
         assert_eq!(
