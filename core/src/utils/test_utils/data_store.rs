@@ -39,7 +39,7 @@ pub mod memory {
                 test::world::thing::greece(),
                 test::world::thing::ithaca(),
                 test::world::thing::penelope(),
-                test::world::thing::polyphemus(),
+                test::world::thing::phoenicia(),
                 test::world::thing::styx(),
             ],
             [],
