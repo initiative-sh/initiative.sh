@@ -431,13 +431,11 @@ mod test {
             PlaceData::autocomplete("an inn n", &test::app_meta()).await,
         );
 
-        test::assert_autocomplete_empty!(
+        test::assert_empty!(
             PlaceData::autocomplete("a streetcar named desire", &test::app_meta()).await,
         );
 
-        test::assert_autocomplete_empty!(
-            PlaceData::autocomplete("Foo, an inn n", &test::app_meta()).await,
-        );
+        test::assert_empty!(PlaceData::autocomplete("Foo, an inn n", &test::app_meta()).await);
     }
 
     #[tokio::test]

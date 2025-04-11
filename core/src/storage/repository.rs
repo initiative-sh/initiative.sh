@@ -115,6 +115,20 @@ pub enum RecordStatus {
     Deleted,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RecordSource {
+    Any,
+    Journal,
+    Recent,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ThingType {
+    Any,
+    Npc,
+    Place,
+}
+
 impl Repository {
     pub fn new(data_store: impl DataStore + 'static) -> Self {
         Self {
@@ -231,29 +245,54 @@ impl Repository {
 
     /// Get all saved and recent Things beginning with a given (case-insensitive) string, up to an
     /// optional limit.
-    pub async fn get_by_name_start(
+    pub async fn get_by_name_start<'a>(
         &self,
-        name: &str,
-        limit: Option<usize>,
+        args: impl Into<GetByNameStartArgs<'a>>,
     ) -> Result<Vec<Record>, Error> {
-        Ok(self
-            .data_store
-            .get_things_by_name_start(name, limit)
-            .await
-            .map_err(|_| Error::DataStoreFailed)?
-            .into_iter()
-            .map(|thing| Record {
-                status: RecordStatus::Saved,
-                thing,
-            })
-            .chain(
+        let GetByNameStartArgs {
+            name,
+            record_source,
+            thing_type,
+            limit,
+        } = args.into();
+
+        let recent_iter = if record_source.recent() {
+            Some(
                 self.recent()
+                    .filter(|t| t.is_type(thing_type))
                     .filter(|t| t.name().value().is_some_and(|s| s.starts_with_ci(name)))
                     .map(|thing| Record {
                         status: RecordStatus::Unsaved,
                         thing: thing.clone(),
                     }),
             )
+        } else {
+            None
+        }
+        .into_iter()
+        .flatten();
+
+        let journal_iter = if record_source.journal() {
+            Some(
+                self.data_store
+                    .get_things_by_name_start(name, limit)
+                    .await
+                    .map_err(|_| Error::DataStoreFailed)?
+                    .into_iter()
+                    .filter(|t| t.is_type(thing_type))
+                    .map(|thing| Record {
+                        status: RecordStatus::Saved,
+                        thing,
+                    }),
+            )
+        } else {
+            None
+        }
+        .into_iter()
+        .flatten();
+
+        Ok(journal_iter
+            .chain(recent_iter)
             .take(limit.unwrap_or(usize::MAX))
             .collect())
     }
@@ -274,7 +313,16 @@ impl Repository {
     }
 
     /// Get the Thing from saved or recent with a given name. (There should be only one.)
-    pub async fn get_by_name(&self, name: &str) -> Result<Record, Error> {
+    pub async fn get_by_name<'a>(
+        &self,
+        args: impl Into<GetByNameArgs<'a>>,
+    ) -> Result<Record, Error> {
+        let GetByNameArgs {
+            name,
+            record_source,
+            thing_type,
+        } = args.into();
+
         let (recent_thing, saved_thing) = join!(
             async {
                 self.recent()
@@ -295,6 +343,13 @@ impl Repository {
             (None, Ok(None)) => Err(Error::NotFound),
             (None, Err(())) => Err(Error::DataStoreFailed),
         }
+        .and_then(|record| {
+            if record.thing.is_type(thing_type) && record.is_from_source(record_source) {
+                Ok(record)
+            } else {
+                Err(Error::NotFound)
+            }
+        })
     }
 
     /// Get the Thing from saved or recent with a given UUID. (There should be only one.)
@@ -855,6 +910,101 @@ impl Repository {
     }
 }
 
+pub struct GetByNameStartArgs<'a> {
+    name: &'a str,
+    record_source: RecordSource,
+    thing_type: ThingType,
+    limit: Option<usize>,
+}
+
+impl<'a> From<&'a str> for GetByNameStartArgs<'a> {
+    fn from(name: &'a str) -> Self {
+        GetByNameStartArgs {
+            name,
+            record_source: RecordSource::Any,
+            thing_type: ThingType::Any,
+            limit: Some(10),
+        }
+    }
+}
+
+impl<'a> From<(&'a str, RecordSource, ThingType)> for GetByNameStartArgs<'a> {
+    fn from(name_source_type: (&'a str, RecordSource, ThingType)) -> Self {
+        let (name, record_source, thing_type) = name_source_type;
+
+        GetByNameStartArgs {
+            name,
+            record_source,
+            thing_type,
+            limit: Some(10),
+        }
+    }
+}
+
+impl<'a> From<(&'a str, RecordSource, ThingType, Option<usize>)> for GetByNameStartArgs<'a> {
+    fn from(name_source_type_limit: (&'a str, RecordSource, ThingType, Option<usize>)) -> Self {
+        let (name, record_source, thing_type, limit) = name_source_type_limit;
+
+        GetByNameStartArgs {
+            name,
+            record_source,
+            thing_type,
+            limit,
+        }
+    }
+}
+
+impl<'a> From<(&'a str, Option<usize>)> for GetByNameStartArgs<'a> {
+    fn from(name_limit: (&'a str, Option<usize>)) -> Self {
+        let (name, limit) = name_limit;
+
+        GetByNameStartArgs {
+            name,
+            record_source: RecordSource::Any,
+            thing_type: ThingType::Any,
+            limit,
+        }
+    }
+}
+
+pub struct GetByNameArgs<'a> {
+    name: &'a str,
+    record_source: RecordSource,
+    thing_type: ThingType,
+}
+
+impl<'a> From<&'a str> for GetByNameArgs<'a> {
+    fn from(name: &'a str) -> Self {
+        GetByNameArgs {
+            name,
+            record_source: RecordSource::Any,
+            thing_type: ThingType::Any,
+        }
+    }
+}
+
+impl<'a> From<&'a String> for GetByNameArgs<'a> {
+    fn from(name: &'a String) -> Self {
+        GetByNameArgs {
+            name,
+            record_source: RecordSource::Any,
+            thing_type: ThingType::Any,
+        }
+    }
+}
+
+impl<'a> From<(&'a str, RecordSource, ThingType)> for GetByNameArgs<'a> {
+    fn from(name_source_type: (&'a str, RecordSource, ThingType)) -> Self {
+        let (name, record_source, thing_type) = name_source_type;
+
+        GetByNameArgs {
+            name,
+            record_source,
+            thing_type,
+        }
+    }
+}
+
 impl KeyValue {
     pub const fn key_raw(&self) -> &'static str {
         match self {
@@ -906,6 +1056,29 @@ impl Record {
 
     pub fn is_deleted(&self) -> bool {
         self.status == RecordStatus::Deleted
+    }
+
+    pub fn is_from_source(&self, source: RecordSource) -> bool {
+        matches!(
+            (self.status, source),
+            (
+                RecordStatus::Saved,
+                RecordSource::Journal | RecordSource::Any
+            ) | (
+                RecordStatus::Unsaved,
+                RecordSource::Recent | RecordSource::Any
+            ),
+        )
+    }
+}
+
+impl RecordSource {
+    pub fn journal(&self) -> bool {
+        matches!(self, Self::Journal | Self::Any)
+    }
+
+    pub fn recent(&self) -> bool {
+        matches!(self, Self::Recent | Self::Any)
     }
 }
 
@@ -966,7 +1139,7 @@ impl fmt::Debug for Repository {
 mod test {
     use super::*;
     use crate::storage::data_store::{MemoryDataStore, NullDataStore};
-    use crate::utils::test_utils as test;
+    use crate::test_utils as test;
     use crate::world::npc::Npc;
     use crate::world::place::Place;
     use tokio_test::block_on;

@@ -1,13 +1,24 @@
+mod any_of;
+mod any_phrase;
+mod any_word;
 mod keyword;
+mod keyword_list;
+mod name;
+mod optional;
+mod or;
+mod sequence;
+mod token_match_iterator;
+
+use token_match_iterator::TokenMatchIterator;
 
 use crate::app::AppMeta;
-use crate::utils::Word;
-
-use std::pin::Pin;
+use crate::storage::Record;
+use crate::utils::Substr;
 
 use futures::prelude::*;
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(test, derive(Clone))]
 pub struct Token {
     pub token_type: TokenType,
     pub marker: Option<u8>,
@@ -16,55 +27,179 @@ pub struct Token {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TokenMatch<'a> {
     pub token: &'a Token,
-    pub match_meta: MatchMeta,
+    pub match_meta: MatchMeta<'a>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FuzzyMatch<'a> {
-    Overflow(TokenMatch<'a>, Word<'a>),
+    Overflow(TokenMatch<'a>, Substr<'a>),
     Exact(TokenMatch<'a>),
     Partial(TokenMatch<'a>, Option<String>),
 }
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(test, derive(Clone))]
 pub enum TokenType {
-    /// A literal word
+    /// See [`token_constructors::any_of`].
+    AnyOf(Vec<Token>),
+
+    /// See [`token_constructors::any_phrase`].
+    AnyPhrase,
+
+    /// See [`token_constructors::any_word`].
+    AnyWord,
+
+    /// See [`token_constructors::keyword`].
     Keyword(&'static str),
+
+    /// See [`token_constructors::keyword_list`].
+    KeywordList(Vec<&'static str>),
+
+    /// See [`token_constructors::name`].
+    Name,
+
+    /// See [`token_constructors::optional`].
+    Optional(Box<Token>),
+
+    /// See [`token_constructors::or`].
+    Or(Vec<Token>),
+
+    /// See [`token_constructors::sequence`].
+    Sequence(Vec<Token>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MatchMeta {
+pub enum MatchMeta<'a> {
     None,
+    Phrase(&'a str),
+    Record(Record),
+    Sequence(Vec<TokenMatch<'a>>),
+    Single(Box<TokenMatch<'a>>),
 }
 
 impl Token {
-    pub fn keyword(keyword: &'static str) -> Self {
-        Token {
-            token_type: TokenType::Keyword(keyword),
-            marker: None,
-        }
-    }
-
     pub fn match_input<'a, 'b>(
         &'a self,
         input: &'a str,
-        _app_meta: &'b AppMeta,
-    ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+        app_meta: &'b AppMeta,
+    ) -> impl Stream<Item = FuzzyMatch<'a>> + 'b
     where
         'a: 'b,
     {
         match &self.token_type {
+            TokenType::AnyOf(..) => any_of::match_input(self, input, app_meta),
+            TokenType::AnyPhrase => any_phrase::match_input(self, input),
+            TokenType::AnyWord => any_word::match_input(self, input),
             TokenType::Keyword(..) => keyword::match_input(self, input),
+            TokenType::KeywordList(..) => keyword_list::match_input(self, input),
+            TokenType::Name => name::match_input(self, input, app_meta),
+            TokenType::Optional(..) => optional::match_input(self, input, app_meta),
+            TokenType::Or(..) => or::match_input(self, input, app_meta),
+            TokenType::Sequence(..) => sequence::match_input(self, input, app_meta),
         }
+    }
+
+    pub fn match_input_exact<'a, 'b>(
+        &'a self,
+        input: &'a str,
+        app_meta: &'b AppMeta,
+    ) -> impl Stream<Item = TokenMatch<'a>> + 'b
+    where
+        'a: 'b,
+    {
+        self.match_input(input, app_meta)
+            .filter_map(|fuzzy_match| future::ready(fuzzy_match.into_exact()))
     }
 }
 
 impl<'a> TokenMatch<'a> {
-    pub fn new(token: &'a Token, match_meta: impl Into<MatchMeta>) -> Self {
+    /// Creates a new `TokenMatch` object containing a reference to the [`Token`] that was matched.
+    ///
+    /// `match_meta` is typically not passed directly, but rather via the `Into<T>` trait. In the
+    /// case where `match_meta` is `MatchMeta::None`, `TokenMatch::from(&token)` is preferred.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # tokio_test::block_on(async {
+    /// # use initiative_core::command::prelude::*;
+    /// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
+    /// let token = any_word();
+    ///
+    /// // Use ::from to create a TokenMatch with no metadata.
+    /// let token_match = TokenMatch::from(&token);
+    /// assert_eq!(MatchMeta::None, token_match.match_meta);
+    ///
+    /// // Provide a &str for MatchMeta::Phrase.
+    /// let token_match = TokenMatch::new(&token, "word");
+    /// assert_eq!(MatchMeta::Phrase("word"), token_match.match_meta);
+    ///
+    /// // Provide a Record for MatchMeta::Record.
+    /// let record = app_meta.repository.get_by_name("Odysseus").await.unwrap();
+    /// let token_match = TokenMatch::new(&token, record);
+    /// assert!(matches!(token_match.match_meta, MatchMeta::Record(_)));
+    ///
+    /// // Provide a Vec<TokenMatch> for MatchMeta::Sequence.
+    /// let sequence_token = sequence([any_word()]);
+    /// let token_match = TokenMatch::new(&sequence_token, vec![TokenMatch::from(&token)]);
+    /// assert!(matches!(token_match.match_meta, MatchMeta::Sequence(_)));
+    ///
+    /// // Provide a TokenMatch for MatchMeta::Single.
+    /// let optional_token = optional(any_word());
+    /// let token_match = TokenMatch::new(&optional_token, TokenMatch::from(&token));
+    /// assert!(matches!(token_match.match_meta, MatchMeta::Single(_)));
+    /// # })
+    /// ```
+    pub fn new(token: &'a Token, match_meta: impl Into<MatchMeta<'a>>) -> Self {
         TokenMatch {
             token,
             match_meta: match_meta.into(),
         }
+    }
+
+    /// Returns `true` if the `TokenMatch` or any of its descendents contain the given marker.
+    ///
+    /// Returns `false` if the marker is not present.
+    pub fn contains_marker<T>(&'a self, marker: T) -> bool
+    where
+        T: PartialEq<u8>,
+    {
+        self.find_marker(marker).is_some()
+    }
+
+    /// Returns the first `TokenMatch` with a given marker in the token tree.
+    ///
+    /// Returns `None` if the patterns doesn't match.
+    pub fn find_marker<T>(&'a self, marker: T) -> Option<&'a TokenMatch<'a>>
+    where
+        T: PartialEq<u8>,
+    {
+        TokenMatchIterator::new(self).find(move |token_match| token_match.is_marked_with(&marker))
+    }
+
+    /// Iterate through all TokenMatch objects in the tree with a given set of markers.
+    pub fn find_markers<'b, T>(
+        &'a self,
+        markers: &'b [T],
+    ) -> impl Iterator<Item = &'a TokenMatch<'a>> + 'b
+    where
+        &'b T: PartialEq<u8>,
+        'a: 'b,
+    {
+        TokenMatchIterator::new(self)
+            .filter(move |token_match| markers.iter().any(|m| token_match.is_marked_with(&m)))
+    }
+
+    /// Returns `true` if the root-level token has the given `marker`.
+    ///
+    /// Returns `false` if it does not.
+    pub fn is_marked_with<T>(&self, marker: &T) -> bool
+    where
+        T: PartialEq<u8>,
+    {
+        self.token
+            .marker
+            .is_some_and(|my_marker| marker == &my_marker)
     }
 }
 
@@ -75,11 +210,935 @@ impl<'a> From<&'a Token> for TokenMatch<'a> {
 }
 
 impl<'a> FuzzyMatch<'a> {
+    pub fn map<F>(self, f: F) -> Self
+    where
+        F: FnOnce(TokenMatch<'a>) -> TokenMatch<'a>,
+    {
+        match self {
+            FuzzyMatch::Overflow(token_match, overflow) => {
+                FuzzyMatch::Overflow(f(token_match), overflow)
+            }
+            FuzzyMatch::Exact(token_match) => FuzzyMatch::Exact(f(token_match)),
+            FuzzyMatch::Partial(token_match, completion) => {
+                FuzzyMatch::Partial(f(token_match), completion)
+            }
+        }
+    }
+
+    pub fn token_match(&self) -> &TokenMatch<'a> {
+        match self {
+            FuzzyMatch::Overflow(token_match, _)
+            | FuzzyMatch::Exact(token_match)
+            | FuzzyMatch::Partial(token_match, _) => token_match,
+        }
+    }
+
     pub fn into_exact(self) -> Option<TokenMatch<'a>> {
         if let FuzzyMatch::Exact(token_match) = self {
             Some(token_match)
         } else {
             None
         }
+    }
+}
+
+impl<'a> MatchMeta<'a> {
+    pub fn phrase(&self) -> Option<&str> {
+        if let MatchMeta::Phrase(s) = self {
+            Some(s)
+        } else {
+            None
+        }
+    }
+
+    pub fn record(&self) -> Option<&Record> {
+        if let MatchMeta::Record(r) = self {
+            Some(r)
+        } else {
+            None
+        }
+    }
+
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn into_record(self) -> Option<Record> {
+        if let MatchMeta::Record(r) = self {
+            Some(r)
+        } else {
+            None
+        }
+    }
+
+    pub fn sequence(&self) -> Option<&[TokenMatch<'a>]> {
+        if let MatchMeta::Sequence(v) = self {
+            Some(v.as_slice())
+        } else {
+            None
+        }
+    }
+
+    pub fn into_sequence(self) -> Option<Vec<TokenMatch<'a>>> {
+        if let MatchMeta::Sequence(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
+    pub fn single(&self) -> Option<&TokenMatch<'a>> {
+        if let MatchMeta::Single(b) = self {
+            Some(b.as_ref())
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> From<&'a str> for MatchMeta<'a> {
+    fn from(input: &'a str) -> Self {
+        MatchMeta::Phrase(input)
+    }
+}
+
+impl<'a> From<Vec<TokenMatch<'a>>> for MatchMeta<'a> {
+    fn from(input: Vec<TokenMatch<'a>>) -> Self {
+        MatchMeta::Sequence(input)
+    }
+}
+
+impl<'a> From<TokenMatch<'a>> for MatchMeta<'a> {
+    fn from(input: TokenMatch<'a>) -> Self {
+        MatchMeta::Single(input.into())
+    }
+}
+
+impl From<Record> for MatchMeta<'_> {
+    fn from(input: Record) -> Self {
+        MatchMeta::Record(input)
+    }
+}
+
+pub mod token_constructors {
+    use super::*;
+
+    /// Matches one or more of a set of tokens, in any order but without repetition.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let token = any_of([keyword("badger"), keyword("mushroom"), keyword("snake")]);
+    ///
+    /// assert_eq!(
+    ///     vec![
+    ///         // "Ungreedy" version consuming only one token,
+    ///         FuzzyMatch::Overflow(
+    ///             TokenMatch::new(&token, vec![
+    ///                 TokenMatch::from(&keyword("mushroom")),
+    ///             ]),
+    ///             " snake badger badger".into(),
+    ///         ),
+    ///
+    ///         // two tokens,
+    ///         FuzzyMatch::Overflow(
+    ///             TokenMatch::new(&token, vec![
+    ///                 TokenMatch::from(&keyword("mushroom")),
+    ///                 TokenMatch::from(&keyword("snake")),
+    ///             ]),
+    ///             " badger badger".into(),
+    ///         ),
+    ///
+    ///         // and all three tokens. The final word is repeated and so does not match.
+    ///         FuzzyMatch::Overflow(
+    ///             TokenMatch::new(&token, vec![
+    ///                 TokenMatch::from(&keyword("mushroom")),
+    ///                 TokenMatch::from(&keyword("snake")),
+    ///                 TokenMatch::from(&keyword("badger")),
+    ///             ]),
+    ///             " badger".into(),
+    ///         ),
+    ///     ],
+    ///     token
+    ///         .match_input("mushroom snake badger badger", &app_meta)
+    ///         .collect::<Vec<_>>()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    pub fn any_of<V>(tokens: V) -> Token
+    where
+        V: Into<Vec<Token>>,
+    {
+        Token {
+            token_type: TokenType::AnyOf(tokens.into()),
+            marker: None,
+        }
+    }
+
+    /// A variant of `any_of` with a marker assigned, making it easy to jump directly to the
+    /// matched result within the token tree.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// #[derive(TokenMarker)]
+    /// enum Marker {
+    ///     AnyOf,
+    /// }
+    ///
+    /// let query = "badger snake";
+    /// let token = sequence([
+    ///     keyword("badger"),
+    ///     any_of_m(Marker::AnyOf, [keyword("mushroom"), keyword("snake")]),
+    /// ]);
+    /// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+    ///
+    /// assert_eq!(
+    ///     Some(&[TokenMatch::from(&keyword("snake"))][..]),
+    ///     token_match.find_marker(Marker::AnyOf).unwrap().match_meta.sequence(),
+    /// );
+    /// # })
+    /// ```
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn any_of_m<M, V>(marker: M, tokens: V) -> Token
+    where
+        M: Into<u8>,
+        V: Into<Vec<Token>>,
+    {
+        Token {
+            token_type: TokenType::AnyOf(tokens.into()),
+            marker: Some(marker.into()),
+        }
+    }
+
+    /// Matches all sequences of one or more words. Quoted phrases are treated as single words.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let token = any_phrase();
+    ///
+    /// assert_eq!(
+    ///     vec![
+    ///         // Ungreedily matches the quoted phrase as a single token,
+    ///         FuzzyMatch::Overflow(
+    ///             TokenMatch::new(&token, "badger badger"),
+    ///             " mushroom snake ".into(),
+    ///         ),
+    ///
+    ///         // the first two "words",
+    ///         FuzzyMatch::Overflow(
+    ///             TokenMatch::new(&token, r#""badger badger" mushroom"#),
+    ///             " snake ".into(),
+    ///         ),
+    ///
+    ///         // and the whole phrase.
+    ///         FuzzyMatch::Exact(TokenMatch::new(&token, r#""badger badger" mushroom snake"#)),
+    ///     ],
+    ///     token
+    ///         .match_input(r#" "badger badger" mushroom snake "#, &app_meta)
+    ///         .collect::<Vec<_>>()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn any_phrase() -> Token {
+        Token {
+            token_type: TokenType::AnyPhrase,
+            marker: None,
+        }
+    }
+
+    /// A variant of `any_phrase` with a marker assigned, making it easy to jump directly to the
+    /// matched result within the token tree.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// #[derive(TokenMarker)]
+    /// enum Marker {
+    ///     AnyPhrase,
+    /// }
+    ///
+    /// let query = "badger mushroom snake";
+    /// let token = sequence([keyword("badger"), any_phrase_m(Marker::AnyPhrase)]);
+    /// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+    ///
+    /// assert_eq!(
+    ///     MatchMeta::Phrase("mushroom snake"),
+    ///     token_match.find_marker(Marker::AnyPhrase).unwrap().match_meta,
+    /// );
+    /// # })
+    /// ```
+    pub fn any_phrase_m<M>(marker: M) -> Token
+    where
+        M: Into<u8>,
+    {
+        Token {
+            token_type: TokenType::AnyPhrase,
+            marker: Some(marker.into()),
+        }
+    }
+
+    /// Matches any single word.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use initiative_core::command::prelude::*;
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// let token = any_word();
+    ///
+    /// assert_eq!(
+    ///     Some(TokenMatch::new(&token, "BADGER")),
+    ///     token
+    ///         .match_input_exact("BADGER", &app_meta)
+    ///         .next()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn any_word() -> Token {
+        Token {
+            token_type: TokenType::AnyWord,
+            marker: None,
+        }
+    }
+
+    /// A variant of `any_word` with a marker assigned, making it easy to jump directly to the
+    /// matched result within the token tree.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// #[derive(TokenMarker)]
+    /// enum Marker {
+    ///     AnyWord,
+    /// }
+    ///
+    /// let query = "badger mushroom";
+    /// let token = sequence([keyword("badger"), any_phrase_m(Marker::AnyWord)]);
+    /// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+    ///
+    /// assert_eq!(
+    ///     MatchMeta::Phrase("mushroom"),
+    ///     token_match.find_marker(Marker::AnyWord).unwrap().match_meta,
+    /// );
+    /// # })
+    /// ```
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn any_word_m<M>(marker: M) -> Token
+    where
+        M: Into<u8>,
+    {
+        Token {
+            token_type: TokenType::AnyWord,
+            marker: Some(marker.into()),
+        }
+    }
+
+    /// A single keyword, matched case-insensitively.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let token = keyword("badger");
+    ///
+    /// assert_eq!(
+    ///     Some(TokenMatch::from(&token)),
+    ///     token
+    ///         .match_input_exact("BADGER", &app_meta)
+    ///         .next()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    ///
+    /// ## Autocomplete
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let token = keyword("badger");
+    ///
+    /// assert_eq!(
+    ///     Some(FuzzyMatch::Partial(
+    ///         TokenMatch::from(&token),
+    ///         Some("er".to_string()),
+    ///     )),
+    ///     token
+    ///         .match_input("badg", &app_meta)
+    ///         .next()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    pub fn keyword(keyword: &'static str) -> Token {
+        Token {
+            token_type: TokenType::Keyword(keyword),
+            marker: None,
+        }
+    }
+
+    /// A variant of `keyword` with a marker assigned, making it easy to jump directly to the
+    /// matched result within the token tree.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// #[derive(TokenMarker)]
+    /// enum Marker {
+    ///     Keyword,
+    /// }
+    ///
+    /// let token = sequence([
+    ///     optional(keyword_m(Marker::Keyword, "badger")),
+    ///     keyword("mushroom"),
+    /// ]);
+    ///
+    /// // We can easily distinguish between the case when the keyword was matched
+    /// let query = "badger mushroom";
+    /// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+    /// assert!(token_match.contains_marker(Marker::Keyword));
+    ///
+    /// // and when it wasn't.
+    /// let query = "mushroom";
+    /// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+    /// assert!(!token_match.contains_marker(Marker::Keyword));
+    /// # })
+    /// ```
+    pub fn keyword_m<M>(marker: M, keyword: &'static str) -> Token
+    where
+        M: Into<u8>,
+    {
+        Token {
+            token_type: TokenType::Keyword(keyword),
+            marker: Some(marker.into()),
+        }
+    }
+
+    /// Matches exactly one of a set of possible keywords, case-insensitively.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let token = keyword_list(["badger", "mushroom", "snake"]);
+    ///
+    /// // Only consumes one word, despite the repetition in the input.
+    /// assert_eq!(
+    ///     vec![FuzzyMatch::Overflow(
+    ///         TokenMatch::new(&token, "badger"),
+    ///         " badger mushroom".into(),
+    ///     )],
+    ///     token
+    ///         .match_input("badger badger mushroom", &app_meta)
+    ///         .collect::<Vec<_>>()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    ///
+    /// ## Autocomplete
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let token = keyword_list(["badge", "badger"]);
+    ///
+    /// assert_eq!(
+    ///     vec![
+    ///         // The input appears in the keyword list,
+    ///         FuzzyMatch::Exact(TokenMatch::new(&token, "badge")),
+    ///
+    ///         // but can also be completed to another word.
+    ///         FuzzyMatch::Partial(
+    ///             TokenMatch::new(&token, "badge"),
+    ///             Some("r".to_string()),
+    ///         ),
+    ///     ],
+    ///     token
+    ///         .match_input("badge", &app_meta)
+    ///         .collect::<Vec<_>>()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    pub fn keyword_list<V>(keywords: V) -> Token
+    where
+        V: IntoIterator<Item = &'static str>,
+    {
+        Token {
+            token_type: TokenType::KeywordList(keywords.into_iter().collect()),
+            marker: None,
+        }
+    }
+
+    /// A variant of `any_word` with a marker assigned, making it easy to jump directly to the
+    /// matched result within the token tree.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// #[derive(TokenMarker)]
+    /// enum Marker {
+    ///     KeywordList,
+    /// }
+    ///
+    /// let query = "badger mushroom";
+    /// let token = sequence([
+    ///     keyword("badger"),
+    ///     keyword_list_m(Marker::KeywordList, ["mushroom", "snake"]),
+    /// ]);
+    /// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+    ///
+    /// assert_eq!(
+    ///     MatchMeta::Phrase("mushroom"),
+    ///     token_match.find_marker(Marker::KeywordList).unwrap().match_meta,
+    /// );
+    /// # })
+    /// ```
+    pub fn keyword_list_m<M, V>(marker: M, keywords: V) -> Token
+    where
+        M: Into<u8>,
+        V: IntoIterator<Item = &'static str>,
+    {
+        Token {
+            token_type: TokenType::KeywordList(keywords.into_iter().collect()),
+            marker: Some(marker.into()),
+        }
+    }
+
+    /// Matches the name of a Thing found in the journal or recent entities.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let query = "odysseus";
+    /// let token = name();
+    /// let odysseus = app_meta.repository.get_by_name("Odysseus").await.unwrap();
+    /// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+    ///
+    /// assert_eq!(TokenMatch::new(&token, odysseus.clone()), token_match);
+    ///
+    /// // The matched Record can be accessed directly from the TokenMatch tree.
+    /// assert_eq!(MatchMeta::Record(odysseus), token_match.match_meta);
+    /// # })
+    /// ```
+    ///
+    /// ## Autocomplete
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let query = "ody";
+    /// let token = name();
+    /// let odysseus = app_meta.repository.get_by_name("Odysseus").await.unwrap();
+    ///
+    /// assert_eq!(
+    ///     Some(FuzzyMatch::Partial(
+    ///         TokenMatch::new(&token, odysseus),
+    ///         Some("sseus".to_string()),
+    ///     )),
+    ///     token.match_input(query, &app_meta).next().await,
+    /// );
+    /// # })
+    /// ```
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn name() -> Token {
+        Token {
+            token_type: TokenType::Name,
+            marker: None,
+        }
+    }
+
+    /// A variant of `name` with a marker assigned, making it easy to jump directly to the
+    /// matched result within the token tree.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// #[derive(TokenMarker)]
+    /// enum Marker {
+    ///     Name,
+    /// }
+    ///
+    /// let query = "hail odysseus";
+    /// let token = sequence([keyword("hail"), name_m(Marker::Name)]);
+    /// let odysseus = app_meta.repository.get_by_name("Odysseus").await.unwrap();
+    ///
+    /// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+    ///
+    /// assert_eq!(
+    ///     MatchMeta::Record(odysseus),
+    ///     token_match.find_marker(Marker::Name).unwrap().match_meta,
+    /// );
+    /// # })
+    /// ```
+    pub fn name_m<M>(marker: M) -> Token
+    where
+        M: Into<u8>,
+    {
+        Token {
+            token_type: TokenType::Name,
+            marker: Some(marker.into()),
+        }
+    }
+
+    /// Matches the input with and without the contained token.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let token = optional(keyword("badger"));
+    ///
+    /// assert_eq!(
+    ///     vec![
+    ///         // Passes the input directly through to the overflow,
+    ///         FuzzyMatch::Overflow(TokenMatch::from(&token), "badger".into()),
+    ///
+    ///         // as well as the matched result if present.
+    ///         FuzzyMatch::Exact(TokenMatch::new(&token, TokenMatch::from(&keyword("badger")))),
+    ///     ],
+    ///     token
+    ///         .match_input("badger", &app_meta)
+    ///         .collect::<Vec<_>>()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    pub fn optional(token: Token) -> Token {
+        Token {
+            token_type: TokenType::Optional(Box::new(token)),
+            marker: None,
+        }
+    }
+
+    /// A variant of `name` with a marker assigned, making it easy to jump directly to the
+    /// matched result within the token tree.
+    ///
+    /// # Examples
+    ///
+    /// We can inspect the metadata of the `optional` token to see if a match occurred or not. More
+    /// normally, the inner token would be marked and we would check to see if the marked token
+    /// exists in the tree (`TokenMatch::contains_token`).
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// #[derive(TokenMarker)]
+    /// enum Marker {
+    ///     Optional,
+    /// }
+    ///
+    /// let token = sequence([
+    ///     optional_m(Marker::Optional, keyword("badger")),
+    ///     keyword("mushroom"),
+    /// ]);
+    ///
+    /// // We can inspect the metadata to see that this case contains a match
+    /// let query = "badger mushroom";
+    /// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+    /// assert!(token_match.find_marker(Marker::Optional).unwrap().match_meta.single().is_some());
+    ///
+    /// // and this case does not.
+    /// let query = "mushroom";
+    /// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
+    /// assert!(token_match.find_marker(Marker::Optional).unwrap().match_meta.single().is_none());
+    /// # })
+    /// ```
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn optional_m<M>(marker: M, token: Token) -> Token
+    where
+        M: Into<u8>,
+    {
+        Token {
+            token_type: TokenType::Optional(Box::new(token)),
+            marker: Some(marker.into()),
+        }
+    }
+
+    /// Matches exactly one of a set of possible tokens. The matched token will be included in the
+    /// result.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let token = or([keyword("badger"), any_word()]);
+    ///
+    /// assert_eq!(
+    ///     vec![
+    ///         // "badger" matches a provided keyword,
+    ///         FuzzyMatch::Overflow(
+    ///             TokenMatch::new(&token, TokenMatch::from(&keyword("badger"))),
+    ///             " badger".into(),
+    ///         ),
+    ///
+    ///         // but it satisfies the wildcard any_word() case as well.
+    ///         // It only ever matches a single token, so the second "badger" in the input is
+    ///         // never consumed.
+    ///         FuzzyMatch::Overflow(
+    ///             TokenMatch::new(&token, TokenMatch::new(&any_word(), "badger")),
+    ///             " badger".into(),
+    ///         ),
+    ///     ],
+    ///     token
+    ///         .match_input("badger badger", &app_meta)
+    ///         .collect::<Vec<_>>()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    pub fn or<V>(tokens: V) -> Token
+    where
+        V: IntoIterator<Item = Token>,
+    {
+        Token {
+            token_type: TokenType::Or(tokens.into_iter().collect()),
+            marker: None,
+        }
+    }
+
+    /// A variant of `or` with a marker assigned.
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn or_m<M, V>(marker: M, tokens: V) -> Token
+    where
+        M: Into<u8>,
+        V: IntoIterator<Item = Token>,
+    {
+        Token {
+            token_type: TokenType::Or(tokens.into_iter().collect()),
+            marker: Some(marker.into()),
+        }
+    }
+
+    /// Matches an exact sequence of tokens.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use initiative_core::command::prelude::*;
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// let token = sequence([keyword("badger"), keyword("mushroom"), keyword("snake")]);
+    ///
+    /// // The first two keywords are matched, but the third is not present.
+    /// assert_eq!(
+    ///     vec![FuzzyMatch::Partial(
+    ///         TokenMatch::new(&token, vec![
+    ///             TokenMatch::from(&keyword("badger")),
+    ///             TokenMatch::from(&keyword("mushroom")),
+    ///         ]),
+    ///         None,
+    ///     )],
+    ///     token
+    ///         .match_input("badger mushroom", &app_meta)
+    ///         .collect::<Vec<_>>()
+    ///         .await,
+    /// );
+    /// # })
+    /// ```
+    pub fn sequence<V>(tokens: V) -> Token
+    where
+        V: Into<Vec<Token>>,
+    {
+        Token {
+            token_type: TokenType::Sequence(tokens.into()),
+            marker: None,
+        }
+    }
+
+    /// A variant of `sequence` with a marker assigned.
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
+    pub fn sequence_m<M, V>(marker: M, tokens: V) -> Token
+    where
+        M: Into<u8>,
+        V: Into<Vec<Token>>,
+    {
+        Token {
+            token_type: TokenType::Sequence(tokens.into()),
+            marker: Some(marker.into()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::command::prelude::*;
+    use crate::test_utils as test;
+
+    #[derive(TokenMarker)]
+    enum Marker {
+        One,
+        Two,
+        Three,
+    }
+
+    #[test]
+    fn token_match_find_marker_contains_marker_test() {
+        let keyword_token = keyword_m(Marker::Two, "badger");
+        let sequence_token = sequence_m(Marker::One, [keyword_token.clone()]);
+
+        let token_match = TokenMatch::new(&sequence_token, vec![TokenMatch::from(&keyword_token)]);
+
+        assert_eq!(Some(&token_match), token_match.find_marker(Marker::One));
+        assert_eq!(
+            Some(&TokenMatch::from(&keyword_token)),
+            token_match.find_marker(Marker::Two),
+        );
+        assert_eq!(None, token_match.find_marker(Marker::Three));
+
+        assert!(token_match.contains_marker(Marker::One));
+        assert!(token_match.contains_marker(Marker::Two));
+        assert!(!token_match.contains_marker(Marker::Three));
+    }
+
+    #[test]
+    fn token_match_find_markers_test() {
+        let tokens = [
+            keyword_m(Marker::One, "badger"),
+            keyword_m(Marker::Two, "mushroom"),
+            keyword_m(Marker::Three, "snake"),
+        ];
+        let sequence_token = sequence_m(Marker::One, tokens.clone());
+        let token_match = TokenMatch::new(
+            &sequence_token,
+            tokens.iter().map(TokenMatch::from).collect::<Vec<_>>(),
+        );
+
+        assert_eq!(
+            vec![
+                &token_match,
+                &TokenMatch::from(&tokens[0]),
+                &TokenMatch::from(&tokens[1]),
+            ],
+            token_match
+                .find_markers(&[Marker::One, Marker::Two])
+                .collect::<Vec<_>>(),
+        );
+
+        assert_eq!(
+            vec![&TokenMatch::from(&tokens[2])],
+            token_match
+                .find_markers(&[Marker::Three])
+                .collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
+    fn token_match_is_marked_with_test() {
+        let marked_token = keyword_m(Marker::One, "badger");
+        let unmarked_token = keyword("mushroom");
+
+        assert!(TokenMatch::from(&marked_token).is_marked_with(&Marker::One));
+        assert!(!TokenMatch::from(&marked_token).is_marked_with(&Marker::Two));
+        assert!(!TokenMatch::from(&unmarked_token).is_marked_with(&Marker::One));
+    }
+
+    #[tokio::test]
+    async fn token_match_new_test() {
+        let token = keyword("I am a token");
+        let record = test::app_meta::with_test_data()
+            .await
+            .repository
+            .get_by_uuid(&test::npc::odysseus::UUID)
+            .await
+            .unwrap();
+
+        let token_match = TokenMatch::from(&token);
+        assert_eq!(MatchMeta::None, token_match.match_meta);
+
+        let token_match = TokenMatch::new(&token, "word");
+        assert_eq!(MatchMeta::Phrase("word"), token_match.match_meta);
+
+        let token_match = TokenMatch::new(&token, record);
+        assert!(matches!(token_match.match_meta, MatchMeta::Record(_)));
+
+        let token_match = TokenMatch::new(&token, vec![TokenMatch::from(&token)]);
+        assert!(matches!(token_match.match_meta, MatchMeta::Sequence(_)));
+
+        let token_match = TokenMatch::new(&token, TokenMatch::from(&token));
+        assert!(matches!(token_match.match_meta, MatchMeta::Single(_)));
     }
 }

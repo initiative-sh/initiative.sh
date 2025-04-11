@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 macro_rules! builder {
     ($thing: path | $thing_data: path, ($($f:ident: $t:path),* $(,)?) $(,)?) => {
         use crate::world::Generate as _;
@@ -6,17 +9,14 @@ macro_rules! builder {
         pub struct Builder($thing_data);
 
         impl Builder {
-            #[allow(dead_code)]
             pub fn build(self) -> $thing_data {
                 self.0
             }
 
-            #[allow(dead_code)]
             pub fn build_thing_data(self) -> crate::world::thing::ThingData {
                 self.build().into()
             }
 
-            #[allow(dead_code)]
             pub fn build_with_uuid(self, uuid: ::uuid::Uuid) -> $thing {
                 $thing {
                     uuid,
@@ -24,12 +24,10 @@ macro_rules! builder {
                 }
             }
 
-            #[allow(dead_code)]
             pub fn build_thing(self, uuid: ::uuid::Uuid) -> crate::world::thing::Thing {
                 self.build_with_uuid(uuid).into()
             }
 
-            #[allow(dead_code)]
             pub fn generate(
                 mut self,
                 rng: &mut impl ::rand::Rng,
@@ -38,14 +36,12 @@ macro_rules! builder {
                 self.0
             }
 
-            #[allow(dead_code)]
             pub fn name<S: std::fmt::Display>(mut self, name: S) -> Self {
                 self.0.name = name.to_string().into();
                 self
             }
 
             $(
-                #[allow(dead_code)]
                 pub fn $f<T: Into<crate::world::Field<$t>>>(mut self, $f: T) -> Self {
                     self.0.$f = $f.into();
                     self
@@ -61,13 +57,11 @@ macro_rules! relations_builder {
         pub struct RelationsBuilder($thing_relations);
 
         impl RelationsBuilder {
-            #[allow(dead_code)]
             pub fn build(self) -> $thing_relations {
                 self.0
             }
 
             $(
-                #[allow(dead_code)]
                 pub fn $f(mut self, $f: $t) -> Self {
                     if let Some(value) = self.0.$f.as_mut() {
                         if value.1.is_none() {
@@ -89,17 +83,13 @@ pub mod npc {
     use crate::world::place::Place;
     use uuid::Uuid;
 
-    #[allow(unused_imports)]
     pub use super::odyssey::{odysseus, penelope, polyphemus};
-
-    #[allow(unused_imports)]
     pub use super::odyssey::{ODYSSEUS, PENELOPE, POLYPHEMUS};
 
     pub fn builder() -> builder::Builder {
         builder::Builder::default()
     }
 
-    #[expect(dead_code)]
     pub fn relations() -> builder::RelationsBuilder {
         builder::RelationsBuilder::default()
     }
@@ -129,10 +119,7 @@ pub mod place {
     use crate::world::place::{Place, PlaceData, PlaceRelations, PlaceType};
     use uuid::Uuid;
 
-    #[allow(unused_imports)]
     pub use super::odyssey::{greece, ithaca, styx};
-
-    #[allow(unused_imports)]
     pub use super::odyssey::{GREECE, ITHACA, STYX};
 
     pub fn builder() -> builder::Builder {
@@ -160,7 +147,6 @@ pub mod place {
 }
 
 pub mod thing {
-    #[expect(unused_imports)]
     pub use super::odyssey::{GREECE, ITHACA, ODYSSEUS, PENELOPE, POLYPHEMUS, STYX};
 
     use crate::world::thing::Thing;
@@ -173,12 +159,10 @@ pub mod thing {
             pub mod $thing {
                 use crate::world::thing::{ThingData, ThingRelations};
 
-                #[allow(dead_code)]
                 pub fn data() -> ThingData {
                     super::$thing().data
                 }
 
-                #[allow(dead_code)]
                 pub fn relations() -> ThingRelations {
                     super::super::odyssey::$thing::relations().into()
                 }
@@ -190,7 +174,9 @@ pub mod thing {
     thing!(ithaca);
     thing!(odysseus);
     thing!(penelope);
+    thing!(phoenicia);
     thing!(polyphemus);
+    thing!(pylos);
     thing!(styx);
 }
 
@@ -205,7 +191,9 @@ mod odyssey {
     pub use ithaca::UUID as ITHACA;
     pub use odysseus::UUID as ODYSSEUS;
     pub use penelope::UUID as PENELOPE;
+    pub use phoenicia::UUID as PHOENICIA;
     pub use polyphemus::UUID as POLYPHEMUS;
+    pub use pylos::UUID as PYLOS;
     pub use styx::UUID as STYX;
 
     macro_rules! place {
@@ -291,6 +279,28 @@ mod odyssey {
             .name("Styx")
             .description("This really is hell!")
             .subtype("river".parse::<PlaceType>().unwrap())
+            .build(),
+        PlaceRelations::default(),
+    );
+
+    place!(
+        pylos,
+        0x04,
+        place::builder()
+            .name("Pylos")
+            .subtype("city".parse::<PlaceType>().unwrap())
+            .build(),
+        PlaceRelations {
+            location: Some((greece(), None)),
+        },
+    );
+
+    place!(
+        phoenicia,
+        0x05,
+        place::builder()
+            .name("Phoenicia")
+            .subtype("territory".parse::<PlaceType>().unwrap())
             .build(),
         PlaceRelations::default(),
     );
