@@ -1,10 +1,8 @@
 /// All of the classes needed to implement a new command or token type.
-#[cfg(not(feature = "integration-tests"))]
-mod prelude;
-#[cfg(feature = "integration-tests")]
 pub mod prelude;
 
 mod about;
+mod alias;
 
 mod token;
 
@@ -124,6 +122,9 @@ pub trait Command {
 #[derive(Clone, CommandList, Debug)]
 enum CommandList {
     About(about::About),
+    #[command_list(ignore)]
+    #[expect(dead_code)]
+    Alias(alias::Alias),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]

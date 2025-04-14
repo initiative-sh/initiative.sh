@@ -1,4 +1,5 @@
 use super::{CommandAlias, Event};
+use crate::command::prelude::*;
 use crate::storage::{DataStore, Repository};
 use crate::world;
 use rand::prelude::*;
@@ -7,6 +8,7 @@ use std::fmt;
 
 pub struct AppMeta {
     pub command_aliases: HashSet<CommandAlias>,
+    pub command_aliases_new: HashSet<Alias>,
     pub demographics: world::Demographics,
     pub event_dispatcher: &'static dyn Fn(Event),
     pub rng: SmallRng,
@@ -20,6 +22,7 @@ impl AppMeta {
     ) -> Self {
         Self {
             command_aliases: HashSet::default(),
+            command_aliases_new: HashSet::default(),
             demographics: world::Demographics::default(),
             event_dispatcher,
             repository: Repository::new(data_store),

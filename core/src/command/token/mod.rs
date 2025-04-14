@@ -33,14 +33,14 @@ mod prelude {
     pub use futures::prelude::*;
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Token {
     kind: TokenKind,
     marker_hash: u64,
     placeholder: Option<&'static str>,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum TokenKind {
     /// See [`token_constructors::any_of`].
     AnyOf { tokens: Vec<Token> },
