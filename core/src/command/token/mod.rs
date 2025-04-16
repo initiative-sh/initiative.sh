@@ -79,6 +79,26 @@ impl<'a> TokenMatch<'a> {
             match_meta: match_meta.into(),
         }
     }
+
+    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
+    pub fn meta_phrase(&self) -> Option<&str> {
+        self.match_meta.phrase()
+    }
+
+    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
+    pub fn meta_record(&self) -> Option<&Record> {
+        self.match_meta.record()
+    }
+
+    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
+    pub fn meta_sequence(&self) -> Option<&[TokenMatch<'a>]> {
+        self.match_meta.sequence()
+    }
+
+    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
+    pub fn meta_single(&self) -> Option<&TokenMatch<'a>> {
+        self.match_meta.single()
+    }
 }
 
 impl<'a> From<&'a Token> for TokenMatch<'a> {
@@ -123,7 +143,6 @@ impl<'a> FuzzyMatch<'a> {
 }
 
 impl<'a> MatchMeta<'a> {
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
     pub fn phrase(&self) -> Option<&str> {
         if let MatchMeta::Phrase(s) = self {
             Some(s)
@@ -132,7 +151,6 @@ impl<'a> MatchMeta<'a> {
         }
     }
 
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
     pub fn record(&self) -> Option<&Record> {
         if let MatchMeta::Record(r) = self {
             Some(r)
@@ -141,7 +159,6 @@ impl<'a> MatchMeta<'a> {
         }
     }
 
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
     pub fn sequence(&self) -> Option<&[TokenMatch<'a>]> {
         if let MatchMeta::Sequence(v) = self {
             Some(v.as_slice())
@@ -159,7 +176,6 @@ impl<'a> MatchMeta<'a> {
         }
     }
 
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
     pub fn single(&self) -> Option<&TokenMatch<'a>> {
         if let MatchMeta::Single(b) = self {
             Some(b.as_ref())
