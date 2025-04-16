@@ -40,7 +40,11 @@ pub trait Command {
     /// Run the command represented by a matched token, returning the success or failure output to
     /// be displayed to the user.
     #[cfg_attr(feature = "integration-tests", expect(async_fn_in_trait))]
-    async fn run(&self, token_match: TokenMatch, app_meta: &mut AppMeta) -> Result<String, String>;
+    async fn run(
+        &self,
+        token_match: TokenMatch,
+        app_meta: &mut AppMeta,
+    ) -> Result<impl std::fmt::Display, impl std::fmt::Display>;
 
     /// Get the canonical form of the provided token match. Return None if the match is invalid.
     fn get_canonical_form_of(&self, token_match: &TokenMatch) -> Option<String>;
@@ -210,7 +214,11 @@ pub async fn run(input: &str, app_meta: &mut AppMeta) -> Result<String, String> 
         0 => return Err(format!("Unknown command: \"{}\"", input)),
         1 => {
             let (command, _, token_match) = token_matches.pop().unwrap();
-            return command.run(token_match, app_meta).await;
+            return command
+                .run(token_match, app_meta)
+                .await
+                .map(|s| s.to_string())
+                .map_err(|e| e.to_string());
         }
         _ => {} // continue
     }
@@ -219,7 +227,11 @@ pub async fn run(input: &str, app_meta: &mut AppMeta) -> Result<String, String> 
         assert_ne!(token_matches[1].1, CommandPriority::Canonical);
 
         let (command, _, token_match) = token_matches.remove(0);
-        let result = command.run(token_match, app_meta).await;
+        let result = command
+            .run(token_match, app_meta)
+            .await
+            .map(|s| s.to_string())
+            .map_err(|e| e.to_string());
 
         let mut iter = token_matches
             .iter()

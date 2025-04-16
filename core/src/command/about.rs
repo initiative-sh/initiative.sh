@@ -28,10 +28,8 @@ impl Command for About {
         &self,
         _token_match: TokenMatch<'_>,
         _app_meta: &mut AppMeta,
-    ) -> Result<String, String> {
-        Ok(include_str!("../../../data/about.md")
-            .trim_end()
-            .to_string())
+    ) -> Result<impl std::fmt::Display, impl std::fmt::Display> {
+        Ok::<_, &str>(include_str!("../../../data/about.md").trim_end())
     }
 }
 

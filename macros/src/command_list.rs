@@ -80,9 +80,14 @@ fn impl_command_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
                 &self,
                 token_match: TokenMatch<'a>,
                 app_meta: &mut AppMeta,
-            ) -> Result<String, String> {
+            ) -> Result<impl ::std::fmt::Display, impl ::std::fmt::Display> {
                 match self {
-                    #( #match_items => c.run(token_match, app_meta).await, )*
+                    #(
+                        #match_items => c.run(token_match, app_meta)
+                            .await
+                            .map(|s| s.to_string())
+                            .map_err(|e| e.to_string()),
+                    )*
                 }
             }
         }
@@ -144,11 +149,20 @@ mod test {
                         &self,
                         token_match: TokenMatch<'a>,
                         app_meta: &mut AppMeta,
-                    ) -> Result<String, String> {
+                    ) -> Result<impl ::std::fmt::Display, impl ::std::fmt::Display> {
                         match self {
-                            CommandList::About(c) => c.run(token_match, app_meta).await,
-                            CommandList::Create(c) => c.run(token_match, app_meta).await,
-                            CommandList::Save(c) => c.run(token_match, app_meta).await,
+                            CommandList::About(c) => c.run(token_match, app_meta)
+                                .await
+                                .map(|s| s.to_string())
+                                .map_err(|e| e.to_string()),
+                            CommandList::Create(c) => c.run(token_match, app_meta)
+                                .await
+                                .map(|s| s.to_string())
+                                .map_err(|e| e.to_string()),
+                            CommandList::Save(c) => c.run(token_match, app_meta)
+                                .await
+                                .map(|s| s.to_string())
+                                .map_err(|e| e.to_string()),
                         }
                     }
                 }
