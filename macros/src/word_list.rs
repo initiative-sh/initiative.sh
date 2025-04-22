@@ -37,18 +37,26 @@ fn impl_word_list(ast: &syn::DeriveInput) -> Result<TokenStream, String> {
                 .collect();
 
             for attribute in &variant.attrs {
-                match attribute.parse_meta().map_err(|e| format!("{}", e))? {
+                match &attribute.meta {
                     syn::Meta::NameValue(name_value) if name_value.path.is_ident("alias") => {
-                        let lit = name_value.lit;
-                        words.push(quote! { #lit, });
-                        from_str_match_cases.push(quote! { #lit => Ok(#name::#ident), });
+                        let expr = &name_value.value;
+                        words.push(quote! { #expr, });
+                        from_str_match_cases.push(quote! { #expr => Ok(#name::#ident), });
                     }
                     syn::Meta::NameValue(name_value) if name_value.path.is_ident("term") => {
-                        if let syn::Lit::Str(lit_str) = name_value.lit {
+                        let expr = &name_value.value;
+
+                        let syn::Expr::Lit(expr_lit) = expr else {
+                            return Err("Unexpected value for \"term\" helper.".to_string());
+                        };
+
+                        let syn::ExprLit { lit, .. } = expr_lit;
+
+                        if let syn::Lit::Str(lit_str) = lit {
                             term = lit_str.value();
                         } else {
                             return Err("Unexpected value for \"term\" helper.".to_string());
-                        }
+                        };
                     }
                     _ => {}
                 }
