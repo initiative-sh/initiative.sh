@@ -10,6 +10,7 @@ use syn::parse_macro_input;
 
 mod changelog;
 mod command_list;
+mod from;
 mod motd;
 mod reference_enum;
 mod token_marker;
@@ -26,6 +27,12 @@ pub fn changelog(input: TokenStream) -> TokenStream {
 pub fn command_list(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input);
     command_list::run(input).unwrap().into()
+}
+
+#[proc_macro_derive(From, attributes(from))]
+pub fn from(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input);
+    from::run(input).into()
 }
 
 /// A microoptimization that generates the welcome message as a static string combined from several
