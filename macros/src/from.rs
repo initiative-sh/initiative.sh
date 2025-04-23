@@ -69,12 +69,18 @@ fn impl_from_enum(
     if data_enum
         .variants
         .iter()
-        .any(|variant| !variant.attrs.is_empty())
+        .flat_map(|variant| &variant.attrs)
+        .any(|attribute| attribute.meta.path().is_ident("from"))
     {
         data_enum
             .variants
             .iter()
-            .filter(|variant| !variant.attrs.is_empty())
+            .filter(|variant| {
+                variant
+                    .attrs
+                    .iter()
+                    .any(|attribute| attribute.meta.path().is_ident("from"))
+            })
             .map(|variant| impl_from_enum_variant(structure_name, variant))
             .collect()
     } else {
@@ -290,6 +296,27 @@ mod tests {
             impl<'a> From<&'a str> for Test<'a> {
                 fn from(input: &'a str) -> Test<'a> {
                     Test::Yes(input)
+                }
+            }
+        };
+
+        assert_eq!(output.to_string(), run(input).to_string());
+    }
+
+    #[test]
+    fn unrelated_attribute_test() {
+        let input = quote! {
+            pub enum ThingRelations {
+                #[default]
+                None,
+                Npc(NpcRelations),
+            }
+        };
+
+        let output = quote! {
+            impl From<NpcRelations> for ThingRelations {
+                fn from(input: NpcRelations) -> ThingRelations {
+                    ThingRelations::Npc(input)
                 }
             }
         };

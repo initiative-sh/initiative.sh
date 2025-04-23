@@ -5,7 +5,7 @@ pub struct About;
 
 impl Command for About {
     fn token<'a>(&self) -> Token {
-        Token::keyword("about")
+        keyword("about")
     }
 
     fn autocomplete(
@@ -39,7 +39,7 @@ impl Command for About {
 mod test {
     use super::*;
 
-    use crate::utils::test_utils as test;
+    use crate::test_utils as test;
     use futures::StreamExt as _;
 
     #[tokio::test]

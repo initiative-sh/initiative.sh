@@ -188,7 +188,7 @@ pub trait DataStore {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::utils::test_utils as test;
+    use crate::test_utils as test;
 
     #[tokio::test]
     async fn memory_delete_thing_by_uuid_test() {
@@ -236,8 +236,8 @@ mod test {
         let mut results = ds.get_things_by_name_start("p", None).await.unwrap();
         results.sort_by_key(|thing| thing.uuid);
         assert_eq!(
-            vec![test::thing::penelope(), test::thing::polyphemus()],
-            results
+            vec![test::thing::phoenicia(), test::thing::penelope()],
+            results,
         );
 
         assert_eq!(

@@ -13,7 +13,6 @@ mod command_list;
 mod from;
 mod motd;
 mod reference_enum;
-mod token_marker;
 mod word_list;
 
 /// A microoptimization to compile only part of the lengthy `changelog.md` file into the
@@ -48,12 +47,6 @@ pub fn motd(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn reference_enum(input: TokenStream) -> TokenStream {
     reference_enum::run(input).unwrap()
-}
-
-#[proc_macro_derive(TokenMarker)]
-pub fn token_marker(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input);
-    token_marker::run(input).unwrap().into()
 }
 
 /// There are a lot of enums containing lists of terms scattered throughout the application. In

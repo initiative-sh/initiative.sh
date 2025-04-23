@@ -8,20 +8,29 @@
 
 pub mod app;
 
-pub use app::{App, Event};
-pub use storage::backup::BackupData;
-pub use storage::{DataStore, MemoryDataStore, NullDataStore};
+pub use crate::app::{App, Event};
+pub use crate::storage::backup::BackupData;
+pub use crate::storage::{DataStore, MemoryDataStore, NullDataStore};
+pub use crate::world::thing::Thing;
 pub use uuid::Uuid;
-pub use world::thing::Thing;
 
-#[cfg(test)]
-use utils::test_utils;
+#[cfg(any(test, feature = "integration-tests"))]
+pub use utils::test_utils;
 
+#[cfg(not(feature = "integration-tests"))]
 mod command;
+#[cfg(feature = "integration-tests")]
+pub mod command;
+
 mod reference;
 mod storage;
 mod time;
+
+#[cfg(not(feature = "integration-tests"))]
 mod utils;
+#[cfg(feature = "integration-tests")]
+pub mod utils;
+
 mod world;
 
 /// Creates a new instance of the application wrapper. The `data_store` is used to save and load

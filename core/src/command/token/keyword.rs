@@ -10,9 +10,7 @@ pub fn match_input<'a>(
     token: &'a Token,
     input: &'a str,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
-    #[expect(irrefutable_let_patterns)]
-    let TokenType::Keyword(keyword) = token.token_type
-    else {
+    let TokenType::Keyword(keyword) = token.token_type else {
         unreachable!();
     };
 
@@ -40,17 +38,19 @@ mod test {
 
     use crate::test_utils as test;
 
+    #[derive(Hash)]
+    enum Marker {
+        Keyword,
+    }
+
     #[tokio::test]
     async fn match_input_test_exact() {
-        let token = Token {
-            token_type: TokenType::Keyword("Nott"),
-            marker: Some(20),
-        };
+        let token = keyword_m(Marker::Keyword, "badger");
 
-        assert_eq!(
-            &[FuzzyMatch::Exact((&token).into())][..],
+        test::assert_eq_unordered!(
+            [FuzzyMatch::Exact(TokenMatch::from(&token))],
             token
-                .match_input("nott", &test::app_meta())
+                .match_input("BADGER", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
@@ -58,18 +58,15 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_overflow() {
-        let token = Token {
-            token_type: TokenType::Keyword("Nott"),
-            marker: Some(20),
-        };
+        let token = keyword("badger");
 
-        assert_eq!(
-            &[FuzzyMatch::Overflow(
-                (&token).into(),
-                " \"the brave\"".into(),
-            )][..],
+        test::assert_eq_unordered!(
+            [FuzzyMatch::Overflow(
+                TokenMatch::from(&token),
+                " badger".into(),
+            )],
             token
-                .match_input("nott \"the brave\"", &test::app_meta())
+                .match_input("badger badger", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
@@ -77,31 +74,29 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_partial() {
-        let token = Token {
-            token_type: TokenType::Keyword("Nott"),
-            marker: Some(20),
-        };
+        let token = keyword("badger");
 
-        assert_eq!(
-            &[FuzzyMatch::Partial((&token).into(), Some("tt".to_string()))][..],
+        test::assert_eq_unordered!(
+            [FuzzyMatch::Partial(
+                TokenMatch::from(&token),
+                Some("er".to_string()),
+            )],
             token
-                .match_input(" no", &test::app_meta())
+                .match_input(" badg", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
 
-        assert_eq!(
-            Vec::<FuzzyMatch>::new(),
+        test::assert_empty!(
             token
-                .match_input(" no ", &test::app_meta())
+                .match_input(" badg ", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
 
-        assert_eq!(
-            Vec::<FuzzyMatch>::new(),
+        test::assert_empty!(
             token
-                .match_input("\"no\"", &test::app_meta())
+                .match_input(r#""badg""#, &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );

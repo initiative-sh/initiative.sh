@@ -1,10 +1,8 @@
 /// All of the classes needed to implement a new command or token type.
-#[expect(unused_imports)]
-mod prelude {
-    pub use super::token::{FuzzyMatch, MatchMeta, Token, TokenMatch, TokenType};
-    pub use super::{Command, CommandPriority};
-    pub use crate::app::{AppMeta, AutocompleteSuggestion};
-}
+#[cfg(not(feature = "integration-tests"))]
+mod prelude;
+#[cfg(feature = "integration-tests")]
+pub mod prelude;
 
 mod about;
 
@@ -41,6 +39,7 @@ pub trait Command {
 
     /// Run the command represented by a matched token, returning the success or failure output to
     /// be displayed to the user.
+    #[cfg_attr(feature = "integration-tests", expect(async_fn_in_trait))]
     async fn run(&self, token_match: TokenMatch, app_meta: &mut AppMeta) -> Result<String, String>;
 
     /// Get the canonical form of the provided token match. Return None if the match is invalid.
@@ -194,15 +193,13 @@ pub async fn run(input: &str, app_meta: &mut AppMeta) -> Result<String, String> 
         for i in 0..commands_tokens.len() {
             match_streams.push(
                 stream::repeat(commands_tokens[i].0)
-                    .zip(commands_tokens[i].1.match_input(input, app_meta)),
+                    .zip(commands_tokens[i].1.match_input_exact(input, app_meta)),
             );
         }
 
-        while let Some((command, fuzzy_match)) = match_streams.next().await {
-            if let Some(token_match) = fuzzy_match.into_exact() {
-                if let Some(priority) = command.get_priority(&token_match) {
-                    token_matches.push((command, priority, token_match));
-                }
+        while let Some((command, token_match)) = match_streams.next().await {
+            if let Some(priority) = command.get_priority(&token_match) {
+                token_matches.push((command, priority, token_match));
             }
         }
     }

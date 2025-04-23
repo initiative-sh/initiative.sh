@@ -163,6 +163,12 @@ impl From<&str> for Field<String> {
     }
 }
 
+impl From<Option<&str>> for Field<String> {
+    fn from(value: Option<&str>) -> Field<String> {
+        value.map(|s| s.to_string()).into()
+    }
+}
+
 impl<T: fmt::Display> fmt::Display for Field<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(value) = &self.value() {
