@@ -18,9 +18,10 @@ use crate::time::TimeCommand;
 use crate::world::WorldCommand;
 use async_trait::async_trait;
 use futures::join;
+use initiative_macros::From;
 use std::fmt;
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, From, PartialEq)]
 pub struct Command {
     matches: CommandMatches<CommandType>,
 }
@@ -70,12 +71,6 @@ impl Command {
         result = result.union_with_overwrite(parse_results.0);
 
         result.into()
-    }
-}
-
-impl From<CommandMatches<CommandType>> for Command {
-    fn from(input: CommandMatches<CommandType>) -> Self {
-        Self { matches: input }
     }
 }
 
@@ -181,7 +176,7 @@ impl Autocomplete for Command {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, From, PartialEq)]
 pub enum CommandType {
     Alias(CommandAlias),
     App(AppCommand),
@@ -232,54 +227,6 @@ impl<T: Into<CommandType>> From<T> for Command {
         Command {
             matches: CommandMatches::new_canonical(c.into()),
         }
-    }
-}
-
-impl From<AppCommand> for CommandType {
-    fn from(c: AppCommand) -> CommandType {
-        CommandType::App(c)
-    }
-}
-
-impl From<CommandAlias> for CommandType {
-    fn from(c: CommandAlias) -> CommandType {
-        CommandType::Alias(c)
-    }
-}
-
-impl From<ReferenceCommand> for CommandType {
-    fn from(c: ReferenceCommand) -> CommandType {
-        CommandType::Reference(c)
-    }
-}
-
-impl From<StorageCommand> for CommandType {
-    fn from(c: StorageCommand) -> CommandType {
-        CommandType::Storage(c)
-    }
-}
-
-impl From<TimeCommand> for CommandType {
-    fn from(c: TimeCommand) -> CommandType {
-        CommandType::Time(c)
-    }
-}
-
-impl From<TransitionalCommand> for CommandType {
-    fn from(c: TransitionalCommand) -> CommandType {
-        CommandType::Transitional(c)
-    }
-}
-
-impl From<TutorialCommand> for CommandType {
-    fn from(c: TutorialCommand) -> CommandType {
-        CommandType::Tutorial(c)
-    }
-}
-
-impl From<WorldCommand> for CommandType {
-    fn from(c: WorldCommand) -> CommandType {
-        CommandType::World(c)
     }
 }
 

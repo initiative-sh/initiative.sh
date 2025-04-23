@@ -1,4 +1,6 @@
 use super::npc::{Ethnicity, Species};
+use initiative_macros::From;
+
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -13,7 +15,7 @@ pub struct Demographics {
     groups: GroupMapWrapper,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, From, PartialEq, Serialize)]
 #[serde(from = "GroupMapSerialized", into = "GroupMapSerialized")]
 struct GroupMapWrapper(GroupMap);
 
@@ -143,12 +145,6 @@ impl Default for Demographics {
         // groups.insert(Species::Changeling, 40_000);
 
         Self::new(groups)
-    }
-}
-
-impl From<GroupMap> for GroupMapWrapper {
-    fn from(value: GroupMap) -> Self {
-        Self(value)
     }
 }
 
