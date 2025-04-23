@@ -26,7 +26,7 @@ pub enum ThingData {
     Place(PlaceData),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, From)]
 pub enum ThingRelations {
     #[default]
     None,
@@ -242,18 +242,6 @@ impl TryFrom<ThingData> for PlaceData {
         } else {
             Err(thing_data)
         }
-    }
-}
-
-impl From<NpcRelations> for ThingRelations {
-    fn from(input: NpcRelations) -> Self {
-        Self::Npc(input)
-    }
-}
-
-impl From<PlaceRelations> for ThingRelations {
-    fn from(input: PlaceRelations) -> Self {
-        Self::Place(input)
     }
 }
 
