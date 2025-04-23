@@ -2,6 +2,7 @@ use super::{Demographics, Field, Generate};
 use crate::world::command::ParsedThing;
 use crate::world::npc::{DetailsView as NpcDetailsView, Gender, Npc, NpcData, NpcRelations};
 use crate::world::place::{DetailsView as PlaceDetailsView, Place, PlaceData, PlaceRelations};
+use initiative_macros::From;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -17,7 +18,7 @@ pub struct Thing {
     pub data: ThingData,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, From, PartialEq, Serialize)]
 #[serde(tag = "type")]
 pub enum ThingData {
     Npc(NpcData),
@@ -203,18 +204,6 @@ impl TryFrom<Thing> for Place {
         } else {
             Err(thing)
         }
-    }
-}
-
-impl From<NpcData> for ThingData {
-    fn from(npc: NpcData) -> Self {
-        ThingData::Npc(npc)
-    }
-}
-
-impl From<PlaceData> for ThingData {
-    fn from(place: PlaceData) -> Self {
-        ThingData::Place(place)
     }
 }
 

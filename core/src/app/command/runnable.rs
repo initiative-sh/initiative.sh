@@ -40,27 +40,13 @@ impl From<AutocompleteSuggestion> for (Cow<'static, str>, Cow<'static, str>) {
     }
 }
 
-impl From<(String, &'static str)> for AutocompleteSuggestion {
-    fn from(input: (String, &'static str)) -> Self {
-        AutocompleteSuggestion::new(input.0, input.1)
-    }
-}
-
-impl From<(&'static str, String)> for AutocompleteSuggestion {
-    fn from(input: (&'static str, String)) -> Self {
-        AutocompleteSuggestion::new(input.0, input.1)
-    }
-}
-
-impl From<(String, String)> for AutocompleteSuggestion {
-    fn from(input: (String, String)) -> Self {
-        AutocompleteSuggestion::new(input.0, input.1)
-    }
-}
-
-impl From<(&'static str, &'static str)> for AutocompleteSuggestion {
-    fn from(input: (&'static str, &'static str)) -> Self {
-        AutocompleteSuggestion::new(input.0, input.1)
+impl<A, B> From<(A, B)> for AutocompleteSuggestion
+where
+    A: Into<Cow<'static, str>>,
+    B: Into<Cow<'static, str>>,
+{
+    fn from(input: (A, B)) -> Self {
+        AutocompleteSuggestion::new(input.0.into(), input.1.into())
     }
 }
 
