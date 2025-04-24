@@ -17,20 +17,20 @@ pub fn match_input<'a>(
     Box::pin(stream! {
         let mut iter = quoted_words(input).peekable();
         if let Some(first_word) = iter.next() {
-            for keyword in keywords.iter() {
+            for &keyword in keywords.iter() {
                 if keyword.eq_ci(first_word.as_str()) {
                     if iter.peek().is_none() {
-                        yield FuzzyMatch::Exact(TokenMatch::new(token, first_word.as_str()));
+                        yield FuzzyMatch::Exact(TokenMatch::new(token, keyword));
                     } else {
                         yield FuzzyMatch::Overflow(
-                            TokenMatch::new(token, first_word.as_str()),
+                            TokenMatch::new(token, keyword),
                             first_word.after(),
                         );
                     }
                 } else if first_word.can_complete() {
                     if let Some(completion) = keyword.strip_prefix_ci(&first_word) {
                         yield FuzzyMatch::Partial(
-                            TokenMatch::new(token, first_word.as_str()),
+                            TokenMatch::new(token, keyword),
                             Some(completion.to_string()),
                         );
                     }
@@ -71,7 +71,10 @@ mod tests {
         test::assert_eq_unordered!(
             [
                 FuzzyMatch::Exact(TokenMatch::new(&token, "polyp")),
-                FuzzyMatch::Partial(TokenMatch::new(&token, "polyp"), Some("HEMUS".to_string())),
+                FuzzyMatch::Partial(
+                    TokenMatch::new(&token, "POLYPHEMUS"),
+                    Some("HEMUS".to_string())
+                ),
             ],
             token
                 .match_input("polyp", &test::app_meta())

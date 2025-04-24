@@ -346,7 +346,7 @@ where
 /// # let app_meta = initiative_core::test_utils::app_meta();
 /// use initiative_core::command::prelude::*;
 ///
-/// let token = keyword_list(["badge", "badger"]);
+/// let token = keyword_list(["badge", "BADGER"]);
 ///
 /// assert_eq!(
 ///     vec![
@@ -355,8 +355,8 @@ where
 ///
 ///         // but can also be completed to another word.
 ///         FuzzyMatch::Partial(
-///             TokenMatch::new(&token, "badge"),
-///             Some("r".to_string()),
+///             TokenMatch::new(&token, "BADGER"),
+///             Some("R".to_string()),
 ///         ),
 ///     ],
 ///     token
