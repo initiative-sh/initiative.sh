@@ -132,12 +132,12 @@ impl Runnable for StorageCommand {
 
                         Ok(format!(
                             "{}\n\n_{} has not yet been saved. Use ~save~ to save {} to your `journal`._",
-                            thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
+                            thing.display_details(app_meta.repository.load_relations(&thing).await.ok().as_ref()),
                             thing.name(),
                             thing.gender().them(),
                         ))
                     } else {
-                        Ok(format!("{}", thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default())))
+                        Ok(format!("{}", thing.display_details(app_meta.repository.load_relations(&thing).await.ok().as_ref())))
                     }
                 } else {
                     Err(format!("No matches for \"{}\"", name))
@@ -161,7 +161,7 @@ impl Runnable for StorageCommand {
                     match option_record {
                         Some(Record { thing, status }) if status != RecordStatus::Deleted => Ok(format!(
                             "{}\n\n_Successfully redid {}. Use `undo` to reverse this._",
-                            thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
+                            thing.display_details(app_meta.repository.load_relations(&thing).await.ok().as_ref()),
                             action,
                         )),
                         _ => Ok(format!(
@@ -180,7 +180,7 @@ impl Runnable for StorageCommand {
                     if let Some(Record { thing, .. }) = option_record {
                         Ok(format!(
                             "{}\n\n_Successfully undid {}. Use `redo` to reverse this._",
-                            thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
+                            thing.display_details(app_meta.repository.load_relations(&thing).await.ok().as_ref()),
                             action,
                         ))
                     } else {

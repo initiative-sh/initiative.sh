@@ -8,7 +8,7 @@ pub struct DescriptionView<'a>(&'a NpcData);
 pub struct DetailsView<'a> {
     npc: &'a NpcData,
     uuid: Uuid,
-    relations: NpcRelations,
+    relations: Option<&'a NpcRelations>,
 }
 
 fn write_summary_details(npc: &NpcData, f: &mut fmt::Formatter) -> fmt::Result {
@@ -42,7 +42,7 @@ impl<'a> DescriptionView<'a> {
 }
 
 impl<'a> DetailsView<'a> {
-    pub fn new(npc: &'a NpcData, uuid: Uuid, relations: NpcRelations) -> Self {
+    pub fn new(npc: &'a NpcData, uuid: Uuid, relations: Option<&'a NpcRelations>) -> Self {
         Self {
             npc,
             uuid,
@@ -140,8 +140,7 @@ impl fmt::Display for DetailsView<'_> {
             .transpose()?;
 
         relations
-            .location
-            .as_ref()
+            .and_then(|relations| relations.location.as_ref())
             .map(|(parent, grandparent)| {
                 if let Some(grandparent) = grandparent {
                     write!(
@@ -238,7 +237,7 @@ mod test {
 
 </div>"#,
             test::npc::odysseus::data()
-                .display_details(test::npc::odysseus::UUID, NpcRelations::default())
+                .display_details(test::npc::odysseus::UUID, None)
                 .to_string(),
         );
     }
@@ -254,9 +253,7 @@ mod test {
 **Species:** human
 
 </div>"#,
-            gen_npc(SPECIES)
-                .display_details(NpcRelations::default())
-                .to_string(),
+            gen_npc(SPECIES).display_details(None).to_string(),
         );
         assert_eq!(
             r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000010">
@@ -267,9 +264,7 @@ mod test {
 **Ethnicity:** elvish
 
 </div>"#,
-            gen_npc(ETHNICITY)
-                .display_details(NpcRelations::default())
-                .to_string(),
+            gen_npc(ETHNICITY).display_details(None).to_string(),
         );
         assert_eq!(
             r#"<div class="thing-box npc" data-uuid="00000000-0000-0000-0000-000000000014">
@@ -281,7 +276,7 @@ mod test {
 
 </div>"#,
             gen_npc(ETHNICITY | SPECIES)
-                .display_details(NpcRelations::default())
+                .display_details(None)
                 .to_string(),
         );
     }
@@ -298,7 +293,7 @@ mod test {
 
 </div>"#,
             NpcData::default()
-                .display_details(Uuid::nil(), NpcRelations::default())
+                .display_details(Uuid::nil(), None)
                 .to_string(),
         );
     }
@@ -318,7 +313,7 @@ mod test {
             DetailsView::new(
                 &test::npc().name("Odysseus").build(),
                 test::npc::odysseus::UUID,
-                test::npc::odysseus::relations(),
+                Some(&test::npc::odysseus::relations()),
             )
             .to_string(),
         );
@@ -339,7 +334,7 @@ mod test {
             DetailsView::new(
                 &test::npc().name("Penelope").build(),
                 test::npc::penelope::UUID,
-                test::npc::penelope::relations(),
+                Some(&test::npc::penelope::relations()),
             )
             .to_string(),
         );

@@ -67,7 +67,7 @@ impl Place {
         self.data.display_description()
     }
 
-    pub fn display_details(&self, relations: PlaceRelations) -> DetailsView {
+    pub fn display_details<'a>(&'a self, relations: Option<&'a PlaceRelations>) -> DetailsView<'a> {
         self.data.display_details(self.uuid, relations)
     }
 
@@ -97,7 +97,11 @@ impl PlaceData {
         DescriptionView::new(self)
     }
 
-    pub fn display_details(&self, uuid: Uuid, relations: PlaceRelations) -> DetailsView {
+    pub fn display_details<'a>(
+        &'a self,
+        uuid: Uuid,
+        relations: Option<&'a PlaceRelations>,
+    ) -> DetailsView<'a> {
         DetailsView::new(self, uuid, relations)
     }
 

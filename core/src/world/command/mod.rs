@@ -102,7 +102,8 @@ impl Runnable for WorldCommand {
                                         .repository
                                         .load_relations(&thing)
                                         .await
-                                        .unwrap_or_default(),
+                                        .ok()
+                                        .as_ref(),
                                 ),
                                 message.as_ref().map_or("", String::as_str),
                             ));
@@ -218,13 +219,13 @@ impl Runnable for WorldCommand {
                         if matches!(app_meta.repository.undo_history().next(), Some(Change::EditAndUnsave { .. })) {
                             format!(
                                 "{}\n\n_{} was successfully edited and automatically saved to your `journal`. Use `undo` to reverse this._",
-                                thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
+                                thing.display_details(app_meta.repository.load_relations(&thing).await.ok().as_ref()),
                                 name,
                             )
                         } else {
                             format!(
                                 "{}\n\n_{} was successfully edited. Use `undo` to reverse this._",
-                                thing.display_details(app_meta.repository.load_relations(&thing).await.unwrap_or_default()),
+                                thing.display_details(app_meta.repository.load_relations(&thing).await.ok().as_ref()),
                                 name,
                             )
                         }

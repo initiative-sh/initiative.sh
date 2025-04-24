@@ -59,7 +59,7 @@ impl Npc {
         self.data.display_description()
     }
 
-    pub fn display_details(&self, relations: NpcRelations) -> DetailsView {
+    pub fn display_details<'a>(&'a self, relations: Option<&'a NpcRelations>) -> DetailsView<'a> {
         self.data.display_details(self.uuid, relations)
     }
 
@@ -89,7 +89,11 @@ impl NpcData {
         DescriptionView::new(self)
     }
 
-    pub fn display_details(&self, uuid: Uuid, relations: NpcRelations) -> DetailsView {
+    pub fn display_details<'a>(
+        &'a self,
+        uuid: Uuid,
+        relations: Option<&'a NpcRelations>,
+    ) -> DetailsView<'a> {
         DetailsView::new(self, uuid, relations)
     }
 
