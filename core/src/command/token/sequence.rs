@@ -15,9 +15,7 @@ pub fn match_input<'a, 'b>(
 where
     'a: 'b,
 {
-    let tokens = if let TokenType::Sequence(tokens) = &token.token_type {
-        tokens
-    } else {
+    let Token::Sequence { tokens } = token else {
         unreachable!();
     };
 
@@ -111,14 +109,9 @@ mod test {
 
     use crate::test_utils as test;
 
-    #[derive(Hash)]
-    enum Marker {
-        Token,
-    }
-
     #[tokio::test]
     async fn match_input_test_empty() {
-        let sequence_token = sequence_m(Marker::Token, []);
+        let sequence_token = sequence([]);
         test::assert_eq_unordered!(
             [FuzzyMatch::Overflow(
                 TokenMatch::from(&sequence_token),
@@ -199,7 +192,7 @@ mod test {
     #[tokio::test]
     async fn match_input_test_overflowing() {
         let tokens = [keyword("badger"), keyword("mushroom"), keyword("snake")];
-        let sequence_token = sequence_m(Marker::Token, tokens.clone());
+        let sequence_token = sequence(tokens.clone());
 
         test::assert_eq_unordered!(
             [FuzzyMatch::Overflow(

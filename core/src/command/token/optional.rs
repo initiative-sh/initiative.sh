@@ -14,7 +14,10 @@ pub fn match_input<'a, 'b>(
 where
     'a: 'b,
 {
-    let TokenType::Optional(optional_token) = &token.token_type else {
+    let Token::Optional {
+        token: optional_token,
+    } = &token
+    else {
         unreachable!();
     };
 
@@ -42,14 +45,13 @@ mod test {
 
     #[derive(Hash)]
     enum Marker {
-        Optional,
         Keyword,
     }
 
     #[tokio::test]
     async fn match_input_test_simple() {
         let keyword_token = keyword_m(Marker::Keyword, "badger");
-        let optional_token = optional_m(Marker::Optional, keyword_token.clone());
+        let optional_token = optional(keyword_token.clone());
 
         test::assert_eq_unordered!(
             [

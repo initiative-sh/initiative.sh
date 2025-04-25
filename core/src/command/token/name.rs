@@ -20,7 +20,7 @@ pub fn match_input<'a, 'b>(
 where
     'a: 'b,
 {
-    assert!(matches!(token.token_type, TokenType::Name));
+    assert!(matches!(token, Token::Name { .. }));
 
     let phrases: Vec<_> = quoted_phrases(input).collect();
     if phrases.is_empty() {

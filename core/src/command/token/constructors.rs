@@ -1,6 +1,6 @@
 #![cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
 
-use super::{Token, TokenType};
+use super::Token;
 use std::hash::Hash;
 
 /// Matches one or more of a set of tokens, in any order but without repetition.
@@ -55,44 +55,9 @@ pub fn any_of<V>(tokens: V) -> Token
 where
     V: Into<Vec<Token>>,
 {
-    Token::new(TokenType::AnyOf(tokens.into()))
-}
-
-/// A variant of `any_of` with a marker assigned, making it easy to jump directly to the
-/// matched result within the token tree.
-///
-/// # Examples
-///
-/// ```
-/// # use futures::StreamExt as _;
-/// # tokio_test::block_on(async {
-/// # let app_meta = initiative_core::test_utils::app_meta();
-/// use initiative_core::command::prelude::*;
-///
-/// #[derive(Hash)]
-/// enum Marker {
-///     AnyOf,
-/// }
-///
-/// let query = "badger snake";
-/// let token = sequence([
-///     keyword("badger"),
-///     any_of_m(Marker::AnyOf, [keyword("mushroom"), keyword("snake")]),
-/// ]);
-/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
-///
-/// assert_eq!(
-///     Some(&[TokenMatch::from(&keyword("snake"))][..]),
-///     token_match.find_marker(Marker::AnyOf).unwrap().meta_sequence(),
-/// );
-/// # })
-/// ```
-pub fn any_of_m<M, V>(marker: M, tokens: V) -> Token
-where
-    M: Hash,
-    V: Into<Vec<Token>>,
-{
-    Token::new_m(marker, TokenType::AnyOf(tokens.into()))
+    Token::AnyOf {
+        tokens: tokens.into(),
+    }
 }
 
 /// Matches all sequences of one or more words. Quoted phrases are treated as single words.
@@ -132,7 +97,7 @@ where
 /// # })
 /// ```
 pub fn any_phrase() -> Token {
-    Token::new(TokenType::AnyPhrase)
+    Token::AnyPhrase { marker: 0 }
 }
 
 /// A variant of `any_phrase` with a marker assigned, making it easy to jump directly to the
@@ -165,7 +130,9 @@ pub fn any_phrase_m<M>(marker: M) -> Token
 where
     M: Hash,
 {
-    Token::new_m(marker, TokenType::AnyPhrase)
+    Token::AnyPhrase {
+        marker: super::hash_marker(marker),
+    }
 }
 
 /// Matches any single word.
@@ -189,7 +156,7 @@ where
 /// # })
 /// ```
 pub fn any_word() -> Token {
-    Token::new(TokenType::AnyWord)
+    Token::AnyWord { marker: 0 }
 }
 
 /// A variant of `any_word` with a marker assigned, making it easy to jump directly to the
@@ -222,7 +189,9 @@ pub fn any_word_m<M>(marker: M) -> Token
 where
     M: Hash,
 {
-    Token::new_m(marker, TokenType::AnyWord)
+    Token::AnyWord {
+        marker: super::hash_marker(marker),
+    }
 }
 
 /// A single keyword, matched case-insensitively.
@@ -269,8 +238,8 @@ where
 /// );
 /// # })
 /// ```
-pub fn keyword(keyword: &'static str) -> Token {
-    Token::new(TokenType::Keyword(keyword))
+pub fn keyword(term: &'static str) -> Token {
+    Token::Keyword { term, marker: 0 }
 }
 
 /// A variant of `keyword` with a marker assigned, making it easy to jump directly to the
@@ -305,11 +274,14 @@ pub fn keyword(keyword: &'static str) -> Token {
 /// assert!(!token_match.contains_marker(Marker::Keyword));
 /// # })
 /// ```
-pub fn keyword_m<M>(marker: M, keyword: &'static str) -> Token
+pub fn keyword_m<M>(marker: M, term: &'static str) -> Token
 where
     M: Hash,
 {
-    Token::new_m(marker, TokenType::Keyword(keyword))
+    Token::Keyword {
+        term,
+        marker: super::hash_marker(marker),
+    }
 }
 
 /// Matches exactly one of a set of possible keywords, case-insensitively.
@@ -366,11 +338,14 @@ where
 /// );
 /// # })
 /// ```
-pub fn keyword_list<V>(keywords: V) -> Token
+pub fn keyword_list<I>(terms: I) -> Token
 where
-    V: IntoIterator<Item = &'static str>,
+    I: IntoIterator<Item = &'static str>,
 {
-    Token::new(TokenType::KeywordList(keywords.into_iter().collect()))
+    Token::KeywordList {
+        terms: terms.into_iter().collect(),
+        marker: 0,
+    }
 }
 
 /// A variant of `any_word` with a marker assigned, making it easy to jump directly to the
@@ -402,15 +377,15 @@ where
 /// );
 /// # })
 /// ```
-pub fn keyword_list_m<M, V>(marker: M, keywords: V) -> Token
+pub fn keyword_list_m<M, I>(marker: M, terms: I) -> Token
 where
     M: Hash,
-    V: IntoIterator<Item = &'static str>,
+    I: IntoIterator<Item = &'static str>,
 {
-    Token::new_m(
-        marker,
-        TokenType::KeywordList(keywords.into_iter().collect()),
-    )
+    Token::KeywordList {
+        terms: terms.into_iter().collect(),
+        marker: super::hash_marker(marker),
+    }
 }
 
 /// Matches the name of a Thing found in the journal or recent entities.
@@ -457,7 +432,7 @@ where
 /// # })
 /// ```
 pub fn name() -> Token {
-    Token::new(TokenType::Name)
+    Token::Name { marker: 0 }
 }
 
 /// A variant of `name` with a marker assigned, making it easy to jump directly to the
@@ -492,7 +467,9 @@ pub fn name_m<M>(marker: M) -> Token
 where
     M: Hash,
 {
-    Token::new_m(marker, TokenType::Name)
+    Token::Name {
+        marker: super::hash_marker(marker),
+    }
 }
 
 /// Matches the input with and without the contained token.
@@ -523,50 +500,9 @@ where
 /// # })
 /// ```
 pub fn optional(token: Token) -> Token {
-    Token::new(TokenType::Optional(Box::new(token)))
-}
-
-/// A variant of `name` with a marker assigned, making it easy to jump directly to the
-/// matched result within the token tree.
-///
-/// # Examples
-///
-/// We can inspect the metadata of the `optional` token to see if a match occurred or not. More
-/// normally, the inner token would be marked and we would check to see if the marked token
-/// exists in the tree (`TokenMatch::contains_token`).
-///
-/// ```
-/// # use futures::StreamExt as _;
-/// # tokio_test::block_on(async {
-/// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
-/// use initiative_core::command::prelude::*;
-///
-/// #[derive(Hash)]
-/// enum Marker {
-///     Optional,
-/// }
-///
-/// let token = sequence([
-///     optional_m(Marker::Optional, keyword("badger")),
-///     keyword("mushroom"),
-/// ]);
-///
-/// // We can inspect the metadata to see that this case contains a match
-/// let query = "badger mushroom";
-/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
-/// assert!(token_match.find_marker(Marker::Optional).unwrap().meta_single().is_some());
-///
-/// // and this case does not.
-/// let query = "mushroom";
-/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
-/// assert!(token_match.find_marker(Marker::Optional).unwrap().meta_single().is_none());
-/// # })
-/// ```
-pub fn optional_m<M>(marker: M, token: Token) -> Token
-where
-    M: Hash,
-{
-    Token::new_m(marker, TokenType::Optional(Box::new(token)))
+    Token::Optional {
+        token: token.into(),
+    }
 }
 
 /// Matches exactly one of a set of possible tokens. The matched token will be included in the
@@ -605,20 +541,13 @@ where
 /// );
 /// # })
 /// ```
-pub fn or<V>(tokens: V) -> Token
+pub fn or<I>(tokens: I) -> Token
 where
-    V: IntoIterator<Item = Token>,
+    I: IntoIterator<Item = Token>,
 {
-    Token::new(TokenType::Or(tokens.into_iter().collect()))
-}
-
-/// A variant of `or` with a marker assigned.
-pub fn or_m<M, V>(marker: M, tokens: V) -> Token
-where
-    M: Hash,
-    V: IntoIterator<Item = Token>,
-{
-    Token::new_m(marker, TokenType::Or(tokens.into_iter().collect()))
+    Token::Or {
+        tokens: tokens.into_iter().collect(),
+    }
 }
 
 /// Matches an exact sequence of tokens.
@@ -652,14 +581,7 @@ pub fn sequence<V>(tokens: V) -> Token
 where
     V: Into<Vec<Token>>,
 {
-    Token::new(TokenType::Sequence(tokens.into()))
-}
-
-/// A variant of `sequence` with a marker assigned.
-pub fn sequence_m<M, V>(marker: M, tokens: V) -> Token
-where
-    M: Hash,
-    V: Into<Vec<Token>>,
-{
-    Token::new_m(marker, TokenType::Sequence(tokens.into()))
+    Token::Sequence {
+        tokens: tokens.into(),
+    }
 }

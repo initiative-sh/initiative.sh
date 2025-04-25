@@ -10,7 +10,7 @@ pub fn match_input<'a>(
     token: &'a Token,
     input: &'a str,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
-    assert!(matches!(token.token_type, TokenType::AnyWord));
+    assert!(matches!(token, Token::AnyWord { .. }));
 
     Box::pin(stream! {
         let mut iter = quoted_words(input);

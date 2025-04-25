@@ -10,27 +10,27 @@ pub fn match_input<'a>(
     token: &'a Token,
     input: &'a str,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
-    let TokenType::KeywordList(keywords) = &token.token_type else {
+    let Token::KeywordList { terms, .. } = token else {
         unreachable!();
     };
 
     Box::pin(stream! {
         let mut iter = quoted_words(input).peekable();
         if let Some(first_word) = iter.next() {
-            for &keyword in keywords.iter() {
-                if keyword.eq_ci(first_word.as_str()) {
+            for &term in terms.iter() {
+                if term.eq_ci(first_word.as_str()) {
                     if iter.peek().is_none() {
-                        yield FuzzyMatch::Exact(TokenMatch::new(token, keyword));
+                        yield FuzzyMatch::Exact(TokenMatch::new(token, term));
                     } else {
                         yield FuzzyMatch::Overflow(
-                            TokenMatch::new(token, keyword),
+                            TokenMatch::new(token, term),
                             first_word.after(),
                         );
                     }
                 } else if first_word.can_complete() {
-                    if let Some(completion) = keyword.strip_prefix_ci(&first_word) {
+                    if let Some(completion) = term.strip_prefix_ci(&first_word) {
                         yield FuzzyMatch::Partial(
-                            TokenMatch::new(token, keyword),
+                            TokenMatch::new(token, term),
                             Some(completion.to_string()),
                         );
                     }

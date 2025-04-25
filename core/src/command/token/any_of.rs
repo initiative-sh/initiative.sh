@@ -14,7 +14,7 @@ pub fn match_input<'a, 'b>(
 where
     'a: 'b,
 {
-    let tokens = if let TokenType::AnyOf(tokens) = &token.token_type {
+    let tokens = if let Token::AnyOf { tokens } = token {
         tokens.iter().collect()
     } else {
         unreachable!();
@@ -101,7 +101,6 @@ mod test {
 
     #[derive(Hash)]
     enum Marker {
-        Phrase,
         Keyword,
         AnyWord,
     }
@@ -132,7 +131,7 @@ mod test {
         ];
         let [keyword_token, any_word_token] = tokens.clone();
 
-        let any_of_token = any_of_m(Marker::Phrase, tokens);
+        let any_of_token = any_of(tokens);
 
         test::assert_eq_unordered!(
             [
@@ -173,7 +172,7 @@ mod test {
     async fn match_input_test_exact_overflow() {
         let tokens = [keyword("badger"), keyword("mushroom"), keyword("snake")];
         let [badger_token, mushroom_token, _] = tokens.clone();
-        let any_of_token = any_of_m(Marker::Phrase, tokens);
+        let any_of_token = any_of(tokens);
 
         test::assert_eq_unordered!(
             [

@@ -15,7 +15,7 @@ where
     'a: 'b,
 {
     Box::pin(stream! {
-        let TokenType::Or(tokens) = &token.token_type else {
+        let Token::Or { tokens } = token else {
             unreachable!();
         };
 
@@ -34,7 +34,6 @@ mod test {
 
     #[derive(Hash)]
     enum Marker {
-        Or,
         AnyWord,
         Keyword,
     }
@@ -46,7 +45,7 @@ mod test {
             keyword_m(Marker::Keyword, "badger"),
         ];
         let [any_word_token, keyword_token] = tokens.clone();
-        let or_token = or_m(Marker::Or, tokens);
+        let or_token = or(tokens);
 
         test::assert_eq_unordered!(
             [

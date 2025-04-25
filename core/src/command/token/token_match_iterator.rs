@@ -207,13 +207,10 @@ mod tests {
 
     #[tokio::test]
     async fn token_match_iterator_test_nested() {
-        let token = sequence_m(
-            0,
-            [
-                sequence_m(1, [keyword_m(2, "badger"), keyword_m(3, "mushroom")]),
-                optional_m(4, sequence_m(5, [keyword_m(6, "snake")])),
-            ],
-        );
+        let token = sequence([
+            sequence([keyword_m(0, "badger"), keyword_m(1, "mushroom")]),
+            optional(sequence([keyword_m(2, "snake")])),
+        ]);
 
         let app_meta = test::app_meta();
         let mut stream = token.match_input("badger mushroom snake", &app_meta);
@@ -225,9 +222,10 @@ mod tests {
             }
         };
 
-        let mut iter = TokenMatchIterator::new(&token_match);
+        let mut iter = TokenMatchIterator::new(&token_match)
+            .filter(|token_match| token_match.token.marker_hash() != 0);
 
-        for i in 0..=6 {
+        for i in 0..=2 {
             assert!(iter
                 .next()
                 .is_some_and(|token_match| token_match.is_marked_with(i)));

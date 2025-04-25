@@ -24,9 +24,36 @@ use futures::prelude::*;
 
 #[derive(Debug, Eq, PartialEq)]
 #[cfg_attr(test, derive(Clone))]
-pub struct Token {
-    pub token_type: TokenType,
-    marker: u64,
+pub enum Token {
+    /// See [`token_constructors::any_of`].
+    AnyOf { tokens: Vec<Token> },
+
+    /// See [`token_constructors::any_phrase`].
+    AnyPhrase { marker: u64 },
+
+    /// See [`token_constructors::any_word`].
+    AnyWord { marker: u64 },
+
+    /// See [`token_constructors::keyword`].
+    Keyword { term: &'static str, marker: u64 },
+
+    /// See [`token_constructors::keyword_list`].
+    KeywordList {
+        terms: Vec<&'static str>,
+        marker: u64,
+    },
+
+    /// See [`token_constructors::name`].
+    Name { marker: u64 },
+
+    /// See [`token_constructors::optional`].
+    Optional { token: Box<Token> },
+
+    /// See [`token_constructors::or`].
+    Or { tokens: Vec<Token> },
+
+    /// See [`token_constructors::sequence`].
+    Sequence { tokens: Vec<Token> },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -42,37 +69,6 @@ pub enum FuzzyMatch<'a> {
     Partial(TokenMatch<'a>, Option<String>),
 }
 
-#[derive(Debug, Eq, PartialEq)]
-#[cfg_attr(test, derive(Clone))]
-pub enum TokenType {
-    /// See [`token_constructors::any_of`].
-    AnyOf(Vec<Token>),
-
-    /// See [`token_constructors::any_phrase`].
-    AnyPhrase,
-
-    /// See [`token_constructors::any_word`].
-    AnyWord,
-
-    /// See [`token_constructors::keyword`].
-    Keyword(&'static str),
-
-    /// See [`token_constructors::keyword_list`].
-    KeywordList(Vec<&'static str>),
-
-    /// See [`token_constructors::name`].
-    Name,
-
-    /// See [`token_constructors::optional`].
-    Optional(Box<Token>),
-
-    /// See [`token_constructors::or`].
-    Or(Vec<Token>),
-
-    /// See [`token_constructors::sequence`].
-    Sequence(Vec<Token>),
-}
-
 #[derive(Clone, Debug, Eq, From, PartialEq)]
 pub enum MatchMeta<'a> {
     None,
@@ -83,20 +79,6 @@ pub enum MatchMeta<'a> {
 }
 
 impl Token {
-    pub fn new(token_type: TokenType) -> Token {
-        Token {
-            token_type,
-            marker: 0,
-        }
-    }
-
-    pub fn new_m<M: Hash>(marker: M, token_type: TokenType) -> Token {
-        Token {
-            token_type,
-            marker: hash_marker(marker),
-        }
-    }
-
     pub fn match_input<'a, 'b>(
         &'a self,
         input: &'a str,
@@ -105,16 +87,16 @@ impl Token {
     where
         'a: 'b,
     {
-        match &self.token_type {
-            TokenType::AnyOf(..) => any_of::match_input(self, input, app_meta),
-            TokenType::AnyPhrase => any_phrase::match_input(self, input),
-            TokenType::AnyWord => any_word::match_input(self, input),
-            TokenType::Keyword(..) => keyword::match_input(self, input),
-            TokenType::KeywordList(..) => keyword_list::match_input(self, input),
-            TokenType::Name => name::match_input(self, input, app_meta),
-            TokenType::Optional(..) => optional::match_input(self, input, app_meta),
-            TokenType::Or(..) => or::match_input(self, input, app_meta),
-            TokenType::Sequence(..) => sequence::match_input(self, input, app_meta),
+        match &self {
+            Token::AnyOf { .. } => any_of::match_input(self, input, app_meta),
+            Token::AnyPhrase { .. } => any_phrase::match_input(self, input),
+            Token::AnyWord { .. } => any_word::match_input(self, input),
+            Token::Keyword { .. } => keyword::match_input(self, input),
+            Token::KeywordList { .. } => keyword_list::match_input(self, input),
+            Token::Name { .. } => name::match_input(self, input, app_meta),
+            Token::Optional { .. } => optional::match_input(self, input, app_meta),
+            Token::Or { .. } => or::match_input(self, input, app_meta),
+            Token::Sequence { .. } => sequence::match_input(self, input, app_meta),
         }
     }
 
@@ -128,6 +110,20 @@ impl Token {
     {
         self.match_input(input, app_meta)
             .filter_map(|fuzzy_match| future::ready(fuzzy_match.into_exact()))
+    }
+
+    pub fn marker_hash(&self) -> u64 {
+        match &self {
+            Token::AnyPhrase { marker }
+            | Token::AnyWord { marker }
+            | Token::Keyword { marker, .. }
+            | Token::KeywordList { marker, .. }
+            | Token::Name { marker } => *marker,
+            Token::AnyOf { .. }
+            | Token::Optional { .. }
+            | Token::Or { .. }
+            | Token::Sequence { .. } => 0,
+        }
     }
 }
 
@@ -218,7 +214,8 @@ impl<'a> TokenMatch<'a> {
     where
         M: Hash,
     {
-        self.token.marker != 0 && self.token.marker == hash_marker(marker)
+        let self_marker = self.token.marker_hash();
+        self_marker != 0 && self_marker == hash_marker(marker)
     }
 
     #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
@@ -355,26 +352,23 @@ mod tests {
     enum Marker {
         One,
         Two,
-        Three,
     }
 
     #[test]
     fn token_match_find_marker_contains_marker_test() {
-        let keyword_token = keyword_m(Marker::Two, "badger");
-        let sequence_token = sequence_m(Marker::One, [keyword_token.clone()]);
+        let keyword_token = keyword_m(Marker::One, "badger");
+        let sequence_token = sequence([keyword_token.clone()]);
 
         let token_match = TokenMatch::new(&sequence_token, vec![TokenMatch::from(&keyword_token)]);
 
-        assert_eq!(Some(&token_match), token_match.find_marker(Marker::One));
         assert_eq!(
             Some(&TokenMatch::from(&keyword_token)),
-            token_match.find_marker(Marker::Two),
+            token_match.find_marker(Marker::One),
         );
-        assert_eq!(None, token_match.find_marker(Marker::Three));
+        assert_eq!(None, token_match.find_marker(Marker::Two));
 
         assert!(token_match.contains_marker(Marker::One));
-        assert!(token_match.contains_marker(Marker::Two));
-        assert!(!token_match.contains_marker(Marker::Three));
+        assert!(!token_match.contains_marker(Marker::Two));
     }
 
     #[test]
@@ -382,9 +376,9 @@ mod tests {
         let tokens = [
             keyword_m(Marker::One, "badger"),
             keyword_m(Marker::Two, "mushroom"),
-            keyword_m(Marker::Three, "snake"),
+            keyword_m(Marker::One, "snake"),
         ];
-        let sequence_token = sequence_m(Marker::One, tokens.clone());
+        let sequence_token = sequence(tokens.clone());
         let token_match = TokenMatch::new(
             &sequence_token,
             tokens.iter().map(TokenMatch::from).collect::<Vec<_>>(),
@@ -392,9 +386,9 @@ mod tests {
 
         assert_eq!(
             vec![
-                &token_match,
                 &TokenMatch::from(&tokens[0]),
                 &TokenMatch::from(&tokens[1]),
+                &TokenMatch::from(&tokens[2]),
             ],
             token_match
                 .find_markers(&[Marker::One, Marker::Two])
@@ -402,10 +396,8 @@ mod tests {
         );
 
         assert_eq!(
-            vec![&TokenMatch::from(&tokens[2])],
-            token_match
-                .find_markers(&[Marker::Three])
-                .collect::<Vec<_>>(),
+            vec![&TokenMatch::from(&tokens[0]), &TokenMatch::from(&tokens[2])],
+            token_match.find_markers(&[Marker::One]).collect::<Vec<_>>(),
         );
     }
 
