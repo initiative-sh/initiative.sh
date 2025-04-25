@@ -17,35 +17,33 @@ use std::hash::Hash;
 ///
 /// assert_eq!(
 ///     vec![
-///         // "Ungreedy" version consuming only one token,
-///         FuzzyMatch::Overflow(
-///             TokenMatch::new(&token, vec![
-///                 TokenMatch::from(&keyword("mushroom")),
-///             ]),
-///             " snake badger badger".into(),
+///         // Matches all three tokens. The final word was already consumed and so does not match.
+///         FuzzyMatchList::new_overflow(
+///             vec![
+///                 MatchPart::new_unmarked("MUSHROOM".into()).with_term("mushroom"),
+///                 MatchPart::new_unmarked("SNAKE".into()).with_term("snake"),
+///                 MatchPart::new_unmarked("BADGER".into()).with_term("badger"),
+///             ],
+///             " BADGER".into(),
 ///         ),
 ///
-///         // two tokens,
-///         FuzzyMatch::Overflow(
-///             TokenMatch::new(&token, vec![
-///                 TokenMatch::from(&keyword("mushroom")),
-///                 TokenMatch::from(&keyword("snake")),
-///             ]),
-///             " badger badger".into(),
+///         // It will also return "ungreedy" overflowing results with two tokens
+///         FuzzyMatchList::new_overflow(
+///             vec![
+///                 MatchPart::new_unmarked("MUSHROOM".into()).with_term("mushroom"),
+///                 MatchPart::new_unmarked("SNAKE".into()).with_term("snake"),
+///             ],
+///             " BADGER BADGER".into(),
 ///         ),
 ///
-///         // and all three tokens. The final word is repeated and so does not match.
-///         FuzzyMatch::Overflow(
-///             TokenMatch::new(&token, vec![
-///                 TokenMatch::from(&keyword("mushroom")),
-///                 TokenMatch::from(&keyword("snake")),
-///                 TokenMatch::from(&keyword("badger")),
-///             ]),
-///             " badger".into(),
+///         // as well as only one token.
+///         FuzzyMatchList::new_overflow(
+///             MatchPart::new_unmarked("MUSHROOM".into()).with_term("mushroom"),
+///             " SNAKE BADGER BADGER".into(),
 ///         ),
 ///     ],
 ///     token
-///         .match_input("mushroom snake badger badger", &app_meta)
+///         .match_input("MUSHROOM SNAKE BADGER BADGER", &app_meta)
 ///         .collect::<Vec<_>>()
 ///         .await,
 /// );
@@ -75,19 +73,21 @@ where
 /// assert_eq!(
 ///     vec![
 ///         // Ungreedily matches the quoted phrase as a single token,
-///         FuzzyMatch::Overflow(
-///             TokenMatch::new(&token, "badger badger"),
+///         FuzzyMatchList::new_overflow(
+///             MatchPart::new_unmarked("badger badger".into()),
 ///             " mushroom snake ".into(),
 ///         ),
 ///
 ///         // the first two "words",
-///         FuzzyMatch::Overflow(
-///             TokenMatch::new(&token, r#""badger badger" mushroom"#),
+///         FuzzyMatchList::new_overflow(
+///             MatchPart::new_unmarked(r#""badger badger" mushroom"#.into()),
 ///             " snake ".into(),
 ///         ),
 ///
 ///         // and the whole phrase.
-///         FuzzyMatch::Exact(TokenMatch::new(&token, r#""badger badger" mushroom snake"#)),
+///         FuzzyMatchList::new_exact(
+///             MatchPart::new_unmarked(r#""badger badger" mushroom snake"#.into()),
+///         ),
 ///     ],
 ///     token
 ///         .match_input(r#" "badger badger" mushroom snake "#, &app_meta)

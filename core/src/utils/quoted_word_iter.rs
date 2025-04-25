@@ -72,6 +72,58 @@ where
     }))
 }
 
+/// Like [`quoted_phrases`], except that if the first word is quoted, both the quoted _and_
+/// unquoted forms will be included in the result.
+///
+/// # Examples
+///
+/// ```
+/// # use initiative_core::utils::quoted_phrases_all;
+/// let mut iter = quoted_phrases_all(r#"  "Medium" Dave Lilywhite  "#)
+///     .map(|substr| substr.as_str());
+///
+/// assert_eq!(Some("Medium"), iter.next());
+/// assert_eq!(Some(r#""Medium""#), iter.next());
+/// assert_eq!(Some(r#""Medium" Dave"#), iter.next());
+/// assert_eq!(Some(r#""Medium" Dave Lilywhite"#), iter.next());
+/// assert_eq!(None, iter.next());
+/// ```
+///
+/// Since the first word is not quoted, the behavior here will be the same as with quoted_phrases().
+///
+/// ```
+/// # use initiative_core::utils::quoted_phrases_all;
+/// let mut iter = quoted_phrases_all(r#"   Ronny  "Two Spoons" Johnson  "#)
+///     .map(|substr| substr.as_str());
+///
+/// assert_eq!(Some("Ronny"), iter.next());
+/// assert_eq!(Some(r#"Ronny  "Two Spoons""#), iter.next());
+/// assert_eq!(Some(r#"Ronny  "Two Spoons" Johnson"#), iter.next());
+/// assert_eq!(None, iter.next());
+/// ```
+pub fn quoted_phrases_all<'a, W>(phrase: W) -> impl Iterator<Item = Substr<'a>>
+where
+    W: Into<Substr<'a>>,
+{
+    let mut iter = quoted_words(phrase);
+    let first = iter.next();
+    let first_quoted = first
+        .as_ref()
+        .and_then(|substr| substr.is_quoted().then(|| substr.as_outer_substr()));
+    let start = first.as_ref().map(|f| f.range().start).unwrap_or(0);
+
+    first
+        .into_iter()
+        .chain(first_quoted)
+        .chain(iter.map(move |substr| {
+            Substr::new(
+                substr.as_original_str(),
+                start..substr.range().end,
+                start..substr.range().end,
+            )
+        }))
+}
+
 pub struct QuotedWordIter<'a> {
     phrase: Substr<'a>,
     char_iter: SubstrCharIndices<'a>,

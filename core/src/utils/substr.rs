@@ -97,9 +97,23 @@ impl<'a> Substr<'a> {
         &self.phrase[self.outer_range.clone()]
     }
 
+    /// Returns the `Substr` with quotation marks included (if any).
+    pub fn as_outer_substr(&self) -> Substr<'a> {
+        Substr {
+            phrase: self.phrase,
+            inner_range: self.outer_range.clone(),
+            outer_range: self.outer_range.clone(),
+        }
+    }
+
     /// Returns the entire input phrase.
     pub fn as_original_str(&self) -> &'a str {
         self.phrase
+    }
+
+    /// Returns the entire input phrase as a `Substr`.
+    pub fn as_original_substr<'b>(&'b self) -> Substr<'a> {
+        Substr::new(self.phrase, .., ..)
     }
 
     /// Returns the outer range of the Substr, ie. including quotes (if any).
@@ -123,7 +137,12 @@ impl<'a> Substr<'a> {
         self.is_at_end() && !self.is_quoted()
     }
 
-    /// Get the remainder of the phrase starting from the end of the Substr.
+    /// Get the beginning of the phrase ending at the start of the `Substr` window.
+    pub fn before(&self) -> Substr<'a> {
+        self.with_window(..self.outer_range.start, ..self.outer_range.start)
+    }
+
+    /// Get the remainder of the phrase starting from the end of the `Substr` window.
     pub fn after(&self) -> Substr<'a> {
         self.with_window(self.outer_range.end.., self.outer_range.end..)
     }

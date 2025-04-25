@@ -27,6 +27,8 @@ where
             } else {
                 yield FuzzyMatchList::new_overflow(match_part, word.after());
             }
+        } else {
+            yield FuzzyMatchList::new_incomplete(MatchPart::new("".into(), marker_hash));
         }
     })
 }
@@ -34,8 +36,6 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-
-    use crate::command::token::hash_marker;
     use crate::test_utils as test;
 
     #[derive(Hash)]
@@ -48,9 +48,8 @@ mod test {
         let token = any_word();
 
         test::assert_eq_unordered!(
-            [FuzzyMatchList::new_exact(MatchPart::new(
-                "badger".into(),
-                0
+            [FuzzyMatchList::new_exact(MatchPart::new_unmarked(
+                "badger".into()
             ))],
             token
                 .match_input("badger", &test::app_meta())
@@ -65,11 +64,26 @@ mod test {
 
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_overflow(
-                MatchPart::new("badger".into(), hash_marker(Marker::Token)),
+                MatchPart::new_unmarked("badger".into()).with_marker(Marker::Token),
                 "  mushroom  ".into(),
             )],
             token
                 .match_input("  badger  mushroom  ", &test::app_meta())
+                .collect::<Vec<_>>()
+                .await,
+        );
+    }
+
+    #[tokio::test]
+    async fn match_input_test_empty() {
+        let token = any_word_m(Marker::Token);
+
+        test::assert_eq_unordered!(
+            [FuzzyMatchList::new_incomplete(
+                MatchPart::new_unmarked("".into()).with_marker(Marker::Token),
+            )],
+            token
+                .match_input("  ", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );

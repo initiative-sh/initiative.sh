@@ -1,21 +1,20 @@
 pub mod constructors;
 
 mod any_of;
-//mod any_phrase;
+mod any_phrase;
 mod any_word;
 mod keyword;
-//mod keyword_list;
-//mod name;
-//mod optional;
-//mod or;
-//mod sequence;
+mod keyword_list;
+mod name;
+mod optional;
+mod or;
+mod sequence;
 
-use std::borrow::Cow;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 use crate::app::AppMeta;
 use crate::storage::Record;
-use crate::utils::Substr;
+use crate::utils::{CaseInsensitiveStr as _, Substr};
 
 use futures::prelude::*;
 
@@ -59,9 +58,9 @@ pub enum Token {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MatchPart<'input> {
     pub input: Substr<'input>,
-    pub matched: Option<&'static str>,
-    pub record: Option<Record>,
-    pub marker_hash: u64,
+    term: Option<&'static str>,
+    record: Option<Record>,
+    marker_hash: u64,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -95,15 +94,14 @@ impl Token {
 
         match &self {
             Token::AnyOf { .. } => any_of::match_input(self, input, app_meta),
-            //Token::AnyPhrase { .. } => any_phrase::match_input(self, input),
+            Token::AnyPhrase { .. } => any_phrase::match_input(self, input),
             Token::AnyWord { .. } => any_word::match_input(self, input),
             Token::Keyword { .. } => keyword::match_input(self, input),
-            //Token::KeywordList { .. } => keyword_list::match_input(self, input),
-            //Token::Name { .. } => name::match_input(self, input, app_meta),
-            //Token::Optional { .. } => optional::match_input(self, input, app_meta),
-            //Token::Or { .. } => or::match_input(self, input, app_meta),
-            //Token::Sequence { .. } => sequence::match_input(self, input, app_meta),
-            _ => todo!(),
+            Token::KeywordList { .. } => keyword_list::match_input(self, input),
+            Token::Name { .. } => name::match_input(self, input, app_meta),
+            Token::Optional { .. } => optional::match_input(self, input, app_meta),
+            Token::Or { .. } => or::match_input(self, input, app_meta),
+            Token::Sequence { .. } => sequence::match_input(self, input, app_meta),
         }
     }
 
@@ -118,34 +116,37 @@ impl Token {
         self.match_input(input, app_meta)
             .filter_map(|fuzzy_match_list| future::ready(fuzzy_match_list.into_match_list()))
     }
-
-    pub fn marker_hash(&self) -> u64 {
-        match &self {
-            Token::AnyPhrase { marker_hash }
-            | Token::AnyWord { marker_hash }
-            | Token::Keyword { marker_hash, .. }
-            | Token::KeywordList { marker_hash, .. }
-            | Token::Name { marker_hash } => *marker_hash,
-            Token::AnyOf { .. }
-            | Token::Optional { .. }
-            | Token::Or { .. }
-            | Token::Sequence { .. } => 0,
-        }
-    }
 }
 
 impl<'input> MatchPart<'input> {
     pub fn new(input: Substr<'input>, marker_hash: u64) -> Self {
         MatchPart {
             input,
-            matched: None,
+            term: None,
             record: None,
             marker_hash,
         }
     }
 
-    pub fn matching(mut self, matched: &'static str) -> Self {
-        self.matched = Some(matched);
+    pub fn new_unmarked(input: Substr<'input>) -> Self {
+        MatchPart {
+            input,
+            term: None,
+            record: None,
+            marker_hash: 0,
+        }
+    }
+
+    pub fn with_marker<M>(mut self, marker: M) -> Self
+    where
+        M: Hash,
+    {
+        self.marker_hash = hash_marker(marker);
+        self
+    }
+
+    pub fn with_term(mut self, term: &'static str) -> Self {
+        self.term = Some(term);
         self
     }
 
@@ -153,11 +154,43 @@ impl<'input> MatchPart<'input> {
         self.record = Some(record);
         self
     }
+
+    pub fn has_marker<M>(&self, marker: M) -> bool
+    where
+        M: Hash,
+    {
+        self.has_marker_hash(hash_marker(marker))
+    }
+
+    pub fn has_marker_hash(&self, marker_hash: u64) -> bool {
+        self.marker_hash == marker_hash
+    }
+
+    pub fn record(&self) -> Option<&Record> {
+        self.record.as_ref()
+    }
+
+    pub fn term(&self) -> Option<&'static str> {
+        self.term
+    }
 }
 
 impl<'input> MatchList<'input> {
     pub fn iter(&self) -> impl std::iter::Iterator<Item = &MatchPart<'input>> {
         self.into_iter()
+    }
+
+    pub fn first(&self) -> Option<&MatchPart<'input>> {
+        self.matches.first()
+    }
+
+    pub fn find_marker<M>(&self, marker: M) -> Option<&MatchPart<'input>>
+    where
+        M: Hash,
+    {
+        let marker_hash = hash_marker(marker);
+        self.iter()
+            .find(|match_part| match_part.has_marker_hash(marker_hash))
     }
 }
 
@@ -189,6 +222,7 @@ impl<'input> FuzzyMatchList<'input> {
         }
     }
 
+    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
     pub fn new_incomplete_multi<IntoMatchList>(
         match_list: IntoMatchList,
         incomplete_part: MatchPart<'input>,
@@ -214,6 +248,84 @@ impl<'input> FuzzyMatchList<'input> {
         match_list.matches.append(&mut self.match_list.matches);
         self.match_list = match_list;
         self
+    }
+
+    /// Returns the appropriate autocomplete suggestion for the incomplete input, if possible.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let query = "hail ody";
+    /// let token = sequence([keyword("hail"), name()]);
+    /// let fuzzy_token_match = token.match_input(query, &app_meta).next().await.unwrap();
+    ///
+    /// assert_eq!(
+    ///     "hail Odysseus",
+    ///     fuzzy_token_match.autocomplete_term().unwrap(),
+    /// );
+    /// # })
+    /// ```
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let query = "BADGER MUSH";
+    /// let token = sequence([keyword("badger"), keyword("mushroom"), keyword("snake")]);
+    /// let fuzzy_token_match = token.match_input(query, &app_meta).next().await.unwrap();
+    ///
+    /// assert_eq!(
+    ///     "BADGER mushroom",
+    ///     fuzzy_token_match.autocomplete_term().unwrap(),
+    /// );
+    /// # })
+    /// ```
+    pub fn autocomplete_term(&self) -> Option<String> {
+        let mut suggestion = String::with_capacity(self.input()?.original_len());
+
+        if let Some(FuzzyMatchPart::Incomplete(match_part)) = &self.extra {
+            suggestion.push_str(match_part.input.before().as_str());
+
+            if let Some(record) = &match_part.record {
+                let name = record.thing.name().to_string();
+                if let Some(suffix) = name.strip_prefix_ci(&match_part.input) {
+                    suggestion.push_str(match_part.input.as_str());
+                    suggestion.push_str(suffix);
+                } else {
+                    suggestion.push_str(&name);
+                }
+            } else if let Some(term) = &match_part.term {
+                suggestion.push_str(term);
+            } else {
+                return None;
+            }
+        }
+
+        Some(suggestion)
+    }
+
+    /// Get the original input data.
+    pub fn input(&self) -> Option<Substr<'input>> {
+        Some(
+            self.match_list
+                .first()
+                .or(
+                    if let Some(FuzzyMatchPart::Incomplete(match_part)) = &self.extra {
+                        Some(match_part)
+                    } else {
+                        None
+                    },
+                )?
+                .input
+                .as_original_substr(),
+        )
     }
 
     pub fn is_overflow(&self) -> bool {

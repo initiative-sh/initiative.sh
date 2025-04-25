@@ -21,14 +21,13 @@ where
         unreachable!();
     };
 
-    match_input_with_tokens(token, input, app_meta, tokens)
+    match_input_with_tokens(tokens, input, app_meta)
 }
 
 pub fn match_input_with_tokens<'input, 'stream>(
-    token: &'stream Token,
+    tokens: Vec<&'stream Token>,
     input: Substr<'input>,
     app_meta: &'stream AppMeta,
-    tokens: Vec<&'stream Token>,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatchList<'input>> + 'stream>>
 where
     'input: 'stream,
@@ -42,7 +41,7 @@ where
                     next_tokens.swap_remove(test_token_index);
 
                     for await next_result in
-                        match_input_with_tokens(token, overflow_part.clone(), app_meta, next_tokens)
+                        match_input_with_tokens(next_tokens, overflow_part.clone(), app_meta)
                     {
                         yield next_result.prepend(result.match_list.clone());
                     }
@@ -57,8 +56,6 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-
-    use crate::command::token::hash_marker;
     use crate::test_utils as test;
 
     #[derive(Hash)]
@@ -79,7 +76,9 @@ mod test {
 
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_incomplete(
-                MatchPart::new("mush".into(), hash_marker(Marker::Mushroom)).matching("mushroom")
+                MatchPart::new_unmarked("mush".into())
+                    .with_marker(Marker::Mushroom)
+                    .with_term("mushroom")
             )],
             token
                 .match_input("mush", &test::app_meta())
@@ -98,20 +97,26 @@ mod test {
         test::assert_eq_unordered!(
             [
                 FuzzyMatchList::new_overflow(
-                    MatchPart::new("BADGER".into(), hash_marker(Marker::Badger)).matching("badger"),
+                    MatchPart::new_unmarked("BADGER".into())
+                        .with_marker(Marker::Badger)
+                        .with_term("badger"),
                     " badger".into(),
                 ),
                 FuzzyMatchList::new_overflow(
-                    MatchPart::new("BADGER".into(), hash_marker(Marker::AnyWord)),
+                    MatchPart::new_unmarked("BADGER".into()).with_marker(Marker::AnyWord),
                     " badger".into(),
                 ),
                 FuzzyMatchList::new_exact(vec![
-                    MatchPart::new("BADGER".into(), hash_marker(Marker::AnyWord)),
-                    MatchPart::new("badger".into(), hash_marker(Marker::Badger)).matching("badger"),
+                    MatchPart::new_unmarked("BADGER".into()).with_marker(Marker::AnyWord),
+                    MatchPart::new_unmarked("badger".into())
+                        .with_marker(Marker::Badger)
+                        .with_term("badger"),
                 ]),
                 FuzzyMatchList::new_exact(vec![
-                    MatchPart::new("BADGER".into(), hash_marker(Marker::Badger)).matching("badger"),
-                    MatchPart::new("badger".into(), hash_marker(Marker::AnyWord)),
+                    MatchPart::new_unmarked("BADGER".into())
+                        .with_marker(Marker::Badger)
+                        .with_term("badger"),
+                    MatchPart::new_unmarked("badger".into()).with_marker(Marker::AnyWord),
                 ]),
             ],
             token
@@ -132,13 +137,18 @@ mod test {
         test::assert_eq_unordered!(
             [
                 FuzzyMatchList::new_overflow(
-                    MatchPart::new("badger".into(), hash_marker(Marker::Badger)).matching("badger"),
+                    MatchPart::new_unmarked("badger".into())
+                        .with_marker(Marker::Badger)
+                        .with_term("badger"),
                     " mushroom".into(),
                 ),
                 FuzzyMatchList::new_exact(vec![
-                    MatchPart::new("badger".into(), hash_marker(Marker::Badger)).matching("badger"),
-                    MatchPart::new("mushroom".into(), hash_marker(Marker::Mushroom))
-                        .matching("mushroom"),
+                    MatchPart::new_unmarked("badger".into())
+                        .with_marker(Marker::Badger)
+                        .with_term("badger"),
+                    MatchPart::new_unmarked("mushroom".into())
+                        .with_marker(Marker::Mushroom)
+                        .with_term("mushroom"),
                 ])
             ],
             token
@@ -154,7 +164,7 @@ mod test {
 
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_overflow(
-                MatchPart::new("badger".into(), 0).matching("badger"),
+                MatchPart::new_unmarked("badger".into()).with_term("badger"),
                 " badger".into(),
             )],
             token

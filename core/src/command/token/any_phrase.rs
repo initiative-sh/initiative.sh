@@ -18,7 +18,7 @@ pub fn match_input<'input>(
         let mut phrases = quoted_phrases(input).peekable();
 
         while let Some(phrase) = phrases.next() {
-            let match_part = MatchPart::new(phrase.clone(), phrase.as_str(), marker_hash);
+            let match_part = MatchPart::new(phrase.clone(), marker_hash);
 
             if phrases.peek().is_none() {
                 yield FuzzyMatchList::new_exact(match_part);
@@ -56,9 +56,15 @@ mod test {
 
         test::assert_eq_unordered!(
             [
-                FuzzyMatch::Overflow(TokenMatch::new(&token, "badger"), " badger badger".into()),
-                FuzzyMatch::Overflow(TokenMatch::new(&token, "badger badger"), " badger".into()),
-                FuzzyMatch::Exact(TokenMatch::new(&token, "badger badger badger")),
+                FuzzyMatchList::new_overflow(
+                    MatchPart::new_unmarked("badger".into()),
+                    " badger badger".into(),
+                ),
+                FuzzyMatchList::new_overflow(
+                    MatchPart::new_unmarked("badger badger".into()),
+                    " badger".into(),
+                ),
+                FuzzyMatchList::new_exact(MatchPart::new_unmarked("badger badger badger".into())),
             ],
             token
                 .match_input("badger badger badger", &test::app_meta())
@@ -73,11 +79,17 @@ mod test {
 
         test::assert_eq_unordered!(
             [
-                FuzzyMatch::Overflow(TokenMatch::new(&token, "Nott"), " \"The Brave\" ".into()),
-                FuzzyMatch::Exact(TokenMatch::new(&token, "Nott \"The Brave\"")),
+                FuzzyMatchList::new_overflow(
+                    MatchPart::new_unmarked("Nott".into()).with_marker(Marker::Token),
+                    r#" "The Brave" "#.into(),
+                ),
+                FuzzyMatchList::new_exact(
+                    MatchPart::new_unmarked(r#"Nott "The Brave""#.into())
+                        .with_marker(Marker::Token),
+                ),
             ],
             token
-                .match_input(" Nott \"The Brave\" ", &test::app_meta())
+                .match_input(r#" Nott "The Brave" "#, &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );

@@ -6,13 +6,13 @@ use std::pin::Pin;
 
 use futures::prelude::*;
 
-pub fn match_input<'token, 'app_meta>(
-    token: &'token Token,
-    input: Substr<'token>,
-    app_meta: &'app_meta AppMeta,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'token>> + 'app_meta>>
+pub fn match_input<'input, 'stream>(
+    token: &'stream Token,
+    input: Substr<'input>,
+    app_meta: &'stream AppMeta,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatchList<'input>> + 'stream>>
 where
-    'token: 'app_meta,
+    'input: 'stream,
 {
     let Token::Optional {
         token: optional_token,
@@ -22,18 +22,14 @@ where
     };
 
     Box::pin(
-        stream::iter([if quoted_words(input.as_str()).next().is_none() {
-            FuzzyMatch::Exact(token.into())
-        } else {
-            FuzzyMatch::Overflow(token.into(), input.clone())
-        }])
-        .chain(
-            optional_token
-                .match_input(input, app_meta)
-                .map(|fuzzy_match| {
-                    fuzzy_match.map(|token_match| TokenMatch::new(token, token_match))
-                }),
-        ),
+        stream::once(future::ready(
+            if quoted_words(input.clone()).next().is_some() {
+                FuzzyMatchList::new_overflow(MatchList::default(), input.clone())
+            } else {
+                FuzzyMatchList::new_exact(MatchList::default())
+            },
+        ))
+        .chain(optional_token.match_input(input, app_meta)),
     )
 }
 
@@ -50,18 +46,18 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_simple() {
-        let keyword_token = keyword_m(Marker::Keyword, "badger");
-        let optional_token = optional(keyword_token.clone());
+        let token = optional(keyword_m(Marker::Keyword, "badger"));
 
         test::assert_eq_unordered!(
             [
-                FuzzyMatch::Exact(TokenMatch::new(
-                    &optional_token,
-                    TokenMatch::from(&keyword_token)
-                )),
-                FuzzyMatch::Overflow(TokenMatch::from(&optional_token), "badger".into()),
+                FuzzyMatchList::new_exact(
+                    MatchPart::new_unmarked("badger".into())
+                        .with_marker(Marker::Keyword)
+                        .with_term("badger"),
+                ),
+                FuzzyMatchList::new_overflow(MatchList::default(), "badger".into()),
             ],
-            optional_token
+            token
                 .match_input("badger", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
@@ -70,10 +66,17 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_empty() {
-        let token = optional(keyword("badger"));
+        let token = optional(keyword_m(Marker::Keyword, "badger"));
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Exact(TokenMatch::from(&token))],
+            [
+                FuzzyMatchList::new_exact(MatchList::default()),
+                FuzzyMatchList::new_incomplete(
+                    MatchPart::new_unmarked("".into())
+                        .with_marker(Marker::Keyword)
+                        .with_term("badger"),
+                ),
+            ],
             token
                 .match_input("   ", &test::app_meta())
                 .collect::<Vec<_>>()

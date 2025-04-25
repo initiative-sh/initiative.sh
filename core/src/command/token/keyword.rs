@@ -18,26 +18,30 @@ pub fn match_input<'input>(
         let mut iter = quoted_words(input);
         if let Some(first_word) = iter.next() {
             if term.eq_ci(&first_word) {
-                let match_part = MatchPart::new(first_word.clone(), marker_hash).matching(term);
-
                 if first_word.is_at_end() {
-                    yield FuzzyMatchList::new_exact(match_part);
+                    yield FuzzyMatchList::new_exact(
+                        MatchPart::new(first_word, marker_hash).with_term(term),
+                    );
                 } else {
-                    yield FuzzyMatchList::new_overflow(match_part, first_word.after());
+                    yield FuzzyMatchList::new_overflow(
+                        MatchPart::new(first_word.clone(), marker_hash).with_term(term),
+                        first_word.after(),
+                    );
                 }
             } else if first_word.can_complete() && term.starts_with_ci(&first_word) {
-                let match_part = MatchPart::new(first_word, marker_hash).matching(term);
-                yield FuzzyMatchList::new_incomplete(match_part);
+                yield FuzzyMatchList::new_incomplete(
+                    MatchPart::new(first_word, marker_hash).with_term(term),
+                );
             }
+        } else {
+            yield FuzzyMatchList::new_incomplete(MatchPart::new("".into(), marker_hash).with_term(term))
         }
     })
 }
 
 #[cfg(test)]
 mod test {
-    use super::super::hash_marker;
     use super::*;
-
     use crate::test_utils as test;
 
     #[derive(Hash)]
@@ -51,7 +55,9 @@ mod test {
 
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_exact(
-                MatchPart::new("BADGER".into(), hash_marker(Marker::Keyword)).matching("badger")
+                MatchPart::new_unmarked("BADGER".into())
+                    .with_marker(Marker::Keyword)
+                    .with_term("badger"),
             )],
             token
                 .match_input("BADGER", &test::app_meta())
@@ -67,7 +73,7 @@ mod test {
 
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_exact(
-                MatchPart::new("MUSHROOM".into(), 0).matching("mushroom")
+                MatchPart::new_unmarked("MUSHROOM".into()).with_term("mushroom"),
             )],
             token
                 .match_input(input.clone(), &test::app_meta())
@@ -82,7 +88,7 @@ mod test {
 
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_overflow(
-                MatchPart::new("badger".into(), 0).matching("badger"),
+                MatchPart::new_unmarked("badger".into()).with_term("badger"),
                 " mushroom snake".into(),
             )],
             token
@@ -98,7 +104,7 @@ mod test {
 
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_incomplete(
-                MatchPart::new("badg".into(), 0).matching("badger")
+                MatchPart::new_unmarked("badg".into()).with_term("badger"),
             )],
             token
                 .match_input(" badg", &test::app_meta())
@@ -116,6 +122,22 @@ mod test {
         test::assert_empty!(
             token
                 .match_input(r#""badg""#, &test::app_meta())
+                .collect::<Vec<_>>()
+                .await,
+        );
+    }
+
+    #[tokio::test]
+    async fn match_input_test_empty() {
+        let token = keyword_m(Marker::Keyword, "badger");
+        test::assert_eq_unordered!(
+            [FuzzyMatchList::new_incomplete(
+                MatchPart::new_unmarked("".into())
+                    .with_marker(Marker::Keyword)
+                    .with_term("badger"),
+            )],
+            token
+                .match_input("  ", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
