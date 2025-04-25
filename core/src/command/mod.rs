@@ -3,6 +3,9 @@ pub mod prelude;
 
 mod about;
 mod alias;
+mod create;
+mod load;
+mod save;
 
 mod token;
 
@@ -125,6 +128,9 @@ enum CommandList {
     #[command_list(ignore)]
     #[expect(dead_code)]
     Alias(alias::Alias),
+    Create(create::Create),
+    Load(load::Load),
+    Save(save::Save),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]

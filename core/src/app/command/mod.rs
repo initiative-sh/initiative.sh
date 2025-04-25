@@ -234,19 +234,19 @@ impl<T: Into<CommandType>> From<T> for Command {
 mod test {
     use super::*;
     use crate::test_utils as test;
-    use crate::world::npc::NpcData;
+    use crate::world::npc::{Age, NpcData};
     use crate::world::ParsedThing;
-    use tokio_test::block_on;
 
-    #[test]
-    fn parse_input_test() {
-        let app_meta = test::app_meta();
+    #[tokio::test]
+    async fn parse_input_test() {
+        let app_meta = test::app_meta::with_test_data().await;
 
         assert_eq!(
             Command::from(CommandMatches::new_canonical(CommandType::App(
                 AppCommand::Changelog
             ))),
-            block_on(Command::parse_input("changelog", &app_meta))
+            Command::parse_input("changelog", &app_meta)
+                .await
                 .take_best_match()
                 .unwrap(),
         );
@@ -255,38 +255,56 @@ mod test {
             Command::from(CommandMatches::new_canonical(CommandType::Reference(
                 ReferenceCommand::OpenGameLicense
             ))),
-            block_on(Command::parse_input("Open Game License", &app_meta))
+            Command::parse_input("Open Game License", &app_meta)
+                .await
                 .take_best_match()
                 .unwrap(),
         );
 
         assert_eq!(
-            Command::from(CommandMatches::default()),
-            block_on(Command::parse_input("Odysseus", &app_meta))
+            Command::from(CommandMatches::new_fuzzy(
+                StorageCommand::Load {
+                    name: "Odysseus".to_string(),
+                }
+                .into(),
+            )),
+            Command::parse_input("Odysseus", &app_meta)
+                .await
                 .take_best_match()
                 .unwrap(),
         );
 
         assert_eq!(
             Command::from(CommandMatches::new_canonical(CommandType::Transitional(
-                TransitionalCommand::new("about"),
+                TransitionalCommand::new("save odysseus"),
             ))),
-            block_on(Command::parse_input("about", &app_meta))
+            Command::parse_input("save odysseus", &app_meta)
+                .await
                 .take_best_match()
                 .unwrap(),
         );
 
         assert_eq!(
             Command::from(CommandMatches::new_canonical(CommandType::World(
-                WorldCommand::Create {
-                    parsed_thing_data: ParsedThing {
-                        thing_data: NpcData::default().into(),
+                WorldCommand::Edit {
+                    name: "odysseus".to_string(),
+                    parsed_diff: ParsedThing {
+                        thing_data: test::npc().age(Age::Elderly).build_thing_data(),
                         unknown_words: Vec::new(),
                         word_count: 1,
                     },
                 }
             ))),
-            block_on(Command::parse_input("create npc", &app_meta))
+            Command::parse_input("odysseus is elderly", &app_meta)
+                .await
+                .take_best_match()
+                .unwrap(),
+        );
+
+        assert_eq!(
+            Command::from(CommandMatches::default()),
+            Command::parse_input("badger", &app_meta)
+                .await
                 .take_best_match()
                 .unwrap(),
         );

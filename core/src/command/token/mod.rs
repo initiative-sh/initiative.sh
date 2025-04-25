@@ -469,7 +469,7 @@ mod tests {
     use crate::command::prelude::*;
     use crate::test_utils as test;
 
-    #[derive(Hash)]
+    #[derive(Debug, Eq, Hash, PartialEq)]
     enum Marker {
         One,
         Two,

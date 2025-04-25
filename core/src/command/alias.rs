@@ -1,4 +1,7 @@
 use crate::command::prelude::*;
+use crate::world::thing::ThingData;
+
+use super::{create, load, save};
 
 use std::borrow::Cow;
 use uuid::Uuid;
@@ -12,7 +15,9 @@ pub struct Alias {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AliasCommand {
+    CreateMore { thing_data: ThingData },
     Save { uuid: Uuid },
+    Load { uuid: Uuid },
 }
 
 impl Alias {
@@ -58,14 +63,21 @@ impl Command for Alias {
     async fn run(
         &self,
         _match_list: MatchList<'_>,
-        _app_meta: &mut AppMeta,
+        app_meta: &mut AppMeta,
     ) -> Result<impl std::fmt::Display, impl std::fmt::Display> {
-        match self.command {
-            AliasCommand::Save { .. } => todo!(),
+        fn out(
+            input: Result<impl std::fmt::Display, impl std::fmt::Display>,
+        ) -> Result<String, String> {
+            input.map(|s| s.to_string()).map_err(|s| s.to_string())
         }
 
-        #[expect(unreachable_code)]
-        Ok::<_, &str>("")
+        match &self.command {
+            AliasCommand::CreateMore { thing_data } => {
+                out(create::Create.more(thing_data, app_meta).await)
+            }
+            AliasCommand::Save { uuid } => out(save::Save.run_with_uuid(uuid, app_meta).await),
+            AliasCommand::Load { uuid } => out(load::Load.run_with_uuid(uuid, app_meta).await),
+        }
     }
 }
 
