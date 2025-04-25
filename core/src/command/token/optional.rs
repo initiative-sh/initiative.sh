@@ -1,18 +1,18 @@
 use crate::app::AppMeta;
 use crate::command::prelude::*;
-use crate::utils::quoted_words;
+use crate::utils::{quoted_words, Substr};
 
 use std::pin::Pin;
 
 use futures::prelude::*;
 
-pub fn match_input<'a, 'b>(
-    token: &'a Token,
-    input: &'a str,
-    app_meta: &'b AppMeta,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+pub fn match_input<'token, 'app_meta>(
+    token: &'token Token,
+    input: Substr<'token>,
+    app_meta: &'app_meta AppMeta,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'token>> + 'app_meta>>
 where
-    'a: 'b,
+    'token: 'app_meta,
 {
     let Token::Optional {
         token: optional_token,
@@ -22,10 +22,10 @@ where
     };
 
     Box::pin(
-        stream::iter([if quoted_words(input).next().is_none() {
+        stream::iter([if quoted_words(input.as_str()).next().is_none() {
             FuzzyMatch::Exact(token.into())
         } else {
-            FuzzyMatch::Overflow(token.into(), input.into())
+            FuzzyMatch::Overflow(token.into(), input.clone())
         }])
         .chain(
             optional_token

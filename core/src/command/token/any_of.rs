@@ -1,18 +1,19 @@
 use crate::app::AppMeta;
 use crate::command::prelude::*;
+use crate::utils::Substr;
 
 use std::pin::Pin;
 
 use async_stream::stream;
 use futures::prelude::*;
 
-pub fn match_input<'a, 'b>(
-    token: &'a Token,
-    input: &'a str,
-    app_meta: &'b AppMeta,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+pub fn match_input<'token, 'app_meta>(
+    token: &'token Token,
+    input: Substr<'token>,
+    app_meta: &'app_meta AppMeta,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'token>> + 'app_meta>>
 where
-    'a: 'b,
+    'token: 'app_meta,
 {
     let tokens = if let Token::AnyOf { tokens } = token {
         tokens.iter().collect()
@@ -23,19 +24,19 @@ where
     match_input_with_tokens(token, input, app_meta, tokens)
 }
 
-pub fn match_input_with_tokens<'a, 'b>(
-    token: &'a Token,
-    input: &'a str,
-    app_meta: &'b AppMeta,
-    tokens: Vec<&'a Token>,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+pub fn match_input_with_tokens<'token, 'app_meta>(
+    token: &'token Token,
+    input: Substr<'token>,
+    app_meta: &'app_meta AppMeta,
+    tokens: Vec<&'token Token>,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'token>> + 'app_meta>>
 where
-    'a: 'b,
+    'token: 'app_meta,
 {
     Box::pin(stream! {
         // Attempt to match each token in turn
         for (test_token_index, test_token) in tokens.iter().enumerate() {
-            for await fuzzy_match in test_token.match_input(input, app_meta) {
+            for await fuzzy_match in test_token.match_input(input.clone(), app_meta) {
                 match fuzzy_match {
                     // The token is a partial match, so the phrase is incomplete.
                     FuzzyMatch::Partial(token_match, completion) => {
@@ -62,11 +63,9 @@ where
                     // First token overflows but there are other tokens in the phrase, so we
                     // recurse with the remainder of the phrase.
                     FuzzyMatch::Overflow(token_match, remainder) => {
-                        let remainder_str = remainder.as_str();
-
                         yield FuzzyMatch::Overflow(
                             TokenMatch::new(token, vec![token_match.clone()]),
-                            remainder,
+                            remainder.clone(),
                         );
 
                         let next_tokens: Vec<_> = tokens
@@ -77,7 +76,7 @@ where
                             .collect();
 
                         for await next_fuzzy_match in
-                            match_input_with_tokens(token, remainder_str, app_meta, next_tokens)
+                            match_input_with_tokens(token, remainder, app_meta, next_tokens)
                         {
                             yield next_fuzzy_match.map(|next_match| {
                                 let mut next_meta_sequence = next_match.match_meta.into_sequence().unwrap();

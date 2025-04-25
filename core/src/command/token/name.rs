@@ -4,7 +4,7 @@
 
 use crate::app::AppMeta;
 use crate::command::prelude::*;
-use crate::utils::{quoted_phrases, CaseInsensitiveStr};
+use crate::utils::{quoted_phrases, CaseInsensitiveStr, Substr};
 
 use std::pin::Pin;
 
@@ -12,13 +12,13 @@ use async_stream::stream;
 use futures::join;
 use futures::prelude::*;
 
-pub fn match_input<'a, 'b>(
-    token: &'a Token,
-    input: &'a str,
-    app_meta: &'b AppMeta,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+pub fn match_input<'token, 'app_meta>(
+    token: &'token Token,
+    input: Substr<'token>,
+    app_meta: &'app_meta AppMeta,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'token>> + 'app_meta>>
 where
-    'a: 'b,
+    'token: 'app_meta,
 {
     assert!(matches!(token, Token::Name { .. }));
 
@@ -109,18 +109,26 @@ mod test {
                     thing: test::thing::odysseus(),
                 },
             ))],
-            match_input(&token, "Odysseus", &test::app_meta::with_test_data().await)
-                .collect::<Vec<_>>()
-                .await,
+            match_input(
+                &token,
+                "Odysseus".into(),
+                &test::app_meta::with_test_data().await
+            )
+            .collect::<Vec<_>>()
+            .await,
         );
     }
 
     #[tokio::test]
     async fn match_input_test_empty() {
         test::assert_empty!(
-            match_input(&name(), "    ", &test::app_meta::with_test_data().await)
-                .collect::<Vec<_>>()
-                .await,
+            match_input(
+                &name(),
+                "    ".into(),
+                &test::app_meta::with_test_data().await
+            )
+            .collect::<Vec<_>>()
+            .await,
         );
     }
 
@@ -171,7 +179,7 @@ mod test {
                     Some("white".to_string()),
                 ),
             ],
-            match_input(&token, "\"Medium\" Dave Lily", &app_meta)
+            match_input(&token, "\"Medium\" Dave Lily".into(), &app_meta)
                 .collect::<Vec<_>>()
                 .await,
         );

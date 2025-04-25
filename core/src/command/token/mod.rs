@@ -79,14 +79,17 @@ pub enum MatchMeta<'a> {
 }
 
 impl Token {
-    pub fn match_input<'a, 'b>(
-        &'a self,
-        input: &'a str,
-        app_meta: &'b AppMeta,
-    ) -> impl Stream<Item = FuzzyMatch<'a>> + 'b
+    pub fn match_input<'token, 'app_meta, S>(
+        &'token self,
+        input: S,
+        app_meta: &'app_meta AppMeta,
+    ) -> impl Stream<Item = FuzzyMatch<'token>> + 'app_meta
     where
-        'a: 'b,
+        'token: 'app_meta,
+        S: Into<Substr<'token>>,
     {
+        let input = input.into();
+
         match &self {
             Token::AnyOf { .. } => any_of::match_input(self, input, app_meta),
             Token::AnyPhrase { .. } => any_phrase::match_input(self, input),

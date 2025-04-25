@@ -1,5 +1,6 @@
 use crate::app::AppMeta;
 use crate::command::prelude::*;
+use crate::utils::Substr;
 
 use std::iter;
 use std::pin::Pin;
@@ -7,13 +8,13 @@ use std::pin::Pin;
 use async_stream::stream;
 use futures::prelude::*;
 
-pub fn match_input<'a, 'b>(
-    token: &'a Token,
-    input: &'a str,
-    app_meta: &'b AppMeta,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+pub fn match_input<'token, 'app_meta>(
+    token: &'token Token,
+    input: Substr<'token>,
+    app_meta: &'app_meta AppMeta,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'token>> + 'app_meta>>
 where
-    'a: 'b,
+    'token: 'app_meta,
 {
     let Token::Sequence { tokens } = token else {
         unreachable!();
@@ -22,21 +23,18 @@ where
     match_input_with_tokens(token, input, app_meta, tokens)
 }
 
-pub fn match_input_with_tokens<'a, 'b>(
-    token: &'a Token,
-    input: &'a str,
-    app_meta: &'b AppMeta,
-    tokens: &'a [Token],
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+pub fn match_input_with_tokens<'token, 'app_meta>(
+    token: &'token Token,
+    input: Substr<'token>,
+    app_meta: &'app_meta AppMeta,
+    tokens: &'token [Token],
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'token>> + 'app_meta>>
 where
-    'a: 'b,
+    'token: 'app_meta,
 {
     if tokens.is_empty() {
         // No tokens, no matches
-        Box::pin(stream::iter([FuzzyMatch::Overflow(
-            token.into(),
-            input.into(),
-        )]))
+        Box::pin(stream::iter([FuzzyMatch::Overflow(token.into(), input)]))
     } else {
         Box::pin(stream! {
             // TokenMatch the first token in the sequence
@@ -80,7 +78,7 @@ where
                     // First token overflows but there are other tokens in the sequence, so we
                     // recurse with the remainder of the sequence.
                     FuzzyMatch::Overflow(token_match, remainder) => {
-                        for await next_fuzzy_match in match_input_with_tokens(token, remainder.as_str(), app_meta, &tokens[1..]) {
+                        for await next_fuzzy_match in match_input_with_tokens(token, remainder, app_meta, &tokens[1..]) {
                             yield next_fuzzy_match.map(|next_match| {
                                 TokenMatch::new(
                                     token,

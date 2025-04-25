@@ -1,15 +1,15 @@
 use crate::command::prelude::*;
-use crate::utils::quoted_words;
+use crate::utils::{quoted_words, Substr};
 
 use std::pin::Pin;
 
 use async_stream::stream;
 use futures::prelude::*;
 
-pub fn match_input<'a>(
-    token: &'a Token,
-    input: &'a str,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
+pub fn match_input<'token>(
+    token: &'token Token,
+    input: Substr<'token>,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'token>> + 'token>> {
     assert!(matches!(token, Token::AnyWord { .. }));
 
     Box::pin(stream! {

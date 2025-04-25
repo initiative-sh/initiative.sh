@@ -1,15 +1,15 @@
 use crate::command::prelude::*;
-use crate::utils::{quoted_words, CaseInsensitiveStr};
+use crate::utils::{quoted_words, CaseInsensitiveStr, Substr};
 
 use std::pin::Pin;
 
 use async_stream::stream;
 use futures::prelude::*;
 
-pub fn match_input<'a>(
-    token: &'a Token,
-    input: &'a str,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'a>> {
+pub fn match_input<'token>(
+    token: &'token Token,
+    input: Substr<'token>,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'token>> + 'token>> {
     let Token::Keyword { term, .. } = token else {
         unreachable!();
     };
@@ -57,16 +57,30 @@ mod test {
     }
 
     #[tokio::test]
+    async fn match_input_test_sequential() {
+        let token = keyword("mushroom");
+        let input = quoted_words("badger mushroom").nth(1).unwrap();
+
+        test::assert_eq_unordered!(
+            [FuzzyMatch::Exact(TokenMatch::from(&token))],
+            token
+                .match_input(input.clone(), &test::app_meta())
+                .collect::<Vec<_>>()
+                .await,
+        );
+    }
+
+    #[tokio::test]
     async fn match_input_test_overflow() {
         let token = keyword("badger");
 
         test::assert_eq_unordered!(
             [FuzzyMatch::Overflow(
                 TokenMatch::from(&token),
-                " badger".into(),
+                " mushroom snake".into(),
             )],
             token
-                .match_input("badger badger", &test::app_meta())
+                .match_input("badger mushroom snake", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );

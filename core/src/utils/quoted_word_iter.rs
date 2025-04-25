@@ -82,7 +82,7 @@ pub struct QuotedWordIter<'a> {
 impl<'a> QuotedWordIter<'a> {
     fn new(phrase: Substr<'a>) -> Self {
         Self {
-            char_iter: phrase.as_original_str().char_indices(),
+            char_iter: phrase.as_str().char_indices(),
             phrase,
             quote_len: None,
         }
@@ -361,5 +361,11 @@ mod test {
     fn quoted_word_iter_test_empty() {
         assert!(quoted_words("").next().is_none());
         assert!(quoted_words(" ").next().is_none());
+    }
+
+    #[test]
+    fn quoted_word_iter_test_substr_input() {
+        let word = quoted_words("badger mushroom").nth(1).unwrap();
+        assert_eq!(Some(Substr::from("mushroom")), quoted_words(word).next());
     }
 }
