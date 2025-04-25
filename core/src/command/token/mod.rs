@@ -18,6 +18,21 @@ use crate::utils::{CaseInsensitiveStr as _, Substr};
 
 use futures::prelude::*;
 
+mod prelude {
+    pub use super::TokenKind;
+    pub use super::{FuzzyMatchList, FuzzyMatchPart, MatchList, MatchPart, Token};
+    pub use crate::app::AppMeta;
+    pub use crate::utils::{
+        quoted_phrases, quoted_phrases_all, quoted_words, CaseInsensitiveStr, Substr,
+    };
+
+    pub use std::pin::Pin;
+
+    pub use async_stream::stream;
+    pub use futures::join;
+    pub use futures::prelude::*;
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct Token {
     kind: TokenKind,

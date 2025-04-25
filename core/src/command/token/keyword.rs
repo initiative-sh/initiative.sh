@@ -1,11 +1,4 @@
-use super::TokenKind;
-use crate::command::prelude::*;
-use crate::utils::{quoted_words, CaseInsensitiveStr, Substr};
-
-use std::pin::Pin;
-
-use async_stream::stream;
-use futures::prelude::*;
+use crate::command::token::prelude::*;
 
 pub fn match_input<'input>(
     token: &Token,
