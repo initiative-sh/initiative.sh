@@ -117,27 +117,27 @@ enum Marker {
 impl Command for Create {
     fn token(&self) -> Token {
         sequence([
-            optional(keyword_m(Marker::CreateKeyword, "create")),
+            optional(keyword("create").with_marker(Marker::CreateKeyword)),
             or([
                 any_of([
                     keyword_list(["a", "an"]),
                     sequence([
                         keyword_list(["named", "called"]),
-                        any_phrase_m(Marker::Name),
+                        any_phrase().with_marker(Marker::Name),
                     ]),
-                    keyword_list_m(Marker::PlaceType, PlaceType::get_words()),
+                    keyword_list(PlaceType::get_words()).with_marker(Marker::PlaceType),
                 ]),
                 any_of([
                     keyword_list(["a", "an"]),
-                    keyword_list_m(Marker::NpcNoun, ["character", "npc", "person"]),
+                    keyword_list(["character", "npc", "person"]).with_marker(Marker::NpcNoun),
                     sequence([
                         keyword_list(["named", "called"]),
-                        any_phrase_m(Marker::Name),
+                        any_phrase().with_marker(Marker::Name),
                     ]),
-                    keyword_list_m(Marker::Age, Age::get_words()),
-                    keyword_list_m(Marker::Ethnicity, Ethnicity::get_words()),
-                    keyword_list_m(Marker::Gender, Gender::get_words()),
-                    keyword_list_m(Marker::Species, Species::get_words()),
+                    keyword_list(Age::get_words()).with_marker(Marker::Age),
+                    keyword_list(Ethnicity::get_words()).with_marker(Marker::Ethnicity),
+                    keyword_list(Gender::get_words()).with_marker(Marker::Gender),
+                    keyword_list(Species::get_words()).with_marker(Marker::Species),
                 ]),
             ]),
         ])
@@ -145,30 +145,16 @@ impl Command for Create {
 
     fn autocomplete(
         &self,
-        fuzzy_match: FuzzyMatch<'_>,
+        _fuzzy_match_list: FuzzyMatchList<'_>,
         _input: &str,
     ) -> Option<AutocompleteSuggestion> {
-        let token_match = fuzzy_match.token_match();
-
-        let record = token_match.match_meta.sequence()?[1].match_meta.record()?;
-
-        if record.is_saved() {
-            None
-        } else {
-            Some(
-                (
-                    format!("save {}", record.thing.name()),
-                    format!("save {} to journal", record.thing.as_str()),
-                )
-                    .into(),
-            )
-        }
+        todo!();
     }
 
-    fn get_priority(&self, token_match: &TokenMatch) -> Option<CommandPriority> {
-        if token_match.contains_marker(Marker::CreateKeyword) {
+    fn get_priority(&self, match_list: &MatchList) -> Option<CommandPriority> {
+        if match_list.contains_marker(&Marker::CreateKeyword) {
             Some(CommandPriority::Canonical)
-        } else if token_match
+        } else if match_list
             .find_markers(&[Marker::NpcNoun, Marker::Species, Marker::PlaceType])
             .next()
             .is_some()
@@ -181,14 +167,14 @@ impl Command for Create {
 
     async fn run(
         &self,
-        token_match: TokenMatch<'_>,
+        match_list: MatchList<'_>,
         app_meta: &mut AppMeta,
     ) -> Result<impl std::fmt::Display, impl std::fmt::Display> {
-        let thing_data = self.parse_thing_data(&token_match);
+        let thing_data = self.parse_thing_data(&match_list);
 
         for _ in 0..10 {
             if let Some(result) = self
-                .try_generate_thing(&thing_data, &token_match, app_meta)
+                .try_generate_thing(&thing_data, &match_list, app_meta)
                 .await
             {
                 return result;
@@ -200,31 +186,26 @@ impl Command for Create {
         })
     }
 
-    fn get_canonical_form_of(&self, token_match: &TokenMatch) -> Option<String> {
-        let (thing_token, marker) = token_match
+    fn get_canonical_form_of(&self, match_list: &MatchList) -> Option<String> {
+        let (thing_match, marker) = match_list
             .find_markers(&[Marker::NpcNoun, Marker::Species, Marker::PlaceType])
             .next()
             .unwrap();
 
         let result = if marker == &Marker::PlaceType {
-            let mut result = PlaceType::try_from(thing_token.match_meta.phrase()?)
-                .ok()?
-                .to_string();
+            let mut result = PlaceType::try_from(thing_match.input()).ok()?.to_string();
 
-            if let Some(name) = token_match
-                .find_marker(Marker::Name)
-                .and_then(|tm| tm.match_meta.phrase())
-            {
-                result.push_str(&format!(" named \"{}\"", name));
+            if let Some(name_match) = match_list.find_marker(&Marker::Name) {
+                result.push_str(&format!(r#" named "{}""#, name_match.input()));
             }
 
             result
         } else {
             let mut result = String::new();
 
-            if let Some(age_str) = token_match
-                .find_marker(Marker::Age)
-                .and_then(|tm| tm.match_meta.phrase())
+            if let Some(age_str) = match_list
+                .find_marker(&Marker::Age)
+                .map(MatchPart::input)
                 .and_then(|s| Age::try_from(s).ok())
                 .map(|age| age.as_str())
             {
@@ -232,9 +213,9 @@ impl Command for Create {
                 result.push(' ');
             }
 
-            if let Some(gender_str) = token_match
-                .find_marker(Marker::Gender)
-                .and_then(|tm| tm.match_meta.phrase())
+            if let Some(gender_str) = match_list
+                .find_marker(&Marker::Gender)
+                .map(MatchPart::input)
                 .and_then(|s| Gender::try_from(s).ok())
                 .map(|gender| gender.as_str())
             {
@@ -242,9 +223,9 @@ impl Command for Create {
                 result.push(' ');
             }
 
-            if let Some(ethnicity_str) = token_match
-                .find_marker(Marker::Ethnicity)
-                .and_then(|tm| tm.match_meta.phrase())
+            if let Some(ethnicity_str) = match_list
+                .find_marker(&Marker::Ethnicity)
+                .map(MatchPart::input)
                 .and_then(|s| Ethnicity::try_from(s).ok())
                 .map(|ethnicity| ethnicity.as_str())
             {
@@ -252,9 +233,9 @@ impl Command for Create {
                 result.push(' ');
             }
 
-            if let Some(species_str) = token_match
-                .find_marker(Marker::Species)
-                .and_then(|tm| tm.match_meta.phrase())
+            if let Some(species_str) = match_list
+                .find_marker(&Marker::Species)
+                .map(MatchPart::input)
                 .and_then(|s| Species::try_from(s).ok())
                 .map(|species| species.as_str())
             {
@@ -263,11 +244,8 @@ impl Command for Create {
                 result.push_str("character");
             }
 
-            if let Some(name) = token_match
-                .find_marker(Marker::Name)
-                .and_then(|tm| tm.match_meta.phrase())
-            {
-                result.push_str(&format!(" named {}", name));
+            if let Some(name) = match_list.find_marker(&Marker::Name).map(MatchPart::input) {
+                result.push_str(&format!(r#" named "{}""#, name));
             }
 
             result
@@ -282,21 +260,19 @@ impl Command for Create {
 }
 
 impl Create {
-    fn parse_thing_data(&self, token_match: &TokenMatch) -> ThingData {
-        if token_match.is_marked_with(Marker::PlaceType) {
-            self.parse_place_data(token_match).into()
+    fn parse_thing_data(&self, match_list: &MatchList) -> ThingData {
+        if match_list.contains_marker(&Marker::PlaceType) {
+            self.parse_place_data(match_list).into()
         } else {
-            self.parse_npc_data(token_match).into()
+            self.parse_npc_data(match_list).into()
         }
     }
 
-    fn parse_place_data(&self, token_match: &TokenMatch) -> PlaceData {
+    fn parse_place_data(&self, match_list: &MatchList) -> PlaceData {
         let mut place_data = PlaceData::default();
 
-        for (marked_token_match, marker) in
-            token_match.find_markers(&[Marker::Name, Marker::PlaceType])
-        {
-            let phrase = marked_token_match.meta_phrase().unwrap();
+        for (match_part, marker) in match_list.find_markers(&[Marker::Name, Marker::PlaceType]) {
+            let phrase = match_part.input();
 
             match marker {
                 Marker::Name => place_data.name = phrase.into(),
@@ -308,17 +284,17 @@ impl Create {
         place_data
     }
 
-    fn parse_npc_data(&self, token_match: &TokenMatch) -> NpcData {
+    fn parse_npc_data(&self, match_list: &MatchList) -> NpcData {
         let mut npc_data = NpcData::default();
 
-        for (marked_token_match, marker) in token_match.find_markers(&[
+        for (match_part, marker) in match_list.find_markers(&[
             Marker::Age,
             Marker::Ethnicity,
             Marker::Gender,
             Marker::Name,
             Marker::Species,
         ]) {
-            let phrase = marked_token_match.meta_phrase().unwrap();
+            let phrase = match_part.input();
 
             match marker {
                 Marker::Age => npc_data.age = phrase.parse().ok().into(),
@@ -346,7 +322,7 @@ impl Create {
     async fn try_generate_thing(
         &self,
         original_thing_data: &ThingData,
-        token_match: &TokenMatch<'_>,
+        match_list: &MatchList<'_>,
         app_meta: &mut AppMeta,
     ) -> Option<Result<CreateSuccess, CreateError>> {
         let mut thing_data = original_thing_data.clone();
@@ -424,7 +400,7 @@ impl Create {
 
             Err((Change::Create { .. }, RepositoryError::MissingName)) => {
                 Some(Err(CreateError::NameRequired {
-                    canonical: self.get_canonical_form_of(token_match),
+                    canonical: self.get_canonical_form_of(match_list),
                 }))
             }
 

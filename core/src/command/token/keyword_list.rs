@@ -13,7 +13,7 @@ where
     let marker_hash = token.marker_hash;
 
     Box::pin(stream! {
-        let mut iter = quoted_words(input).peekable();
+        let mut iter = quoted_words(input.clone()).peekable();
         if let Some(first_word) = iter.next() {
             for term in terms {
                 if term.eq_ci(&first_word) {
@@ -33,7 +33,7 @@ where
             }
         } else {
             for term in terms {
-                yield FuzzyMatchList::new_incomplete(MatchPart::new("".into(), marker_hash).with_term(term));
+                yield FuzzyMatchList::new_incomplete(MatchPart::new(input.clone(), marker_hash).with_term(term));
             }
         }
     })

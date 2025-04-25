@@ -222,8 +222,8 @@ impl<'input> MatchPart<'input> {
         self.marker_hash == marker_hash
     }
 
-    pub fn input(&self) -> &Substr<'input> {
-        &self.input
+    pub fn input(&self) -> &'input str {
+        self.input.as_str()
     }
 
     pub fn record(&self) -> Option<&Record> {
@@ -244,13 +244,35 @@ impl<'input> MatchList<'input> {
         self.matches.first()
     }
 
-    pub fn find_marker<M>(&self, marker: M) -> Option<&MatchPart<'input>>
+    pub fn contains_marker<M>(&self, marker: &M) -> bool
+    where
+        M: Hash,
+    {
+        self.find_marker(marker).is_some()
+    }
+
+    pub fn find_marker<M>(&self, marker: &M) -> Option<&MatchPart<'input>>
     where
         M: Hash,
     {
         let marker_hash = hash_marker(marker);
         self.parts()
             .find(|match_part| match_part.has_marker_hash(marker_hash))
+    }
+
+    pub fn find_markers<'match_part, 'marker, M>(
+        &'match_part self,
+        markers: &'marker [M],
+    ) -> impl std::iter::Iterator<Item = (&'match_part MatchPart<'input>, &'marker M)>
+    where
+        M: Hash,
+    {
+        self.parts().filter_map(|match_part| {
+            markers
+                .iter()
+                .find(|marker| match_part.has_marker(marker))
+                .map(|marker| (match_part, marker))
+        })
     }
 }
 
@@ -341,27 +363,29 @@ impl<'input> FuzzyMatchList<'input> {
     /// );
     /// # })
     /// ```
-    pub fn autocomplete_term(&self) -> Option<String> {
-        // We only need to autocomplete incomplete matches.
-        let match_part = self.incomplete()?;
+    pub fn autocomplete(&self) -> Option<String> {
+        let Some(incomplete_part) = self.incomplete() else {
+            return Some(self.input()?.to_string());
+        };
 
-        let name = match_part
+        let name = incomplete_part
             .record
             .as_ref()
             .map(|record| record.thing.name().to_string());
-        let term = name.as_deref().or(match_part.term)?;
+        let term = name.as_deref().or(incomplete_part.term)?;
 
-        let mut suggestion = String::with_capacity(match_part.input.before().len() + term.len());
-        suggestion.push_str(match_part.input.before().as_str());
+        let mut suggestion =
+            String::with_capacity(incomplete_part.input.before().len() + term.len());
+        suggestion.push_str(incomplete_part.input.before().as_str());
 
         // can_complete() implies that the input doesn't end with whitespace, so we need to add
         // whitespace to our suggestion.
-        if !suggestion.is_empty() && match_part.input.before().can_complete() {
+        if !suggestion.is_empty() && !suggestion.ends_with(' ') {
             suggestion.push(' ');
         }
 
-        if let Some(suffix) = term.strip_prefix_ci(&match_part.input) {
-            suggestion.push_str(match_part.input.as_str());
+        if let Some(suffix) = term.strip_prefix_ci(&incomplete_part.input) {
+            suggestion.push_str(incomplete_part.input.as_str());
             suggestion.push_str(suffix);
         } else {
             suggestion.push_str(term);
@@ -413,6 +437,42 @@ impl<'input> FuzzyMatchList<'input> {
         } else {
             None
         }
+    }
+
+    pub fn contains_marker<M>(&self, marker: &M) -> bool
+    where
+        M: Hash,
+    {
+        self.find_marker(marker).is_some()
+    }
+
+    pub fn find_marker<M>(&self, marker: &M) -> Option<&MatchPart<'input>>
+    where
+        M: Hash,
+    {
+        let marker_hash = hash_marker(marker);
+        self.incomplete()
+            .into_iter()
+            .chain(self.complete_parts())
+            .find(|match_part| match_part.has_marker_hash(marker_hash))
+    }
+
+    pub fn find_markers<'match_part, 'marker, M>(
+        &'match_part self,
+        markers: &'marker [M],
+    ) -> impl std::iter::Iterator<Item = (&'match_part MatchPart<'input>, &'marker M)>
+    where
+        M: Hash,
+    {
+        self.incomplete()
+            .into_iter()
+            .chain(self.complete_parts())
+            .filter_map(|match_part| {
+                markers
+                    .iter()
+                    .find(|marker| match_part.has_marker(marker))
+                    .map(|marker| (match_part, marker))
+            })
     }
 }
 

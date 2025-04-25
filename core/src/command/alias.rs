@@ -45,7 +45,7 @@ impl Command for Alias {
     ) -> Option<AutocompleteSuggestion> {
         Some(
             (
-                fuzzy_match_list.autocomplete_term()?,
+                fuzzy_match_list.autocomplete()?,
                 self.autocomplete_description.clone(),
             )
                 .into(),

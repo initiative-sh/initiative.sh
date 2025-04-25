@@ -11,10 +11,10 @@ where
     assert!(matches!(token.kind, TokenKind::Name));
     let marker_hash = token.marker_hash;
 
-    let phrases: Vec<_> = quoted_phrases_all(input).collect();
+    let phrases: Vec<_> = quoted_phrases_all(input.clone()).collect();
     if phrases.is_empty() {
         return Box::pin(stream::once(future::ready(FuzzyMatchList::new_incomplete(
-            MatchPart::new("".into(), marker_hash).with_term("[name]"),
+            MatchPart::new(input, marker_hash).with_term("[name]"),
         ))));
     }
 

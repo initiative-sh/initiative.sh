@@ -11,7 +11,7 @@ where
     let marker_hash = token.marker_hash;
 
     Box::pin(stream! {
-        let mut iter = quoted_words(input);
+        let mut iter = quoted_words(input.clone());
         if let Some(word) = iter.next() {
             let match_part = MatchPart::new(word.clone(), marker_hash);
 
@@ -21,7 +21,7 @@ where
                 yield FuzzyMatchList::new_overflow(match_part, word.after());
             }
         } else {
-            yield FuzzyMatchList::new_incomplete(MatchPart::new("".into(), marker_hash));
+            yield FuzzyMatchList::new_incomplete(MatchPart::new(input, marker_hash));
         }
     })
 }

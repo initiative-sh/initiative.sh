@@ -67,7 +67,7 @@ impl Command for Save {
         fuzzy_match_list: FuzzyMatchList,
         _input: &str,
     ) -> Option<AutocompleteSuggestion> {
-        if let Some(name_token) = fuzzy_match_list.match_list.find_marker(Marker::Name) {
+        if let Some(name_token) = fuzzy_match_list.find_marker(&Marker::Name) {
             let record = name_token.record()?;
 
             if record.is_saved() {
@@ -75,20 +75,16 @@ impl Command for Save {
             } else {
                 Some(
                     (
-                        fuzzy_match_list.autocomplete_term()?,
+                        fuzzy_match_list.autocomplete()?,
                         format!("save {} to journal", record.thing.as_str()),
                     )
                         .into(),
                 )
             }
+        } else if !fuzzy_match_list.contains_marker(&Marker::NotFound) {
+            Some((fuzzy_match_list.autocomplete()?, "save an entry to journal").into())
         } else {
-            Some(
-                (
-                    fuzzy_match_list.autocomplete_term()?,
-                    "save an entry to journal",
-                )
-                    .into(),
-            )
+            None
         }
     }
 
@@ -99,7 +95,11 @@ impl Command for Save {
     fn get_canonical_form_of(&self, match_list: &MatchList) -> Option<String> {
         Some(format!(
             r#"save "{}""#,
-            match_list.find_marker(Marker::Name)?.record()?.thing.name(),
+            match_list
+                .find_marker(&Marker::Name)?
+                .record()?
+                .thing
+                .name(),
         ))
     }
 
@@ -109,18 +109,17 @@ impl Command for Save {
         app_meta: &mut AppMeta,
     ) -> Result<impl std::fmt::Display, impl std::fmt::Display> {
         if let Some(record) = match_list
-            .find_marker(Marker::Name)
+            .find_marker(&Marker::Name)
             .and_then(|match_part| match_part.record())
         {
             self.run_with_record(record, app_meta).await
         } else {
-            let s = match_list
-                .find_marker(Marker::NotFound)
-                .map(|match_part| &match_part.input)
-                .unwrap();
-
             Err(SaveError::NotFound {
-                name: s.to_string(),
+                name: match_list
+                    .find_marker(&Marker::NotFound)
+                    .unwrap()
+                    .input()
+                    .to_string(),
             })
         }
     }
@@ -172,20 +171,25 @@ mod test {
     use crate::test_utils as test;
 
     #[tokio::test]
-    async fn autocomplete_test() {
+    async fn autocomplete_test_partial() {
         let app_meta = test::app_meta::with_test_data().await;
 
         test::assert_autocomplete_eq!(
             [
-                ("save Polyphemus", "save character to journal"),
-                ("save Pylos", "save place to journal"),
+                ("save polyphemus", "save character to journal"),
+                ("save pylos", "save place to journal"),
             ],
             autocomplete("save p", &app_meta).await,
         );
+    }
+
+    #[tokio::test]
+    async fn autocomplete_test_exact() {
+        let app_meta = test::app_meta::with_test_data().await;
 
         assert_eq!(
             vec![AutocompleteSuggestion::new(
-                "save Odysseus",
+                "SAVE ODYSSEUS",
                 "save character to journal"
             )],
             autocomplete("SAVE ODYSSEUS", &app_meta).await,

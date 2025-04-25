@@ -57,79 +57,79 @@ impl std::fmt::Display for LoadError {
 impl Command for Load {
     fn token<'a>(&self) -> Token {
         sequence([
-            optional(keyword_m(Marker::Load, "load")),
-            or([name_m(Marker::Name), any_phrase_m(Marker::NotFound)]),
+            optional(keyword("load").with_marker(Marker::Load)),
+            or([
+                name().with_marker(Marker::Name),
+                any_phrase().with_marker(Marker::NotFound),
+            ]),
         ])
     }
 
     fn autocomplete(
         &self,
-        fuzzy_match: FuzzyMatch,
+        fuzzy_match_list: FuzzyMatchList,
         _input: &str,
     ) -> Option<AutocompleteSuggestion> {
-        let token_match = fuzzy_match.token_match();
-
-        if let Some(record) = token_match
-            .find_marker(Marker::Name)
-            .and_then(TokenMatch::meta_record)
+        if let Some(record) = fuzzy_match_list
+            .find_marker(&Marker::Name)
+            .and_then(MatchPart::record)
         {
             Some(
                 (
-                    if token_match.contains_marker(Marker::Load) {
-                        format!("load {}", record.thing.name())
-                    } else {
-                        record.thing.name().to_string()
-                    },
-                    if record.is_saved() {
-                        record.thing.display_description().to_string()
-                    } else {
+                    fuzzy_match_list.autocomplete()?,
+                    if record.is_unsaved() {
                         format!("{} (unsaved)", record.thing.display_description())
+                    } else {
+                        record.thing.display_description().to_string()
                     },
                 )
                     .into(),
             )
-        } else if token_match.contains_marker(Marker::Load)
-            && !token_match.contains_marker(Marker::NotFound)
-        {
-            Some(("load [name]", "load an entry").into())
+        } else if !fuzzy_match_list.contains_marker(&Marker::NotFound) {
+            Some((fuzzy_match_list.autocomplete()?, "load an entry").into())
         } else {
             None
         }
     }
 
-    fn get_priority(&self, token_match: &TokenMatch) -> Option<CommandPriority> {
-        if token_match.contains_marker(Marker::Load) {
+    fn get_priority(&self, match_list: &MatchList) -> Option<CommandPriority> {
+        if match_list.contains_marker(&Marker::Load) {
             Some(CommandPriority::Canonical)
-        } else if token_match.contains_marker(Marker::Name) {
+        } else if match_list.contains_marker(&Marker::Name) {
             Some(CommandPriority::Fuzzy)
         } else {
             None
         }
     }
 
-    fn get_canonical_form_of(&self, token_match: &TokenMatch) -> Option<String> {
-        token_match
-            .find_marker(Marker::Name)
-            .map(|name| format!("load {}", name.meta_record().unwrap().thing.name()))
+    fn get_canonical_form_of(&self, match_list: &MatchList) -> Option<String> {
+        Some(format!(
+            "load {}",
+            match_list
+                .find_marker(&Marker::Name)?
+                .record()?
+                .thing
+                .name()
+        ))
     }
 
     async fn run(
         &self,
-        token_match: TokenMatch<'_>,
+        match_list: MatchList<'_>,
         app_meta: &mut AppMeta,
     ) -> Result<impl std::fmt::Display, impl std::fmt::Display> {
-        let (name_token_match, marker) = token_match
+        let (match_part, marker) = match_list
             .find_markers(&[Marker::Name, Marker::NotFound])
             .next()
             .unwrap();
 
         if marker == &Marker::Name {
             Ok(self
-                .load_record(name_token_match.meta_record().unwrap().clone(), app_meta)
+                .load_record(match_part.record().unwrap().clone(), app_meta)
                 .await)
         } else {
             Err(LoadError::NotFound {
-                name: name_token_match.meta_phrase().unwrap().to_string(),
+                name: match_part.term().unwrap().to_string(),
             })
         }
     }
@@ -184,18 +184,24 @@ mod test {
     #[tokio::test]
     async fn autocomplete_test() {
         test::assert_autocomplete_eq!(
-            [("load [name]", "load an entry")],
-            Load.parse_autocomplete("l", &test::app_meta()).collect().await,
+            [("load", "load an entry")],
+            Load.parse_autocomplete("l", &test::app_meta())
+                .collect()
+                .await,
         );
 
         test::assert_autocomplete_eq!(
             [("load [name]", "load an entry")],
-            Load.parse_autocomplete("load ", &test::app_meta()).collect().await,
+            Load.parse_autocomplete("load", &test::app_meta())
+                .collect()
+                .await,
         );
 
         test::assert_autocomplete_eq!(
-            [("load odysseus", "load an entry")],
-            Load.parse_autocomplete("load o", &test::app_meta()).collect().await,
+            [("load odysseus", "middle-aged human, he/him (unsaved)")],
+            Load.parse_autocomplete("load o", &test::app_meta::with_test_data().await)
+                .collect()
+                .await,
         );
     }
 }
