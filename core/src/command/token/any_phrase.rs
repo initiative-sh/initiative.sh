@@ -6,22 +6,24 @@ use std::pin::Pin;
 use async_stream::stream;
 use futures::prelude::*;
 
-pub fn match_input<'token>(
-    token: &'token Token,
-    input: Substr<'token>,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'token>> + 'token>> {
-    assert!(matches!(token, Token::AnyPhrase { .. }));
+pub fn match_input<'input>(
+    token: &Token,
+    input: Substr<'input>,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatchList<'input>> + 'input>> {
+    let &Token::AnyPhrase { marker_hash } = token else {
+        unreachable!();
+    };
 
     Box::pin(stream! {
         let mut phrases = quoted_phrases(input).peekable();
 
         while let Some(phrase) = phrases.next() {
-            let token_match = TokenMatch::new(token, phrase.as_str());
+            let match_part = MatchPart::new(phrase.clone(), phrase.as_str(), marker_hash);
 
             if phrases.peek().is_none() {
-                yield FuzzyMatch::Exact(token_match);
+                yield FuzzyMatchList::new_exact(match_part);
             } else {
-                yield FuzzyMatch::Overflow(token_match, phrase.after());
+                yield FuzzyMatchList::new_overflow(match_part, phrase.after());
             }
         }
     })

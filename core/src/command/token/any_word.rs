@@ -6,21 +6,26 @@ use std::pin::Pin;
 use async_stream::stream;
 use futures::prelude::*;
 
-pub fn match_input<'token>(
-    token: &'token Token,
-    input: Substr<'token>,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'token>> + 'token>> {
-    assert!(matches!(token, Token::AnyWord { .. }));
+pub fn match_input<'input, 'stream>(
+    token: &'stream Token,
+    input: Substr<'input>,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatchList<'input>> + 'stream>>
+where
+    'input: 'stream,
+{
+    let &Token::AnyWord { marker_hash } = token else {
+        unreachable!();
+    };
 
     Box::pin(stream! {
         let mut iter = quoted_words(input);
         if let Some(word) = iter.next() {
-            let token_match = TokenMatch::new(token, word.as_str());
+            let match_part = MatchPart::new(word.clone(), marker_hash);
 
             if word.is_at_end() {
-                yield FuzzyMatch::Exact(token_match);
+                yield FuzzyMatchList::new_exact(match_part)
             } else {
-                yield FuzzyMatch::Overflow(token_match, word.after());
+                yield FuzzyMatchList::new_overflow(match_part, word.after());
             }
         }
     })
@@ -30,6 +35,7 @@ pub fn match_input<'token>(
 mod test {
     use super::*;
 
+    use crate::command::token::hash_marker;
     use crate::test_utils as test;
 
     #[derive(Hash)]
@@ -42,9 +48,12 @@ mod test {
         let token = any_word();
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Exact(TokenMatch::new(&token, "Jesta"))],
+            [FuzzyMatchList::new_exact(MatchPart::new(
+                "badger".into(),
+                0
+            ))],
             token
-                .match_input("Jesta", &test::app_meta())
+                .match_input("badger", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
@@ -55,12 +64,12 @@ mod test {
         let token = any_word_m(Marker::Token);
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Overflow(
-                TokenMatch::new(&token, "Nott"),
-                " \"The Brave\" ".into()
+            [FuzzyMatchList::new_overflow(
+                MatchPart::new("badger".into(), hash_marker(Marker::Token)),
+                "  mushroom  ".into(),
             )],
             token
-                .match_input(" Nott \"The Brave\" ", &test::app_meta())
+                .match_input("  badger  mushroom  ", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );

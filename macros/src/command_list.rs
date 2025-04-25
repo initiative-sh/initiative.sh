@@ -116,32 +116,32 @@ where
                 }
             }
 
-            fn autocomplete(&self, fuzzy_match: FuzzyMatch, input: &str) -> Option<AutocompleteSuggestion> {
+            fn autocomplete(&self, fuzzy_match_list: FuzzyMatchList, input: &str) -> Option<AutocompleteSuggestion> {
                 match self {
-                    #( #match_items => c.autocomplete(fuzzy_match, input), )*
+                    #( #match_items => c.autocomplete(fuzzy_match_list, input), )*
                 }
             }
 
-            fn get_priority(&self, token_match: &TokenMatch) -> Option<CommandPriority> {
+            fn get_priority(&self, match_list: &MatchList) -> Option<CommandPriority> {
                 match self {
-                    #( #match_items => c.get_priority(token_match), )*
+                    #( #match_items => c.get_priority(match_list), )*
                 }
             }
 
-            fn get_canonical_form_of(&self, token_match: &TokenMatch) -> Option<String> {
+            fn get_canonical_form_of(&self, match_list: &MatchList) -> Option<String> {
                 match self {
-                    #( #match_items => c.get_canonical_form_of(token_match), )*
+                    #( #match_items => c.get_canonical_form_of(match_list), )*
                 }
             }
 
             async fn run<'a>(
                 &self,
-                token_match: TokenMatch<'a>,
+                match_list: MatchList<'a>,
                 app_meta: &mut AppMeta,
             ) -> Result<impl ::std::fmt::Display, impl ::std::fmt::Display> {
                 match self {
                     #(
-                        #match_items => c.run(token_match, app_meta)
+                        #match_items => c.run(match_list, app_meta)
                             .await
                             .map(|s| s.to_string())
                             .map_err(|e| e.to_string()),
@@ -186,45 +186,45 @@ mod test {
                     }
                 }
 
-                fn autocomplete(&self, fuzzy_match: FuzzyMatch, input: &str) -> Option<AutocompleteSuggestion> {
+                fn autocomplete(&self, fuzzy_match_list: FuzzyMatchList, input: &str) -> Option<AutocompleteSuggestion> {
                     match self {
-                        CommandList::About(c) => c.autocomplete(fuzzy_match, input),
-                        CommandList::Create(c) => c.autocomplete(fuzzy_match, input),
-                        CommandList::Save(c) => c.autocomplete(fuzzy_match, input),
+                        CommandList::About(c) => c.autocomplete(fuzzy_match_list, input),
+                        CommandList::Create(c) => c.autocomplete(fuzzy_match_list, input),
+                        CommandList::Save(c) => c.autocomplete(fuzzy_match_list, input),
                     }
                 }
 
-                fn get_priority(&self, token_match: &TokenMatch) -> Option<CommandPriority> {
+                fn get_priority(&self, match_list: &MatchList) -> Option<CommandPriority> {
                     match self {
-                        CommandList::About(c) => c.get_priority(token_match),
-                        CommandList::Create(c) => c.get_priority(token_match),
-                        CommandList::Save(c) => c.get_priority(token_match),
+                        CommandList::About(c) => c.get_priority(match_list),
+                        CommandList::Create(c) => c.get_priority(match_list),
+                        CommandList::Save(c) => c.get_priority(match_list),
                     }
                 }
 
-                fn get_canonical_form_of(&self, token_match: &TokenMatch) -> Option<String> {
+                fn get_canonical_form_of(&self, match_list: &MatchList) -> Option<String> {
                     match self {
-                        CommandList::About(c) => c.get_canonical_form_of(token_match),
-                        CommandList::Create(c) => c.get_canonical_form_of(token_match),
-                        CommandList::Save(c) => c.get_canonical_form_of(token_match),
+                        CommandList::About(c) => c.get_canonical_form_of(match_list),
+                        CommandList::Create(c) => c.get_canonical_form_of(match_list),
+                        CommandList::Save(c) => c.get_canonical_form_of(match_list),
                     }
                 }
 
                 async fn run<'a>(
                     &self,
-                    token_match: TokenMatch<'a>,
+                    match_list: MatchList<'a>,
                     app_meta: &mut AppMeta,
                 ) -> Result<impl ::std::fmt::Display, impl ::std::fmt::Display> {
                     match self {
-                        CommandList::About(c) => c.run(token_match, app_meta)
+                        CommandList::About(c) => c.run(match_list, app_meta)
                             .await
                             .map(|s| s.to_string())
                             .map_err(|e| e.to_string()),
-                        CommandList::Create(c) => c.run(token_match, app_meta)
+                        CommandList::Create(c) => c.run(match_list, app_meta)
                             .await
                             .map(|s| s.to_string())
                             .map_err(|e| e.to_string()),
-                        CommandList::Save(c) => c.run(token_match, app_meta)
+                        CommandList::Save(c) => c.run(match_list, app_meta)
                             .await
                             .map(|s| s.to_string())
                             .map_err(|e| e.to_string()),

@@ -6,11 +6,11 @@ use std::pin::Pin;
 use async_stream::stream;
 use futures::prelude::*;
 
-pub fn match_input<'token>(
-    token: &'token Token,
-    input: Substr<'token>,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'token>> + 'token>> {
-    let Token::Keyword { term, .. } = token else {
+pub fn match_input<'input>(
+    token: &Token,
+    input: Substr<'input>,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatchList<'input>> + 'input>> {
+    let &Token::Keyword { term, marker_hash } = token else {
         unreachable!();
     };
 
@@ -18,15 +18,16 @@ pub fn match_input<'token>(
         let mut iter = quoted_words(input);
         if let Some(first_word) = iter.next() {
             if term.eq_ci(&first_word) {
+                let match_part = MatchPart::new(first_word.clone(), marker_hash).matching(term);
+
                 if first_word.is_at_end() {
-                    yield FuzzyMatch::Exact(token.into());
+                    yield FuzzyMatchList::new_exact(match_part);
                 } else {
-                    yield FuzzyMatch::Overflow(token.into(), first_word.after());
+                    yield FuzzyMatchList::new_overflow(match_part, first_word.after());
                 }
-            } else if first_word.can_complete() {
-                if let Some(completion) = term.strip_prefix_ci(first_word) {
-                    yield FuzzyMatch::Partial(token.into(), Some(completion.to_string()));
-                }
+            } else if first_word.can_complete() && term.starts_with_ci(&first_word) {
+                let match_part = MatchPart::new(first_word, marker_hash).matching(term);
+                yield FuzzyMatchList::new_incomplete(match_part);
             }
         }
     })
@@ -34,6 +35,7 @@ pub fn match_input<'token>(
 
 #[cfg(test)]
 mod test {
+    use super::super::hash_marker;
     use super::*;
 
     use crate::test_utils as test;
@@ -48,7 +50,9 @@ mod test {
         let token = keyword_m(Marker::Keyword, "badger");
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Exact(TokenMatch::from(&token))],
+            [FuzzyMatchList::new_exact(
+                MatchPart::new("BADGER".into(), hash_marker(Marker::Keyword)).matching("badger")
+            )],
             token
                 .match_input("BADGER", &test::app_meta())
                 .collect::<Vec<_>>()
@@ -59,10 +63,12 @@ mod test {
     #[tokio::test]
     async fn match_input_test_sequential() {
         let token = keyword("mushroom");
-        let input = quoted_words("badger mushroom").nth(1).unwrap();
+        let input = quoted_words("BADGER MUSHROOM").nth(1).unwrap();
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Exact(TokenMatch::from(&token))],
+            [FuzzyMatchList::new_exact(
+                MatchPart::new("MUSHROOM".into(), 0).matching("mushroom")
+            )],
             token
                 .match_input(input.clone(), &test::app_meta())
                 .collect::<Vec<_>>()
@@ -75,8 +81,8 @@ mod test {
         let token = keyword("badger");
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Overflow(
-                TokenMatch::from(&token),
+            [FuzzyMatchList::new_overflow(
+                MatchPart::new("badger".into(), 0).matching("badger"),
                 " mushroom snake".into(),
             )],
             token
@@ -91,9 +97,8 @@ mod test {
         let token = keyword("badger");
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Partial(
-                TokenMatch::from(&token),
-                Some("er".to_string()),
+            [FuzzyMatchList::new_incomplete(
+                MatchPart::new("badg".into(), 0).matching("badger")
             )],
             token
                 .match_input(" badg", &test::app_meta())

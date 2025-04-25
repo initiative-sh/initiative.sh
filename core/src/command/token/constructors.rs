@@ -97,7 +97,7 @@ where
 /// # })
 /// ```
 pub fn any_phrase() -> Token {
-    Token::AnyPhrase { marker: 0 }
+    Token::AnyPhrase { marker_hash: 0 }
 }
 
 /// A variant of `any_phrase` with a marker assigned, making it easy to jump directly to the
@@ -131,7 +131,7 @@ where
     M: Hash,
 {
     Token::AnyPhrase {
-        marker: super::hash_marker(marker),
+        marker_hash: super::hash_marker(marker),
     }
 }
 
@@ -156,7 +156,7 @@ where
 /// # })
 /// ```
 pub fn any_word() -> Token {
-    Token::AnyWord { marker: 0 }
+    Token::AnyWord { marker_hash: 0 }
 }
 
 /// A variant of `any_word` with a marker assigned, making it easy to jump directly to the
@@ -190,7 +190,7 @@ where
     M: Hash,
 {
     Token::AnyWord {
-        marker: super::hash_marker(marker),
+        marker_hash: super::hash_marker(marker),
     }
 }
 
@@ -239,7 +239,10 @@ where
 /// # })
 /// ```
 pub fn keyword(term: &'static str) -> Token {
-    Token::Keyword { term, marker: 0 }
+    Token::Keyword {
+        term,
+        marker_hash: 0,
+    }
 }
 
 /// A variant of `keyword` with a marker assigned, making it easy to jump directly to the
@@ -280,7 +283,7 @@ where
 {
     Token::Keyword {
         term,
-        marker: super::hash_marker(marker),
+        marker_hash: super::hash_marker(marker),
     }
 }
 
@@ -344,7 +347,7 @@ where
 {
     Token::KeywordList {
         terms: terms.into_iter().collect(),
-        marker: 0,
+        marker_hash: 0,
     }
 }
 
@@ -384,7 +387,7 @@ where
 {
     Token::KeywordList {
         terms: terms.into_iter().collect(),
-        marker: super::hash_marker(marker),
+        marker_hash: super::hash_marker(marker),
     }
 }
 
@@ -432,7 +435,7 @@ where
 /// # })
 /// ```
 pub fn name() -> Token {
-    Token::Name { marker: 0 }
+    Token::Name { marker_hash: 0 }
 }
 
 /// A variant of `name` with a marker assigned, making it easy to jump directly to the
@@ -468,7 +471,7 @@ where
     M: Hash,
 {
     Token::Name {
-        marker: super::hash_marker(marker),
+        marker_hash: super::hash_marker(marker),
     }
 }
 

@@ -12,7 +12,7 @@ pub fn match_input<'token, 'app_meta>(
     token: &'token Token,
     input: Substr<'token>,
     app_meta: &'app_meta AppMeta,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'token>> + 'app_meta>>
+) -> Pin<Box<dyn Stream<Item = FuzzyMatchList<'token>> + 'app_meta>>
 where
     'token: 'app_meta,
 {
@@ -28,13 +28,16 @@ pub fn match_input_with_tokens<'token, 'app_meta>(
     input: Substr<'token>,
     app_meta: &'app_meta AppMeta,
     tokens: &'token [Token],
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'token>> + 'app_meta>>
+) -> Pin<Box<dyn Stream<Item = FuzzyMatchList<'token>> + 'app_meta>>
 where
     'token: 'app_meta,
 {
     if tokens.is_empty() {
         // No tokens, no matches
-        Box::pin(stream::iter([FuzzyMatch::Overflow(token.into(), input)]))
+        Box::pin(stream::iter([FuzzyMatchList::Overflow(
+            token.into(),
+            input,
+        )]))
     } else {
         Box::pin(stream! {
             // TokenMatch the first token in the sequence
@@ -42,8 +45,8 @@ where
                 match fuzzy_match {
 
                     // First token is a partial match, so the sequence is incomplete
-                    FuzzyMatch::Partial(token_match, completion) => {
-                        yield FuzzyMatch::Partial(
+                    FuzzyMatchList::Partial(token_match, completion) => {
+                        yield FuzzyMatchList::Partial(
                             TokenMatch::new(token, vec![token_match]),
                             completion,
                         );
@@ -51,16 +54,16 @@ where
 
                     // First token is an exact match and is the only token in the sequence, so the
                     // sequence is also an exact match.
-                    FuzzyMatch::Exact(token_match) if tokens.len() == 1 => {
-                        yield FuzzyMatch::Exact(
+                    FuzzyMatchList::Exact(token_match) if tokens.len() == 1 => {
+                        yield FuzzyMatchList::Exact(
                             TokenMatch::new(token, vec![token_match]),
                         );
                     }
 
                     // First token is an exact match but there are more unmatched tokens, so the
                     // sequence is incomplete.
-                    FuzzyMatch::Exact(token_match) => {
-                        yield FuzzyMatch::Partial(
+                    FuzzyMatchList::Exact(token_match) => {
+                        yield FuzzyMatchList::Partial(
                             TokenMatch::new(token, vec![token_match]),
                             None,
                         );
@@ -68,8 +71,8 @@ where
 
                     // First token overflows and is the only token in the sequence, so the sequence
                     // also overflows.
-                    FuzzyMatch::Overflow(token_match, remainder) if tokens.len() == 1 => {
-                        yield FuzzyMatch::Overflow(
+                    FuzzyMatchList::Overflow(token_match, remainder) if tokens.len() == 1 => {
+                        yield FuzzyMatchList::Overflow(
                             TokenMatch::new(token, vec![token_match]),
                             remainder,
                         );
@@ -77,7 +80,7 @@ where
 
                     // First token overflows but there are other tokens in the sequence, so we
                     // recurse with the remainder of the sequence.
-                    FuzzyMatch::Overflow(token_match, remainder) => {
+                    FuzzyMatchList::Overflow(token_match, remainder) => {
                         for await next_fuzzy_match in match_input_with_tokens(token, remainder, app_meta, &tokens[1..]) {
                             yield next_fuzzy_match.map(|next_match| {
                                 TokenMatch::new(
@@ -111,7 +114,7 @@ mod test {
     async fn match_input_test_empty() {
         let sequence_token = sequence([]);
         test::assert_eq_unordered!(
-            [FuzzyMatch::Overflow(
+            [FuzzyMatchList::Overflow(
                 TokenMatch::from(&sequence_token),
                 "badger".into()
             )],
@@ -128,7 +131,7 @@ mod test {
         let sequence_token = sequence(tokens.clone());
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Exact(TokenMatch::new(
+            [FuzzyMatchList::Exact(TokenMatch::new(
                 &sequence_token,
                 vec![
                     TokenMatch::from(&tokens[0]),
@@ -149,7 +152,7 @@ mod test {
         let sequence_token = sequence(tokens.clone());
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Partial(
+            [FuzzyMatchList::Partial(
                 TokenMatch::new(
                     &sequence_token,
                     vec![TokenMatch::from(&tokens[0]), TokenMatch::from(&tokens[1])],
@@ -169,7 +172,7 @@ mod test {
         let sequence_token = sequence(tokens.clone());
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Partial(
+            [FuzzyMatchList::Partial(
                 TokenMatch::new(
                     &sequence_token,
                     vec![
@@ -193,7 +196,7 @@ mod test {
         let sequence_token = sequence(tokens.clone());
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Overflow(
+            [FuzzyMatchList::Overflow(
                 TokenMatch::new(
                     &sequence_token,
                     vec![
@@ -219,7 +222,7 @@ mod test {
 
         test::assert_eq_unordered!(
             [
-                FuzzyMatch::Overflow(
+                FuzzyMatchList::Overflow(
                     TokenMatch::new(
                         &sequence_token,
                         vec![
@@ -230,7 +233,7 @@ mod test {
                     ),
                     " mushroom".into(),
                 ),
-                FuzzyMatch::Exact(TokenMatch::new(
+                FuzzyMatchList::Exact(TokenMatch::new(
                     &sequence_token,
                     vec![
                         TokenMatch::from(&keyword_token),
@@ -238,7 +241,7 @@ mod test {
                         TokenMatch::new(&any_word_token, "mushroom"),
                     ],
                 )),
-                FuzzyMatch::Partial(
+                FuzzyMatchList::Partial(
                     TokenMatch::new(
                         &sequence_token,
                         vec![
