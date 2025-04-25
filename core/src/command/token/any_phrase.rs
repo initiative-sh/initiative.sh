@@ -1,3 +1,4 @@
+use super::TokenKind;
 use crate::command::prelude::*;
 use crate::utils::{quoted_phrases, Substr};
 
@@ -10,9 +11,8 @@ pub fn match_input<'input>(
     token: &Token,
     input: Substr<'input>,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatchList<'input>> + 'input>> {
-    let &Token::AnyPhrase { marker_hash } = token else {
-        unreachable!();
-    };
+    assert!(matches!(token.kind, TokenKind::AnyPhrase));
+    let marker_hash = token.marker_hash;
 
     Box::pin(stream! {
         let mut phrases = quoted_phrases(input).peekable();
@@ -75,7 +75,7 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_quoted() {
-        let token = any_phrase_m(Marker::Token);
+        let token = any_phrase().with_marker(Marker::Token);
 
         test::assert_eq_unordered!(
             [

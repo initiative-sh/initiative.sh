@@ -1,3 +1,4 @@
+use super::TokenKind;
 use crate::app::AppMeta;
 use crate::command::prelude::*;
 use crate::utils::Substr;
@@ -15,7 +16,7 @@ pub fn match_input<'input, 'stream>(
 where
     'input: 'stream,
 {
-    let tokens = if let Token::AnyOf { tokens } = token {
+    let tokens = if let TokenKind::AnyOf { tokens } = &token.kind {
         tokens.iter().collect()
     } else {
         unreachable!();
@@ -69,9 +70,9 @@ mod test {
     #[tokio::test]
     async fn match_input_test_partial() {
         let token = any_of([
-            keyword_m(Marker::Badger, "badger"),
-            keyword_m(Marker::Mushroom, "mushroom"),
-            keyword_m(Marker::Snake, "snake"),
+            keyword("badger").with_marker(Marker::Badger),
+            keyword("mushroom").with_marker(Marker::Mushroom),
+            keyword("snake").with_marker(Marker::Snake),
         ]);
 
         test::assert_eq_unordered!(
@@ -90,8 +91,8 @@ mod test {
     #[tokio::test]
     async fn match_input_test_exact() {
         let token = any_of([
-            keyword_m(Marker::Badger, "badger"),
-            any_word_m(Marker::AnyWord),
+            keyword("badger").with_marker(Marker::Badger),
+            any_word().with_marker(Marker::AnyWord),
         ]);
 
         test::assert_eq_unordered!(
@@ -129,9 +130,9 @@ mod test {
     #[tokio::test]
     async fn match_input_test_exact_overflow() {
         let token = any_of([
-            keyword_m(Marker::Badger, "badger"),
-            keyword_m(Marker::Mushroom, "mushroom"),
-            keyword_m(Marker::Snake, "snake"),
+            keyword("badger").with_marker(Marker::Badger),
+            keyword("mushroom").with_marker(Marker::Mushroom),
+            keyword("snake").with_marker(Marker::Snake),
         ]);
 
         test::assert_eq_unordered!(

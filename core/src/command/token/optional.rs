@@ -1,3 +1,4 @@
+use super::TokenKind;
 use crate::app::AppMeta;
 use crate::command::prelude::*;
 use crate::utils::{quoted_words, Substr};
@@ -14,9 +15,9 @@ pub fn match_input<'input, 'stream>(
 where
     'input: 'stream,
 {
-    let Token::Optional {
+    let TokenKind::Optional {
         token: optional_token,
-    } = &token
+    } = &token.kind
     else {
         unreachable!();
     };
@@ -46,7 +47,7 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_simple() {
-        let token = optional(keyword_m(Marker::Keyword, "badger"));
+        let token = optional(keyword("badger").with_marker(Marker::Keyword));
 
         test::assert_eq_unordered!(
             [
@@ -66,7 +67,7 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_empty() {
-        let token = optional(keyword_m(Marker::Keyword, "badger"));
+        let token = optional(keyword("badger").with_marker(Marker::Keyword));
 
         test::assert_eq_unordered!(
             [

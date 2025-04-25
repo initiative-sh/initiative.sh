@@ -1,3 +1,4 @@
+use super::TokenKind;
 use crate::command::prelude::*;
 use crate::utils::{quoted_words, CaseInsensitiveStr, Substr};
 
@@ -10,12 +11,17 @@ pub fn match_input<'input>(
     token: &Token,
     input: Substr<'input>,
 ) -> Pin<Box<dyn Stream<Item = FuzzyMatchList<'input>> + 'input>> {
-    let &Token::Keyword { term, marker_hash } = token else {
+    let &Token {
+        kind: TokenKind::Keyword { term },
+        marker_hash,
+        ..
+    } = token
+    else {
         unreachable!();
     };
 
     Box::pin(stream! {
-        let mut iter = quoted_words(input);
+        let mut iter = quoted_words(input.clone());
         if let Some(first_word) = iter.next() {
             if term.eq_ci(&first_word) {
                 if first_word.is_at_end() {
@@ -34,7 +40,7 @@ pub fn match_input<'input>(
                 );
             }
         } else {
-            yield FuzzyMatchList::new_incomplete(MatchPart::new("".into(), marker_hash).with_term(term))
+            yield FuzzyMatchList::new_incomplete(MatchPart::new(input.after(), marker_hash).with_term(term))
         }
     })
 }
@@ -51,7 +57,7 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_exact() {
-        let token = keyword_m(Marker::Keyword, "badger");
+        let token = keyword("badger").with_marker(Marker::Keyword);
 
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_exact(
@@ -129,7 +135,7 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_empty() {
-        let token = keyword_m(Marker::Keyword, "badger");
+        let token = keyword("badger").with_marker(Marker::Keyword);
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_incomplete(
                 MatchPart::new_unmarked("".into())

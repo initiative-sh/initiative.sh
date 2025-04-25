@@ -1,3 +1,4 @@
+use super::TokenKind;
 use crate::command::prelude::*;
 use crate::utils::{quoted_words, Substr};
 
@@ -13,9 +14,8 @@ pub fn match_input<'input, 'stream>(
 where
     'input: 'stream,
 {
-    let &Token::AnyWord { marker_hash } = token else {
-        unreachable!();
-    };
+    assert!(matches!(token.kind, TokenKind::AnyWord));
+    let marker_hash = token.marker_hash;
 
     Box::pin(stream! {
         let mut iter = quoted_words(input);
@@ -60,7 +60,7 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_overflow() {
-        let token = any_word_m(Marker::Token);
+        let token = any_word().with_marker(Marker::Token);
 
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_overflow(
@@ -76,7 +76,7 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_empty() {
-        let token = any_word_m(Marker::Token);
+        let token = any_word().with_marker(Marker::Token);
 
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_incomplete(

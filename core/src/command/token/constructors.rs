@@ -1,7 +1,6 @@
 #![cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
 
-use super::Token;
-use std::hash::Hash;
+use super::{Token, TokenKind};
 
 /// Matches one or more of a set of tokens, in any order but without repetition.
 ///
@@ -53,9 +52,10 @@ pub fn any_of<V>(tokens: V) -> Token
 where
     V: Into<Vec<Token>>,
 {
-    Token::AnyOf {
+    TokenKind::AnyOf {
         tokens: tokens.into(),
     }
+    .into()
 }
 
 /// Matches all sequences of one or more words. Quoted phrases are treated as single words.
@@ -97,42 +97,7 @@ where
 /// # })
 /// ```
 pub fn any_phrase() -> Token {
-    Token::AnyPhrase { marker_hash: 0 }
-}
-
-/// A variant of `any_phrase` with a marker assigned, making it easy to jump directly to the
-/// matched result within the token tree.
-///
-/// # Examples
-///
-/// ```
-/// # use futures::StreamExt as _;
-/// # tokio_test::block_on(async {
-/// # let app_meta = initiative_core::test_utils::app_meta();
-/// use initiative_core::command::prelude::*;
-///
-/// #[derive(Hash)]
-/// enum Marker {
-///     AnyPhrase,
-/// }
-///
-/// let query = "badger mushroom snake";
-/// let token = sequence([keyword("badger"), any_phrase_m(Marker::AnyPhrase)]);
-/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
-///
-/// assert_eq!(
-///     Some("mushroom snake"),
-///     token_match.find_marker(Marker::AnyPhrase).unwrap().meta_phrase(),
-/// );
-/// # })
-/// ```
-pub fn any_phrase_m<M>(marker: M) -> Token
-where
-    M: Hash,
-{
-    Token::AnyPhrase {
-        marker_hash: super::hash_marker(marker),
-    }
+    TokenKind::AnyPhrase.into()
 }
 
 /// Matches any single word.
@@ -147,7 +112,7 @@ where
 /// let token = any_word();
 ///
 /// assert_eq!(
-///     Some(TokenMatch::new(&token, "BADGER")),
+///     Some(MatchList::from(MatchPart::new_unmarked("BADGER".into()))),
 ///     token
 ///         .match_input_exact("BADGER", &app_meta)
 ///         .next()
@@ -156,42 +121,7 @@ where
 /// # })
 /// ```
 pub fn any_word() -> Token {
-    Token::AnyWord { marker_hash: 0 }
-}
-
-/// A variant of `any_word` with a marker assigned, making it easy to jump directly to the
-/// matched result within the token tree.
-///
-/// # Examples
-///
-/// ```
-/// # use futures::StreamExt as _;
-/// # tokio_test::block_on(async {
-/// # let app_meta = initiative_core::test_utils::app_meta();
-/// use initiative_core::command::prelude::*;
-///
-/// #[derive(Hash)]
-/// enum Marker {
-///     AnyWord,
-/// }
-///
-/// let query = "badger mushroom";
-/// let token = sequence([keyword("badger"), any_phrase_m(Marker::AnyWord)]);
-/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
-///
-/// assert_eq!(
-///     Some("mushroom"),
-///     token_match.find_marker(Marker::AnyWord).unwrap().meta_phrase(),
-/// );
-/// # })
-/// ```
-pub fn any_word_m<M>(marker: M) -> Token
-where
-    M: Hash,
-{
-    Token::AnyWord {
-        marker_hash: super::hash_marker(marker),
-    }
+    TokenKind::AnyWord.into()
 }
 
 /// A single keyword, matched case-insensitively.
@@ -207,11 +137,13 @@ where
 /// let token = keyword("badger");
 ///
 /// assert_eq!(
-///     Some(TokenMatch::from(&token)),
+///     Some(&MatchPart::new_unmarked("BADGER".into()).with_term("badger")),
 ///     token
 ///         .match_input_exact("BADGER", &app_meta)
 ///         .next()
-///         .await,
+///         .await
+///         .unwrap()
+///         .first(),
 /// );
 /// # })
 /// ```
@@ -226,65 +158,17 @@ where
 ///
 /// let token = keyword("badger");
 ///
-/// assert_eq!(
-///     Some(FuzzyMatch::Partial(
-///         TokenMatch::from(&token),
-///         Some("er".to_string()),
-///     )),
-///     token
-///         .match_input("badg", &app_meta)
-///         .next()
-///         .await,
-/// );
+/// let fuzzy_match_list = token
+///     .match_input("BADG", &app_meta)
+///     .next()
+///     .await
+///     .unwrap();
+///
+/// assert_eq!(Some("BADGer".to_string()), fuzzy_match_list.autocomplete_term());
 /// # })
 /// ```
 pub fn keyword(term: &'static str) -> Token {
-    Token::Keyword {
-        term,
-        marker_hash: 0,
-    }
-}
-
-/// A variant of `keyword` with a marker assigned, making it easy to jump directly to the
-/// matched result within the token tree.
-///
-/// # Examples
-///
-/// ```
-/// # use futures::StreamExt as _;
-/// # tokio_test::block_on(async {
-/// # let app_meta = initiative_core::test_utils::app_meta();
-/// use initiative_core::command::prelude::*;
-///
-/// #[derive(Hash)]
-/// enum Marker {
-///     Keyword,
-/// }
-///
-/// let token = sequence([
-///     optional(keyword_m(Marker::Keyword, "badger")),
-///     keyword("mushroom"),
-/// ]);
-///
-/// // We can easily distinguish between the case when the keyword was matched
-/// let query = "badger mushroom";
-/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
-/// assert!(token_match.contains_marker(Marker::Keyword));
-///
-/// // and when it wasn't.
-/// let query = "mushroom";
-/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
-/// assert!(!token_match.contains_marker(Marker::Keyword));
-/// # })
-/// ```
-pub fn keyword_m<M>(marker: M, term: &'static str) -> Token
-where
-    M: Hash,
-{
-    Token::Keyword {
-        term,
-        marker_hash: super::hash_marker(marker),
-    }
+    TokenKind::Keyword { term }.into()
 }
 
 /// Matches exactly one of a set of possible keywords, case-insensitively.
@@ -301,12 +185,12 @@ where
 ///
 /// // Only consumes one word, despite the repetition in the input.
 /// assert_eq!(
-///     vec![FuzzyMatch::Overflow(
-///         TokenMatch::new(&token, "badger"),
-///         " badger mushroom".into(),
+///     vec![FuzzyMatchList::new_overflow(
+///         MatchPart::new_unmarked("BADGER".into()).with_term("badger"),
+///         " BADGER MUSHROOM".into(),
 ///     )],
 ///     token
-///         .match_input("badger badger mushroom", &app_meta)
+///         .match_input("BADGER BADGER MUSHROOM", &app_meta)
 ///         .collect::<Vec<_>>()
 ///         .await,
 /// );
@@ -321,74 +205,25 @@ where
 /// # let app_meta = initiative_core::test_utils::app_meta();
 /// use initiative_core::command::prelude::*;
 ///
-/// let token = keyword_list(["badge", "BADGER"]);
+/// let token = keyword_list(["badger", "mushroom"]);
 ///
-/// assert_eq!(
-///     vec![
-///         // The input appears in the keyword list,
-///         FuzzyMatch::Exact(TokenMatch::new(&token, "badge")),
+/// let fuzzy_match_list = token
+///     .match_input("MUSH", &app_meta)
+///     .next()
+///     .await
+///     .unwrap();
 ///
-///         // but can also be completed to another word.
-///         FuzzyMatch::Partial(
-///             TokenMatch::new(&token, "BADGER"),
-///             Some("R".to_string()),
-///         ),
-///     ],
-///     token
-///         .match_input("badge", &app_meta)
-///         .collect::<Vec<_>>()
-///         .await,
-/// );
+/// assert_eq!(Some("MUSHroom".to_string()), fuzzy_match_list.autocomplete_term());
 /// # })
 /// ```
 pub fn keyword_list<I>(terms: I) -> Token
 where
     I: IntoIterator<Item = &'static str>,
 {
-    Token::KeywordList {
+    TokenKind::KeywordList {
         terms: terms.into_iter().collect(),
-        marker_hash: 0,
     }
-}
-
-/// A variant of `any_word` with a marker assigned, making it easy to jump directly to the
-/// matched result within the token tree.
-///
-/// # Examples
-///
-/// ```
-/// # use futures::StreamExt as _;
-/// # tokio_test::block_on(async {
-/// # let app_meta = initiative_core::test_utils::app_meta();
-/// use initiative_core::command::prelude::*;
-///
-/// #[derive(Hash)]
-/// enum Marker {
-///     KeywordList,
-/// }
-///
-/// let query = "badger mushroom";
-/// let token = sequence([
-///     keyword("badger"),
-///     keyword_list_m(Marker::KeywordList, ["mushroom", "snake"]),
-/// ]);
-/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
-///
-/// assert_eq!(
-///     Some("mushroom"),
-///     token_match.find_marker(Marker::KeywordList).unwrap().meta_phrase(),
-/// );
-/// # })
-/// ```
-pub fn keyword_list_m<M, I>(marker: M, terms: I) -> Token
-where
-    M: Hash,
-    I: IntoIterator<Item = &'static str>,
-{
-    Token::KeywordList {
-        terms: terms.into_iter().collect(),
-        marker_hash: super::hash_marker(marker),
-    }
+    .into()
 }
 
 /// Matches the name of a Thing found in the journal or recent entities.
@@ -404,12 +239,10 @@ where
 /// let query = "odysseus";
 /// let token = name();
 /// let odysseus = app_meta.repository.get_by_name("Odysseus").await.unwrap();
-/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
-///
-/// assert_eq!(TokenMatch::new(&token, odysseus.clone()), token_match);
+/// let match_list = token.match_input_exact(query, &app_meta).next().await.unwrap();
 ///
 /// // The matched Record can be accessed directly from the TokenMatch tree.
-/// assert_eq!(Some(&odysseus), token_match.meta_record());
+/// assert_eq!(Some(&odysseus), match_list.first().unwrap().record());
 /// # })
 /// ```
 ///
@@ -421,58 +254,22 @@ where
 /// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
 /// use initiative_core::command::prelude::*;
 ///
-/// let query = "ody";
 /// let token = name();
-/// let odysseus = app_meta.repository.get_by_name("Odysseus").await.unwrap();
+///
+/// let fuzzy_match_list = token
+///     .match_input("ODY", &app_meta)
+///     .next()
+///     .await
+///     .unwrap();
 ///
 /// assert_eq!(
-///     Some(FuzzyMatch::Partial(
-///         TokenMatch::new(&token, odysseus),
-///         Some("sseus".to_string()),
-///     )),
-///     token.match_input(query, &app_meta).next().await,
+///     Some("ODYsseus".to_string()),
+///     fuzzy_match_list.autocomplete_term(),
 /// );
 /// # })
 /// ```
 pub fn name() -> Token {
-    Token::Name { marker_hash: 0 }
-}
-
-/// A variant of `name` with a marker assigned, making it easy to jump directly to the
-/// matched result within the token tree.
-///
-/// # Examples
-///
-/// ```
-/// # use futures::StreamExt as _;
-/// # tokio_test::block_on(async {
-/// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
-/// use initiative_core::command::prelude::*;
-///
-/// #[derive(Hash)]
-/// enum Marker {
-///     Name,
-/// }
-///
-/// let query = "hail odysseus";
-/// let token = sequence([keyword("hail"), name_m(Marker::Name)]);
-/// let odysseus = app_meta.repository.get_by_name("Odysseus").await.unwrap();
-///
-/// let token_match = token.match_input_exact(query, &app_meta).next().await.unwrap();
-///
-/// assert_eq!(
-///     Some(&odysseus),
-///     token_match.find_marker(Marker::Name).unwrap().meta_record(),
-/// );
-/// # })
-/// ```
-pub fn name_m<M>(marker: M) -> Token
-where
-    M: Hash,
-{
-    Token::Name {
-        marker_hash: super::hash_marker(marker),
-    }
+    TokenKind::Name.into()
 }
 
 /// Matches the input with and without the contained token.
@@ -490,10 +287,13 @@ where
 /// assert_eq!(
 ///     vec![
 ///         // Passes the input directly through to the overflow,
-///         FuzzyMatch::Overflow(TokenMatch::from(&token), "badger".into()),
+///         FuzzyMatchList::new_overflow(vec![], "badger".into()),
 ///
 ///         // as well as the matched result if present.
-///         FuzzyMatch::Exact(TokenMatch::new(&token, TokenMatch::from(&keyword("badger")))),
+///         FuzzyMatchList::new_exact(
+///             MatchPart::new_unmarked("badger".into())
+///                 .with_term("badger"),
+///         ),
 ///     ],
 ///     token
 ///         .match_input("badger", &app_meta)
@@ -503,9 +303,10 @@ where
 /// # })
 /// ```
 pub fn optional(token: Token) -> Token {
-    Token::Optional {
+    TokenKind::Optional {
         token: token.into(),
     }
+    .into()
 }
 
 /// Matches exactly one of a set of possible tokens. The matched token will be included in the
@@ -519,21 +320,31 @@ pub fn optional(token: Token) -> Token {
 /// # let app_meta = initiative_core::test_utils::app_meta();
 /// use initiative_core::command::prelude::*;
 ///
-/// let token = or([keyword("badger"), any_word()]);
+/// #[derive(Hash)]
+/// enum Marker {
+///     Keyword,
+///     AnyWord,
+/// }
+///
+/// let token = or([keyword("badger").with_marker(Marker::Keyword),
+/// any_word().with_marker(Marker::AnyWord)]);
 ///
 /// assert_eq!(
 ///     vec![
 ///         // "badger" matches a provided keyword,
-///         FuzzyMatch::Overflow(
-///             TokenMatch::new(&token, TokenMatch::from(&keyword("badger"))),
+///         FuzzyMatchList::new_overflow(
+///             MatchPart::new_unmarked("badger".into())
+///                 .with_marker(Marker::Keyword)
+///                 .with_term("badger"),
 ///             " badger".into(),
 ///         ),
 ///
 ///         // but it satisfies the wildcard any_word() case as well.
 ///         // It only ever matches a single token, so the second "badger" in the input is
 ///         // never consumed.
-///         FuzzyMatch::Overflow(
-///             TokenMatch::new(&token, TokenMatch::new(&any_word(), "badger")),
+///         FuzzyMatchList::new_overflow(
+///             MatchPart::new_unmarked("badger".into())
+///                 .with_marker(Marker::AnyWord),
 ///             " badger".into(),
 ///         ),
 ///     ],
@@ -548,9 +359,10 @@ pub fn or<I>(tokens: I) -> Token
 where
     I: IntoIterator<Item = Token>,
 {
-    Token::Or {
+    TokenKind::Or {
         tokens: tokens.into_iter().collect(),
     }
+    .into()
 }
 
 /// Matches an exact sequence of tokens.
@@ -562,21 +374,53 @@ where
 /// # use futures::StreamExt as _;
 /// # tokio_test::block_on(async {
 /// # let app_meta = initiative_core::test_utils::app_meta();
-/// let token = sequence([keyword("badger"), keyword("mushroom"), keyword("snake")]);
+/// #[derive(Hash)]
+/// enum Marker {
+///     Badger,
+///     Mushroom,
+///     Snake
+/// }
+///
+/// let token = sequence([
+///     keyword("badger").with_marker(Marker::Badger),
+///     keyword("mushroom").with_marker(Marker::Mushroom),
+///     keyword("snake").with_marker(Marker::Snake),
+/// ]);
+///
+/// let fuzzy_match_list = token
+///     .match_input("BADGER MUSHROOM", &app_meta)
+///     .next()
+///     .await
+///     .unwrap();
+///
+/// let mut match_part_iter = fuzzy_match_list.match_list.iter();
 ///
 /// // The first two keywords are matched, but the third is not present.
+/// assert!(match_part_iter.next().unwrap().has_marker(Marker::Badger));
+/// assert!(match_part_iter.next().unwrap().has_marker(Marker::Mushroom));
+/// assert_eq!(None, match_part_iter.next());
+/// # })
+/// ```
+///
+/// ## Autocomplete
+///
+/// ```
+/// # use initiative_core::command::prelude::*;
+/// # use futures::StreamExt as _;
+/// # tokio_test::block_on(async {
+/// # let app_meta = initiative_core::test_utils::app_meta();
+///
+/// let token = sequence([keyword("badger"), keyword("mushroom"), keyword("snake")]);
+///
+/// let fuzzy_match_list = token
+///     .match_input("BADGER", &app_meta)
+///     .next()
+///     .await
+///     .unwrap();
+///
 /// assert_eq!(
-///     vec![FuzzyMatch::Partial(
-///         TokenMatch::new(&token, vec![
-///             TokenMatch::from(&keyword("badger")),
-///             TokenMatch::from(&keyword("mushroom")),
-///         ]),
-///         None,
-///     )],
-///     token
-///         .match_input("badger mushroom", &app_meta)
-///         .collect::<Vec<_>>()
-///         .await,
+///     Some("BADGER mushroom".to_string()),
+///     fuzzy_match_list.autocomplete_term(),
 /// );
 /// # })
 /// ```
@@ -584,7 +428,8 @@ pub fn sequence<V>(tokens: V) -> Token
 where
     V: Into<Vec<Token>>,
 {
-    Token::Sequence {
+    TokenKind::Sequence {
         tokens: tokens.into(),
     }
+    .into()
 }

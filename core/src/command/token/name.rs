@@ -1,7 +1,4 @@
-//! Matches the name of a Thing that exists in recent or journal. Where a real Thing was matched,
-//! the meta field will include the matched Record for further processing (eg. customized
-//! autocomplete comments).
-
+use super::TokenKind;
 use crate::app::AppMeta;
 use crate::command::prelude::*;
 use crate::utils::{quoted_phrases_all, CaseInsensitiveStr, Substr};
@@ -20,9 +17,8 @@ pub fn match_input<'input, 'stream>(
 where
     'input: 'stream,
 {
-    let &Token::Name { marker_hash } = token else {
-        unreachable!();
-    };
+    assert!(matches!(token.kind, TokenKind::Name));
+    let marker_hash = token.marker_hash;
 
     let phrases: Vec<_> = quoted_phrases_all(input).collect();
     if phrases.is_empty() {
@@ -98,7 +94,7 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_simple() {
-        let token = name_m(Marker::Token);
+        let token = name().with_marker(Marker::Token);
         let app_meta = test::app_meta::with_test_data().await;
         let record = app_meta
             .repository
@@ -162,7 +158,7 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_empty() {
-        let token = name_m(Marker::Token);
+        let token = name().with_marker(Marker::Token);
 
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_incomplete(

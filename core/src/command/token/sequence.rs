@@ -1,3 +1,4 @@
+use super::TokenKind;
 use crate::app::AppMeta;
 use crate::command::prelude::*;
 use crate::utils::{quoted_words, Substr};
@@ -15,7 +16,7 @@ pub fn match_input<'input, 'stream>(
 where
     'input: 'stream,
 {
-    let Token::Sequence { tokens } = token else {
+    let TokenKind::Sequence { tokens } = &token.kind else {
         unreachable!();
     };
 
@@ -52,7 +53,7 @@ where
                             continue;
                         }
                         None => {
-                            "".into()
+                            result.input().map(|input| input.after()).unwrap()
                         }
                     };
 
@@ -84,13 +85,13 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_empty() {
-        let sequence_token = sequence([]);
+        let token = sequence([]);
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_overflow(
                 MatchList::default(),
                 "badger".into()
             )],
-            sequence_token
+            token
                 .match_input("badger", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
@@ -99,8 +100,7 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_exact() {
-        let tokens = [keyword("badger"), keyword("mushroom"), keyword("snake")];
-        let sequence_token = sequence(tokens.clone());
+        let token = sequence([keyword("badger"), keyword("mushroom"), keyword("snake")]);
 
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_exact(vec![
@@ -108,7 +108,7 @@ mod test {
                 MatchPart::new_unmarked("MUSHROOM".into()).with_term("mushroom"),
                 MatchPart::new_unmarked("SNAKE".into()).with_term("snake"),
             ])],
-            sequence_token
+            token
                 .match_input("BADGER MUSHROOM SNAKE", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
@@ -173,9 +173,9 @@ mod test {
     #[tokio::test]
     async fn match_input_test_with_any_phrase() {
         let token = sequence([
-            keyword_m(Marker::Keyword, "badger"),
-            any_phrase_m(Marker::AnyPhrase),
-            any_word_m(Marker::AnyWord),
+            keyword("badger").with_marker(Marker::Keyword),
+            any_phrase().with_marker(Marker::AnyPhrase),
+            any_word().with_marker(Marker::AnyWord),
         ]);
 
         test::assert_eq_unordered!(

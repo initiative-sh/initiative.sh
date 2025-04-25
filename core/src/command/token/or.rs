@@ -1,3 +1,4 @@
+use super::TokenKind;
 use crate::app::AppMeta;
 use crate::command::prelude::*;
 use crate::utils::Substr;
@@ -14,7 +15,7 @@ pub fn match_input<'input, 'stream>(
 where
     'input: 'stream,
 {
-    let Token::Or { tokens } = token else {
+    let TokenKind::Or { tokens } = &token.kind else {
         unreachable!();
     };
 
@@ -36,8 +37,8 @@ mod test {
     #[tokio::test]
     async fn match_input_test_simple() {
         let token = or([
-            any_word_m(Marker::AnyWord),
-            keyword_m(Marker::Keyword, "badger"),
+            any_word().with_marker(Marker::AnyWord),
+            keyword("badger").with_marker(Marker::Keyword),
         ]);
 
         test::assert_eq_unordered!(

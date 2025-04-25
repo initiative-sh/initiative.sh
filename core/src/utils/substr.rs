@@ -99,11 +99,7 @@ impl<'a> Substr<'a> {
 
     /// Returns the `Substr` with quotation marks included (if any).
     pub fn as_outer_substr(&self) -> Substr<'a> {
-        Substr {
-            phrase: self.phrase,
-            inner_range: self.outer_range.clone(),
-            outer_range: self.outer_range.clone(),
-        }
+        self.with_window(self.outer_range.clone(), self.outer_range.clone())
     }
 
     /// Returns the entire input phrase.
@@ -113,7 +109,7 @@ impl<'a> Substr<'a> {
 
     /// Returns the entire input phrase as a `Substr`.
     pub fn as_original_substr<'b>(&'b self) -> Substr<'a> {
-        Substr::new(self.phrase, .., ..)
+        self.with_window(.., ..)
     }
 
     /// Returns the outer range of the Substr, ie. including quotes (if any).
@@ -213,21 +209,13 @@ impl Deref for Substr<'_> {
 
 impl<'a> From<&'a str> for Substr<'a> {
     fn from(input: &'a str) -> Substr<'a> {
-        Substr {
-            phrase: input,
-            inner_range: 0..input.len(),
-            outer_range: 0..input.len(),
-        }
+        Substr::new(input, .., ..)
     }
 }
 
 impl<'a> From<&'a String> for Substr<'a> {
     fn from(input: &'a String) -> Substr<'a> {
-        Substr {
-            phrase: input,
-            inner_range: 0..input.len(),
-            outer_range: 0..input.len(),
-        }
+        Substr::new(input, .., ..)
     }
 }
 

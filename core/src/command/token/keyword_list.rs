@@ -1,3 +1,4 @@
+use super::TokenKind;
 use crate::command::prelude::*;
 use crate::utils::{quoted_words, CaseInsensitiveStr, Substr};
 
@@ -13,16 +14,17 @@ pub fn match_input<'input, 'stream>(
 where
     'input: 'stream,
 {
-    let Token::KeywordList { terms, marker_hash } = token else {
+    let TokenKind::KeywordList { terms } = &token.kind else {
         unreachable!();
     };
+    let marker_hash = token.marker_hash;
 
     Box::pin(stream! {
         let mut iter = quoted_words(input).peekable();
         if let Some(first_word) = iter.next() {
             for term in terms {
                 if term.eq_ci(&first_word) {
-                    let match_part = MatchPart::new(first_word.clone(), *marker_hash)
+                    let match_part = MatchPart::new(first_word.clone(), marker_hash)
                         .with_term(term);
 
                     if iter.peek().is_none() {
@@ -32,13 +34,13 @@ where
                     }
                 } else if first_word.can_complete() && term.starts_with_ci(&first_word) {
                     yield FuzzyMatchList::new_incomplete(
-                        MatchPart::new(first_word.clone(), *marker_hash).with_term(term),
+                        MatchPart::new(first_word.clone(), marker_hash).with_term(term),
                     );
                 }
             }
         } else {
             for term in terms {
-                yield FuzzyMatchList::new_incomplete(MatchPart::new("".into(), *marker_hash).with_term(term));
+                yield FuzzyMatchList::new_incomplete(MatchPart::new("".into(), marker_hash).with_term(term));
             }
         }
     })
@@ -71,7 +73,7 @@ mod tests {
 
     #[tokio::test]
     async fn match_input_test_partial() {
-        let token = keyword_list_m(Marker::Token, ["badge", "BADGER"]);
+        let token = keyword_list(["badge", "BADGER"]).with_marker(Marker::Token);
 
         test::assert_eq_unordered!(
             [
@@ -111,7 +113,7 @@ mod tests {
 
     #[tokio::test]
     async fn match_input_test_empty() {
-        let token = keyword_list_m(Marker::Token, ["badger", "mushroom"]);
+        let token = keyword_list(["badger", "mushroom"]).with_marker(Marker::Token);
 
         test::assert_eq_unordered!(
             [
