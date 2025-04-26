@@ -1,5 +1,4 @@
-use super::Substr;
-use std::str::CharIndices;
+use super::substr::{Substr, SubstrCharIndices};
 
 /// Iterate through all words in the input, treating multiple words surrounded by quotation marks
 /// as a single word. Returns [`Substr`] objects, preserving the word's context within the larger
@@ -75,14 +74,14 @@ where
 
 pub struct QuotedWordIter<'a> {
     phrase: Substr<'a>,
-    char_iter: CharIndices<'a>,
+    char_iter: SubstrCharIndices<'a>,
     quote_len: Option<usize>,
 }
 
 impl<'a> QuotedWordIter<'a> {
     fn new(phrase: Substr<'a>) -> Self {
         Self {
-            char_iter: phrase.as_str().char_indices(),
+            char_iter: phrase.original_char_indices(),
             phrase,
             quote_len: None,
         }
@@ -93,16 +92,13 @@ impl<'a> Iterator for QuotedWordIter<'a> {
     type Item = Substr<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (quote_char, first_index) = if let Some(quote_len) = self.quote_len {
-            self.quote_len = None;
-
+        let (quote_char, first_index) = if let Some(quote_len) = self.quote_len.take() {
             if let Some((i, c)) = self.char_iter.next() {
                 if c == '"' {
-                    return Some(Substr::new(
-                        self.phrase.as_original_str(),
-                        i..i,
-                        i - quote_len..i + c.len_utf8(),
-                    ));
+                    return Some(
+                        self.phrase
+                            .with_window(i..i, i - quote_len..i + c.len_utf8()),
+                    );
                 } else {
                     (
                         self.phrase.as_original_str()[i - quote_len..i]
@@ -112,12 +108,8 @@ impl<'a> Iterator for QuotedWordIter<'a> {
                     )
                 }
             } else {
-                let original_str = self.phrase.as_original_str();
-                return Some(Substr::new(
-                    original_str,
-                    original_str.len()..original_str.len(),
-                    original_str.len() - quote_len..original_str.len(),
-                ));
+                let len = self.phrase.original_len();
+                return Some(self.phrase.with_window(len.., len - quote_len..));
             }
         } else {
             let (first_index, first_char) = loop {
@@ -134,21 +126,18 @@ impl<'a> Iterator for QuotedWordIter<'a> {
                 if let Some((i, c)) = self.char_iter.next() {
                     if c == '"' {
                         // Empty quotes = yield empty string
-                        return Some(Substr::new(
-                            self.phrase.as_original_str(),
-                            i..i,
-                            i - first_char.len_utf8()..i + c.len_utf8(),
-                        ));
+                        return Some(
+                            self.phrase
+                                .with_window(i..i, i - first_char.len_utf8()..i + c.len_utf8()),
+                        );
                     } else {
                         (Some(first_char), i)
                     }
                 } else {
-                    let original_str = self.phrase.as_original_str();
-                    return Some(Substr::new(
-                        original_str,
-                        original_str.len()..original_str.len(),
-                        first_index..original_str.len(),
-                    ));
+                    return Some(
+                        self.phrase
+                            .with_window(self.phrase.original_len().., first_index..),
+                    );
                 }
             } else {
                 (None, first_index)
@@ -159,8 +148,7 @@ impl<'a> Iterator for QuotedWordIter<'a> {
             if let Some((i, c)) = self.char_iter.next() {
                 if let Some(quote_char) = quote_char {
                     if c == '"' {
-                        return Some(Substr::new(
-                            self.phrase.as_original_str(),
+                        return Some(self.phrase.with_window(
                             first_index..i,
                             first_index - quote_char.len_utf8()..i + c.len_utf8(),
                         ));
@@ -172,22 +160,19 @@ impl<'a> Iterator for QuotedWordIter<'a> {
                     break i;
                 }
             } else if let Some(quote_char) = quote_char {
-                let original_str = self.phrase.as_original_str();
-                return Some(Substr::new(
-                    original_str,
-                    first_index..original_str.len(),
-                    first_index - quote_char.len_utf8()..original_str.len(),
-                ));
+                return Some(
+                    self.phrase
+                        .with_window(first_index.., first_index - quote_char.len_utf8()..),
+                );
             } else {
-                break self.phrase.as_original_str().len();
+                break self.phrase.original_len();
             }
         };
 
-        Some(Substr::new(
-            self.phrase.as_original_str(),
-            first_index..last_index,
-            first_index..last_index,
-        ))
+        Some(
+            self.phrase
+                .with_window(first_index..last_index, first_index..last_index),
+        )
     }
 }
 
