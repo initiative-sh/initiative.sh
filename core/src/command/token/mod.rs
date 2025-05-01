@@ -222,6 +222,10 @@ impl<'input> MatchPart<'input> {
         self.marker_hash == marker_hash
     }
 
+    pub fn input(&self) -> &Substr<'input> {
+        &self.input
+    }
+
     pub fn record(&self) -> Option<&Record> {
         self.record.as_ref()
     }
@@ -232,7 +236,7 @@ impl<'input> MatchPart<'input> {
 }
 
 impl<'input> MatchList<'input> {
-    pub fn iter(&self) -> impl std::iter::Iterator<Item = &MatchPart<'input>> {
+    pub fn parts(&self) -> impl std::iter::Iterator<Item = &MatchPart<'input>> {
         self.into_iter()
     }
 
@@ -245,7 +249,7 @@ impl<'input> MatchList<'input> {
         M: Hash,
     {
         let marker_hash = hash_marker(marker);
-        self.iter()
+        self.parts()
             .find(|match_part| match_part.has_marker_hash(marker_hash))
     }
 }
@@ -292,6 +296,12 @@ impl<'input> FuzzyMatchList<'input> {
         }
     }
 
+    pub fn prepend(mut self, mut match_list: MatchList<'input>) -> Self {
+        match_list.matches.append(&mut self.match_list.matches);
+        self.match_list = match_list;
+        self
+    }
+
     pub fn into_match_list(self) -> Option<MatchList<'input>> {
         if self.extra.is_none() {
             Some(self.match_list)
@@ -300,10 +310,8 @@ impl<'input> FuzzyMatchList<'input> {
         }
     }
 
-    pub fn prepend(mut self, mut match_list: MatchList<'input>) -> Self {
-        match_list.matches.append(&mut self.match_list.matches);
-        self.match_list = match_list;
-        self
+    pub fn complete_parts(&self) -> impl Iterator<Item = &MatchPart<'input>> {
+        self.match_list.parts()
     }
 
     /// Returns the appropriate autocomplete suggestion for the incomplete input, if possible.

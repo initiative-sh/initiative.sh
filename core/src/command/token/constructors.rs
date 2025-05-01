@@ -13,39 +13,34 @@ use super::{Token, TokenKind};
 /// use initiative_core::command::prelude::*;
 ///
 /// let token = any_of([keyword("badger"), keyword("mushroom"), keyword("snake")]);
+/// let mut stream = token.match_input("MUSHROOM SNAKE BADGER BADGER", &app_meta);
 ///
-/// assert_eq!(
-///     vec![
-///         // Matches all three tokens. The final word was already consumed and so does not match.
-///         FuzzyMatchList::new_overflow(
-///             vec![
-///                 MatchPart::new_unmarked("MUSHROOM".into()).with_term("mushroom"),
-///                 MatchPart::new_unmarked("SNAKE".into()).with_term("snake"),
-///                 MatchPart::new_unmarked("BADGER".into()).with_term("badger"),
-///             ],
-///             " BADGER".into(),
-///         ),
+/// // Matches all three tokens. The final word was already consumed and so does not match.
+/// let fuzzy_match_list = stream.next().await.unwrap();
+/// let mut match_part_iter = fuzzy_match_list.complete_parts();
+/// assert_eq!(Some("mushroom"), match_part_iter.next().unwrap().term());
+/// assert_eq!(Some("snake"), match_part_iter.next().unwrap().term());
+/// assert_eq!(Some("badger"), match_part_iter.next().unwrap().term());
+/// assert_eq!(None, match_part_iter.next());
+/// assert_eq!(" BADGER", fuzzy_match_list.overflow().unwrap());
 ///
-///         // It will also return "ungreedy" overflowing results with two tokens
-///         FuzzyMatchList::new_overflow(
-///             vec![
-///                 MatchPart::new_unmarked("MUSHROOM".into()).with_term("mushroom"),
-///                 MatchPart::new_unmarked("SNAKE".into()).with_term("snake"),
-///             ],
-///             " BADGER BADGER".into(),
-///         ),
+/// // It will also return "ungreedy" overflowing results with two tokens
+/// let fuzzy_match_list = stream.next().await.unwrap();
+/// let mut match_part_iter = fuzzy_match_list.complete_parts();
+/// assert_eq!(Some("mushroom"), match_part_iter.next().unwrap().term());
+/// assert_eq!(Some("snake"), match_part_iter.next().unwrap().term());
+/// assert_eq!(None, match_part_iter.next());
+/// assert_eq!(" BADGER BADGER", fuzzy_match_list.overflow().unwrap());
 ///
-///         // as well as only one token.
-///         FuzzyMatchList::new_overflow(
-///             MatchPart::new_unmarked("MUSHROOM".into()).with_term("mushroom"),
-///             " SNAKE BADGER BADGER".into(),
-///         ),
-///     ],
-///     token
-///         .match_input("MUSHROOM SNAKE BADGER BADGER", &app_meta)
-///         .collect::<Vec<_>>()
-///         .await,
-/// );
+/// // as well as only one token.
+/// let fuzzy_match_list = stream.next().await.unwrap();
+/// let mut match_part_iter = fuzzy_match_list.complete_parts();
+/// assert_eq!(Some("mushroom"), match_part_iter.next().unwrap().term());
+/// assert_eq!(None, match_part_iter.next());
+/// assert_eq!(" SNAKE BADGER BADGER", fuzzy_match_list.overflow().unwrap());
+///
+/// // fin
+/// assert_eq!(None, stream.next().await);
 /// # })
 /// ```
 pub fn any_of<V>(tokens: V) -> Token
@@ -69,31 +64,33 @@ where
 /// use initiative_core::command::prelude::*;
 ///
 /// let token = any_phrase();
+/// let mut stream = token.match_input(r#" "badger badger" mushroom snake "#, &app_meta);
 ///
+/// // Ungreedily matches the quoted phrase as a single token,
+/// let fuzzy_match_list = stream.next().await.unwrap();
 /// assert_eq!(
-///     vec![
-///         // Ungreedily matches the quoted phrase as a single token,
-///         FuzzyMatchList::new_overflow(
-///             MatchPart::new_unmarked("badger badger".into()),
-///             " mushroom snake ".into(),
-///         ),
-///
-///         // the first two "words",
-///         FuzzyMatchList::new_overflow(
-///             MatchPart::new_unmarked(r#""badger badger" mushroom"#.into()),
-///             " snake ".into(),
-///         ),
-///
-///         // and the whole phrase.
-///         FuzzyMatchList::new_exact(
-///             MatchPart::new_unmarked(r#""badger badger" mushroom snake"#.into()),
-///         ),
-///     ],
-///     token
-///         .match_input(r#" "badger badger" mushroom snake "#, &app_meta)
-///         .collect::<Vec<_>>()
-///         .await,
+///     "badger badger",
+///     fuzzy_match_list.complete_parts().next().unwrap().input(),
 /// );
+/// assert_eq!(" mushroom snake ", fuzzy_match_list.overflow().unwrap());
+///
+/// // the first two "words",
+/// let fuzzy_match_list = stream.next().await.unwrap();
+/// assert_eq!(
+///     r#""badger badger" mushroom"#,
+///     fuzzy_match_list.complete_parts().next().unwrap().input(),
+/// );
+/// assert_eq!(" snake ", fuzzy_match_list.overflow().unwrap());
+///
+/// // and the whole phrase.
+/// let fuzzy_match_list = stream.next().await.unwrap();
+/// assert_eq!(
+///     r#""badger badger" mushroom snake"#,
+///     fuzzy_match_list.complete_parts().next().unwrap().input(),
+/// );
+/// assert_eq!(None, fuzzy_match_list.overflow());
+///
+/// assert_eq!(None, stream.next().await);
 /// # })
 /// ```
 pub fn any_phrase() -> Token {
@@ -105,19 +102,21 @@ pub fn any_phrase() -> Token {
 /// # Examples
 ///
 /// ```
-/// # use initiative_core::command::prelude::*;
 /// # use futures::StreamExt as _;
 /// # tokio_test::block_on(async {
 /// # let app_meta = initiative_core::test_utils::app_meta();
-/// let token = any_word();
+/// use initiative_core::command::prelude::*;
 ///
+/// let token = any_word();
+/// let mut stream = token.match_input("badger badger", &app_meta);
+///
+/// // Ungreedily matches the quoted phrase as a single token,
+/// let fuzzy_match_list = stream.next().await.unwrap();
 /// assert_eq!(
-///     Some(MatchList::from(MatchPart::new_unmarked("BADGER".into()))),
-///     token
-///         .match_input_exact("BADGER", &app_meta)
-///         .next()
-///         .await,
+///     "badger",
+///     fuzzy_match_list.complete_parts().next().unwrap().input(),
 /// );
+/// assert_eq!(" badger", fuzzy_match_list.overflow().unwrap());
 /// # })
 /// ```
 pub fn any_word() -> Token {
@@ -135,16 +134,13 @@ pub fn any_word() -> Token {
 /// use initiative_core::command::prelude::*;
 ///
 /// let token = keyword("badger");
+/// let mut stream = token.match_input_exact("BADGER", &app_meta);
 ///
-/// assert_eq!(
-///     Some(&MatchPart::new_unmarked("BADGER".into()).with_term("badger")),
-///     token
-///         .match_input_exact("BADGER", &app_meta)
-///         .next()
-///         .await
-///         .unwrap()
-///         .first(),
-/// );
+/// let match_list = stream.next().await.unwrap();
+/// let match_part = match_list.parts().next().unwrap();
+///
+/// assert_eq!("BADGER", match_part.input());
+/// assert_eq!(Some("badger"), match_part.term());
 /// # })
 /// ```
 ///
@@ -182,18 +178,15 @@ pub fn keyword(term: &'static str) -> Token {
 /// use initiative_core::command::prelude::*;
 ///
 /// let token = keyword_list(["badger", "mushroom", "snake"]);
+/// let mut stream = token.match_input("BADGER BADGER MUSHROOM", &app_meta);
 ///
 /// // Only consumes one word, despite the repetition in the input.
-/// assert_eq!(
-///     vec![FuzzyMatchList::new_overflow(
-///         MatchPart::new_unmarked("BADGER".into()).with_term("badger"),
-///         " BADGER MUSHROOM".into(),
-///     )],
-///     token
-///         .match_input("BADGER BADGER MUSHROOM", &app_meta)
-///         .collect::<Vec<_>>()
-///         .await,
-/// );
+/// let fuzzy_match_list = stream.next().await.unwrap();
+/// let match_part = fuzzy_match_list.complete_parts().next().unwrap();
+///
+/// assert_eq!("BADGER", match_part.input());
+/// assert_eq!(Some("badger"), match_part.term());
+/// assert_eq!(" BADGER MUSHROOM", fuzzy_match_list.overflow().unwrap());
 /// # })
 /// ```
 ///
@@ -236,12 +229,12 @@ where
 /// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
 /// use initiative_core::command::prelude::*;
 ///
-/// let query = "odysseus";
-/// let token = name();
 /// let odysseus = app_meta.repository.get_by_name("Odysseus").await.unwrap();
-/// let match_list = token.match_input_exact(query, &app_meta).next().await.unwrap();
 ///
-/// // The matched Record can be accessed directly from the TokenMatch tree.
+/// let token = name();
+/// let match_list = token.match_input_exact("odysseus", &app_meta).next().await.unwrap();
+///
+/// // The matched Record can be accessed directly from the MatchList.
 /// assert_eq!(Some(&odysseus), match_list.first().unwrap().record());
 /// # })
 /// ```
@@ -262,10 +255,7 @@ where
 ///     .await
 ///     .unwrap();
 ///
-/// assert_eq!(
-///     Some("ODYsseus".to_string()),
-///     fuzzy_match_list.autocomplete_term(),
-/// );
+/// assert_eq!("ODYsseus", fuzzy_match_list.autocomplete_term().unwrap());
 /// # })
 /// ```
 pub fn name() -> Token {
@@ -283,23 +273,21 @@ pub fn name() -> Token {
 /// use initiative_core::command::prelude::*;
 ///
 /// let token = optional(keyword("badger"));
+/// let mut stream = token.match_input("BADGER", &app_meta);
 ///
-/// assert_eq!(
-///     vec![
-///         // Passes the input directly through to the overflow,
-///         FuzzyMatchList::new_overflow(vec![], "badger".into()),
+/// // Yields the full input sent to overflow,
+/// let fuzzy_match_list = stream.next().await.unwrap();
+/// assert_eq!(None, fuzzy_match_list.complete_parts().next());
+/// assert_eq!("BADGER", fuzzy_match_list.overflow().unwrap());
 ///
-///         // as well as the matched result if present.
-///         FuzzyMatchList::new_exact(
-///             MatchPart::new_unmarked("badger".into())
-///                 .with_term("badger"),
-///         ),
-///     ],
-///     token
-///         .match_input("badger", &app_meta)
-///         .collect::<Vec<_>>()
-///         .await,
-/// );
+/// // as well as the matched result if present.
+/// let fuzzy_match_list = stream.next().await.unwrap();
+/// let match_part = fuzzy_match_list.complete_parts().next().unwrap();
+/// assert_eq!("badger", match_part.term().unwrap());
+/// assert_eq!(None, fuzzy_match_list.overflow());
+///
+/// // fin
+/// assert_eq!(None, stream.next().await);
 /// # })
 /// ```
 pub fn optional(token: Token) -> Token {
@@ -326,33 +314,28 @@ pub fn optional(token: Token) -> Token {
 ///     AnyWord,
 /// }
 ///
-/// let token = or([keyword("badger").with_marker(Marker::Keyword),
-/// any_word().with_marker(Marker::AnyWord)]);
+/// let token = or([
+///     keyword("badger").with_marker(Marker::Keyword),
+///     any_word().with_marker(Marker::AnyWord),
+/// ]);
+/// let mut stream = token.match_input("badger badger", &app_meta);
 ///
-/// assert_eq!(
-///     vec![
-///         // "badger" matches a provided keyword,
-///         FuzzyMatchList::new_overflow(
-///             MatchPart::new_unmarked("badger".into())
-///                 .with_marker(Marker::Keyword)
-///                 .with_term("badger"),
-///             " badger".into(),
-///         ),
+/// // "badger" matches a provided keyword,
+/// let fuzzy_match_list = stream.next().await.unwrap();
+/// let match_part = fuzzy_match_list.complete_parts().next().unwrap();
+/// assert!(match_part.has_marker(Marker::Keyword));
+/// assert_eq!(" badger", fuzzy_match_list.overflow().unwrap());
 ///
-///         // but it satisfies the wildcard any_word() case as well.
-///         // It only ever matches a single token, so the second "badger" in the input is
-///         // never consumed.
-///         FuzzyMatchList::new_overflow(
-///             MatchPart::new_unmarked("badger".into())
-///                 .with_marker(Marker::AnyWord),
-///             " badger".into(),
-///         ),
-///     ],
-///     token
-///         .match_input("badger badger", &app_meta)
-///         .collect::<Vec<_>>()
-///         .await,
-/// );
+/// // but it satisfies the wildcard any_word() case as well.
+/// // It only ever matches a single token, so the second "badger" in the input is
+/// // never consumed.
+/// let fuzzy_match_list = stream.next().await.unwrap();
+/// let match_part = fuzzy_match_list.complete_parts().next().unwrap();
+/// assert!(match_part.has_marker(Marker::AnyWord));
+/// assert_eq!(" badger", fuzzy_match_list.overflow().unwrap());
+///
+/// // fin
+/// assert_eq!(None, stream.next().await);
 /// # })
 /// ```
 pub fn or<I>(tokens: I) -> Token
@@ -386,14 +369,13 @@ where
 ///     keyword("mushroom").with_marker(Marker::Mushroom),
 ///     keyword("snake").with_marker(Marker::Snake),
 /// ]);
-///
 /// let fuzzy_match_list = token
 ///     .match_input("BADGER MUSHROOM", &app_meta)
 ///     .next()
 ///     .await
 ///     .unwrap();
 ///
-/// let mut match_part_iter = fuzzy_match_list.match_list.iter();
+/// let mut match_part_iter = fuzzy_match_list.complete_parts();
 ///
 /// // The first two keywords are matched, but the third is not present.
 /// assert!(match_part_iter.next().unwrap().has_marker(Marker::Badger));

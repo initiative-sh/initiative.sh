@@ -10,7 +10,7 @@ use std::{
 ///   reference data outside of (after) the subslice.
 /// * The concept of "inner" and "outer" slices exists, which is used to handle the contents of
 ///   quoted strings.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq)]
 pub struct Substr<'a> {
     phrase: &'a str,
     inner_range: Range<usize>,
@@ -179,17 +179,21 @@ impl std::iter::Iterator for SubstrCharIndices<'_> {
     }
 }
 
-impl Eq for Substr<'_> {}
-
 impl PartialEq for Substr<'_> {
     fn eq(&self, other: &Self) -> bool {
-        self == other.as_str()
+        other.as_str() == self.as_str()
     }
 }
 
-impl PartialEq<str> for Substr<'_> {
-    fn eq(&self, other: &str) -> bool {
-        self.as_str() == other
+impl PartialEq<&Substr<'_>> for &str {
+    fn eq(&self, other: &&Substr) -> bool {
+        self == &other.as_str()
+    }
+}
+
+impl PartialEq<&str> for &Substr<'_> {
+    fn eq(&self, other: &&str) -> bool {
+        &self.as_str() == other
     }
 }
 
