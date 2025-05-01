@@ -19,8 +19,8 @@ use crate::utils::{CaseInsensitiveStr as _, Substr};
 use futures::prelude::*;
 
 mod prelude {
-    pub use super::TokenKind;
-    pub use super::{FuzzyMatchList, FuzzyMatchPart, MatchList, MatchPart, Token};
+    pub use super::MatchPartBuilder as _;
+    pub use super::{FuzzyMatchList, FuzzyMatchPart, MatchList, MatchPart, Token, TokenKind};
     pub use crate::app::AppMeta;
     pub use crate::utils::{
         quoted_phrases, quoted_phrases_all, quoted_words, CaseInsensitiveStr, Substr,
@@ -72,7 +72,7 @@ pub enum TokenKind {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MatchPart<'input> {
-    pub input: Substr<'input>,
+    input: Substr<'input>,
     term: Option<&'static str>,
     record: Option<Record>,
     marker_hash: u64,
@@ -158,8 +158,22 @@ impl Token {
     }
 }
 
-impl<'input> MatchPart<'input> {
-    pub fn new(input: Substr<'input>, marker_hash: u64) -> Self {
+pub trait MatchPartBuilder<'input> {
+    fn new(input: Substr<'input>, marker_hash: u64) -> Self;
+
+    fn new_unmarked(input: Substr<'input>) -> Self;
+
+    fn with_marker<M>(self, marker: M) -> Self
+    where
+        M: Hash;
+
+    fn with_term(self, term: &'static str) -> Self;
+
+    fn with_record(self, record: Record) -> Self;
+}
+
+impl<'input> MatchPartBuilder<'input> for MatchPart<'input> {
+    fn new(input: Substr<'input>, marker_hash: u64) -> Self {
         MatchPart {
             input,
             term: None,
@@ -168,7 +182,7 @@ impl<'input> MatchPart<'input> {
         }
     }
 
-    pub fn new_unmarked(input: Substr<'input>) -> Self {
+    fn new_unmarked(input: Substr<'input>) -> Self {
         MatchPart {
             input,
             term: None,
@@ -177,7 +191,7 @@ impl<'input> MatchPart<'input> {
         }
     }
 
-    pub fn with_marker<M>(mut self, marker: M) -> Self
+    fn with_marker<M>(mut self, marker: M) -> Self
     where
         M: Hash,
     {
@@ -185,16 +199,18 @@ impl<'input> MatchPart<'input> {
         self
     }
 
-    pub fn with_term(mut self, term: &'static str) -> Self {
+    fn with_term(mut self, term: &'static str) -> Self {
         self.term = Some(term);
         self
     }
 
-    pub fn with_record(mut self, record: Record) -> Self {
+    fn with_record(mut self, record: Record) -> Self {
         self.record = Some(record);
         self
     }
+}
 
+impl<'input> MatchPart<'input> {
     pub fn has_marker<M>(&self, marker: M) -> bool
     where
         M: Hash,

@@ -66,6 +66,7 @@ where
 mod test {
     use super::*;
 
+    use crate::command::token::constructors::*;
     use crate::test_utils as test;
 
     #[derive(Hash)]

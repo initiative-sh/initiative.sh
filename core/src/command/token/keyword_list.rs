@@ -42,6 +42,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::command::token::constructors::*;
     use crate::test_utils as test;
 
     #[derive(Hash)]
@@ -55,7 +57,7 @@ mod tests {
 
         test::assert_eq_unordered!(
             [FuzzyMatchList::new_exact(
-                MatchPart::new_unmarked("BADGER".into()).with_term("badger")
+                MatchPart::new_unmarked("BADGER".into()).with_term("badger"),
             )],
             token
                 .match_input("BADGER ", &test::app_meta())
