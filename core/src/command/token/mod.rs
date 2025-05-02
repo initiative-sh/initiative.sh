@@ -282,21 +282,11 @@ impl<'input> FuzzyMatchList<'input> {
         }
     }
 
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
-    pub fn new_incomplete_multi<IntoMatchList>(
-        match_list: IntoMatchList,
-        incomplete_part: MatchPart<'input>,
-    ) -> Self
+    pub fn prepend<IntoMatchList>(mut self, match_list: IntoMatchList) -> Self
     where
         IntoMatchList: Into<MatchList<'input>>,
     {
-        FuzzyMatchList {
-            match_list: match_list.into(),
-            extra: Some(FuzzyMatchPart::Incomplete(incomplete_part)),
-        }
-    }
-
-    pub fn prepend(mut self, mut match_list: MatchList<'input>) -> Self {
+        let mut match_list = match_list.into();
         match_list.matches.append(&mut self.match_list.matches);
         self.match_list = match_list;
         self

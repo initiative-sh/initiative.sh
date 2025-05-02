@@ -113,10 +113,10 @@ mod test {
         let token = sequence([keyword("badger"), keyword("mushroom"), keyword("snake")]);
 
         test::assert_eq_unordered!(
-            [FuzzyMatchList::new_incomplete_multi(
-                vec![MatchPart::new_unmarked("BADGER".into()).with_term("badger")],
+            [FuzzyMatchList::new_incomplete(
                 MatchPart::new_unmarked("".into()).with_term("mushroom"),
-            )],
+            )
+            .prepend(MatchPart::new_unmarked("BADGER".into()).with_term("badger"))],
             token
                 .match_input("BADGER", &test::app_meta())
                 .collect::<Vec<_>>()
@@ -129,13 +129,13 @@ mod test {
         let token = sequence([keyword("badger"), keyword("mushroom"), keyword("snake")]);
 
         test::assert_eq_unordered!(
-            [FuzzyMatchList::new_incomplete_multi(
-                vec![
-                    MatchPart::new_unmarked("badger".into()).with_term("badger"),
-                    MatchPart::new_unmarked("mushroom".into()).with_term("mushroom"),
-                ],
+            [FuzzyMatchList::new_incomplete(
                 MatchPart::new_unmarked("sn".into()).with_term("snake"),
-            )],
+            )
+            .prepend(vec![
+                MatchPart::new_unmarked("badger".into()).with_term("badger"),
+                MatchPart::new_unmarked("mushroom".into()).with_term("mushroom"),
+            ])],
             token
                 .match_input("badger mushroom sn", &test::app_meta())
                 .collect::<Vec<_>>()
@@ -190,16 +190,16 @@ mod test {
                     MatchPart::new_unmarked("badger badger".into()).with_marker(Marker::AnyPhrase),
                     MatchPart::new_unmarked("mushroom".into()).with_marker(Marker::AnyWord),
                 ],),
-                FuzzyMatchList::new_incomplete_multi(
-                    vec![
-                        MatchPart::new_unmarked("badger".into())
-                            .with_marker(Marker::Keyword)
-                            .with_term("badger"),
-                        MatchPart::new_unmarked("badger badger mushroom".into())
-                            .with_marker(Marker::AnyPhrase),
-                    ],
+                FuzzyMatchList::new_incomplete(
                     MatchPart::new_unmarked("".into()).with_marker(Marker::AnyWord),
-                ),
+                )
+                .prepend(vec![
+                    MatchPart::new_unmarked("badger".into())
+                        .with_marker(Marker::Keyword)
+                        .with_term("badger"),
+                    MatchPart::new_unmarked("badger badger mushroom".into())
+                        .with_marker(Marker::AnyPhrase),
+                ]),
             ],
             token
                 .match_input("badger badger badger mushroom", &test::app_meta())
