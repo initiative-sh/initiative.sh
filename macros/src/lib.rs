@@ -22,10 +22,10 @@ pub fn changelog(input: TokenStream) -> TokenStream {
     changelog::run(input).unwrap()
 }
 
-#[proc_macro_derive(CommandList)]
+#[proc_macro_derive(CommandList, attributes(command_list))]
 pub fn command_list(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input);
-    command_list::run(input).unwrap().into()
+    command_list::run(input).into()
 }
 
 #[proc_macro_derive(From, attributes(from))]

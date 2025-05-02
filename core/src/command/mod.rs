@@ -1,10 +1,11 @@
 /// All of the classes needed to implement a new command or token type.
-#[cfg(not(feature = "integration-tests"))]
-mod prelude;
-#[cfg(feature = "integration-tests")]
 pub mod prelude;
 
 mod about;
+mod alias;
+mod create;
+mod load;
+mod save;
 
 mod token;
 
@@ -15,35 +16,91 @@ use std::pin::Pin;
 use crate::app::{
     AppMeta, Autocomplete, AutocompleteSuggestion, CommandMatches, ContextAwareParse, Runnable,
 };
+use crate::utils::quoted_words;
 use initiative_macros::CommandList;
 
-use token::{FuzzyMatch, Token, TokenMatch};
+use token::{FuzzyMatchList, MatchList, Token};
 
 use async_stream::stream;
 use async_trait::async_trait;
 use futures::prelude::*;
 
+/// Commands provide the primary interaction between the user and the backend: text in, text out.
+/// A second dimension exists in that the commands are queried as the user types to provide
+/// autocomplete suggestions.
+///
+/// This simple concept belies a tremendous amount of complexity and redundancy in implementation,
+/// especially in more complex syntaxes. A series of parser combinators is used to abstract away
+/// most of the direct interaction with text, leaving each individual command to interact with the
+/// user's input at a higher level.
+///
+/// At the root of the process is the [`Token`]: a pattern returned by the [`Command::token`] method
+/// that matches one or more input words. In the event that the user input matches the `Token`
+/// exactly or partially (in the case of autocomplete), the parsed result
+/// ([`TokenMatch`]/[`FuzzyMatch`]) will be dispatched to [`Command::get_priority`] or
+/// [`Command::autocomplete`] for further processing. These methods can return [`None`], indicating
+/// that the input should be considered a non-match despite the provided `Token`.
+///
+/// The preferred way of parsing token trees is using markers: any value implementing [`Hash`]
+/// (a custom enum by convention) assigned to a `Token` upon creation which persists through the
+/// `TokenMatch` data provided to `autocomplete`/`get_priority`. Rather than manually climbing
+/// through the token tree in search of a particular marker, the [`TokenMatch::find_markers`] method
+/// and its kin can be used to jump directly (and recursively) to the token(s) of interest.
+///
+/// If `get_priority` returns `Some(x)`, the dispatcher ([`run`]) will choose which command to
+/// execute based on the returned priority: [`CommandPriority::Canonical`] matches will always be
+/// executed, while [`CommandPriority::Fuzzy`] matches will run if no other matches are present. In
+/// the event that additional fuzzy matches are present, all matched phrases will be displayed to
+/// the user in their canonical form. Once the parser has decided which command to run, its
+/// [`Command::run`] method will be invoked and the result (success or failure) displayed to the
+/// user.
+///
+/// # Creating a command
+///
+/// 1. Create a new module within [`crate::command`] with a unit struct for your command.
+/// 2. Implement the [`Command`] trait for the struct.
+/// 3. (Optional) Add a `Marker` enum with the [`Hash`] trait derived, to help with navigating the
+///    match tree.
+/// 4. Add your new command to the [`CommandList`] enum in this module. The derive macro on that
+///    enum will handle the rest of the wiring.
+///
+/// For a simple example, see [`about::About`].
 pub trait Command {
     /// Return a single Token representing the command's syntax. If multiple commands are possible,
     /// Token::Or can be used as a wrapper to cover the options.
+    ///
+    /// _See [`token::constructors`] for the available tokens and their constructors._
     fn token(&self) -> Token;
 
     /// Convert a matched token into a suggestion to be displayed to the user. Note that this
-    /// method is not async; any metadata that may be needed for the autocomplete should be fetched
-    /// during the match_input step of the token and embedded in the match_meta property of the
-    /// TokenMatch object.
-    fn autocomplete(&self, fuzzy_match: FuzzyMatch, input: &str) -> Option<AutocompleteSuggestion>;
+    /// method is not async; any metadata that may be needed for the autocomplete (eg. records
+    /// matched by name) should be available through [`FuzzyMatch::token_match`].
+    ///
+    /// A possible match can be indicated by returning `Some(("command", "description").into())`.
+    ///
+    /// A non-match can be indicated by returning `None`.
+    fn autocomplete(
+        &self,
+        fuzzy_match_list: FuzzyMatchList,
+        input: &str,
+    ) -> Option<AutocompleteSuggestion>;
 
-    /// Get the priority of the command with a given input. See CommandPriority for details.
-    fn get_priority(&self, token_match: &TokenMatch) -> Option<CommandPriority>;
+    /// Get the priority of the command with a given input. See [`CommandPriority`] for details.
+    ///
+    /// `None` will be interpreted as a non-match.
+    fn get_priority(&self, match_list: &MatchList) -> Option<CommandPriority>;
 
     /// Run the command represented by a matched token, returning the success or failure output to
     /// be displayed to the user.
     #[cfg_attr(feature = "integration-tests", expect(async_fn_in_trait))]
-    async fn run(&self, token_match: TokenMatch, app_meta: &mut AppMeta) -> Result<String, String>;
+    async fn run(
+        &self,
+        match_list: MatchList,
+        app_meta: &mut AppMeta,
+    ) -> Result<impl std::fmt::Display, impl std::fmt::Display>;
 
-    /// Get the canonical form of the provided token match. Return None if the match is invalid.
-    fn get_canonical_form_of(&self, token_match: &TokenMatch) -> Option<String>;
+    /// Get the canonical form of the provided [`MatchList`]. Returns `None` if the match is invalid.
+    fn get_canonical_form_of(&self, match_list: &MatchList) -> Option<String>;
 
     /// A helper function to roughly provide Command::autocomplete(Command::token().match_input()),
     /// except that that wouldn't compile for all sorts of exciting reasons.
@@ -54,9 +111,9 @@ pub trait Command {
     ) -> Pin<Box<dyn Stream<Item = AutocompleteSuggestion> + 'a>> {
         Box::pin(stream! {
             let token = self.token();
-            for await token_match in token.match_input(input, app_meta) {
-                if !matches!(token_match, FuzzyMatch::Overflow(..)) {
-                    if let Some(suggestion) = self.autocomplete(token_match, input) {
+            for await fuzzy_match_list in token.match_input(input, app_meta) {
+                if !fuzzy_match_list.is_overflow() {
+                    if let Some(suggestion) = self.autocomplete(fuzzy_match_list, input) {
                         yield suggestion;
                     }
                 }
@@ -68,6 +125,12 @@ pub trait Command {
 #[derive(Clone, CommandList, Debug)]
 enum CommandList {
     About(about::About),
+    #[command_list(ignore)]
+    #[expect(dead_code)]
+    Alias(alias::Alias),
+    Create(create::Create),
+    Load(load::Load),
+    Save(save::Save),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -129,17 +192,27 @@ impl ContextAwareParse for TransitionalCommand {
                 );
             }
 
-            while let Some((command, fuzzy_match)) = match_streams.next().await {
-                if let FuzzyMatch::Exact(token_match) = fuzzy_match {
-                    if let Some(priority) = command.get_priority(&token_match) {
-                        if let Some(canonical) = command.get_canonical_form_of(&token_match) {
-                            if priority == CommandPriority::Canonical {
-                                command_matches.push_canonical(Self { canonical });
-                            } else {
-                                command_matches.push_fuzzy(Self { canonical });
-                            }
-                        }
-                    }
+            let mut match_streams = match_streams
+                .filter_map(|(command, fuzzy_match_list)| {
+                    future::ready(
+                        fuzzy_match_list
+                            .into_match_list()
+                            .map(|match_list| (command, match_list)),
+                    )
+                })
+                .filter_map(|(command, match_list)| {
+                    future::ready(command.get_priority(&match_list).and_then(|priority| {
+                        command
+                            .get_canonical_form_of(&match_list)
+                            .map(|canonical| (priority, canonical))
+                    }))
+                });
+
+            while let Some((priority, canonical)) = match_streams.next().await {
+                if priority == CommandPriority::Canonical {
+                    command_matches.push_canonical(Self { canonical });
+                } else {
+                    command_matches.push_fuzzy(Self { canonical });
                 }
             }
         }
@@ -162,13 +235,14 @@ impl fmt::Display for TransitionalCommand {
 }
 
 pub async fn autocomplete(input: &str, app_meta: &AppMeta) -> Vec<AutocompleteSuggestion> {
-    let mut suggestions: Vec<_> = stream::select_all(
-        CommandList::get_all()
-            .iter()
-            .map(|c| c.parse_autocomplete(input, app_meta)),
-    )
-    .collect()
-    .await;
+    if quoted_words(input).next().is_none() {
+        return Vec::new();
+    };
+
+    let mut suggestions: Vec<_> = stream::iter(CommandList::get_all())
+        .flat_map(|c| c.parse_autocomplete(input, app_meta))
+        .collect()
+        .await;
 
     suggestions.sort();
     suggestions.truncate(10);
@@ -183,7 +257,7 @@ pub async fn run(input: &str, app_meta: &mut AppMeta) -> Result<String, String> 
         .map(|c| (c, c.token()))
         .collect();
 
-    let mut token_matches: Vec<(&CommandList, CommandPriority, TokenMatch)> = Vec::new();
+    let mut match_lists: Vec<(&CommandList, CommandPriority, MatchList)> = Vec::new();
 
     {
         let mut match_streams = stream::SelectAll::default();
@@ -197,31 +271,39 @@ pub async fn run(input: &str, app_meta: &mut AppMeta) -> Result<String, String> 
             );
         }
 
-        while let Some((command, token_match)) = match_streams.next().await {
-            if let Some(priority) = command.get_priority(&token_match) {
-                token_matches.push((command, priority, token_match));
+        while let Some((command, match_list)) = match_streams.next().await {
+            if let Some(priority) = command.get_priority(&match_list) {
+                match_lists.push((command, priority, match_list));
             }
         }
     }
 
-    token_matches.sort_by_key(|&(_, command_priority, _)| command_priority);
+    match_lists.sort_by_key(|&(_, command_priority, _)| command_priority);
 
-    match token_matches.len() {
+    match match_lists.len() {
         0 => return Err(format!("Unknown command: \"{}\"", input)),
         1 => {
-            let (command, _, token_match) = token_matches.pop().unwrap();
-            return command.run(token_match, app_meta).await;
+            let (command, _, match_list) = match_lists.pop().unwrap();
+            return command
+                .run(match_list, app_meta)
+                .await
+                .map(|s| s.to_string())
+                .map_err(|e| e.to_string());
         }
         _ => {} // continue
     }
 
-    if token_matches[0].1 == CommandPriority::Canonical {
-        assert_ne!(token_matches[1].1, CommandPriority::Canonical);
+    if match_lists[0].1 == CommandPriority::Canonical {
+        assert_ne!(match_lists[1].1, CommandPriority::Canonical);
 
-        let (command, _, token_match) = token_matches.remove(0);
-        let result = command.run(token_match, app_meta).await;
+        let (command, _, match_list) = match_lists.remove(0);
+        let result = command
+            .run(match_list, app_meta)
+            .await
+            .map(|s| s.to_string())
+            .map_err(|e| e.to_string());
 
-        let mut iter = token_matches
+        let mut iter = match_lists
             .iter()
             .take_while(|(_, command_priority, _)| command_priority == &CommandPriority::Fuzzy)
             .peekable();
@@ -231,7 +313,7 @@ pub async fn run(input: &str, app_meta: &mut AppMeta) -> Result<String, String> 
         } else {
             let f = |s| {
                 iter
-                    .filter_map(|(command, _, token_match)| command.get_canonical_form_of(token_match))
+                    .filter_map(|(command, _, match_list)| command.get_canonical_form_of(match_list))
                     .fold(
                         format!("{}\n\n! There are other possible interpretations of this command. Did you mean:\n", s),
                         |mut s, c| { write!(s, "\n* `{}`", c).unwrap(); s }
@@ -244,15 +326,16 @@ pub async fn run(input: &str, app_meta: &mut AppMeta) -> Result<String, String> 
             }
         }
     } else {
-        let first_token_match = token_matches.remove(0);
+        let first_match_list = match_lists.remove(0);
 
-        let mut iter =
-            iter::once(&first_token_match)
-                .chain(token_matches.iter().take_while(|(_, command_priority, _)| {
-                    command_priority == &first_token_match.1
-                }))
-                .filter_map(|(command, _, token_match)| command.get_canonical_form_of(token_match))
-                .peekable();
+        let mut iter = iter::once(&first_match_list)
+            .chain(
+                match_lists
+                    .iter()
+                    .take_while(|(_, command_priority, _)| command_priority == &first_match_list.1),
+            )
+            .filter_map(|(command, _, match_list)| command.get_canonical_form_of(match_list))
+            .peekable();
 
         if iter.peek().is_none() {
             Err(format!("Unknown command: \"{}\"", input))

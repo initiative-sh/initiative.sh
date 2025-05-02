@@ -9,44 +9,41 @@ mod name;
 mod optional;
 mod or;
 mod sequence;
-mod token_match_iterator;
 
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use token_match_iterator::TokenMatchIterator;
-
 use crate::app::AppMeta;
 use crate::storage::Record;
-use crate::utils::Substr;
-use initiative_macros::From;
+use crate::utils::{CaseInsensitiveStr as _, Substr};
 
 use futures::prelude::*;
 
-#[derive(Debug, Eq, PartialEq)]
-#[cfg_attr(test, derive(Clone))]
+mod prelude {
+    pub use super::MatchPartBuilder as _;
+    pub use super::{FuzzyMatchList, FuzzyMatchPart, MatchList, MatchPart, Token, TokenKind};
+    pub use crate::app::AppMeta;
+    pub use crate::utils::{
+        quoted_phrases, quoted_phrases_all, quoted_words, CaseInsensitiveStr, Substr,
+    };
+
+    pub use std::pin::Pin;
+
+    pub use async_stream::stream;
+    pub use futures::join;
+    pub use futures::prelude::*;
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Token {
-    pub token_type: TokenType,
-    marker: u64,
+    kind: TokenKind,
+    marker_hash: u64,
+    placeholder: Option<&'static str>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TokenMatch<'a> {
-    pub token: &'a Token,
-    pub match_meta: MatchMeta<'a>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum FuzzyMatch<'a> {
-    Overflow(TokenMatch<'a>, Substr<'a>),
-    Exact(TokenMatch<'a>),
-    Partial(TokenMatch<'a>, Option<String>),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-#[cfg_attr(test, derive(Clone))]
-pub enum TokenType {
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum TokenKind {
     /// See [`token_constructors::any_of`].
-    AnyOf(Vec<Token>),
+    AnyOf { tokens: Vec<Token> },
 
     /// See [`token_constructors::any_phrase`].
     AnyPhrase,
@@ -55,66 +52,96 @@ pub enum TokenType {
     AnyWord,
 
     /// See [`token_constructors::keyword`].
-    Keyword(&'static str),
+    Keyword { term: &'static str },
 
     /// See [`token_constructors::keyword_list`].
-    KeywordList(Vec<&'static str>),
+    KeywordList { terms: Vec<&'static str> },
 
     /// See [`token_constructors::name`].
     Name,
 
     /// See [`token_constructors::optional`].
-    Optional(Box<Token>),
+    Optional { token: Box<Token> },
 
     /// See [`token_constructors::or`].
-    Or(Vec<Token>),
+    Or { tokens: Vec<Token> },
 
     /// See [`token_constructors::sequence`].
-    Sequence(Vec<Token>),
+    Sequence { tokens: Vec<Token> },
 }
 
-#[derive(Clone, Debug, Eq, From, PartialEq)]
-pub enum MatchMeta<'a> {
-    None,
-    Phrase(&'a str),
-    Record(Record),
-    Sequence(Vec<TokenMatch<'a>>),
-    Single(Box<TokenMatch<'a>>),
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MatchPart<'input> {
+    input: Substr<'input>,
+    term: Option<&'static str>,
+    record: Option<Record>,
+    marker_hash: u64,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct MatchList<'input> {
+    matches: Vec<MatchPart<'input>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FuzzyMatchList<'input> {
+    pub match_list: MatchList<'input>,
+    pub extra: Option<FuzzyMatchPart<'input>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FuzzyMatchPart<'input> {
+    Overflow(Substr<'input>),
+    Incomplete(MatchPart<'input>),
 }
 
 impl Token {
-    pub fn new(token_type: TokenType) -> Token {
-        Token {
-            token_type,
-            marker: 0,
-        }
-    }
-
-    pub fn new_m<M: Hash>(marker: M, token_type: TokenType) -> Token {
-        Token {
-            token_type,
-            marker: hash_marker(marker),
-        }
-    }
-
-    pub fn match_input<'a, 'b>(
-        &'a self,
-        input: &'a str,
-        app_meta: &'b AppMeta,
-    ) -> impl Stream<Item = FuzzyMatch<'a>> + 'b
+    /// Applies a marker to the Token. A marker can be anything that implements [`Hash`], but
+    /// generally a dedicated enum is created for the purpose. The hash (but not the marker) is
+    /// then made available through [`MatchPart`] and can be checked with [`MatchPart::has_marker`]
+    /// and [`MatchPart::has_marker_hash`].
+    pub fn with_marker<M>(mut self, marker: M) -> Self
     where
-        'a: 'b,
+        M: Hash,
     {
-        match &self.token_type {
-            TokenType::AnyOf(..) => any_of::match_input(self, input, app_meta),
-            TokenType::AnyPhrase => any_phrase::match_input(self, input),
-            TokenType::AnyWord => any_word::match_input(self, input),
-            TokenType::Keyword(..) => keyword::match_input(self, input),
-            TokenType::KeywordList(..) => keyword_list::match_input(self, input),
-            TokenType::Name => name::match_input(self, input, app_meta),
-            TokenType::Optional(..) => optional::match_input(self, input, app_meta),
-            TokenType::Or(..) => or::match_input(self, input, app_meta),
-            TokenType::Sequence(..) => sequence::match_input(self, input, app_meta),
+        self.marker_hash = hash_marker(marker);
+        self
+    }
+
+    /// Applies a placeholder to the token, shown when an autocomplete suggestion is possible but
+    /// no text has yet been input.
+    ///
+    /// The placeholder must start with "[" and end with "]". Failing to satisfy this will cause a
+    /// panic in dev builds.
+    pub fn with_placeholder(mut self, placeholder: &'static str) -> Self {
+        assert!(placeholder.starts_with('['));
+        assert!(placeholder.ends_with(']'));
+
+        self.placeholder = Some(placeholder);
+        self
+    }
+
+    pub fn match_input<'input, 'token, S>(
+        &'token self,
+        input: S,
+        app_meta: &'token AppMeta,
+    ) -> impl Stream<Item = FuzzyMatchList<'input>> + 'token
+    where
+        'input: 'token,
+        S: Into<Substr<'input>>,
+    {
+        let input = input.into();
+
+        match &self.kind {
+            TokenKind::AnyOf { .. } => any_of::match_input(self, input, app_meta),
+            TokenKind::AnyPhrase => any_phrase::match_input(self, input),
+            TokenKind::AnyWord => any_word::match_input(self, input),
+            TokenKind::Keyword { .. } => keyword::match_input(self, input),
+            TokenKind::KeywordList { .. } => keyword_list::match_input(self, input),
+            TokenKind::Name => name::match_input(self, input, app_meta),
+            TokenKind::Optional { .. } => optional::match_input(self, input, app_meta),
+            TokenKind::Or { .. } => or::match_input(self, input, app_meta),
+            TokenKind::Sequence { .. } => sequence::match_input(self, input, app_meta),
         }
     }
 
@@ -122,220 +149,371 @@ impl Token {
         &'a self,
         input: &'a str,
         app_meta: &'b AppMeta,
-    ) -> impl Stream<Item = TokenMatch<'a>> + 'b
+    ) -> impl Stream<Item = MatchList<'a>> + 'b
     where
         'a: 'b,
     {
         self.match_input(input, app_meta)
-            .filter_map(|fuzzy_match| future::ready(fuzzy_match.into_exact()))
+            .filter_map(|fuzzy_match_list| future::ready(fuzzy_match_list.into_match_list()))
     }
 }
 
-impl<'a> TokenMatch<'a> {
-    /// Creates a new `TokenMatch` object containing a reference to the [`Token`] that was matched.
-    ///
-    /// `match_meta` is typically not passed directly, but rather via the `Into<T>` trait. In the
-    /// case where `match_meta` is `MatchMeta::None`, `TokenMatch::from(&token)` is preferred.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # tokio_test::block_on(async {
-    /// # use initiative_core::command::prelude::*;
-    /// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
-    /// let token = any_word();
-    ///
-    /// // Use ::from to create a TokenMatch with no metadata.
-    /// let token_match = TokenMatch::from(&token);
-    /// assert_eq!(MatchMeta::None, token_match.match_meta);
-    ///
-    /// // Provide a &str for MatchMeta::Phrase.
-    /// let token_match = TokenMatch::new(&token, "word");
-    /// assert_eq!(MatchMeta::Phrase("word"), token_match.match_meta);
-    ///
-    /// // Provide a Record for MatchMeta::Record.
-    /// let record = app_meta.repository.get_by_name("Odysseus").await.unwrap();
-    /// let token_match = TokenMatch::new(&token, record);
-    /// assert!(matches!(token_match.match_meta, MatchMeta::Record(_)));
-    ///
-    /// // Provide a Vec<TokenMatch> for MatchMeta::Sequence.
-    /// let sequence_token = sequence([any_word()]);
-    /// let token_match = TokenMatch::new(&sequence_token, vec![TokenMatch::from(&token)]);
-    /// assert!(matches!(token_match.match_meta, MatchMeta::Sequence(_)));
-    ///
-    /// // Provide a TokenMatch for MatchMeta::Single.
-    /// let optional_token = optional(any_word());
-    /// let token_match = TokenMatch::new(&optional_token, TokenMatch::from(&token));
-    /// assert!(matches!(token_match.match_meta, MatchMeta::Single(_)));
-    /// # })
-    /// ```
-    pub fn new(token: &'a Token, match_meta: impl Into<MatchMeta<'a>>) -> Self {
-        TokenMatch {
-            token,
-            match_meta: match_meta.into(),
+pub trait MatchPartBuilder<'input> {
+    fn new(input: Substr<'input>, marker_hash: u64) -> Self;
+
+    fn new_unmarked(input: Substr<'input>) -> Self;
+
+    fn with_marker<M>(self, marker: M) -> Self
+    where
+        M: Hash;
+
+    fn with_term(self, term: &'static str) -> Self;
+
+    fn with_record(self, record: Record) -> Self;
+}
+
+impl<'input> MatchPartBuilder<'input> for MatchPart<'input> {
+    fn new(input: Substr<'input>, marker_hash: u64) -> Self {
+        MatchPart {
+            input,
+            term: None,
+            record: None,
+            marker_hash,
         }
     }
 
-    /// Returns `true` if the `TokenMatch` or any of its descendents contain the given marker.
-    ///
-    /// Returns `false` if the marker is not present.
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
-    pub fn contains_marker<M>(&'a self, marker: M) -> bool
+    fn new_unmarked(input: Substr<'input>) -> Self {
+        MatchPart {
+            input,
+            term: None,
+            record: None,
+            marker_hash: 0,
+        }
+    }
+
+    fn with_marker<M>(mut self, marker: M) -> Self
+    where
+        M: Hash,
+    {
+        self.marker_hash = hash_marker(marker);
+        self
+    }
+
+    fn with_term(mut self, term: &'static str) -> Self {
+        self.term = Some(term);
+        self
+    }
+
+    fn with_record(mut self, record: Record) -> Self {
+        self.record = Some(record);
+        self
+    }
+}
+
+impl<'input> MatchPart<'input> {
+    pub fn has_marker<M>(&self, marker: M) -> bool
+    where
+        M: Hash,
+    {
+        self.has_marker_hash(hash_marker(marker))
+    }
+
+    pub fn has_marker_hash(&self, marker_hash: u64) -> bool {
+        self.marker_hash == marker_hash
+    }
+
+    pub fn input(&self) -> &'input str {
+        self.input.as_str()
+    }
+
+    pub fn record(&self) -> Option<&Record> {
+        self.record.as_ref()
+    }
+
+    pub fn term(&self) -> Option<&'static str> {
+        self.term
+    }
+}
+
+impl<'input> MatchList<'input> {
+    pub fn parts(&self) -> impl std::iter::Iterator<Item = &MatchPart<'input>> {
+        self.into_iter()
+    }
+
+    pub fn first(&self) -> Option<&MatchPart<'input>> {
+        self.matches.first()
+    }
+
+    pub fn contains_marker<M>(&self, marker: &M) -> bool
     where
         M: Hash,
     {
         self.find_marker(marker).is_some()
     }
 
-    /// Returns the first `TokenMatch` with a given marker in the token tree.
+    pub fn find_marker<M>(&self, marker: &M) -> Option<&MatchPart<'input>>
+    where
+        M: Hash,
+    {
+        let marker_hash = hash_marker(marker);
+        self.parts()
+            .find(|match_part| match_part.has_marker_hash(marker_hash))
+    }
+
+    pub fn find_markers<'match_part, 'marker, M>(
+        &'match_part self,
+        markers: &'marker [M],
+    ) -> impl std::iter::Iterator<Item = (&'match_part MatchPart<'input>, &'marker M)>
+    where
+        M: Hash,
+    {
+        self.parts().filter_map(|match_part| {
+            markers
+                .iter()
+                .find(|marker| match_part.has_marker(marker))
+                .map(|marker| (match_part, marker))
+        })
+    }
+}
+
+impl<'input> FuzzyMatchList<'input> {
+    pub fn new_exact<IntoMatchList>(match_list: IntoMatchList) -> Self
+    where
+        IntoMatchList: Into<MatchList<'input>>,
+    {
+        FuzzyMatchList {
+            match_list: match_list.into(),
+            extra: None,
+        }
+    }
+
+    pub fn new_overflow<IntoMatchList>(match_list: IntoMatchList, overflow: Substr<'input>) -> Self
+    where
+        IntoMatchList: Into<MatchList<'input>>,
+    {
+        FuzzyMatchList {
+            match_list: match_list.into(),
+            extra: Some(FuzzyMatchPart::Overflow(overflow)),
+        }
+    }
+
+    pub fn new_incomplete(match_part: MatchPart<'input>) -> Self {
+        FuzzyMatchList {
+            match_list: MatchList::default(),
+            extra: Some(FuzzyMatchPart::Incomplete(match_part)),
+        }
+    }
+
+    pub fn prepend<IntoMatchList>(mut self, match_list: IntoMatchList) -> Self
+    where
+        IntoMatchList: Into<MatchList<'input>>,
+    {
+        let mut match_list = match_list.into();
+        match_list.matches.append(&mut self.match_list.matches);
+        self.match_list = match_list;
+        self
+    }
+
+    pub fn into_match_list(self) -> Option<MatchList<'input>> {
+        if self.extra.is_none() {
+            Some(self.match_list)
+        } else {
+            None
+        }
+    }
+
+    pub fn complete_parts(&self) -> impl Iterator<Item = &MatchPart<'input>> {
+        self.match_list.parts()
+    }
+
+    /// Returns the appropriate autocomplete suggestion for the incomplete input, if possible.
     ///
-    /// Returns `None` if the patterns doesn't match.
-    pub fn find_marker<M>(&'a self, marker: M) -> Option<&'a TokenMatch<'a>>
-    where
-        M: Hash,
-    {
-        TokenMatchIterator::new(self).find(move |token_match| token_match.is_marked_with(&marker))
-    }
-
-    /// Iterate through all TokenMatch objects in the tree with a given set of markers.
-    #[cfg_attr(not(any(test, feature = "integration-tests")), expect(dead_code))]
-    pub fn find_markers<'b, M>(
-        &'a self,
-        markers: &'b [M],
-    ) -> impl Iterator<Item = &'a TokenMatch<'a>> + 'b
-    where
-        M: Hash,
-        'a: 'b,
-    {
-        TokenMatchIterator::new(self)
-            .filter(move |token_match| markers.iter().any(|m| token_match.is_marked_with(m)))
-    }
-
-    /// Returns `true` if the root-level token has the given `marker`.
+    /// # Examples
     ///
-    /// Returns `false` if it does not.
-    pub fn is_marked_with<M>(&self, marker: M) -> bool
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta::with_test_data().await;
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let query = "hail ody";
+    /// let token = sequence([keyword("hail"), name()]);
+    /// let fuzzy_token_match = token.match_input(query, &app_meta).next().await.unwrap();
+    ///
+    /// assert_eq!(
+    ///     "hail odysseus",
+    ///     fuzzy_token_match.autocomplete_term().unwrap(),
+    /// );
+    /// # })
+    /// ```
+    ///
+    /// ```
+    /// # use futures::StreamExt as _;
+    /// # tokio_test::block_on(async {
+    /// # let app_meta = initiative_core::test_utils::app_meta();
+    /// use initiative_core::command::prelude::*;
+    ///
+    /// let query = "BADGER MUSH";
+    /// let token = sequence([keyword("badger"), keyword("mushroom"), keyword("snake")]);
+    /// let fuzzy_token_match = token.match_input(query, &app_meta).next().await.unwrap();
+    ///
+    /// assert_eq!(
+    ///     "BADGER MUSHroom",
+    ///     fuzzy_token_match.autocomplete_term().unwrap(),
+    /// );
+    /// # })
+    /// ```
+    pub fn autocomplete(&self) -> Option<String> {
+        let Some(incomplete_part) = self.incomplete() else {
+            return Some(self.input()?.to_string());
+        };
+
+        let name = incomplete_part
+            .record
+            .as_ref()
+            .map(|record| record.thing.name().to_string());
+        let term = name.as_deref().or(incomplete_part.term)?;
+
+        let mut suggestion =
+            String::with_capacity(incomplete_part.input.before().len() + term.len());
+        suggestion.push_str(incomplete_part.input.before().as_str());
+
+        // can_complete() implies that the input doesn't end with whitespace, so we need to add
+        // whitespace to our suggestion.
+        if !suggestion.is_empty() && !suggestion.ends_with(' ') {
+            suggestion.push(' ');
+        }
+
+        if let Some(suffix) = term.strip_prefix_ci(&incomplete_part.input) {
+            suggestion.push_str(incomplete_part.input.as_str());
+            suggestion.push_str(suffix);
+        } else {
+            suggestion.push_str(term);
+        }
+
+        Some(suggestion)
+    }
+
+    /// Get the original input data.
+    pub fn input(&self) -> Option<Substr<'input>> {
+        Some(
+            self.match_list
+                .first()
+                .or(
+                    if let Some(FuzzyMatchPart::Incomplete(match_part)) = &self.extra {
+                        Some(match_part)
+                    } else {
+                        None
+                    },
+                )?
+                .input
+                .as_original_substr(),
+        )
+    }
+
+    pub fn is_overflow(&self) -> bool {
+        matches!(self.extra, Some(FuzzyMatchPart::Overflow(_)))
+    }
+
+    pub fn is_exact(&self) -> bool {
+        self.extra.is_none()
+    }
+
+    pub fn is_incomplete(&self) -> bool {
+        matches!(self.extra, Some(FuzzyMatchPart::Incomplete(_)))
+    }
+
+    pub fn overflow(&self) -> Option<&Substr<'input>> {
+        if let Some(FuzzyMatchPart::Overflow(remainder)) = &self.extra {
+            Some(remainder)
+        } else {
+            None
+        }
+    }
+
+    pub fn incomplete(&self) -> Option<&MatchPart<'input>> {
+        if let Some(FuzzyMatchPart::Incomplete(match_part)) = &self.extra {
+            Some(match_part)
+        } else {
+            None
+        }
+    }
+
+    pub fn contains_marker<M>(&self, marker: &M) -> bool
     where
         M: Hash,
     {
-        self.token.marker != 0 && self.token.marker == hash_marker(marker)
+        self.find_marker(marker).is_some()
     }
 
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
-    pub fn meta_phrase(&self) -> Option<&str> {
-        self.match_meta.phrase()
-    }
-
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
-    pub fn meta_record(&self) -> Option<&Record> {
-        self.match_meta.record()
-    }
-
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
-    pub fn meta_sequence(&self) -> Option<&[TokenMatch<'a>]> {
-        self.match_meta.sequence()
-    }
-
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
-    pub fn meta_single(&self) -> Option<&TokenMatch<'a>> {
-        self.match_meta.single()
-    }
-}
-
-impl<'a> From<&'a Token> for TokenMatch<'a> {
-    fn from(input: &'a Token) -> Self {
-        TokenMatch::new(input, MatchMeta::None)
-    }
-}
-
-impl<'a> FuzzyMatch<'a> {
-    pub fn map<F>(self, f: F) -> Self
+    pub fn find_marker<M>(&self, marker: &M) -> Option<&MatchPart<'input>>
     where
-        F: FnOnce(TokenMatch<'a>) -> TokenMatch<'a>,
+        M: Hash,
     {
-        match self {
-            FuzzyMatch::Overflow(token_match, overflow) => {
-                FuzzyMatch::Overflow(f(token_match), overflow)
-            }
-            FuzzyMatch::Exact(token_match) => FuzzyMatch::Exact(f(token_match)),
-            FuzzyMatch::Partial(token_match, completion) => {
-                FuzzyMatch::Partial(f(token_match), completion)
-            }
-        }
+        let marker_hash = hash_marker(marker);
+        self.incomplete()
+            .into_iter()
+            .chain(self.complete_parts())
+            .find(|match_part| match_part.has_marker_hash(marker_hash))
     }
 
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
-    pub fn token_match(&self) -> &TokenMatch<'a> {
-        match self {
-            FuzzyMatch::Overflow(token_match, _)
-            | FuzzyMatch::Exact(token_match)
-            | FuzzyMatch::Partial(token_match, _) => token_match,
-        }
+    pub fn find_markers<'match_part, 'marker, M>(
+        &'match_part self,
+        markers: &'marker [M],
+    ) -> impl std::iter::Iterator<Item = (&'match_part MatchPart<'input>, &'marker M)>
+    where
+        M: Hash,
+    {
+        self.incomplete()
+            .into_iter()
+            .chain(self.complete_parts())
+            .filter_map(|match_part| {
+                markers
+                    .iter()
+                    .find(|marker| match_part.has_marker(marker))
+                    .map(|marker| (match_part, marker))
+            })
     }
+}
 
-    pub fn into_exact(self) -> Option<TokenMatch<'a>> {
-        if let FuzzyMatch::Exact(token_match) = self {
-            Some(token_match)
-        } else {
-            None
+impl From<TokenKind> for Token {
+    fn from(kind: TokenKind) -> Self {
+        Token {
+            kind,
+            marker_hash: 0,
+            placeholder: None,
         }
     }
 }
 
-impl<'a> MatchMeta<'a> {
-    pub fn phrase(&self) -> Option<&str> {
-        if let MatchMeta::Phrase(s) = self {
-            Some(s)
-        } else {
-            None
-        }
+impl<'input> From<Vec<MatchPart<'input>>> for MatchList<'input> {
+    fn from(matches: Vec<MatchPart<'input>>) -> Self {
+        MatchList { matches }
     }
+}
 
-    pub fn record(&self) -> Option<&Record> {
-        if let MatchMeta::Record(r) = self {
-            Some(r)
-        } else {
-            None
-        }
-    }
-
-    #[cfg_attr(not(feature = "integration-tests"), expect(dead_code))]
-    pub fn into_record(self) -> Option<Record> {
-        if let MatchMeta::Record(r) = self {
-            Some(r)
-        } else {
-            None
-        }
-    }
-
-    pub fn sequence(&self) -> Option<&[TokenMatch<'a>]> {
-        if let MatchMeta::Sequence(v) = self {
-            Some(v.as_slice())
-        } else {
-            None
-        }
-    }
-
-    pub fn into_sequence(self) -> Option<Vec<TokenMatch<'a>>> {
-        if let MatchMeta::Sequence(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn single(&self) -> Option<&TokenMatch<'a>> {
-        if let MatchMeta::Single(b) = self {
-            Some(b.as_ref())
-        } else {
-            None
+impl<'input> From<MatchPart<'input>> for MatchList<'input> {
+    fn from(value: MatchPart<'input>) -> Self {
+        MatchList {
+            matches: vec![value],
         }
     }
 }
 
-impl<'a> From<TokenMatch<'a>> for MatchMeta<'a> {
-    fn from(input: TokenMatch<'a>) -> MatchMeta<'a> {
-        Box::new(input).into()
+impl<'parent, 'input> std::iter::IntoIterator for &'parent MatchList<'input> {
+    type Item = &'parent MatchPart<'input>;
+    type IntoIter = std::slice::Iter<'parent, MatchPart<'input>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.matches.iter()
+    }
+}
+
+impl<'input> std::iter::FromIterator<MatchPart<'input>> for MatchList<'input> {
+    fn from_iter<T: IntoIterator<Item = MatchPart<'input>>>(iter: T) -> Self {
+        MatchList {
+            matches: iter.into_iter().collect(),
+        }
     }
 }
 
@@ -351,97 +529,73 @@ mod tests {
     use crate::command::prelude::*;
     use crate::test_utils as test;
 
-    #[derive(Hash)]
+    #[derive(Debug, Eq, Hash, PartialEq)]
     enum Marker {
         One,
         Two,
-        Three,
     }
 
     #[test]
-    fn token_match_find_marker_contains_marker_test() {
-        let keyword_token = keyword_m(Marker::Two, "badger");
-        let sequence_token = sequence_m(Marker::One, [keyword_token.clone()]);
-
-        let token_match = TokenMatch::new(&sequence_token, vec![TokenMatch::from(&keyword_token)]);
-
-        assert_eq!(Some(&token_match), token_match.find_marker(Marker::One));
-        assert_eq!(
-            Some(&TokenMatch::from(&keyword_token)),
-            token_match.find_marker(Marker::Two),
-        );
-        assert_eq!(None, token_match.find_marker(Marker::Three));
-
-        assert!(token_match.contains_marker(Marker::One));
-        assert!(token_match.contains_marker(Marker::Two));
-        assert!(!token_match.contains_marker(Marker::Three));
-    }
-
-    #[test]
-    fn token_match_find_markers_test() {
-        let tokens = [
-            keyword_m(Marker::One, "badger"),
-            keyword_m(Marker::Two, "mushroom"),
-            keyword_m(Marker::Three, "snake"),
-        ];
-        let sequence_token = sequence_m(Marker::One, tokens.clone());
-        let token_match = TokenMatch::new(
-            &sequence_token,
-            tokens.iter().map(TokenMatch::from).collect::<Vec<_>>(),
+    fn token_with_marker_test() {
+        assert_ne!(
+            any_word().with_marker(Marker::One),
+            any_word().with_marker(Marker::Two),
         );
 
         assert_eq!(
-            vec![
-                &token_match,
-                &TokenMatch::from(&tokens[0]),
-                &TokenMatch::from(&tokens[1]),
-            ],
-            token_match
-                .find_markers(&[Marker::One, Marker::Two])
-                .collect::<Vec<_>>(),
-        );
-
-        assert_eq!(
-            vec![&TokenMatch::from(&tokens[2])],
-            token_match
-                .find_markers(&[Marker::Three])
-                .collect::<Vec<_>>(),
+            any_word().with_marker(Marker::One),
+            any_word().with_marker(Marker::One),
         );
     }
 
     #[test]
-    fn token_match_is_marked_with_test() {
-        let marked_token = keyword_m(Marker::One, "badger");
-        let unmarked_token = keyword("mushroom");
+    fn token_with_placeholder_test() {
+        assert_ne!(
+            any_word().with_placeholder("[one]"),
+            any_word().with_placeholder("[two]"),
+        );
 
-        assert!(TokenMatch::from(&marked_token).is_marked_with(&Marker::One));
-        assert!(!TokenMatch::from(&marked_token).is_marked_with(&Marker::Two));
-        assert!(!TokenMatch::from(&unmarked_token).is_marked_with(&Marker::One));
+        assert_eq!(
+            any_word().with_placeholder("[one]"),
+            any_word().with_placeholder("[one]"),
+        );
     }
 
-    #[tokio::test]
-    async fn token_match_new_test() {
-        let token = keyword("I am a token");
-        let record = test::app_meta::with_test_data()
-            .await
-            .repository
-            .get_by_uuid(&test::npc::odysseus::UUID)
-            .await
-            .unwrap();
+    #[test]
+    #[should_panic]
+    fn token_with_placeholder_test_panic() {
+        any_word().with_placeholder("oops no brackets");
+    }
 
-        let token_match = TokenMatch::from(&token);
-        assert_eq!(MatchMeta::None, token_match.match_meta);
+    #[test]
+    fn match_part_new_with_marker_test() {
+        assert_eq!(
+            MatchPart::new("badger".into(), hash_marker(Marker::One)),
+            MatchPart::new_unmarked("badger".into()).with_marker(Marker::One),
+        );
 
-        let token_match = TokenMatch::new(&token, "word");
-        assert_eq!(MatchMeta::Phrase("word"), token_match.match_meta);
+        assert_ne!(
+            MatchPart::new_unmarked("badger".into()).with_marker(Marker::One),
+            MatchPart::new_unmarked("badger".into()).with_marker(Marker::Two),
+        );
+    }
 
-        let token_match = TokenMatch::new(&token, record);
-        assert!(matches!(token_match.match_meta, MatchMeta::Record(_)));
+    #[test]
+    fn match_part_with_term_test() {
+        assert_eq!(
+            Some("badger"),
+            MatchPart::new_unmarked("BADGER".into())
+                .with_term("badger")
+                .term,
+        );
+    }
 
-        let token_match = TokenMatch::new(&token, vec![TokenMatch::from(&token)]);
-        assert!(matches!(token_match.match_meta, MatchMeta::Sequence(_)));
+    #[test]
+    fn match_part_has_marker_test() {
+        let match_part = MatchPart::new("badger".into(), hash_marker(Marker::One));
 
-        let token_match = TokenMatch::new(&token, TokenMatch::from(&token));
-        assert!(matches!(token_match.match_meta, MatchMeta::Single(_)));
+        assert!(match_part.has_marker(Marker::One));
+        assert!(!match_part.has_marker(Marker::Two));
+        assert!(match_part.has_marker_hash(hash_marker(Marker::One)));
     }
 }

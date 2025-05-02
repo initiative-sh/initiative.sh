@@ -11,7 +11,7 @@ pub struct DescriptionView<'a>(&'a PlaceData);
 pub struct DetailsView<'a> {
     place: &'a PlaceData,
     uuid: Uuid,
-    relations: PlaceRelations,
+    relations: Option<&'a PlaceRelations>,
 }
 
 impl<'a> NameView<'a> {
@@ -33,7 +33,7 @@ impl<'a> DescriptionView<'a> {
 }
 
 impl<'a> DetailsView<'a> {
-    pub fn new(place: &'a PlaceData, uuid: Uuid, relations: PlaceRelations) -> Self {
+    pub fn new(place: &'a PlaceData, uuid: Uuid, relations: Option<&'a PlaceRelations>) -> Self {
         Self {
             place,
             uuid,
@@ -105,8 +105,7 @@ impl fmt::Display for DetailsView<'_> {
         write!(f, "\n*{}*", place.display_description())?;
 
         relations
-            .location
-            .as_ref()
+            .and_then(|relations| relations.location.as_ref())
             .map(|(parent, grandparent)| {
                 if let Some(grandparent) = grandparent {
                     write!(
@@ -151,9 +150,7 @@ mod test {
 *place*
 
 </div>"#,
-            place
-                .display_details(Uuid::nil(), PlaceRelations::default())
-                .to_string(),
+            place.display_details(Uuid::nil(), None).to_string(),
         );
     }
 
@@ -173,9 +170,7 @@ mod test {
 *place*
 
 </div>"#,
-            place
-                .display_details(Uuid::nil(), PlaceRelations::default())
-                .to_string(),
+            place.display_details(Uuid::nil(), None).to_string(),
         );
     }
 
@@ -194,9 +189,7 @@ mod test {
 *inn*
 
 </div>"#,
-            place
-                .display_details(Uuid::nil(), PlaceRelations::default())
-                .to_string(),
+            place.display_details(Uuid::nil(), None).to_string(),
         );
     }
 
@@ -215,9 +208,7 @@ mod test {
 A street with no name.
 
 </div>"#,
-            place
-                .display_details(Uuid::nil(), PlaceRelations::default())
-                .to_string(),
+            place.display_details(Uuid::nil(), None).to_string(),
         );
     }
 
@@ -237,7 +228,7 @@ A street with no name.
 *island*
 
 </div>"#,
-            place.display_details(PlaceRelations::default()).to_string(),
+            place.display_details(None).to_string(),
         );
     }
 
@@ -265,9 +256,7 @@ A street with no name.
 Come in and see me, and me, and me!
 
 </div>"#,
-            place
-                .display_details(Uuid::nil(), PlaceRelations::default())
-                .to_string(),
+            place.display_details(Uuid::nil(), None).to_string(),
         );
     }
 
@@ -289,9 +278,7 @@ Come in and see me, and me, and me!
 You can check out any time you like.
 
 </div>"#,
-            place
-                .display_details(Uuid::nil(), PlaceRelations::default())
-                .to_string(),
+            place.display_details(Uuid::nil(), None).to_string(),
         );
     }
 
@@ -313,7 +300,7 @@ You can check out any time you like.
 You're cruisin' for a bruisin'.
 
 </div>"#,
-            place.display_details(PlaceRelations::default()).to_string(),
+            place.display_details(None).to_string(),
         );
     }
 
@@ -329,7 +316,7 @@ You're cruisin' for a bruisin'.
 
 </div>"#,
             test::place::ithaca()
-                .display_details(test::place::ithaca::relations())
+                .display_details(Some(&test::place::ithaca::relations()))
                 .to_string(),
         );
     }
@@ -351,10 +338,12 @@ You're cruisin' for a bruisin'.
                 .build()
                 .display_details(
                     Uuid::nil(),
-                    test::place::relations()
-                        .location(test::place::ithaca())
-                        .location(test::place::greece())
-                        .build()
+                    Some(
+                        &test::place::relations()
+                            .location(test::place::ithaca())
+                            .location(test::place::greece())
+                            .build()
+                    ),
                 )
                 .to_string(),
         );

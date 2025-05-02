@@ -1,104 +1,61 @@
-use crate::app::AppMeta;
-use crate::command::prelude::*;
+use super::prelude::*;
 
-use std::iter;
-use std::pin::Pin;
-
-use async_stream::stream;
-use futures::prelude::*;
-
-pub fn match_input<'a, 'b>(
-    token: &'a Token,
-    input: &'a str,
-    app_meta: &'b AppMeta,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+pub fn match_input<'input, 'stream>(
+    token: &'stream Token,
+    input: Substr<'input>,
+    app_meta: &'stream AppMeta,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatchList<'input>> + 'stream>>
 where
-    'a: 'b,
+    'input: 'stream,
 {
-    let tokens = if let TokenType::Sequence(tokens) = &token.token_type {
-        tokens
-    } else {
+    let TokenKind::Sequence { tokens } = &token.kind else {
         unreachable!();
     };
 
-    match_input_with_tokens(token, input, app_meta, tokens)
+    match_input_with_tokens(tokens, input, app_meta)
 }
 
-pub fn match_input_with_tokens<'a, 'b>(
-    token: &'a Token,
-    input: &'a str,
-    app_meta: &'b AppMeta,
-    tokens: &'a [Token],
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+pub fn match_input_with_tokens<'input, 'stream>(
+    tokens: &'stream [Token],
+    input: Substr<'input>,
+    app_meta: &'stream AppMeta,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatchList<'input>> + 'stream>>
 where
-    'a: 'b,
+    'input: 'stream,
 {
     if tokens.is_empty() {
-        // No tokens, no matches
-        Box::pin(stream::iter([FuzzyMatch::Overflow(
-            token.into(),
-            input.into(),
-        )]))
+        Box::pin(stream::once(future::ready(
+            if quoted_words(input.clone()).next().is_some() {
+                FuzzyMatchList::new_overflow(MatchList::default(), input)
+            } else {
+                FuzzyMatchList::new_exact(MatchList::default())
+            },
+        )))
     } else {
         Box::pin(stream! {
             // TokenMatch the first token in the sequence
-            for await fuzzy_match in tokens[0].match_input(input, app_meta) {
-                match fuzzy_match {
-
-                    // First token is a partial match, so the sequence is incomplete
-                    FuzzyMatch::Partial(token_match, completion) => {
-                        yield FuzzyMatch::Partial(
-                            TokenMatch::new(token, vec![token_match]),
-                            completion,
-                        );
-                    }
-
-                    // First token is an exact match and is the only token in the sequence, so the
-                    // sequence is also an exact match.
-                    FuzzyMatch::Exact(token_match) if tokens.len() == 1 => {
-                        yield FuzzyMatch::Exact(
-                            TokenMatch::new(token, vec![token_match]),
-                        );
-                    }
-
-                    // First token is an exact match but there are more unmatched tokens, so the
-                    // sequence is incomplete.
-                    FuzzyMatch::Exact(token_match) => {
-                        yield FuzzyMatch::Partial(
-                            TokenMatch::new(token, vec![token_match]),
-                            None,
-                        );
-                    }
-
-                    // First token overflows and is the only token in the sequence, so the sequence
-                    // also overflows.
-                    FuzzyMatch::Overflow(token_match, remainder) if tokens.len() == 1 => {
-                        yield FuzzyMatch::Overflow(
-                            TokenMatch::new(token, vec![token_match]),
-                            remainder,
-                        );
-                    }
-
-                    // First token overflows but there are other tokens in the sequence, so we
-                    // recurse with the remainder of the sequence.
-                    FuzzyMatch::Overflow(token_match, remainder) => {
-                        for await next_fuzzy_match in match_input_with_tokens(token, remainder.as_str(), app_meta, &tokens[1..]) {
-                            yield next_fuzzy_match.map(|next_match| {
-                                TokenMatch::new(
-                                    token,
-                                    iter::once(token_match.clone())
-                                        .chain(
-                                            next_match
-                                                .match_meta
-                                                .into_sequence()
-                                                .unwrap()
-                                                .into_iter(),
-                                        )
-                                        .collect::<Vec<_>>(),
-                                )
-                            });
+            for await result in tokens[0].match_input(input, app_meta) {
+                if tokens.len() > 1 {
+                    let overflow_part = match &result.extra {
+                        Some(FuzzyMatchPart::Overflow(overflow_part)) => {
+                            overflow_part.clone()
                         }
+                        Some(FuzzyMatchPart::Incomplete(_)) => {
+                            yield result;
+                            continue;
+                        }
+                        None => {
+                            result.input().map(|input| input.after()).unwrap()
+                        }
+                    };
+
+                    for await next_result in
+                        match_input_with_tokens(&tokens[1..], overflow_part, app_meta)
+                    {
+                        yield next_result.prepend(result.match_list.clone());
                     }
+                } else {
+                    yield result;
                 }
             }
         })
@@ -109,22 +66,25 @@ where
 mod test {
     use super::*;
 
+    use crate::command::token::constructors::*;
     use crate::test_utils as test;
 
     #[derive(Hash)]
     enum Marker {
-        Token,
+        Keyword,
+        AnyPhrase,
+        AnyWord,
     }
 
     #[tokio::test]
     async fn match_input_test_empty() {
-        let sequence_token = sequence_m(Marker::Token, []);
+        let token = sequence([]);
         test::assert_eq_unordered!(
-            [FuzzyMatch::Overflow(
-                TokenMatch::from(&sequence_token),
+            [FuzzyMatchList::new_overflow(
+                MatchList::default(),
                 "badger".into()
             )],
-            sequence_token
+            token
                 .match_input("badger", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
@@ -133,20 +93,16 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_exact() {
-        let tokens = [keyword("badger"), keyword("mushroom"), keyword("snake")];
-        let sequence_token = sequence(tokens.clone());
+        let token = sequence([keyword("badger"), keyword("mushroom"), keyword("snake")]);
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Exact(TokenMatch::new(
-                &sequence_token,
-                vec![
-                    TokenMatch::from(&tokens[0]),
-                    TokenMatch::from(&tokens[1]),
-                    TokenMatch::from(&tokens[2]),
-                ],
-            ))],
-            sequence_token
-                .match_input("badger mushroom snake", &test::app_meta())
+            [FuzzyMatchList::new_exact(vec![
+                MatchPart::new_unmarked("BADGER".into()).with_term("badger"),
+                MatchPart::new_unmarked("MUSHROOM".into()).with_term("mushroom"),
+                MatchPart::new_unmarked("SNAKE".into()).with_term("snake"),
+            ])],
+            token
+                .match_input("BADGER MUSHROOM SNAKE", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
@@ -154,19 +110,15 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_incomplete() {
-        let tokens = [keyword("badger"), keyword("mushroom"), keyword("snake")];
-        let sequence_token = sequence(tokens.clone());
+        let token = sequence([keyword("badger"), keyword("mushroom"), keyword("snake")]);
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Partial(
-                TokenMatch::new(
-                    &sequence_token,
-                    vec![TokenMatch::from(&tokens[0]), TokenMatch::from(&tokens[1])],
-                ),
-                None,
-            )],
-            sequence_token
-                .match_input("badger mushroom", &test::app_meta())
+            [FuzzyMatchList::new_incomplete(
+                MatchPart::new_unmarked("".into()).with_term("mushroom"),
+            )
+            .prepend(MatchPart::new_unmarked("BADGER".into()).with_term("badger"))],
+            token
+                .match_input("BADGER", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
         );
@@ -174,22 +126,17 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_partial() {
-        let tokens = [keyword("badger"), keyword("mushroom"), keyword("snake")];
-        let sequence_token = sequence(tokens.clone());
+        let token = sequence([keyword("badger"), keyword("mushroom"), keyword("snake")]);
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Partial(
-                TokenMatch::new(
-                    &sequence_token,
-                    vec![
-                        TokenMatch::from(&tokens[0]),
-                        TokenMatch::from(&tokens[1]),
-                        TokenMatch::from(&tokens[2]),
-                    ],
-                ),
-                Some("ake".to_string()),
-            )],
-            sequence_token
+            [FuzzyMatchList::new_incomplete(
+                MatchPart::new_unmarked("sn".into()).with_term("snake"),
+            )
+            .prepend(vec![
+                MatchPart::new_unmarked("badger".into()).with_term("badger"),
+                MatchPart::new_unmarked("mushroom".into()).with_term("mushroom"),
+            ])],
+            token
                 .match_input("badger mushroom sn", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
@@ -198,22 +145,18 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_overflowing() {
-        let tokens = [keyword("badger"), keyword("mushroom"), keyword("snake")];
-        let sequence_token = sequence_m(Marker::Token, tokens.clone());
+        let token = sequence([keyword("badger"), keyword("mushroom"), keyword("snake")]);
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Overflow(
-                TokenMatch::new(
-                    &sequence_token,
-                    vec![
-                        TokenMatch::from(&tokens[0]),
-                        TokenMatch::from(&tokens[1]),
-                        TokenMatch::from(&tokens[2]),
-                    ],
-                ),
+            [FuzzyMatchList::new_overflow(
+                vec![
+                    MatchPart::new_unmarked("badger".into()).with_term("badger"),
+                    MatchPart::new_unmarked("mushroom".into()).with_term("mushroom"),
+                    MatchPart::new_unmarked("snake".into()).with_term("snake"),
+                ],
                 " hippopotumus".into(),
             )],
-            sequence_token
+            token
                 .match_input("badger mushroom snake hippopotumus", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
@@ -222,43 +165,43 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_with_any_phrase() {
-        let tokens = [keyword("badger"), any_phrase(), any_word()];
-        let [keyword_token, any_phrase_token, any_word_token] = tokens.clone();
-        let sequence_token = sequence(tokens);
+        let token = sequence([
+            keyword("badger").with_marker(Marker::Keyword),
+            any_phrase().with_marker(Marker::AnyPhrase),
+            any_word().with_marker(Marker::AnyWord),
+        ]);
 
         test::assert_eq_unordered!(
             [
-                FuzzyMatch::Overflow(
-                    TokenMatch::new(
-                        &sequence_token,
-                        vec![
-                            TokenMatch::from(&keyword_token),
-                            TokenMatch::new(&any_phrase_token, "badger"),
-                            TokenMatch::new(&any_word_token, "badger"),
-                        ],
-                    ),
+                FuzzyMatchList::new_overflow(
+                    vec![
+                        MatchPart::new_unmarked("badger".into())
+                            .with_marker(Marker::Keyword)
+                            .with_term("badger"),
+                        MatchPart::new_unmarked("badger".into()).with_marker(Marker::AnyPhrase),
+                        MatchPart::new_unmarked("badger".into()).with_marker(Marker::AnyWord),
+                    ],
                     " mushroom".into(),
                 ),
-                FuzzyMatch::Exact(TokenMatch::new(
-                    &sequence_token,
-                    vec![
-                        TokenMatch::from(&keyword_token),
-                        TokenMatch::new(&any_phrase_token, "badger badger"),
-                        TokenMatch::new(&any_word_token, "mushroom"),
-                    ],
-                )),
-                FuzzyMatch::Partial(
-                    TokenMatch::new(
-                        &sequence_token,
-                        vec![
-                            TokenMatch::from(&keyword_token),
-                            TokenMatch::new(&any_phrase_token, "badger badger mushroom"),
-                        ],
-                    ),
-                    None,
-                ),
+                FuzzyMatchList::new_exact(vec![
+                    MatchPart::new_unmarked("badger".into())
+                        .with_marker(Marker::Keyword)
+                        .with_term("badger"),
+                    MatchPart::new_unmarked("badger badger".into()).with_marker(Marker::AnyPhrase),
+                    MatchPart::new_unmarked("mushroom".into()).with_marker(Marker::AnyWord),
+                ],),
+                FuzzyMatchList::new_incomplete(
+                    MatchPart::new_unmarked("".into()).with_marker(Marker::AnyWord),
+                )
+                .prepend(vec![
+                    MatchPart::new_unmarked("badger".into())
+                        .with_marker(Marker::Keyword)
+                        .with_term("badger"),
+                    MatchPart::new_unmarked("badger badger mushroom".into())
+                        .with_marker(Marker::AnyPhrase),
+                ]),
             ],
-            sequence_token
+            token
                 .match_input("badger badger badger mushroom", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,

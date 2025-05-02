@@ -2,7 +2,7 @@
 pub mod test_utils;
 
 pub use case_insensitive_str::CaseInsensitiveStr;
-pub use quoted_word_iter::{quoted_phrases, quoted_words};
+pub use quoted_word_iter::{quoted_phrases, quoted_phrases_all, quoted_words};
 pub use substr::Substr;
 
 mod case_insensitive_str;

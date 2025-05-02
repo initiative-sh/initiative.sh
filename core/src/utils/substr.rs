@@ -1,4 +1,7 @@
-use std::ops::{Deref, Range};
+use std::{
+    ops::{Bound, Deref, Range, RangeBounds},
+    str::CharIndices,
+};
 
 /// Represents a portion of a string slice. This behaviour mimics the core-level string slice
 /// model, with two exceptions:
@@ -7,15 +10,47 @@ use std::ops::{Deref, Range};
 ///   reference data outside of (after) the subslice.
 /// * The concept of "inner" and "outer" slices exists, which is used to handle the contents of
 ///   quoted strings.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq)]
 pub struct Substr<'a> {
     phrase: &'a str,
     inner_range: Range<usize>,
     outer_range: Range<usize>,
 }
 
+#[derive(Clone, Debug)]
+pub struct SubstrCharIndices<'a> {
+    inner: CharIndices<'a>,
+    offset: usize,
+}
+
+fn into_range<R>(input: R, len: usize) -> Range<usize>
+where
+    R: RangeBounds<usize>,
+{
+    (match input.start_bound() {
+        Bound::Included(i) => *i,
+        Bound::Excluded(i) => i + 1,
+        Bound::Unbounded => 0,
+    })..(match input.end_bound() {
+        Bound::Included(i) => i + 1,
+        Bound::Excluded(i) => *i,
+        Bound::Unbounded => len,
+    })
+}
+
 impl<'a> Substr<'a> {
-    pub fn new(phrase: &'a str, inner_range: Range<usize>, outer_range: Range<usize>) -> Self {
+    pub fn new<InnerRange, OuterRange>(
+        phrase: &'a str,
+        inner_range: InnerRange,
+        outer_range: OuterRange,
+    ) -> Self
+    where
+        InnerRange: RangeBounds<usize>,
+        OuterRange: RangeBounds<usize>,
+    {
+        let inner_range = into_range(inner_range, phrase.len());
+        let outer_range = into_range(outer_range, phrase.len());
+
         assert!(inner_range.start >= outer_range.start);
         assert!(inner_range.end <= outer_range.end);
         assert!(outer_range.end <= phrase.len());
@@ -25,6 +60,31 @@ impl<'a> Substr<'a> {
             inner_range,
             outer_range,
         }
+    }
+
+    /// Returns a version of the substr with the window shifted to the new position. The provided
+    /// range is relative to the beginning of the original slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use initiative_core::utils::Substr;
+    /// let substr = Substr::new(r#""foo" "bar" baz"#, 7..10, 6..11);
+    /// let windowed_substr = substr.with_window(1..4, ..5);
+    /// assert_eq!("bar", substr.as_str());
+    /// assert_eq!("foo", windowed_substr.as_str());
+    /// assert_eq!(r#" "bar" baz"#, windowed_substr.after().as_str());
+    /// ```
+    pub fn with_window<InnerRange, OuterRange>(
+        &self,
+        inner_range: InnerRange,
+        outer_range: OuterRange,
+    ) -> Self
+    where
+        InnerRange: RangeBounds<usize>,
+        OuterRange: RangeBounds<usize>,
+    {
+        Self::new(self.phrase, inner_range, outer_range)
     }
 
     /// Returns a representation of the Substr as a normal string slice.
@@ -37,9 +97,19 @@ impl<'a> Substr<'a> {
         &self.phrase[self.outer_range.clone()]
     }
 
+    /// Returns the `Substr` with quotation marks included (if any).
+    pub fn as_outer_substr(&self) -> Substr<'a> {
+        self.with_window(self.outer_range.clone(), self.outer_range.clone())
+    }
+
     /// Returns the entire input phrase.
     pub fn as_original_str(&self) -> &'a str {
         self.phrase
+    }
+
+    /// Returns the entire input phrase as a `Substr`.
+    pub fn as_original_substr<'b>(&'b self) -> Substr<'a> {
+        self.with_window(.., ..)
     }
 
     /// Returns the outer range of the Substr, ie. including quotes (if any).
@@ -63,27 +133,67 @@ impl<'a> Substr<'a> {
         self.is_at_end() && !self.is_quoted()
     }
 
-    /// Get the remainder of the phrase starting from the end of the Substr.
+    /// Get the beginning of the phrase ending at the start of the `Substr` window.
+    pub fn before(&self) -> Substr<'a> {
+        self.with_window(..self.outer_range.start, ..self.outer_range.start)
+    }
+
+    /// Get the remainder of the phrase starting from the end of the `Substr` window.
     pub fn after(&self) -> Substr<'a> {
-        Substr {
-            phrase: self.phrase,
-            inner_range: self.outer_range.end..self.phrase.len(),
-            outer_range: self.outer_range.end..self.phrase.len(),
+        self.with_window(self.outer_range.end.., self.outer_range.end..)
+    }
+
+    /// Equivalent to [`str::char_indices`], except that it returns indices based on the characters'
+    /// positions in the original str.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use initiative_core::utils::Substr;
+    /// let substr = Substr::new(r#"foo "bar" baz"#, 5..8, 4..9);
+    /// let mut iter = substr.original_char_indices();
+    ///
+    /// assert_eq!(Some((5, 'b')), iter.next());
+    /// assert_eq!(Some((6, 'a')), iter.next());
+    /// assert_eq!(Some((7, 'r')), iter.next());
+    /// assert_eq!(None, iter.next());
+    /// ```
+    pub fn original_char_indices(&self) -> SubstrCharIndices<'a> {
+        SubstrCharIndices {
+            inner: self.as_str().char_indices(),
+            offset: self.inner_range.start,
         }
+    }
+
+    /// Returns the length of the original string slice.
+    pub fn original_len(&self) -> usize {
+        self.phrase.len()
     }
 }
 
-impl Eq for Substr<'_> {}
+impl std::iter::Iterator for SubstrCharIndices<'_> {
+    type Item = (usize, char);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|(i, c)| (i + self.offset, c))
+    }
+}
 
 impl PartialEq for Substr<'_> {
     fn eq(&self, other: &Self) -> bool {
-        self == other.as_str()
+        other.as_str() == self.as_str()
     }
 }
 
-impl PartialEq<str> for Substr<'_> {
-    fn eq(&self, other: &str) -> bool {
-        self.as_str() == other
+impl PartialEq<&Substr<'_>> for &str {
+    fn eq(&self, other: &&Substr) -> bool {
+        self == &other.as_str()
+    }
+}
+
+impl PartialEq<&str> for &Substr<'_> {
+    fn eq(&self, other: &&str) -> bool {
+        &self.as_str() == other
     }
 }
 
@@ -103,21 +213,13 @@ impl Deref for Substr<'_> {
 
 impl<'a> From<&'a str> for Substr<'a> {
     fn from(input: &'a str) -> Substr<'a> {
-        Substr {
-            phrase: input,
-            inner_range: 0..input.len(),
-            outer_range: 0..input.len(),
-        }
+        Substr::new(input, .., ..)
     }
 }
 
 impl<'a> From<&'a String> for Substr<'a> {
     fn from(input: &'a String) -> Substr<'a> {
-        Substr {
-            phrase: input,
-            inner_range: 0..input.len(),
-            outer_range: 0..input.len(),
-        }
+        Substr::new(input, .., ..)
     }
 }
 

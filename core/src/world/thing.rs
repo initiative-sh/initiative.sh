@@ -68,7 +68,7 @@ impl Thing {
         self.data.display_description()
     }
 
-    pub fn display_details(&self, relations: ThingRelations) -> DetailsView {
+    pub fn display_details<'a>(&'a self, relations: Option<&'a ThingRelations>) -> DetailsView<'a> {
         self.data.display_details(self.uuid, relations)
     }
 
@@ -148,10 +148,20 @@ impl ThingData {
         DescriptionView(self)
     }
 
-    pub fn display_details(&self, uuid: Uuid, relations: ThingRelations) -> DetailsView {
-        match self {
-            Self::Npc(npc) => DetailsView::Npc(npc.display_details(uuid, relations.into())),
-            Self::Place(place) => DetailsView::Place(place.display_details(uuid, relations.into())),
+    pub fn display_details<'a>(
+        &'a self,
+        uuid: Uuid,
+        relations: Option<&'a ThingRelations>,
+    ) -> DetailsView<'a> {
+        match (self, relations) {
+            (Self::Npc(npc), Some(ThingRelations::Npc(relations))) => {
+                DetailsView::Npc(npc.display_details(uuid, Some(relations)))
+            }
+            (Self::Npc(npc), _) => DetailsView::Npc(npc.display_details(uuid, None)),
+            (Self::Place(place), Some(ThingRelations::Place(relations))) => {
+                DetailsView::Place(place.display_details(uuid, Some(relations)))
+            }
+            (Self::Place(place), _) => DetailsView::Place(place.display_details(uuid, None)),
         }
     }
 
@@ -217,50 +227,6 @@ impl TryFrom<Thing> for Place {
             })
         } else {
             Err(thing)
-        }
-    }
-}
-
-impl TryFrom<ThingData> for NpcData {
-    type Error = ThingData;
-
-    fn try_from(thing_data: ThingData) -> Result<Self, Self::Error> {
-        if let ThingData::Npc(npc) = thing_data {
-            Ok(npc)
-        } else {
-            Err(thing_data)
-        }
-    }
-}
-
-impl TryFrom<ThingData> for PlaceData {
-    type Error = ThingData;
-
-    fn try_from(thing_data: ThingData) -> Result<Self, Self::Error> {
-        if let ThingData::Place(place) = thing_data {
-            Ok(place)
-        } else {
-            Err(thing_data)
-        }
-    }
-}
-
-impl From<ThingRelations> for NpcRelations {
-    fn from(input: ThingRelations) -> Self {
-        if let ThingRelations::Npc(npc) = input {
-            npc
-        } else {
-            NpcRelations::default()
-        }
-    }
-}
-
-impl From<ThingRelations> for PlaceRelations {
-    fn from(input: ThingRelations) -> Self {
-        if let ThingRelations::Place(place) = input {
-            place
-        } else {
-            PlaceRelations::default()
         }
     }
 }
@@ -371,8 +337,6 @@ mod test {
             let thing = place();
             assert!(thing.data.place_data().is_some());
             assert!(thing.data.npc_data().is_none());
-            assert!(PlaceData::try_from(thing.data.clone()).is_ok());
-            assert!(NpcData::try_from(thing.data.clone()).is_err());
             assert!(Place::try_from(thing.clone()).is_ok());
             assert!(Npc::try_from(thing).is_err());
         }
@@ -381,8 +345,6 @@ mod test {
             let thing = npc();
             assert!(thing.data.npc_data().is_some());
             assert!(thing.data.place_data().is_none());
-            assert!(NpcData::try_from(thing.data.clone()).is_ok());
-            assert!(PlaceData::try_from(thing.data.clone()).is_err());
             assert!(Npc::try_from(thing.clone()).is_ok());
             assert!(Place::try_from(thing).is_err());
         }

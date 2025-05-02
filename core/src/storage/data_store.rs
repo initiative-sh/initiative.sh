@@ -117,11 +117,17 @@ impl DataStore for MemoryDataStore {
         name: &str,
         limit: Option<usize>,
     ) -> Result<Vec<Thing>, ()> {
-        Ok(self
-            .things
-            .borrow()
+        let things = self.things.borrow();
+
+        let mut result: Vec<_> = things
             .values()
             .filter(|thing| thing.name().value().is_some_and(|s| s.starts_with_ci(name)))
+            .collect();
+
+        result.sort_by(|a, b| a.name().cmp(b.name()));
+
+        Ok(result
+            .into_iter()
             .take(limit.unwrap_or(usize::MAX))
             .cloned()
             .collect())
@@ -230,22 +236,42 @@ mod test {
     }
 
     #[tokio::test]
-    async fn memory_get_things_by_name_start_test() {
+    async fn memory_get_things_test() {
         let ds = test::data_store::memory::with_test_data();
 
-        let mut results = ds.get_things_by_name_start("p", None).await.unwrap();
-        results.sort_by_key(|thing| thing.uuid);
         assert_eq!(
-            vec![test::thing::phoenicia(), test::thing::penelope()],
-            results,
+            Ok(vec![
+                test::thing::greece(),
+                test::thing::ithaca(),
+                test::thing::penelope(),
+                test::thing::phoenicia(),
+                test::thing::styx(),
+            ]),
+            ds.get_things_by_name_start("", None).await,
         );
 
         assert_eq!(
-            1,
-            ds.get_things_by_name_start("p", Some(1))
-                .await
-                .unwrap()
-                .len(),
+            Ok(vec![
+                test::thing::greece(),
+                test::thing::ithaca(),
+                test::thing::penelope(),
+            ]),
+            ds.get_things_by_name_start("", Some(3)).await,
+        );
+    }
+
+    #[tokio::test]
+    async fn memory_get_things_by_name_start_test() {
+        let ds = test::data_store::memory::with_test_data();
+
+        assert_eq!(
+            Ok(vec![test::thing::penelope(), test::thing::phoenicia()]),
+            ds.get_things_by_name_start("p", None).await,
+        );
+
+        assert_eq!(
+            Ok(vec![test::thing::penelope()]),
+            ds.get_things_by_name_start("p", Some(1)).await,
         );
     }
 

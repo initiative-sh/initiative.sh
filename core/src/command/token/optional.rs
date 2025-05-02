@@ -1,36 +1,29 @@
-use crate::app::AppMeta;
-use crate::command::prelude::*;
-use crate::utils::quoted_words;
+use super::prelude::*;
 
-use std::pin::Pin;
-
-use futures::prelude::*;
-
-pub fn match_input<'a, 'b>(
-    token: &'a Token,
-    input: &'a str,
-    app_meta: &'b AppMeta,
-) -> Pin<Box<dyn Stream<Item = FuzzyMatch<'a>> + 'b>>
+pub fn match_input<'input, 'stream>(
+    token: &'stream Token,
+    input: Substr<'input>,
+    app_meta: &'stream AppMeta,
+) -> Pin<Box<dyn Stream<Item = FuzzyMatchList<'input>> + 'stream>>
 where
-    'a: 'b,
+    'input: 'stream,
 {
-    let TokenType::Optional(optional_token) = &token.token_type else {
+    let TokenKind::Optional {
+        token: optional_token,
+    } = &token.kind
+    else {
         unreachable!();
     };
 
     Box::pin(
-        stream::iter([if quoted_words(input).next().is_none() {
-            FuzzyMatch::Exact(token.into())
-        } else {
-            FuzzyMatch::Overflow(token.into(), input.into())
-        }])
-        .chain(
-            optional_token
-                .match_input(input, app_meta)
-                .map(|fuzzy_match| {
-                    fuzzy_match.map(|token_match| TokenMatch::new(token, token_match))
-                }),
-        ),
+        stream::once(future::ready(
+            if quoted_words(input.clone()).next().is_some() {
+                FuzzyMatchList::new_overflow(MatchList::default(), input.clone())
+            } else {
+                FuzzyMatchList::new_exact(MatchList::default())
+            },
+        ))
+        .chain(optional_token.match_input(input, app_meta)),
     )
 }
 
@@ -38,28 +31,28 @@ where
 mod test {
     use super::*;
 
+    use crate::command::token::constructors::*;
     use crate::test_utils as test;
 
     #[derive(Hash)]
     enum Marker {
-        Optional,
         Keyword,
     }
 
     #[tokio::test]
     async fn match_input_test_simple() {
-        let keyword_token = keyword_m(Marker::Keyword, "badger");
-        let optional_token = optional_m(Marker::Optional, keyword_token.clone());
+        let token = optional(keyword("badger").with_marker(Marker::Keyword));
 
         test::assert_eq_unordered!(
             [
-                FuzzyMatch::Exact(TokenMatch::new(
-                    &optional_token,
-                    TokenMatch::from(&keyword_token)
-                )),
-                FuzzyMatch::Overflow(TokenMatch::from(&optional_token), "badger".into()),
+                FuzzyMatchList::new_exact(
+                    MatchPart::new_unmarked("badger".into())
+                        .with_marker(Marker::Keyword)
+                        .with_term("badger"),
+                ),
+                FuzzyMatchList::new_overflow(MatchList::default(), "badger".into()),
             ],
-            optional_token
+            token
                 .match_input("badger", &test::app_meta())
                 .collect::<Vec<_>>()
                 .await,
@@ -68,10 +61,17 @@ mod test {
 
     #[tokio::test]
     async fn match_input_test_empty() {
-        let token = optional(keyword("badger"));
+        let token = optional(keyword("badger").with_marker(Marker::Keyword));
 
         test::assert_eq_unordered!(
-            [FuzzyMatch::Exact(TokenMatch::from(&token))],
+            [
+                FuzzyMatchList::new_exact(MatchList::default()),
+                FuzzyMatchList::new_incomplete(
+                    MatchPart::new_unmarked("".into())
+                        .with_marker(Marker::Keyword)
+                        .with_term("badger"),
+                ),
+            ],
             token
                 .match_input("   ", &test::app_meta())
                 .collect::<Vec<_>>()

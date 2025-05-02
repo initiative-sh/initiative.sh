@@ -141,6 +141,7 @@ export async function get_thing_by_name(name) {
 
 export async function get_things_by_name_start(name, limit) {
   return dexie.things
+    .orderBy("name")
     .where("name")
     .startsWithIgnoreCase(name)
     .limit(limit)
